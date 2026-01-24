@@ -8,10 +8,10 @@ across environments. Ensures controlled deployments with minimal risk and downti
 Specification: docs_markdown/specs/agents/platform/release-deployment/Agent 18 Release & Deployment Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ReleaseDeploymentAgent(BaseAgent):
@@ -29,19 +29,19 @@ class ReleaseDeploymentAgent(BaseAgent):
     - Deployment metrics and reporting
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_018",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_018", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.environments = config.get("environments", [
-            "development", "test", "staging", "production"
-        ]) if config else ["development", "test", "staging", "production"]
+        self.environments = (
+            config.get("environments", ["development", "test", "staging", "production"])
+            if config
+            else ["development", "test", "staging", "production"]
+        )
 
-        self.auto_rollback_threshold = config.get("auto_rollback_threshold", 0.05) if config else 0.05
+        self.auto_rollback_threshold = (
+            config.get("auto_rollback_threshold", 0.05) if config else 0.05
+        )
         self.deployment_window_hours = config.get("deployment_window_hours", 4) if config else 4
 
         # Data stores (will be replaced with database)
@@ -71,7 +71,7 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         self.logger.info("Release & Deployment Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -92,7 +92,7 @@ class ReleaseDeploymentAgent(BaseAgent):
             "schedule_deployment_window",
             "verify_post_deployment",
             "get_release_calendar",
-            "get_release_status"
+            "get_release_status",
         ]
 
         if action not in valid_actions:
@@ -112,7 +112,7 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process release and deployment management requests.
 
@@ -159,8 +159,7 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         elif action == "create_deployment_plan":
             return await self._create_deployment_plan(
-                input_data.get("release_id"),
-                input_data.get("deployment_plan", {})
+                input_data.get("release_id"), input_data.get("deployment_plan", {})
             )
 
         elif action == "execute_deployment":
@@ -183,14 +182,12 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         elif action == "schedule_deployment_window":
             return await self._schedule_deployment_window(
-                input_data.get("release_id"),
-                input_data.get("preferred_window", {})
+                input_data.get("release_id"), input_data.get("preferred_window", {})
             )
 
         elif action == "verify_post_deployment":
             return await self._verify_post_deployment(
-                input_data.get("deployment_plan_id"),
-                input_data.get("verification_params", {})
+                input_data.get("deployment_plan_id"), input_data.get("verification_params", {})
             )
 
         elif action == "get_release_calendar":
@@ -202,7 +199,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _plan_release(self, release_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _plan_release(self, release_data: dict[str, Any]) -> dict[str, Any]:
         """
         Plan a new release and add to calendar.
 
@@ -215,22 +212,19 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         # Check for environment availability
         env_availability = await self._check_environment_availability(
-            release_data.get("target_environment"),
-            release_data.get("planned_date")
+            release_data.get("target_environment"), release_data.get("planned_date")
         )
 
         # Detect scheduling conflicts
         conflicts = await self._detect_scheduling_conflicts(
-            release_data.get("planned_date"),
-            release_data.get("target_environment")
+            release_data.get("planned_date"), release_data.get("target_environment")
         )
 
         # Suggest alternative windows if conflicts exist
         alternative_windows = []
         if conflicts:
             alternative_windows = await self._suggest_alternative_windows(
-                release_data.get("planned_date"),
-                release_data.get("target_environment")
+                release_data.get("planned_date"), release_data.get("target_environment")
             )
 
         # Create release record
@@ -248,7 +242,7 @@ class ReleaseDeploymentAgent(BaseAgent):
             "conflicts": conflicts,
             "alternative_windows": alternative_windows,
             "created_at": datetime.utcnow().isoformat(),
-            "created_by": release_data.get("requester", "unknown")
+            "created_by": release_data.get("requester", "unknown"),
         }
 
         # Store release
@@ -266,10 +260,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "environment_available": env_availability,
             "conflicts": conflicts,
             "alternative_windows": alternative_windows,
-            "next_steps": "Create deployment plan and assess readiness"
+            "next_steps": "Create deployment plan and assess readiness",
         }
 
-    async def _assess_readiness(self, release_id: str) -> Dict[str, Any]:
+    async def _assess_readiness(self, release_id: str) -> dict[str, Any]:
         """
         Assess release readiness with go/no-go criteria.
 
@@ -307,7 +301,7 @@ class ReleaseDeploymentAgent(BaseAgent):
             "approvals_complete": approval_check.get("complete", False),
             "changes_approved": change_check.get("approved", False),
             "risk_acceptable": risk_check.get("acceptable", False),
-            "compliance_met": compliance_check.get("met", False)
+            "compliance_met": compliance_check.get("met", False),
         }
 
         all_passed = all(readiness_criteria.values())
@@ -328,14 +322,12 @@ class ReleaseDeploymentAgent(BaseAgent):
             "change_details": change_check,
             "risk_details": risk_check,
             "compliance_details": compliance_check,
-            "next_steps": "Proceed with deployment" if all_passed else "Address failing criteria"
+            "next_steps": "Proceed with deployment" if all_passed else "Address failing criteria",
         }
 
     async def _create_deployment_plan(
-        self,
-        release_id: str,
-        plan_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, release_id: str, plan_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create detailed deployment plan with workflow steps.
 
@@ -352,8 +344,7 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         # Define deployment steps
         deployment_steps = await self._define_deployment_steps(
-            release,
-            plan_data.get("custom_steps", [])
+            release, plan_data.get("custom_steps", [])
         )
 
         # Define pre-deployment tasks
@@ -374,10 +365,12 @@ class ReleaseDeploymentAgent(BaseAgent):
             "deployment_steps": deployment_steps,
             "post_deployment_verification": post_deployment,
             "rollback_procedures": rollback_steps,
-            "estimated_duration_minutes": await self._estimate_deployment_duration(deployment_steps),
+            "estimated_duration_minutes": await self._estimate_deployment_duration(
+                deployment_steps
+            ),
             "responsible_owner": plan_data.get("owner"),
             "status": "Draft",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store deployment plan
@@ -394,10 +387,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "estimated_duration_minutes": deployment_plan["estimated_duration_minutes"],
             "pre_deployment_tasks": len(pre_deployment),
             "post_deployment_checks": len(post_deployment),
-            "next_steps": "Review and execute deployment plan"
+            "next_steps": "Review and execute deployment plan",
         }
 
-    async def _execute_deployment(self, deployment_plan_id: str) -> Dict[str, Any]:
+    async def _execute_deployment(self, deployment_plan_id: str) -> dict[str, Any]:
         """
         Execute deployment workflow.
 
@@ -427,7 +420,7 @@ class ReleaseDeploymentAgent(BaseAgent):
                 "deployment_plan_id": deployment_plan_id,
                 "status": "Failed",
                 "error": "Pre-deployment tasks failed",
-                "details": pre_deployment_results
+                "details": pre_deployment_results,
             }
 
         # Execute deployment steps
@@ -449,7 +442,7 @@ class ReleaseDeploymentAgent(BaseAgent):
                 "status": "Failed",
                 "error": "Deployment steps failed",
                 "details": deployment_results,
-                "rollback_triggered": True
+                "rollback_triggered": True,
             }
 
         # Execute post-deployment verification
@@ -478,10 +471,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "pre_deployment": pre_deployment_results,
             "deployment": deployment_results,
             "verification": verification_results,
-            "next_steps": "Monitor application health and generate release notes"
+            "next_steps": "Monitor application health and generate release notes",
         }
 
-    async def _rollback_deployment(self, deployment_plan_id: str) -> Dict[str, Any]:
+    async def _rollback_deployment(self, deployment_plan_id: str) -> dict[str, Any]:
         """
         Execute rollback procedures.
 
@@ -510,10 +503,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "deployment_plan_id": deployment_plan_id,
             "rollback_status": "Success" if rollback_results.get("success") else "Failed",
             "rollback_results": rollback_results,
-            "next_steps": "Investigate root cause and plan remediation"
+            "next_steps": "Investigate root cause and plan remediation",
         }
 
-    async def _manage_environment(self, environment_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _manage_environment(self, environment_data: dict[str, Any]) -> dict[str, Any]:
         """
         Manage environment configuration and status.
 
@@ -535,7 +528,7 @@ class ReleaseDeploymentAgent(BaseAgent):
             "owner": environment_data.get("owner"),
             "reserved_by": None,
             "reserved_until": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store environment
@@ -549,10 +542,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "name": environment["name"],
             "type": environment["type"],
             "status": environment["status"],
-            "configuration": environment["configuration"]
+            "configuration": environment["configuration"],
         }
 
-    async def _check_configuration_drift(self, environment_id: str) -> Dict[str, Any]:
+    async def _check_configuration_drift(self, environment_id: str) -> dict[str, Any]:
         """
         Detect configuration drift between environments.
 
@@ -570,8 +563,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Compare current vs baseline
         # TODO: Use Azure Policy or configuration scanning tools
         drift_items = await self._compare_configurations(
-            environment.get("configuration", {}),
-            baseline_config
+            environment.get("configuration", {}), baseline_config
         )
 
         drift_detected = len(drift_items) > 0
@@ -582,10 +574,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "drift_items": drift_items,
             "drift_count": len(drift_items),
             "baseline_version": baseline_config.get("version"),
-            "recommendations": await self._generate_drift_recommendations(drift_items)
+            "recommendations": await self._generate_drift_recommendations(drift_items),
         }
 
-    async def _generate_release_notes(self, release_id: str) -> Dict[str, Any]:
+    async def _generate_release_notes(self, release_id: str) -> dict[str, Any]:
         """
         Generate release notes using NLG.
 
@@ -606,11 +598,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Generate notes using AI
         # TODO: Use Azure OpenAI for NLG
         release_notes_content = await self._generate_notes_content(
-            release,
-            changes,
-            features,
-            bug_fixes,
-            known_issues
+            release, changes, features, bug_fixes, known_issues
         )
 
         # Create release notes record
@@ -623,7 +611,7 @@ class ReleaseDeploymentAgent(BaseAgent):
             "bug_fixes": bug_fixes,
             "known_issues": known_issues,
             "related_tickets": changes,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
         self.release_notes[notes_id] = release_notes
@@ -637,10 +625,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "content": release_notes_content,
             "features_count": len(features),
             "bug_fixes_count": len(bug_fixes),
-            "known_issues_count": len(known_issues)
+            "known_issues_count": len(known_issues),
         }
 
-    async def _track_deployment_metrics(self, release_id: str) -> Dict[str, Any]:
+    async def _track_deployment_metrics(self, release_id: str) -> dict[str, Any]:
         """
         Track and analyze deployment metrics.
 
@@ -655,14 +643,14 @@ class ReleaseDeploymentAgent(BaseAgent):
             "mean_time_to_deploy": await self._calculate_mean_time_to_deploy(release_id),
             "deployment_success_rate": await self._calculate_success_rate(),
             "rollback_rate": await self._calculate_rollback_rate(),
-            "environment_utilization": await self._calculate_environment_utilization()
+            "environment_utilization": await self._calculate_environment_utilization(),
         }
 
         # Store metrics
         self.deployment_metrics[release_id] = {
             "release_id": release_id,
             "metrics": metrics,
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -671,14 +659,12 @@ class ReleaseDeploymentAgent(BaseAgent):
         return {
             "release_id": release_id,
             "metrics": metrics,
-            "recommendations": await self._generate_deployment_recommendations(metrics)
+            "recommendations": await self._generate_deployment_recommendations(metrics),
         }
 
     async def _schedule_deployment_window(
-        self,
-        release_id: str,
-        preferred_window: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, release_id: str, preferred_window: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Schedule optimal deployment window.
 
@@ -692,35 +678,28 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         # Analyze usage patterns
         # TODO: Use optimization algorithms
-        usage_patterns = await self._analyze_usage_patterns(
-            release.get("target_environment")
-        )
+        usage_patterns = await self._analyze_usage_patterns(release.get("target_environment"))
 
         # Find optimal window
         optimal_window = await self._find_optimal_deployment_window(
-            preferred_window,
-            usage_patterns,
-            release.get("target_environment")
+            preferred_window, usage_patterns, release.get("target_environment")
         )
 
         # Check for conflicts
         conflicts = await self._detect_scheduling_conflicts(
-            optimal_window.get("start_time"),
-            release.get("target_environment")
+            optimal_window.get("start_time"), release.get("target_environment")
         )
 
         return {
             "release_id": release_id,
             "scheduled_window": optimal_window,
             "conflicts": conflicts,
-            "usage_impact": await self._calculate_usage_impact(optimal_window, usage_patterns)
+            "usage_impact": await self._calculate_usage_impact(optimal_window, usage_patterns),
         }
 
     async def _verify_post_deployment(
-        self,
-        deployment_plan_id: str,
-        verification_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, deployment_plan_id: str, verification_params: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Verify application health post-deployment.
 
@@ -743,9 +722,9 @@ class ReleaseDeploymentAgent(BaseAgent):
         anomalies = await self._detect_post_deployment_anomalies(deployment_plan)
 
         verification_passed = (
-            health_check.get("healthy", False) and
-            metrics_comparison.get("acceptable", False) and
-            len(anomalies) == 0
+            health_check.get("healthy", False)
+            and metrics_comparison.get("acceptable", False)
+            and len(anomalies) == 0
         )
 
         return {
@@ -754,10 +733,12 @@ class ReleaseDeploymentAgent(BaseAgent):
             "health_check": health_check,
             "metrics_comparison": metrics_comparison,
             "anomalies": anomalies,
-            "recommendations": "Deployment successful" if verification_passed else "Investigate anomalies"
+            "recommendations": (
+                "Deployment successful" if verification_passed else "Investigate anomalies"
+            ),
         }
 
-    async def _get_release_calendar(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_release_calendar(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get release calendar view.
 
@@ -769,14 +750,16 @@ class ReleaseDeploymentAgent(BaseAgent):
         filtered_releases = []
         for release_id, release in self.releases.items():
             if await self._matches_filters(release, filters):
-                filtered_releases.append({
-                    "release_id": release_id,
-                    "name": release.get("name"),
-                    "planned_date": release.get("planned_date"),
-                    "actual_date": release.get("actual_date"),
-                    "target_environment": release.get("target_environment"),
-                    "status": release.get("status")
-                })
+                filtered_releases.append(
+                    {
+                        "release_id": release_id,
+                        "name": release.get("name"),
+                        "planned_date": release.get("planned_date"),
+                        "actual_date": release.get("actual_date"),
+                        "target_environment": release.get("target_environment"),
+                        "status": release.get("status"),
+                    }
+                )
 
         # Sort by planned date
         filtered_releases.sort(key=lambda x: x.get("planned_date", ""))
@@ -784,10 +767,10 @@ class ReleaseDeploymentAgent(BaseAgent):
         return {
             "total_releases": len(filtered_releases),
             "releases": filtered_releases,
-            "filters": filters
+            "filters": filters,
         }
 
-    async def _get_release_status(self, release_id: str) -> Dict[str, Any]:
+    async def _get_release_status(self, release_id: str) -> dict[str, Any]:
         """
         Get detailed release status.
 
@@ -813,8 +796,10 @@ class ReleaseDeploymentAgent(BaseAgent):
             "planned_date": release.get("planned_date"),
             "actual_date": release.get("actual_date"),
             "target_environment": release.get("target_environment"),
-            "deployment_plan": deployment_plan.get("deployment_plan_id") if deployment_plan else None,
-            "deployment_status": deployment_plan.get("status") if deployment_plan else None
+            "deployment_plan": (
+                deployment_plan.get("deployment_plan_id") if deployment_plan else None
+            ),
+            "deployment_status": deployment_plan.get("status") if deployment_plan else None,
         }
 
     # Helper methods
@@ -839,77 +824,73 @@ class ReleaseDeploymentAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"NOTES-{timestamp}"
 
-    async def _check_environment_availability(
-        self,
-        environment: str,
-        planned_date: str
-    ) -> bool:
+    async def _check_environment_availability(self, environment: str, planned_date: str) -> bool:
         """Check if environment is available."""
         # TODO: Check environment reservation system
         return True
 
     async def _detect_scheduling_conflicts(
-        self,
-        planned_date: str,
-        environment: str
-    ) -> List[Dict[str, Any]]:
+        self, planned_date: str, environment: str
+    ) -> list[dict[str, Any]]:
         """Detect scheduling conflicts."""
         conflicts = []
         for release_id, release in self.releases.items():
-            if (release.get("planned_date") == planned_date and
-                release.get("target_environment") == environment and
-                release.get("status") in ["Planned", "In Progress"]):
-                conflicts.append({
-                    "release_id": release_id,
-                    "release_name": release.get("name"),
-                    "planned_date": release.get("planned_date")
-                })
+            if (
+                release.get("planned_date") == planned_date
+                and release.get("target_environment") == environment
+                and release.get("status") in ["Planned", "In Progress"]
+            ):
+                conflicts.append(
+                    {
+                        "release_id": release_id,
+                        "release_name": release.get("name"),
+                        "planned_date": release.get("planned_date"),
+                    }
+                )
         return conflicts
 
     async def _suggest_alternative_windows(
-        self,
-        planned_date: str,
-        environment: str
-    ) -> List[Dict[str, Any]]:
+        self, planned_date: str, environment: str
+    ) -> list[dict[str, Any]]:
         """Suggest alternative deployment windows."""
         # TODO: Use optimization algorithm
         return [
             {
-                "start_time": (datetime.fromisoformat(planned_date) + timedelta(hours=4)).isoformat(),
-                "reason": "Low usage period"
+                "start_time": (
+                    datetime.fromisoformat(planned_date) + timedelta(hours=4)
+                ).isoformat(),
+                "reason": "Low usage period",
             }
         ]
 
-    async def _check_quality_criteria(self, release_id: str) -> Dict[str, Any]:
+    async def _check_quality_criteria(self, release_id: str) -> dict[str, Any]:
         """Check quality criteria."""
         # TODO: Integrate with Quality Management Agent
         return {"passed": True, "test_pass_rate": 100.0}
 
-    async def _check_approval_status(self, release_id: str) -> Dict[str, Any]:
+    async def _check_approval_status(self, release_id: str) -> dict[str, Any]:
         """Check approval status."""
         # TODO: Integrate with Approval Workflow Agent
         return {"complete": True, "approvals": []}
 
-    async def _check_change_approvals(self, release_id: str) -> Dict[str, Any]:
+    async def _check_change_approvals(self, release_id: str) -> dict[str, Any]:
         """Check change approvals."""
         # TODO: Integrate with Change Management Agent
         return {"approved": True, "change_requests": []}
 
-    async def _check_risk_level(self, release_id: str) -> Dict[str, Any]:
+    async def _check_risk_level(self, release_id: str) -> dict[str, Any]:
         """Check risk level."""
         # TODO: Integrate with Risk Management Agent
         return {"acceptable": True, "risk_score": 0.2}
 
-    async def _check_compliance_requirements(self, release_id: str) -> Dict[str, Any]:
+    async def _check_compliance_requirements(self, release_id: str) -> dict[str, Any]:
         """Check compliance requirements."""
         # TODO: Integrate with Compliance Agent
         return {"met": True, "requirements": []}
 
     async def _define_deployment_steps(
-        self,
-        release: Dict[str, Any],
-        custom_steps: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, release: dict[str, Any], custom_steps: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Define deployment steps."""
         if custom_steps:
             return custom_steps
@@ -921,113 +902,115 @@ class ReleaseDeploymentAgent(BaseAgent):
             {"step": 3, "action": "Deploy artifacts", "estimated_minutes": 20},
             {"step": 4, "action": "Run database migrations", "estimated_minutes": 10},
             {"step": 5, "action": "Start application", "estimated_minutes": 5},
-            {"step": 6, "action": "Verify deployment", "estimated_minutes": 10}
+            {"step": 6, "action": "Verify deployment", "estimated_minutes": 10},
         ]
 
-    async def _define_pre_deployment_tasks(self, release: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _define_pre_deployment_tasks(self, release: dict[str, Any]) -> list[dict[str, Any]]:
         """Define pre-deployment tasks."""
         return [
             {"task": "Backup production database"},
             {"task": "Create configuration snapshot"},
-            {"task": "Notify stakeholders"}
+            {"task": "Notify stakeholders"},
         ]
 
-    async def _define_post_deployment_verification(self, release: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _define_post_deployment_verification(
+        self, release: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Define post-deployment verification steps."""
         return [
             {"check": "Application health check"},
             {"check": "Database connectivity"},
             {"check": "API endpoints responding"},
-            {"check": "Performance metrics within baseline"}
+            {"check": "Performance metrics within baseline"},
         ]
 
-    async def _define_rollback_procedures(self, release: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _define_rollback_procedures(self, release: dict[str, Any]) -> list[dict[str, Any]]:
         """Define rollback procedures."""
         return [
             {"step": 1, "action": "Stop current application"},
             {"step": 2, "action": "Restore previous artifacts"},
             {"step": 3, "action": "Rollback database"},
             {"step": 4, "action": "Start previous version"},
-            {"step": 5, "action": "Verify rollback"}
+            {"step": 5, "action": "Verify rollback"},
         ]
 
-    async def _estimate_deployment_duration(self, deployment_steps: List[Dict[str, Any]]) -> int:
+    async def _estimate_deployment_duration(self, deployment_steps: list[dict[str, Any]]) -> int:
         """Estimate total deployment duration."""
         total_minutes = sum(step.get("estimated_minutes", 5) for step in deployment_steps)
         return total_minutes
 
-    async def _execute_pre_deployment_tasks(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _execute_pre_deployment_tasks(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
         """Execute pre-deployment tasks."""
         # TODO: Execute actual tasks
         return {"success": True, "completed_tasks": len(tasks)}
 
-    async def _execute_deployment_steps(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _execute_deployment_steps(self, steps: list[dict[str, Any]]) -> dict[str, Any]:
         """Execute deployment steps."""
         # TODO: Orchestrate via CI/CD pipelines
         return {"success": True, "completed_steps": len(steps)}
 
-    async def _execute_post_deployment_verification(self, checks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _execute_post_deployment_verification(
+        self, checks: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Execute post-deployment verification."""
         # TODO: Execute actual verification
         return {"success": True, "passed_checks": len(checks)}
 
-    async def _should_auto_rollback(self, deployment_results: Dict[str, Any]) -> bool:
+    async def _should_auto_rollback(self, deployment_results: dict[str, Any]) -> bool:
         """Determine if auto-rollback should be triggered."""
         failure_rate = deployment_results.get("failure_rate", 0)
         return failure_rate > self.auto_rollback_threshold
 
-    async def _execute_rollback_steps(self, steps: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _execute_rollback_steps(self, steps: list[dict[str, Any]]) -> dict[str, Any]:
         """Execute rollback steps."""
         # TODO: Execute actual rollback
         return {"success": True, "completed_steps": len(steps)}
 
-    async def _get_baseline_configuration(self, env_type: str) -> Dict[str, Any]:
+    async def _get_baseline_configuration(self, env_type: str) -> dict[str, Any]:
         """Get baseline configuration for environment type."""
         # TODO: Load from configuration management
         return {"version": "1.0", "settings": {}}
 
     async def _compare_configurations(
-        self,
-        current_config: Dict[str, Any],
-        baseline_config: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, current_config: dict[str, Any], baseline_config: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Compare configurations to detect drift."""
         # TODO: Implement detailed comparison
         return []
 
-    async def _generate_drift_recommendations(self, drift_items: List[Dict[str, Any]]) -> List[str]:
+    async def _generate_drift_recommendations(self, drift_items: list[dict[str, Any]]) -> list[str]:
         """Generate recommendations for drift remediation."""
         if not drift_items:
             return ["No drift detected - configuration is compliant"]
         return ["Review and align configuration with baseline"]
 
-    async def _gather_release_changes(self, release_id: str) -> List[Dict[str, Any]]:
+    async def _gather_release_changes(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release changes."""
         # TODO: Query change management system
         return []
 
-    async def _gather_release_features(self, release_id: str) -> List[Dict[str, Any]]:
+    async def _gather_release_features(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release features."""
         # TODO: Query feature tracking system
         return []
 
-    async def _gather_release_bug_fixes(self, release_id: str) -> List[Dict[str, Any]]:
+    async def _gather_release_bug_fixes(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release bug fixes."""
         # TODO: Query bug tracking system
         return []
 
-    async def _gather_known_issues(self, release_id: str) -> List[Dict[str, Any]]:
+    async def _gather_known_issues(self, release_id: str) -> list[dict[str, Any]]:
         """Gather known issues."""
         # TODO: Query issue tracking system
         return []
 
     async def _generate_notes_content(
         self,
-        release: Dict[str, Any],
-        changes: List[Dict[str, Any]],
-        features: List[Dict[str, Any]],
-        bug_fixes: List[Dict[str, Any]],
-        known_issues: List[Dict[str, Any]]
+        release: dict[str, Any],
+        changes: list[dict[str, Any]],
+        features: list[dict[str, Any]],
+        bug_fixes: list[dict[str, Any]],
+        known_issues: list[dict[str, Any]],
     ) -> str:
         """Generate release notes content using NLG."""
         # TODO: Use Azure OpenAI for NLG
@@ -1071,12 +1054,12 @@ Known Issues:
         # TODO: Calculate from deployment history
         return 0.03  # 3%
 
-    async def _calculate_environment_utilization(self) -> Dict[str, float]:
+    async def _calculate_environment_utilization(self) -> dict[str, float]:
         """Calculate environment utilization."""
         # TODO: Calculate actual utilization
         return {env: 0.75 for env in self.environments}
 
-    async def _generate_deployment_recommendations(self, metrics: Dict[str, Any]) -> List[str]:
+    async def _generate_deployment_recommendations(self, metrics: dict[str, Any]) -> list[str]:
         """Generate recommendations based on metrics."""
         recommendations = []
 
@@ -1091,51 +1074,50 @@ Known Issues:
 
         return recommendations
 
-    async def _analyze_usage_patterns(self, environment: str) -> Dict[str, Any]:
+    async def _analyze_usage_patterns(self, environment: str) -> dict[str, Any]:
         """Analyze usage patterns."""
         # TODO: Analyze actual usage data
         return {"peak_hours": [9, 10, 11, 14, 15], "low_usage_hours": [2, 3, 4, 5]}
 
     async def _find_optimal_deployment_window(
-        self,
-        preferred_window: Dict[str, Any],
-        usage_patterns: Dict[str, Any],
-        environment: str
-    ) -> Dict[str, Any]:
+        self, preferred_window: dict[str, Any], usage_patterns: dict[str, Any], environment: str
+    ) -> dict[str, Any]:
         """Find optimal deployment window."""
         # TODO: Use optimization algorithm
         return {
             "start_time": preferred_window.get("start_time"),
             "duration_hours": self.deployment_window_hours,
-            "end_time": (datetime.fromisoformat(preferred_window.get("start_time")) +
-                        timedelta(hours=self.deployment_window_hours)).isoformat()
+            "end_time": (
+                datetime.fromisoformat(preferred_window.get("start_time"))
+                + timedelta(hours=self.deployment_window_hours)
+            ).isoformat(),
         }
 
     async def _calculate_usage_impact(
-        self,
-        window: Dict[str, Any],
-        usage_patterns: Dict[str, Any]
+        self, window: dict[str, Any], usage_patterns: dict[str, Any]
     ) -> str:
         """Calculate usage impact."""
         # TODO: Calculate actual impact
         return "Low impact - deployment during low usage period"
 
-    async def _check_application_health(self, deployment_plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def _check_application_health(self, deployment_plan: dict[str, Any]) -> dict[str, Any]:
         """Check application health."""
         # TODO: Integrate with Azure Monitor
         return {"healthy": True, "response_time_ms": 150, "error_rate": 0.001}
 
-    async def _compare_metrics_to_baseline(self, deployment_plan: Dict[str, Any]) -> Dict[str, Any]:
+    async def _compare_metrics_to_baseline(self, deployment_plan: dict[str, Any]) -> dict[str, Any]:
         """Compare metrics to baseline."""
         # TODO: Compare actual metrics
         return {"acceptable": True, "variance": 0.05}
 
-    async def _detect_post_deployment_anomalies(self, deployment_plan: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _detect_post_deployment_anomalies(
+        self, deployment_plan: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Detect post-deployment anomalies."""
         # TODO: Use anomaly detection algorithms
         return []
 
-    async def _matches_filters(self, release: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+    async def _matches_filters(self, release: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if release matches filters."""
         if "status" in filters and release.get("status") != filters["status"]:
             return False
@@ -1153,7 +1135,7 @@ Known Issues:
         # TODO: Close monitoring connections
         # TODO: Flush pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "release_planning",
@@ -1170,5 +1152,5 @@ Known Issues:
             "deployment_window_optimization",
             "post_deployment_verification",
             "ci_cd_integration",
-            "monitoring_integration"
+            "monitoring_integration",
         ]

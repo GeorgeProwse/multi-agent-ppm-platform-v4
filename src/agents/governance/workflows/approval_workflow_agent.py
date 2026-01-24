@@ -5,9 +5,10 @@ Orchestrates human-in-the-loop approval processes across the PPM platform.
 Handles routing, escalation, delegation, and audit trail for governance compliance.
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
-from src.core.base_agent import BaseAgent, AgentCapability
+from typing import Any
+
+from src.core.base_agent import AgentCapability, BaseAgent
 
 
 class ApprovalWorkflowAgent(BaseAgent):
@@ -48,7 +49,7 @@ class ApprovalWorkflowAgent(BaseAgent):
         self.logger.info("Approval Workflow Agent initialized successfully")
         return True
 
-    async def _validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def _validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate approval request input data."""
         required_fields = ["request_type", "request_id", "requester", "details"]
 
@@ -57,14 +58,20 @@ class ApprovalWorkflowAgent(BaseAgent):
                 self.logger.error(f"Missing required field: {field}")
                 return False
 
-        valid_types = ["budget_change", "scope_change", "procurement", "phase_gate", "resource_change"]
+        valid_types = [
+            "budget_change",
+            "scope_change",
+            "procurement",
+            "phase_gate",
+            "resource_change",
+        ]
         if input_data["request_type"] not in valid_types:
             self.logger.error(f"Invalid request_type: {input_data['request_type']}")
             return False
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process approval workflow request.
 
@@ -103,17 +110,12 @@ class ApprovalWorkflowAgent(BaseAgent):
 
         # Create approval chain
         approval_chain = await self._create_approval_chain(
-            request_id=request_id,
-            request_type=request_type,
-            approvers=approvers,
-            details=details
+            request_id=request_id, request_type=request_type, approvers=approvers, details=details
         )
 
         # Send notifications
         notifications_sent = await self._send_approval_notifications(
-            approval_chain=approval_chain,
-            approvers=approvers,
-            details=details
+            approval_chain=approval_chain, approvers=approvers, details=details
         )
 
         # Set escalation timers
@@ -129,15 +131,11 @@ class ApprovalWorkflowAgent(BaseAgent):
             "metadata": {
                 "created_at": datetime.utcnow().isoformat(),
                 "request_type": request_type,
-                "escalation_scheduled": True
-            }
+                "escalation_scheduled": True,
+            },
         }
 
-    async def _determine_approvers(
-        self,
-        request_type: str,
-        details: Dict[str, Any]
-    ) -> List[str]:
+    async def _determine_approvers(self, request_type: str, details: dict[str, Any]) -> list[str]:
         """Determine required approvers based on request type and thresholds."""
         approvers = []
 
@@ -176,12 +174,8 @@ class ApprovalWorkflowAgent(BaseAgent):
         return approvers
 
     async def _create_approval_chain(
-        self,
-        request_id: str,
-        request_type: str,
-        approvers: List[str],
-        details: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, request_id: str, request_type: str, approvers: list[str], details: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create approval chain configuration."""
         approval_id = f"approval_{request_id}_{datetime.utcnow().timestamp()}"
 
@@ -201,7 +195,7 @@ class ApprovalWorkflowAgent(BaseAgent):
             "deadline": deadline.isoformat(),
             "current_step": 0,
             "responses": {},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store in memory (TODO: persist to database)
@@ -210,10 +204,7 @@ class ApprovalWorkflowAgent(BaseAgent):
         return chain
 
     async def _send_approval_notifications(
-        self,
-        approval_chain: Dict[str, Any],
-        approvers: List[str],
-        details: Dict[str, Any]
+        self, approval_chain: dict[str, Any], approvers: list[str], details: dict[str, Any]
     ) -> bool:
         """Send approval notifications to approvers via multiple channels."""
         try:
@@ -226,11 +217,11 @@ class ApprovalWorkflowAgent(BaseAgent):
                 self.logger.info(f"Sending approval notification to {approver}")
 
                 # Placeholder for actual notification
-                notification = {
+                {
                     "to": approver,
                     "subject": f"Approval Required: {details.get('description', 'N/A')}",
                     "deadline": approval_chain["deadline"],
-                    "approval_id": approval_chain["id"]
+                    "approval_id": approval_chain["id"],
                 }
 
                 # TODO: Actual send implementation
@@ -240,7 +231,7 @@ class ApprovalWorkflowAgent(BaseAgent):
             self.logger.error(f"Failed to send notifications: {str(e)}")
             return False
 
-    async def _schedule_escalations(self, approval_chain: Dict[str, Any]) -> None:
+    async def _schedule_escalations(self, approval_chain: dict[str, Any]) -> None:
         """Schedule escalation timers for overdue approvals."""
         # TODO: Integrate with Azure Functions or Durable Functions for timer triggers
         # TODO: Set reminder notifications 24h before deadline
@@ -248,14 +239,14 @@ class ApprovalWorkflowAgent(BaseAgent):
 
         self.logger.info(f"Escalation scheduled for approval {approval_chain['id']}")
 
-    async def _load_approval_policies(self) -> Dict[str, Any]:
+    async def _load_approval_policies(self) -> dict[str, Any]:
         """Load approval policies and routing rules from configuration."""
         # TODO: Load from database or configuration file
         return {
             "budget_thresholds": [10000, 50000, 100000],
             "escalation_timeout_hours": 48,
             "reminder_before_deadline_hours": 24,
-            "default_chain_type": "sequential"
+            "default_chain_type": "sequential",
         }
 
     async def cleanup(self) -> None:

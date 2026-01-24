@@ -9,10 +9,10 @@ strategies and continuously tracks risk status.
 Specification: docs_markdown/specs/agents/operations/risk-management/Agent 15 Risk Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class RiskManagementAgent(BaseAgent):
@@ -30,20 +30,25 @@ class RiskManagementAgent(BaseAgent):
     - Monte Carlo simulation
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_015",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_015", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.risk_categories = config.get("risk_categories", [
-            "technical", "schedule", "financial", "compliance", "external", "resource"
-        ]) if config else ["technical", "schedule", "financial", "compliance", "external", "resource"]
+        self.risk_categories = (
+            config.get(
+                "risk_categories",
+                ["technical", "schedule", "financial", "compliance", "external", "resource"],
+            )
+            if config
+            else ["technical", "schedule", "financial", "compliance", "external", "resource"]
+        )
 
-        self.probability_scale = config.get("probability_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
-        self.impact_scale = config.get("impact_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
+        self.probability_scale = (
+            config.get("probability_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
+        )
+        self.impact_scale = (
+            config.get("impact_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
+        )
         self.high_risk_threshold = config.get("high_risk_threshold", 15) if config else 15
 
         # Data stores (will be replaced with database)
@@ -70,7 +75,7 @@ class RiskManagementAgent(BaseAgent):
 
         self.logger.info("Risk Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -90,7 +95,7 @@ class RiskManagementAgent(BaseAgent):
             "get_risk_dashboard",
             "generate_risk_report",
             "perform_sensitivity_analysis",
-            "get_top_risks"
+            "get_top_risks",
         ]
 
         if action not in valid_actions:
@@ -107,7 +112,7 @@ class RiskManagementAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process risk management requests.
 
@@ -152,14 +157,12 @@ class RiskManagementAgent(BaseAgent):
 
         elif action == "prioritize_risks":
             return await self._prioritize_risks(
-                input_data.get("project_id"),
-                input_data.get("portfolio_id")
+                input_data.get("project_id"), input_data.get("portfolio_id")
             )
 
         elif action == "create_mitigation_plan":
             return await self._create_mitigation_plan(
-                input_data.get("risk_id"),
-                input_data.get("mitigation", {})
+                input_data.get("risk_id"), input_data.get("mitigation", {})
             )
 
         elif action == "monitor_triggers":
@@ -167,32 +170,27 @@ class RiskManagementAgent(BaseAgent):
 
         elif action == "update_risk_status":
             return await self._update_risk_status(
-                input_data.get("risk_id"),
-                input_data.get("updates", {})
+                input_data.get("risk_id"), input_data.get("updates", {})
             )
 
         elif action == "run_monte_carlo":
             return await self._run_monte_carlo(
-                input_data.get("project_id"),
-                input_data.get("iterations", 10000)
+                input_data.get("project_id"), input_data.get("iterations", 10000)
             )
 
         elif action == "generate_risk_matrix":
             return await self._generate_risk_matrix(
-                input_data.get("project_id"),
-                input_data.get("portfolio_id")
+                input_data.get("project_id"), input_data.get("portfolio_id")
             )
 
         elif action == "get_risk_dashboard":
             return await self._get_risk_dashboard(
-                input_data.get("project_id"),
-                input_data.get("portfolio_id")
+                input_data.get("project_id"), input_data.get("portfolio_id")
             )
 
         elif action == "generate_risk_report":
             return await self._generate_risk_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         elif action == "perform_sensitivity_analysis":
@@ -200,14 +198,13 @@ class RiskManagementAgent(BaseAgent):
 
         elif action == "get_top_risks":
             return await self._get_top_risks(
-                input_data.get("project_id"),
-                input_data.get("limit", 10)
+                input_data.get("project_id"), input_data.get("limit", 10)
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _identify_risk(self, risk_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _identify_risk(self, risk_data: dict[str, Any]) -> dict[str, Any]:
         """
         Identify and capture a new risk.
 
@@ -220,9 +217,7 @@ class RiskManagementAgent(BaseAgent):
 
         # Extract risks from documents if provided
         # TODO: Use NLP for risk extraction
-        extracted_risks = await self._extract_risks_from_documents(
-            risk_data.get("documents", [])
-        )
+        extracted_risks = await self._extract_risks_from_documents(risk_data.get("documents", []))
 
         # Perform initial classification and scoring
         initial_assessment = await self._initial_risk_assessment(risk_data)
@@ -247,7 +242,7 @@ class RiskManagementAgent(BaseAgent):
             "created_by": risk_data.get("created_by", "unknown"),
             "triggers": risk_data.get("triggers", []),
             "mitigation_plan_id": None,
-            "residual_risk": None
+            "residual_risk": None,
         }
 
         # Store risk
@@ -265,10 +260,10 @@ class RiskManagementAgent(BaseAgent):
             "impact": risk["impact"],
             "risk_level": await self._classify_risk_level(risk["score"]),
             "extracted_risks": extracted_risks,
-            "next_steps": "Create mitigation plan for high-priority risks"
+            "next_steps": "Create mitigation plan for high-priority risks",
         }
 
-    async def _assess_risk(self, risk_id: str) -> Dict[str, Any]:
+    async def _assess_risk(self, risk_id: str) -> dict[str, Any]:
         """
         Perform detailed risk assessment.
 
@@ -304,14 +299,12 @@ class RiskManagementAgent(BaseAgent):
             "score": risk["score"],
             "risk_level": await self._classify_risk_level(risk["score"]),
             "quantitative_impact": quantitative_impact,
-            "assessment_date": risk["last_assessed"]
+            "assessment_date": risk["last_assessed"],
         }
 
     async def _prioritize_risks(
-        self,
-        project_id: Optional[str],
-        portfolio_id: Optional[str]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, portfolio_id: str | None
+    ) -> dict[str, Any]:
         """
         Prioritize and rank risks.
 
@@ -333,11 +326,7 @@ class RiskManagementAgent(BaseAgent):
             risk["exposure"] = risk.get("probability", 0) * risk.get("impact", 0)
 
         # Rank by exposure
-        ranked_risks = sorted(
-            risks_to_prioritize,
-            key=lambda x: x.get("exposure", 0),
-            reverse=True
-        )
+        ranked_risks = sorted(risks_to_prioritize, key=lambda x: x.get("exposure", 0), reverse=True)
 
         # Categorize by risk level
         high_risks = [r for r in ranked_risks if r["exposure"] >= self.high_risk_threshold]
@@ -357,17 +346,15 @@ class RiskManagementAgent(BaseAgent):
                     "score": r["exposure"],
                     "probability": r.get("probability"),
                     "impact": r.get("impact"),
-                    "status": r.get("status")
+                    "status": r.get("status"),
                 }
                 for r in ranked_risks
-            ]
+            ],
         }
 
     async def _create_mitigation_plan(
-        self,
-        risk_id: str,
-        mitigation_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, risk_id: str, mitigation_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create mitigation plan for risk.
 
@@ -390,14 +377,16 @@ class RiskManagementAgent(BaseAgent):
         mitigation_plan = {
             "plan_id": plan_id,
             "risk_id": risk_id,
-            "strategy": mitigation_data.get("strategy", "mitigate"),  # avoid, mitigate, transfer, accept
+            "strategy": mitigation_data.get(
+                "strategy", "mitigate"
+            ),  # avoid, mitigate, transfer, accept
             "tasks": mitigation_data.get("tasks", []),
             "budget": mitigation_data.get("budget"),
             "responsible_person": mitigation_data.get("responsible_person"),
             "due_date": mitigation_data.get("due_date"),
             "status": "Planned",
             "recommended_strategies": recommended_strategies,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store plan
@@ -422,10 +411,10 @@ class RiskManagementAgent(BaseAgent):
             "task_count": len(mitigation_plan["tasks"]),
             "budget": mitigation_plan["budget"],
             "residual_risk": residual_risk,
-            "recommended_strategies": recommended_strategies
+            "recommended_strategies": recommended_strategies,
         }
 
-    async def _monitor_triggers(self, risk_id: Optional[str]) -> Dict[str, Any]:
+    async def _monitor_triggers(self, risk_id: str | None) -> dict[str, Any]:
         """
         Monitor risk triggers and early warnings.
 
@@ -450,13 +439,15 @@ class RiskManagementAgent(BaseAgent):
             if trigger_status.get("triggered"):
                 # Update risk probability/impact
                 await self._update_risk_from_trigger(risk, trigger_status)
-                triggered_risks.append({
-                    "risk_id": risk["risk_id"],
-                    "title": risk["title"],
-                    "trigger": trigger_status.get("trigger"),
-                    "old_score": risk.get("score"),
-                    "new_score": trigger_status.get("new_score")
-                })
+                triggered_risks.append(
+                    {
+                        "risk_id": risk["risk_id"],
+                        "title": risk["title"],
+                        "trigger": trigger_status.get("trigger"),
+                        "old_score": risk.get("score"),
+                        "new_score": trigger_status.get("new_score"),
+                    }
+                )
 
         # TODO: Store updates in database
         # TODO: Publish risk.trigger_activated events
@@ -464,14 +455,10 @@ class RiskManagementAgent(BaseAgent):
         return {
             "risks_monitored": len(risks_to_monitor),
             "risks_triggered": len(triggered_risks),
-            "triggered_risks": triggered_risks
+            "triggered_risks": triggered_risks,
         }
 
-    async def _update_risk_status(
-        self,
-        risk_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _update_risk_status(self, risk_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """
         Update risk status and details.
 
@@ -488,13 +475,15 @@ class RiskManagementAgent(BaseAgent):
             self.risk_histories[risk_id] = []
 
         # Record current state before update
-        self.risk_histories[risk_id].append({
-            "timestamp": datetime.utcnow().isoformat(),
-            "status": risk.get("status"),
-            "probability": risk.get("probability"),
-            "impact": risk.get("impact"),
-            "score": risk.get("score")
-        })
+        self.risk_histories[risk_id].append(
+            {
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": risk.get("status"),
+                "probability": risk.get("probability"),
+                "impact": risk.get("impact"),
+                "score": risk.get("score"),
+            }
+        )
 
         # Apply updates
         for key, value in updates.items():
@@ -513,14 +502,10 @@ class RiskManagementAgent(BaseAgent):
             "risk_id": risk_id,
             "status": risk["status"],
             "score": risk["score"],
-            "last_updated": risk["last_updated"]
+            "last_updated": risk["last_updated"],
         }
 
-    async def _run_monte_carlo(
-        self,
-        project_id: str,
-        iterations: int = 10000
-    ) -> Dict[str, Any]:
+    async def _run_monte_carlo(self, project_id: str, iterations: int = 10000) -> dict[str, Any]:
         """
         Run Monte Carlo simulation for schedule and cost risk.
 
@@ -530,16 +515,13 @@ class RiskManagementAgent(BaseAgent):
 
         # Get project risks
         project_risks = [
-            r for r in self.risk_register.values()
-            if r.get("project_id") == project_id
+            r for r in self.risk_register.values() if r.get("project_id") == project_id
         ]
 
         # TODO: Integrate with Schedule and Financial agents for baseline data
         # TODO: Use Azure Batch for distributed Monte Carlo computation
         simulation_results = await self._perform_monte_carlo_simulation(
-            project_id,
-            project_risks,
-            iterations
+            project_id, project_risks, iterations
         )
 
         # Calculate percentiles
@@ -558,29 +540,29 @@ class RiskManagementAgent(BaseAgent):
                 "p50": schedule_p50,
                 "p80": schedule_p80,
                 "p95": schedule_p95,
-                "mean": sum(simulation_results["schedule"]) / len(simulation_results["schedule"])
+                "mean": sum(simulation_results["schedule"]) / len(simulation_results["schedule"]),
             },
             "cost_analysis": {
                 "p50": cost_p50,
                 "p80": cost_p80,
                 "p95": cost_p95,
-                "mean": sum(simulation_results["cost"]) / len(simulation_results["cost"])
+                "mean": sum(simulation_results["cost"]) / len(simulation_results["cost"]),
             },
             "risks_analyzed": len(project_risks),
-            "simulation_date": datetime.utcnow().isoformat()
+            "simulation_date": datetime.utcnow().isoformat(),
         }
 
     async def _generate_risk_matrix(
-        self,
-        project_id: Optional[str],
-        portfolio_id: Optional[str]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, portfolio_id: str | None
+    ) -> dict[str, Any]:
         """
         Generate risk matrix (probability vs impact).
 
         Returns risk matrix visualization data.
         """
-        self.logger.info(f"Generating risk matrix for project={project_id}, portfolio={portfolio_id}")
+        self.logger.info(
+            f"Generating risk matrix for project={project_id}, portfolio={portfolio_id}"
+        )
 
         # Filter risks
         risks_to_plot = []
@@ -594,34 +576,36 @@ class RiskManagementAgent(BaseAgent):
         # Create matrix data
         matrix_data = []
         for risk in risks_to_plot:
-            matrix_data.append({
-                "risk_id": risk["risk_id"],
-                "title": risk["title"],
-                "probability": risk.get("probability", 0),
-                "impact": risk.get("impact", 0),
-                "score": risk.get("score", 0),
-                "category": risk.get("category"),
-                "status": risk.get("status")
-            })
+            matrix_data.append(
+                {
+                    "risk_id": risk["risk_id"],
+                    "title": risk["title"],
+                    "probability": risk.get("probability", 0),
+                    "impact": risk.get("impact", 0),
+                    "score": risk.get("score", 0),
+                    "category": risk.get("category"),
+                    "status": risk.get("status"),
+                }
+            )
 
         return {
             "matrix_data": matrix_data,
             "total_risks": len(matrix_data),
             "probability_scale": self.probability_scale,
-            "impact_scale": self.impact_scale
+            "impact_scale": self.impact_scale,
         }
 
     async def _get_risk_dashboard(
-        self,
-        project_id: Optional[str],
-        portfolio_id: Optional[str]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, portfolio_id: str | None
+    ) -> dict[str, Any]:
         """
         Get risk dashboard data.
 
         Returns dashboard data and visualizations.
         """
-        self.logger.info(f"Getting risk dashboard for project={project_id}, portfolio={portfolio_id}")
+        self.logger.info(
+            f"Getting risk dashboard for project={project_id}, portfolio={portfolio_id}"
+        )
 
         # Prioritize risks
         prioritization = await self._prioritize_risks(project_id, portfolio_id)
@@ -642,19 +626,17 @@ class RiskManagementAgent(BaseAgent):
                 "total_risks": prioritization["total_risks"],
                 "high_risks": prioritization["high_risks"],
                 "medium_risks": prioritization["medium_risks"],
-                "low_risks": prioritization["low_risks"]
+                "low_risks": prioritization["low_risks"],
             },
             "top_risks": top_risks,
             "risk_matrix": risk_matrix,
             "mitigation_status": mitigation_status,
-            "dashboard_generated_at": datetime.utcnow().isoformat()
+            "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _generate_risk_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, report_type: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate risk report.
 
@@ -671,7 +653,7 @@ class RiskManagementAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown report type: {report_type}")
 
-    async def _perform_sensitivity_analysis(self, project_id: str) -> Dict[str, Any]:
+    async def _perform_sensitivity_analysis(self, project_id: str) -> dict[str, Any]:
         """
         Perform sensitivity analysis on project risks.
 
@@ -681,40 +663,35 @@ class RiskManagementAgent(BaseAgent):
 
         # Get project risks
         project_risks = [
-            r for r in self.risk_register.values()
-            if r.get("project_id") == project_id
+            r for r in self.risk_register.values() if r.get("project_id") == project_id
         ]
 
         # Analyze sensitivity to each risk factor
         sensitivity_results = []
         for risk in project_risks:
             sensitivity = await self._analyze_risk_sensitivity(risk)
-            sensitivity_results.append({
-                "risk_id": risk["risk_id"],
-                "title": risk["title"],
-                "sensitivity_score": sensitivity.get("score"),
-                "impact_on_schedule": sensitivity.get("schedule_impact"),
-                "impact_on_cost": sensitivity.get("cost_impact")
-            })
+            sensitivity_results.append(
+                {
+                    "risk_id": risk["risk_id"],
+                    "title": risk["title"],
+                    "sensitivity_score": sensitivity.get("score"),
+                    "impact_on_schedule": sensitivity.get("schedule_impact"),
+                    "impact_on_cost": sensitivity.get("cost_impact"),
+                }
+            )
 
         # Sort by sensitivity score
         sorted_results = sorted(
-            sensitivity_results,
-            key=lambda x: x["sensitivity_score"],
-            reverse=True
+            sensitivity_results, key=lambda x: x["sensitivity_score"], reverse=True
         )
 
         return {
             "project_id": project_id,
             "sensitivity_analysis": sorted_results,
-            "most_sensitive_risk": sorted_results[0] if sorted_results else None
+            "most_sensitive_risk": sorted_results[0] if sorted_results else None,
         }
 
-    async def _get_top_risks(
-        self,
-        project_id: Optional[str],
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    async def _get_top_risks(self, project_id: str | None, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get top N risks by score.
 
@@ -738,23 +715,19 @@ class RiskManagementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"MIT-{timestamp}"
 
-    async def _extract_risks_from_documents(self, documents: List[str]) -> List[Dict[str, Any]]:
+    async def _extract_risks_from_documents(self, documents: list[str]) -> list[dict[str, Any]]:
         """Extract potential risks from documents using NLP."""
         # TODO: Use Azure Cognitive Services for text analysis
         return []
 
-    async def _initial_risk_assessment(self, risk_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _initial_risk_assessment(self, risk_data: dict[str, Any]) -> dict[str, Any]:
         """Perform initial risk assessment."""
         # Use provided values or defaults
         probability = risk_data.get("probability", 3)
         impact = risk_data.get("impact", 3)
         score = probability * impact
 
-        return {
-            "probability": probability,
-            "impact": impact,
-            "score": score
-        }
+        return {"probability": probability, "impact": impact, "score": score}
 
     async def _classify_risk_level(self, score: float) -> str:
         """Classify risk level based on score."""
@@ -765,65 +738,46 @@ class RiskManagementAgent(BaseAgent):
         else:
             return "Low"
 
-    async def _predict_risk_metrics(self, risk: Dict[str, Any]) -> Dict[str, Any]:
+    async def _predict_risk_metrics(self, risk: dict[str, Any]) -> dict[str, Any]:
         """Use ML to predict risk probability and impact."""
         # TODO: Use Azure ML for prediction
-        return {
-            "probability": risk.get("probability", 3),
-            "impact": risk.get("impact", 3)
-        }
+        return {"probability": risk.get("probability", 3), "impact": risk.get("impact", 3)}
 
-    async def _calculate_quantitative_impact(self, risk: Dict[str, Any]) -> Dict[str, Any]:
+    async def _calculate_quantitative_impact(self, risk: dict[str, Any]) -> dict[str, Any]:
         """Calculate quantitative impact on schedule and cost."""
         # TODO: Integrate with Schedule and Financial agents
-        return {
-            "schedule_impact_days": 0,
-            "cost_impact": 0
-        }
+        return {"schedule_impact_days": 0, "cost_impact": 0}
 
-    async def _recommend_mitigation_strategies(self, risk: Dict[str, Any]) -> List[str]:
+    async def _recommend_mitigation_strategies(self, risk: dict[str, Any]) -> list[str]:
         """Recommend mitigation strategies from knowledge base."""
         # TODO: Use knowledge graph and similarity algorithms
         return [
             "Regular monitoring and reviews",
             "Allocate contingency reserves",
-            "Implement early warning system"
+            "Implement early warning system",
         ]
 
     async def _calculate_residual_risk(
-        self,
-        risk: Dict[str, Any],
-        mitigation_plan: Dict[str, Any]
+        self, risk: dict[str, Any], mitigation_plan: dict[str, Any]
     ) -> float:
         """Calculate residual risk after mitigation."""
         original_score = risk.get("score", 0)
 
         # Apply reduction factor based on mitigation strategy
-        reduction_factors = {
-            "avoid": 0.9,
-            "mitigate": 0.5,
-            "transfer": 0.3,
-            "accept": 0.0
-        }
+        reduction_factors = {"avoid": 0.9, "mitigate": 0.5, "transfer": 0.3, "accept": 0.0}
 
         reduction = reduction_factors.get(mitigation_plan.get("strategy", "accept"), 0.0)
         residual = original_score * (1 - reduction)
 
         return residual
 
-    async def _check_risk_triggers(self, risk: Dict[str, Any]) -> Dict[str, Any]:
+    async def _check_risk_triggers(self, risk: dict[str, Any]) -> dict[str, Any]:
         """Check if risk triggers have been activated."""
         # TODO: Monitor data sources for trigger conditions
-        return {
-            "triggered": False,
-            "trigger": None,
-            "new_score": risk.get("score")
-        }
+        return {"triggered": False, "trigger": None, "new_score": risk.get("score")}
 
     async def _update_risk_from_trigger(
-        self,
-        risk: Dict[str, Any],
-        trigger_status: Dict[str, Any]
+        self, risk: dict[str, Any], trigger_status: dict[str, Any]
     ) -> None:
         """Update risk probability/impact based on trigger."""
         # Increase probability when trigger activated
@@ -831,11 +785,8 @@ class RiskManagementAgent(BaseAgent):
         risk["score"] = risk["probability"] * risk.get("impact", 3)
 
     async def _perform_monte_carlo_simulation(
-        self,
-        project_id: str,
-        risks: List[Dict[str, Any]],
-        iterations: int
-    ) -> Dict[str, List[float]]:
+        self, project_id: str, risks: list[dict[str, Any]], iterations: int
+    ) -> dict[str, list[float]]:
         """Perform Monte Carlo simulation."""
         # TODO: Use Azure Batch for distributed computation
         schedule_results = []
@@ -847,12 +798,9 @@ class RiskManagementAgent(BaseAgent):
             schedule_results.append(100.0 + (i % 20))
             cost_results.append(1000000.0 + (i % 100000))
 
-        return {
-            "schedule": schedule_results,
-            "cost": cost_results
-        }
+        return {"schedule": schedule_results, "cost": cost_results}
 
-    async def _calculate_percentile(self, data: List[float], percentile: int) -> float:
+    async def _calculate_percentile(self, data: list[float], percentile: int) -> float:
         """Calculate percentile value."""
         if not data:
             return 0.0
@@ -860,47 +808,38 @@ class RiskManagementAgent(BaseAgent):
         index = int(len(sorted_data) * percentile / 100)
         return sorted_data[min(index, len(sorted_data) - 1)]
 
-    async def _get_mitigation_status(self, project_id: Optional[str]) -> Dict[str, Any]:
+    async def _get_mitigation_status(self, project_id: str | None) -> dict[str, Any]:
         """Get mitigation plan status summary."""
         # TODO: Query mitigation plans
-        return {
-            "total_plans": 0,
-            "planned": 0,
-            "in_progress": 0,
-            "completed": 0
-        }
+        return {"total_plans": 0, "planned": 0, "in_progress": 0, "completed": 0}
 
-    async def _analyze_risk_sensitivity(self, risk: Dict[str, Any]) -> Dict[str, Any]:
+    async def _analyze_risk_sensitivity(self, risk: dict[str, Any]) -> dict[str, Any]:
         """Analyze sensitivity of outcomes to this risk."""
         # TODO: Perform tornado diagram analysis
         return {
             "score": risk.get("score", 0) * 2,  # Placeholder
             "schedule_impact": 5,
-            "cost_impact": 10000
+            "cost_impact": 10000,
         }
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary risk report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
-    async def _generate_detailed_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_detailed_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate detailed risk report."""
         return {
             "report_type": "detailed",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_mitigation_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_mitigation_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate mitigation status report."""
         return {
             "report_type": "mitigation",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
     async def cleanup(self) -> None:
@@ -910,7 +849,7 @@ class RiskManagementAgent(BaseAgent):
         # TODO: Cancel monitoring tasks
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "risk_identification",
@@ -928,5 +867,5 @@ class RiskManagementAgent(BaseAgent):
             "risk_matrix_generation",
             "risk_dashboards",
             "risk_reporting",
-            "quantitative_risk_analysis"
+            "quantitative_risk_analysis",
         ]

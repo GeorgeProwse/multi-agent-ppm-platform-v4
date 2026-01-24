@@ -8,10 +8,10 @@ and performs critical path analysis. Supports both predictive and adaptive plann
 Specification: docs_markdown/specs/agents/delivery/planning-scheduling/Agent 10 Schedule & Planning Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class SchedulePlanningAgent(BaseAgent):
@@ -30,11 +30,7 @@ class SchedulePlanningAgent(BaseAgent):
     - Baseline management and variance tracking
     """
 
-    def __init__(
-        self,
-        agent_id: str = "schedule-planning",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "schedule-planning", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
@@ -42,7 +38,9 @@ class SchedulePlanningAgent(BaseAgent):
         self.default_working_days = config.get("default_working_days", 5) if config else 5
         self.max_resource_allocation = config.get("max_resource_allocation", 1.0) if config else 1.0
         self.risk_threshold = config.get("risk_threshold", 0.70) if config else 0.70
-        self.baseline_approval_threshold = config.get("baseline_approval_threshold", 0.10) if config else 0.10
+        self.baseline_approval_threshold = (
+            config.get("baseline_approval_threshold", 0.10) if config else 0.10
+        )
 
         # Data stores (will be replaced with database connections)
         self.schedules = {}
@@ -69,7 +67,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         self.logger.info("Schedule & Planning Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -90,7 +88,7 @@ class SchedulePlanningAgent(BaseAgent):
             "manage_baseline",
             "track_variance",
             "sprint_planning",
-            "get_schedule"
+            "get_schedule",
         ]
 
         if action not in valid_actions:
@@ -109,7 +107,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process schedule and planning requests.
 
@@ -152,19 +150,17 @@ class SchedulePlanningAgent(BaseAgent):
             return await self._create_schedule(
                 input_data.get("project_id"),
                 input_data.get("wbs", {}),
-                input_data.get("methodology", "waterfall")
+                input_data.get("methodology", "waterfall"),
             )
 
         elif action == "estimate_duration":
             return await self._estimate_duration(
-                input_data.get("tasks", []),
-                input_data.get("project_context", {})
+                input_data.get("tasks", []), input_data.get("project_context", {})
             )
 
         elif action == "map_dependencies":
             return await self._map_dependencies(
-                input_data.get("schedule_id"),
-                input_data.get("dependencies", [])
+                input_data.get("schedule_id"), input_data.get("dependencies", [])
             )
 
         elif action == "calculate_critical_path":
@@ -172,14 +168,12 @@ class SchedulePlanningAgent(BaseAgent):
 
         elif action == "resource_constrained_schedule":
             return await self._resource_constrained_schedule(
-                input_data.get("schedule_id"),
-                input_data.get("resources", {})
+                input_data.get("schedule_id"), input_data.get("resources", {})
             )
 
         elif action == "run_monte_carlo":
             return await self._run_monte_carlo(
-                input_data.get("schedule_id"),
-                input_data.get("iterations", 1000)
+                input_data.get("schedule_id"), input_data.get("iterations", 1000)
             )
 
         elif action == "track_milestones":
@@ -190,8 +184,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         elif action == "what_if_analysis":
             return await self._what_if_analysis(
-                input_data.get("schedule_id"),
-                input_data.get("what_if_params", {})
+                input_data.get("schedule_id"), input_data.get("what_if_params", {})
             )
 
         elif action == "manage_baseline":
@@ -202,8 +195,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         elif action == "sprint_planning":
             return await self._sprint_planning(
-                input_data.get("project_id"),
-                input_data.get("sprint_data", {})
+                input_data.get("project_id"), input_data.get("sprint_data", {})
             )
 
         elif action == "get_schedule":
@@ -213,11 +205,8 @@ class SchedulePlanningAgent(BaseAgent):
             raise ValueError(f"Unknown action: {action}")
 
     async def _create_schedule(
-        self,
-        project_id: str,
-        wbs: Dict[str, Any],
-        methodology: str = "waterfall"
-    ) -> Dict[str, Any]:
+        self, project_id: str, wbs: dict[str, Any], methodology: str = "waterfall"
+    ) -> dict[str, Any]:
         """
         Create project schedule from WBS.
 
@@ -235,26 +224,17 @@ class SchedulePlanningAgent(BaseAgent):
         duration_estimates = await self._estimate_duration(tasks, {"project_id": project_id})
 
         # Apply duration estimates to tasks
-        tasks_with_durations = await self._apply_duration_estimates(
-            tasks,
-            duration_estimates
-        )
+        tasks_with_durations = await self._apply_duration_estimates(tasks, duration_estimates)
 
         # Define dependencies
         # TODO: Use AI to suggest dependencies based on task relationships
         dependencies = await self._suggest_dependencies(tasks_with_durations)
 
         # Calculate early/late start/finish dates using CPM
-        scheduled_tasks = await self._calculate_cpm_dates(
-            tasks_with_durations,
-            dependencies
-        )
+        scheduled_tasks = await self._calculate_cpm_dates(tasks_with_durations, dependencies)
 
         # Identify critical path
-        critical_path = await self._identify_critical_path(
-            scheduled_tasks,
-            dependencies
-        )
+        critical_path = await self._identify_critical_path(scheduled_tasks, dependencies)
 
         # Calculate project duration
         project_duration = await self._calculate_project_duration(scheduled_tasks)
@@ -279,7 +259,7 @@ class SchedulePlanningAgent(BaseAgent):
             "milestones": milestones,
             "gantt_data": gantt_data,
             "created_at": datetime.utcnow().isoformat(),
-            "status": "Draft"
+            "status": "Draft",
         }
 
         # Store schedule
@@ -299,14 +279,12 @@ class SchedulePlanningAgent(BaseAgent):
             "critical_path_tasks": len(critical_path),
             "milestones": milestones,
             "gantt_data": gantt_data,
-            "next_steps": "Review schedule, then lock as baseline"
+            "next_steps": "Review schedule, then lock as baseline",
         }
 
     async def _estimate_duration(
-        self,
-        tasks: List[Dict[str, Any]],
-        project_context: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
+        self, tasks: list[dict[str, Any]], project_context: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """
         Estimate task durations using AI and historical data.
 
@@ -331,8 +309,7 @@ class SchedulePlanningAgent(BaseAgent):
             # Generate estimate using AI model
             # TODO: Call Azure ML endpoint
             optimistic, most_likely, pessimistic = await self._calculate_pert_estimate(
-                task,
-                historical_data
+                task, historical_data
             )
 
             # Calculate expected duration using PERT formula
@@ -344,16 +321,14 @@ class SchedulePlanningAgent(BaseAgent):
                 "pessimistic": pessimistic,
                 "expected": expected_duration,
                 "confidence": 0.80,  # TODO: Calculate actual confidence
-                "unit": "days"
+                "unit": "days",
             }
 
         return duration_estimates
 
     async def _map_dependencies(
-        self,
-        schedule_id: str,
-        dependencies: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, schedule_id: str, dependencies: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Map task dependencies.
 
@@ -367,8 +342,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Validate dependencies
         validated_dependencies = await self._validate_dependencies(
-            dependencies,
-            schedule.get("tasks", [])
+            dependencies, schedule.get("tasks", [])
         )
 
         # Detect circular dependencies
@@ -383,8 +357,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Generate network diagram data
         network_diagram = await self._generate_network_diagram(
-            schedule.get("tasks", []),
-            validated_dependencies
+            schedule.get("tasks", []), validated_dependencies
         )
 
         # TODO: Store in database
@@ -395,10 +368,10 @@ class SchedulePlanningAgent(BaseAgent):
             "dependencies": validated_dependencies,
             "dependency_count": len(validated_dependencies),
             "network_diagram": network_diagram,
-            "circular_dependencies": circular_deps
+            "circular_dependencies": circular_deps,
         }
 
-    async def _calculate_critical_path(self, schedule_id: str) -> Dict[str, Any]:
+    async def _calculate_critical_path(self, schedule_id: str) -> dict[str, Any]:
         """
         Calculate critical path using CPM.
 
@@ -423,15 +396,12 @@ class SchedulePlanningAgent(BaseAgent):
         tasks_with_slack = await self._calculate_slack(tasks_with_late)
 
         # Identify critical path (tasks with zero slack)
-        critical_path_tasks = [
-            task for task in tasks_with_slack
-            if task.get("slack", 0) == 0
-        ]
+        critical_path_tasks = [task for task in tasks_with_slack if task.get("slack", 0) == 0]
 
         # Calculate total project duration
-        project_duration = max(
-            task.get("late_finish", 0) for task in tasks_with_slack
-        ) if tasks_with_slack else 0
+        project_duration = (
+            max(task.get("late_finish", 0) for task in tasks_with_slack) if tasks_with_slack else 0
+        )
 
         # Update schedule
         schedule["tasks"] = tasks_with_slack
@@ -443,14 +413,12 @@ class SchedulePlanningAgent(BaseAgent):
             "critical_path": critical_path_tasks,
             "project_duration_days": project_duration,
             "critical_path_task_count": len(critical_path_tasks),
-            "total_slack_days": sum(t.get("slack", 0) for t in tasks_with_slack)
+            "total_slack_days": sum(t.get("slack", 0) for t in tasks_with_slack),
         }
 
     async def _resource_constrained_schedule(
-        self,
-        schedule_id: str,
-        resources: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, schedule_id: str, resources: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create resource-constrained schedule.
 
@@ -471,19 +439,14 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Apply resource leveling
         # TODO: Use optimization algorithm (RCPSP solver)
-        leveled_schedule = await self._resource_leveling(
-            tasks,
-            dependencies,
-            resource_availability
-        )
+        leveled_schedule = await self._resource_leveling(tasks, dependencies, resource_availability)
 
         # Recalculate critical path with resource constraints
         resource_critical_path = await self._calculate_critical_path(schedule_id)
 
         # Calculate resource utilization
         utilization = await self._calculate_resource_utilization(
-            leveled_schedule,
-            resource_availability
+            leveled_schedule, resource_availability
         )
 
         return {
@@ -492,16 +455,11 @@ class SchedulePlanningAgent(BaseAgent):
             "resource_critical_path": resource_critical_path,
             "resource_utilization": utilization,
             "schedule_extension_days": await self._calculate_schedule_extension(
-                schedule.get("project_duration_days", 0),
-                leveled_schedule
-            )
+                schedule.get("project_duration_days", 0), leveled_schedule
+            ),
         }
 
-    async def _run_monte_carlo(
-        self,
-        schedule_id: str,
-        iterations: int = 1000
-    ) -> Dict[str, Any]:
+    async def _run_monte_carlo(self, schedule_id: str, iterations: int = 1000) -> dict[str, Any]:
         """
         Run Monte Carlo simulation for schedule risk analysis.
 
@@ -525,10 +483,7 @@ class SchedulePlanningAgent(BaseAgent):
             sampled_tasks = await self._sample_task_durations(tasks)
 
             # Calculate project duration for this iteration
-            duration = await self._calculate_simulated_duration(
-                sampled_tasks,
-                dependencies
-            )
+            duration = await self._calculate_simulated_duration(sampled_tasks, dependencies)
 
             simulation_results.append(duration)
 
@@ -540,8 +495,7 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Calculate risk metrics
         risk_score = await self._calculate_schedule_risk(
-            simulation_results,
-            schedule.get("project_duration_days", 0)
+            simulation_results, schedule.get("project_duration_days", 0)
         )
 
         return {
@@ -556,12 +510,14 @@ class SchedulePlanningAgent(BaseAgent):
             "distribution": {
                 "min": min(simulation_results) if simulation_results else 0,
                 "max": max(simulation_results) if simulation_results else 0,
-                "mean": sum(simulation_results) / len(simulation_results) if simulation_results else 0,
-                "std_dev": await self._calculate_std_dev(simulation_results)
-            }
+                "mean": (
+                    sum(simulation_results) / len(simulation_results) if simulation_results else 0
+                ),
+                "std_dev": await self._calculate_std_dev(simulation_results),
+            },
         }
 
-    async def _track_milestones(self, schedule_id: str) -> Dict[str, Any]:
+    async def _track_milestones(self, schedule_id: str) -> dict[str, Any]:
         """
         Track milestones and upcoming deadlines.
 
@@ -599,10 +555,10 @@ class SchedulePlanningAgent(BaseAgent):
             "upcoming_milestones": upcoming_milestones,
             "past_due_milestones": past_due_milestones,
             "completed_milestones": completed_milestones,
-            "completion_rate": len(completed_milestones) / len(milestones) if milestones else 0
+            "completion_rate": len(completed_milestones) / len(milestones) if milestones else 0,
         }
 
-    async def _optimize_schedule(self, schedule_id: str) -> Dict[str, Any]:
+    async def _optimize_schedule(self, schedule_id: str) -> dict[str, Any]:
         """
         Optimize schedule to minimize duration.
 
@@ -629,14 +585,12 @@ class SchedulePlanningAgent(BaseAgent):
             "optimized_duration": optimized_schedule.get("project_duration_days", 0),
             "duration_reduction": improvements.get("duration_reduction", 0),
             "optimizations_applied": opportunities,
-            "recommendations": await self._generate_optimization_recommendations(opportunities)
+            "recommendations": await self._generate_optimization_recommendations(opportunities),
         }
 
     async def _what_if_analysis(
-        self,
-        schedule_id: str,
-        what_if_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, schedule_id: str, what_if_params: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Perform what-if scenario analysis.
 
@@ -665,10 +619,10 @@ class SchedulePlanningAgent(BaseAgent):
             "duration_difference": comparison.get("duration_difference", 0),
             "cost_impact": comparison.get("cost_impact", 0),
             "resource_impact": comparison.get("resource_impact", {}),
-            "recommendation": await self._generate_scenario_recommendation(comparison)
+            "recommendation": await self._generate_scenario_recommendation(comparison),
         }
 
-    async def _manage_baseline(self, schedule_id: str) -> Dict[str, Any]:
+    async def _manage_baseline(self, schedule_id: str) -> dict[str, Any]:
         """
         Lock schedule as baseline.
 
@@ -695,7 +649,7 @@ class SchedulePlanningAgent(BaseAgent):
             "end_date": schedule.get("end_date"),
             "locked_at": datetime.utcnow().isoformat(),
             "locked_by": "system",  # TODO: Get from user context
-            "status": "Locked"
+            "status": "Locked",
         }
 
         # Store baseline
@@ -713,10 +667,10 @@ class SchedulePlanningAgent(BaseAgent):
             "schedule_id": schedule_id,
             "locked_at": baseline["locked_at"],
             "task_count": len(baseline["tasks"]),
-            "milestone_count": len(baseline["milestones"])
+            "milestone_count": len(baseline["milestones"]),
         }
 
-    async def _track_variance(self, schedule_id: str) -> Dict[str, Any]:
+    async def _track_variance(self, schedule_id: str) -> dict[str, Any]:
         """
         Track schedule variance against baseline.
 
@@ -732,7 +686,7 @@ class SchedulePlanningAgent(BaseAgent):
         if not baseline_id:
             return {
                 "error": "No baseline exists for this schedule",
-                "recommendation": "Create a baseline first"
+                "recommendation": "Create a baseline first",
             }
 
         baseline = self.baselines.get(baseline_id)
@@ -759,14 +713,12 @@ class SchedulePlanningAgent(BaseAgent):
             "variance_status": "Ahead" if sv > 0 else "Behind" if sv < 0 else "On Track",
             "delayed_tasks": delayed_tasks,
             "critical_path_changes": critical_path_changes,
-            "forecast_completion": await self._forecast_completion_date(schedule, spi)
+            "forecast_completion": await self._forecast_completion_date(schedule, spi),
         }
 
     async def _sprint_planning(
-        self,
-        project_id: str,
-        sprint_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, sprint_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Perform sprint planning for Agile projects.
 
@@ -781,20 +733,15 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Recommend sprint backlog based on capacity
         recommended_items = await self._recommend_sprint_backlog(
-            backlog_items,
-            team_velocity,
-            team_capacity
+            backlog_items, team_velocity, team_capacity
         )
 
         # Calculate story points for sprint
-        total_story_points = sum(
-            item.get("story_points", 0) for item in recommended_items
-        )
+        total_story_points = sum(item.get("story_points", 0) for item in recommended_items)
 
         # Generate burndown forecast
         burndown_forecast = await self._generate_burndown_forecast(
-            total_story_points,
-            sprint_data.get("sprint_duration_days", 10)
+            total_story_points, sprint_data.get("sprint_duration_days", 10)
         )
 
         return {
@@ -804,10 +751,10 @@ class SchedulePlanningAgent(BaseAgent):
             "team_velocity": team_velocity,
             "team_capacity": team_capacity,
             "capacity_utilization": total_story_points / team_capacity if team_capacity > 0 else 0,
-            "burndown_forecast": burndown_forecast
+            "burndown_forecast": burndown_forecast,
         }
 
-    async def _get_schedule(self, schedule_id: str) -> Dict[str, Any]:
+    async def _get_schedule(self, schedule_id: str) -> dict[str, Any]:
         """Retrieve schedule by ID."""
         schedule = self.schedules.get(schedule_id)
         if not schedule:
@@ -826,36 +773,32 @@ class SchedulePlanningAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"{schedule_id}-BASELINE-{timestamp}"
 
-    async def _wbs_to_tasks(self, wbs: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _wbs_to_tasks(self, wbs: dict[str, Any]) -> list[dict[str, Any]]:
         """Convert WBS to flat task list."""
         tasks = []
         # TODO: Implement recursive WBS traversal
         # Placeholder
         task_id = 1
         for key, value in wbs.items():
-            tasks.append({
-                "task_id": f"T{task_id:03d}",
-                "wbs_id": key,
-                "name": value.get("name", f"Task {task_id}"),
-                "complexity": "medium"
-            })
+            tasks.append(
+                {
+                    "task_id": f"T{task_id:03d}",
+                    "wbs_id": key,
+                    "name": value.get("name", f"Task {task_id}"),
+                    "complexity": "medium",
+                }
+            )
             task_id += 1
         return tasks
 
-    async def _get_historical_durations(
-        self,
-        task_name: str,
-        complexity: str
-    ) -> List[float]:
+    async def _get_historical_durations(self, task_name: str, complexity: str) -> list[float]:
         """Query historical task durations."""
         # TODO: Query Azure Synapse Analytics
         return [5.0, 7.0, 6.0]  # Placeholder
 
     async def _calculate_pert_estimate(
-        self,
-        task: Dict[str, Any],
-        historical_data: List[float]
-    ) -> Tuple[float, float, float]:
+        self, task: dict[str, Any], historical_data: list[float]
+    ) -> tuple[float, float, float]:
         """Calculate PERT estimates (optimistic, most likely, pessimistic)."""
         # TODO: Use ML model for better estimates
         if historical_data:
@@ -871,10 +814,8 @@ class SchedulePlanningAgent(BaseAgent):
         return optimistic, most_likely, pessimistic
 
     async def _apply_duration_estimates(
-        self,
-        tasks: List[Dict[str, Any]],
-        estimates: Dict[str, Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, tasks: list[dict[str, Any]], estimates: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Apply duration estimates to tasks."""
         for task in tasks:
             task_id = task.get("task_id")
@@ -883,28 +824,25 @@ class SchedulePlanningAgent(BaseAgent):
                 task["duration_estimate"] = estimates[task_id]
         return tasks
 
-    async def _suggest_dependencies(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _suggest_dependencies(self, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Suggest dependencies between tasks."""
         # TODO: Use AI to suggest dependencies
         # Placeholder: sequential dependencies
         dependencies = []
         for i in range(len(tasks) - 1):
-            dependencies.append({
-                "predecessor": tasks[i]["task_id"],
-                "successor": tasks[i + 1]["task_id"],
-                "type": "FS",  # Finish-to-Start
-                "lag": 0
-            })
+            dependencies.append(
+                {
+                    "predecessor": tasks[i]["task_id"],
+                    "successor": tasks[i + 1]["task_id"],
+                    "type": "FS",  # Finish-to-Start
+                    "lag": 0,
+                }
+            )
         return dependencies
 
     async def _calculate_cpm_dates(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Calculate CPM dates for tasks."""
         # Simplified CPM implementation
         # TODO: Implement full CPM algorithm
@@ -916,74 +854,58 @@ class SchedulePlanningAgent(BaseAgent):
         return tasks
 
     async def _identify_critical_path(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> list[str]:
         """Identify critical path task IDs."""
         # TODO: Implement critical path identification
         return [task["task_id"] for task in tasks[:3]]  # Placeholder
 
-    async def _calculate_project_duration(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> float:
+    async def _calculate_project_duration(self, tasks: list[dict[str, Any]]) -> float:
         """Calculate total project duration."""
         if not tasks:
             return 0
         return max(task.get("late_finish", 0) for task in tasks)
 
     async def _generate_gantt_data(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Generate Gantt chart visualization data."""
         return {
             "tasks": tasks,
             "dependencies": dependencies,
             "timeline": {
                 "start": await self._calculate_schedule_start(tasks),
-                "end": await self._calculate_schedule_end(tasks)
-            }
+                "end": await self._calculate_schedule_end(tasks),
+            },
         }
 
-    async def _identify_milestones(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _identify_milestones(self, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Identify project milestones."""
         milestones = []
         for task in tasks:
             if task.get("is_milestone") or task.get("duration", 0) == 0:
-                milestones.append({
-                    "name": task.get("name"),
-                    "date": task.get("early_finish"),
-                    "status": "pending"
-                })
+                milestones.append(
+                    {
+                        "name": task.get("name"),
+                        "date": task.get("early_finish"),
+                        "status": "pending",
+                    }
+                )
         return milestones
 
-    async def _calculate_schedule_start(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> str:
+    async def _calculate_schedule_start(self, tasks: list[dict[str, Any]]) -> str:
         """Calculate schedule start date."""
         return datetime.utcnow().isoformat()
 
-    async def _calculate_schedule_end(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> str:
+    async def _calculate_schedule_end(self, tasks: list[dict[str, Any]]) -> str:
         """Calculate schedule end date."""
         duration = await self._calculate_project_duration(tasks)
         end_date = datetime.utcnow() + timedelta(days=duration)
         return end_date.isoformat()
 
     async def _validate_dependencies(
-        self,
-        dependencies: List[Dict[str, Any]],
-        tasks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, dependencies: list[dict[str, Any]], tasks: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Validate dependency definitions."""
         task_ids = {task["task_id"] for task in tasks}
         valid_dependencies = []
@@ -996,109 +918,78 @@ class SchedulePlanningAgent(BaseAgent):
 
         return valid_dependencies
 
-    async def _detect_circular_dependencies(
-        self,
-        dependencies: List[Dict[str, Any]]
-    ) -> List[str]:
+    async def _detect_circular_dependencies(self, dependencies: list[dict[str, Any]]) -> list[str]:
         """Detect circular dependencies."""
         # TODO: Implement cycle detection algorithm
         return []  # Placeholder
 
     async def _generate_network_diagram(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Generate network diagram data."""
-        return {
-            "nodes": tasks,
-            "edges": dependencies
-        }
+        return {"nodes": tasks, "edges": dependencies}
 
     async def _forward_pass(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Perform CPM forward pass."""
         # TODO: Implement forward pass algorithm
         return tasks
 
     async def _backward_pass(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Perform CPM backward pass."""
         # TODO: Implement backward pass algorithm
         return tasks
 
-    async def _calculate_slack(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _calculate_slack(self, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Calculate slack/float for tasks."""
         for task in tasks:
             task["slack"] = task.get("late_start", 0) - task.get("early_start", 0)
         return tasks
 
-    async def _get_resource_availability(
-        self,
-        resources: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _get_resource_availability(self, resources: dict[str, Any]) -> dict[str, Any]:
         """Get resource availability from Resource Management Agent."""
         # TODO: Integrate with Agent 11
         return resources
 
     async def _resource_leveling(
         self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]],
-        resource_availability: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        tasks: list[dict[str, Any]],
+        dependencies: list[dict[str, Any]],
+        resource_availability: dict[str, Any],
+    ) -> list[dict[str, Any]]:
         """Apply resource leveling to schedule."""
         # TODO: Implement resource leveling algorithm
         return tasks
 
     async def _calculate_resource_utilization(
-        self,
-        schedule: List[Dict[str, Any]],
-        resource_availability: Dict[str, Any]
-    ) -> Dict[str, float]:
+        self, schedule: list[dict[str, Any]], resource_availability: dict[str, Any]
+    ) -> dict[str, float]:
         """Calculate resource utilization percentages."""
         # Placeholder
         return {"resource_1": 0.85, "resource_2": 0.75}
 
     async def _calculate_schedule_extension(
-        self,
-        original_duration: float,
-        leveled_schedule: List[Dict[str, Any]]
+        self, original_duration: float, leveled_schedule: list[dict[str, Any]]
     ) -> float:
         """Calculate schedule extension from resource leveling."""
         new_duration = await self._calculate_project_duration(leveled_schedule)
         return new_duration - original_duration
 
-    async def _sample_task_durations(
-        self,
-        tasks: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _sample_task_durations(self, tasks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Sample task durations from probability distributions."""
         # TODO: Implement proper sampling
         return tasks
 
     async def _calculate_simulated_duration(
-        self,
-        tasks: List[Dict[str, Any]],
-        dependencies: List[Dict[str, Any]]
+        self, tasks: list[dict[str, Any]], dependencies: list[dict[str, Any]]
     ) -> float:
         """Calculate project duration for simulated iteration."""
         return await self._calculate_project_duration(tasks)
 
-    async def _calculate_percentile(
-        self,
-        data: List[float],
-        percentile: int
-    ) -> float:
+    async def _calculate_percentile(self, data: list[float], percentile: int) -> float:
         """Calculate percentile value."""
         if not data:
             return 0
@@ -1107,9 +998,7 @@ class SchedulePlanningAgent(BaseAgent):
         return sorted_data[min(index, len(sorted_data) - 1)]
 
     async def _calculate_schedule_risk(
-        self,
-        simulation_results: List[float],
-        baseline_duration: float
+        self, simulation_results: list[float], baseline_duration: float
     ) -> float:
         """Calculate schedule risk score."""
         if not simulation_results or baseline_duration == 0:
@@ -1119,84 +1008,70 @@ class SchedulePlanningAgent(BaseAgent):
         risk_score = exceeded_count / len(simulation_results)
         return risk_score
 
-    async def _calculate_std_dev(self, data: List[float]) -> float:
+    async def _calculate_std_dev(self, data: list[float]) -> float:
         """Calculate standard deviation."""
         if not data:
             return 0
         mean = sum(data) / len(data)
         variance = sum((x - mean) ** 2 for x in data) / len(data)
-        return variance ** 0.5
+        return variance**0.5
 
     async def _identify_optimization_opportunities(
-        self,
-        schedule: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, schedule: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Identify schedule optimization opportunities."""
         return [
             {"type": "parallel_tasks", "description": "Parallelize tasks with no dependencies"},
             {"type": "fast_track", "description": "Fast-track critical path tasks"},
-            {"type": "crash", "description": "Crash critical path by adding resources"}
+            {"type": "crash", "description": "Crash critical path by adding resources"},
         ]
 
     async def _apply_optimizations(
-        self,
-        schedule: Dict[str, Any],
-        opportunities: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, schedule: dict[str, Any], opportunities: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Apply optimizations to schedule."""
         # TODO: Implement optimization logic
         return schedule
 
     async def _calculate_improvements(
-        self,
-        original: Dict[str, Any],
-        optimized: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, original: dict[str, Any], optimized: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate improvements from optimization."""
         return {
-            "duration_reduction": original.get("project_duration_days", 0) - optimized.get("project_duration_days", 0)
+            "duration_reduction": original.get("project_duration_days", 0)
+            - optimized.get("project_duration_days", 0)
         }
 
     async def _generate_optimization_recommendations(
-        self,
-        opportunities: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, opportunities: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate optimization recommendations."""
         return [opp.get("description") for opp in opportunities]
 
     async def _create_scenario(
-        self,
-        schedule: Dict[str, Any],
-        params: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, schedule: dict[str, Any], params: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create scenario schedule with modified parameters."""
         # TODO: Apply scenario parameters
         return schedule.copy()
 
-    async def _recalculate_schedule(
-        self,
-        schedule: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _recalculate_schedule(self, schedule: dict[str, Any]) -> dict[str, Any]:
         """Recalculate schedule with changes."""
         # TODO: Recalculate CPM
         return schedule
 
     async def _compare_schedules(
-        self,
-        baseline: Dict[str, Any],
-        scenario: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, baseline: dict[str, Any], scenario: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compare two schedules."""
         return {
-            "duration_difference": scenario.get("project_duration_days", 0) - baseline.get("project_duration_days", 0),
+            "duration_difference": scenario.get("project_duration_days", 0)
+            - baseline.get("project_duration_days", 0),
             "cost_impact": 0,
-            "resource_impact": {}
+            "resource_impact": {},
         }
 
-    async def _generate_scenario_recommendation(
-        self,
-        comparison: Dict[str, Any]
-    ) -> str:
+    async def _generate_scenario_recommendation(self, comparison: dict[str, Any]) -> str:
         """Generate recommendation based on scenario comparison."""
         if comparison.get("duration_difference", 0) < 0:
             return "Scenario reduces project duration. Consider implementing."
@@ -1204,64 +1079,43 @@ class SchedulePlanningAgent(BaseAgent):
             return "Scenario increases project duration. Not recommended."
 
     async def _calculate_schedule_variance(
-        self,
-        schedule: Dict[str, Any],
-        baseline: Dict[str, Any]
+        self, schedule: dict[str, Any], baseline: dict[str, Any]
     ) -> float:
         """Calculate schedule variance in days."""
         planned = baseline.get("project_duration_days", 0)
         actual = schedule.get("project_duration_days", 0)
         return planned - actual
 
-    async def _calculate_spi(
-        self,
-        schedule: Dict[str, Any],
-        baseline: Dict[str, Any]
-    ) -> float:
+    async def _calculate_spi(self, schedule: dict[str, Any], baseline: dict[str, Any]) -> float:
         """Calculate Schedule Performance Index."""
         # TODO: Calculate actual SPI using earned value
         return 1.0  # Placeholder
 
     async def _identify_delayed_tasks(
-        self,
-        schedule: Dict[str, Any],
-        baseline: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, schedule: dict[str, Any], baseline: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Identify delayed tasks."""
         # TODO: Compare task dates to baseline
         return []
 
     async def _identify_critical_path_changes(
-        self,
-        schedule: Dict[str, Any],
-        baseline: Dict[str, Any]
-    ) -> List[str]:
+        self, schedule: dict[str, Any], baseline: dict[str, Any]
+    ) -> list[str]:
         """Identify changes to critical path."""
         # TODO: Compare critical paths
         return []
 
-    async def _forecast_completion_date(
-        self,
-        schedule: Dict[str, Any],
-        spi: float
-    ) -> str:
+    async def _forecast_completion_date(self, schedule: dict[str, Any], spi: float) -> str:
         """Forecast completion date based on SPI."""
         # TODO: Calculate forecast using SPI
         return datetime.utcnow().isoformat()
 
     async def _recommend_sprint_backlog(
-        self,
-        backlog_items: List[Dict[str, Any]],
-        team_velocity: float,
-        team_capacity: float
-    ) -> List[Dict[str, Any]]:
+        self, backlog_items: list[dict[str, Any]], team_velocity: float, team_capacity: float
+    ) -> list[dict[str, Any]]:
         """Recommend sprint backlog items."""
         # Sort by priority and select items that fit capacity
-        sorted_items = sorted(
-            backlog_items,
-            key=lambda x: x.get("priority", 0),
-            reverse=True
-        )
+        sorted_items = sorted(backlog_items, key=lambda x: x.get("priority", 0), reverse=True)
 
         selected = []
         total_points = 0
@@ -1275,20 +1129,17 @@ class SchedulePlanningAgent(BaseAgent):
         return selected
 
     async def _generate_burndown_forecast(
-        self,
-        total_story_points: float,
-        sprint_duration_days: int
-    ) -> List[Dict[str, Any]]:
+        self, total_story_points: float, sprint_duration_days: int
+    ) -> list[dict[str, Any]]:
         """Generate burndown forecast."""
         burndown = []
-        daily_velocity = total_story_points / sprint_duration_days if sprint_duration_days > 0 else 0
+        daily_velocity = (
+            total_story_points / sprint_duration_days if sprint_duration_days > 0 else 0
+        )
 
         for day in range(sprint_duration_days + 1):
             remaining = max(0, total_story_points - (daily_velocity * day))
-            burndown.append({
-                "day": day,
-                "remaining_points": remaining
-            })
+            burndown.append({"day": day, "remaining_points": remaining})
 
         return burndown
 
@@ -1300,7 +1151,7 @@ class SchedulePlanningAgent(BaseAgent):
         # TODO: Cancel pending monitoring tasks
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "schedule_creation",
@@ -1317,5 +1168,5 @@ class SchedulePlanningAgent(BaseAgent):
             "baseline_management",
             "variance_tracking",
             "sprint_planning",
-            "burndown_forecasting"
+            "burndown_forecasting",
         ]

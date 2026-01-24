@@ -9,10 +9,10 @@ with organizational policies and supports vendor performance monitoring.
 Specification: docs_markdown/specs/agents/operations/vendor-procurement/Agent 13 Vendor & Procurement Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class VendorProcurementAgent(BaseAgent):
@@ -31,11 +31,7 @@ class VendorProcurementAgent(BaseAgent):
     - Compliance and audit support
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_013",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_013", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
@@ -45,11 +41,14 @@ class VendorProcurementAgent(BaseAgent):
         self.invoice_tolerance_pct = config.get("invoice_tolerance_pct", 0.05) if config else 0.05
 
         # Vendor categories
-        self.vendor_categories = config.get("vendor_categories", [
-            "software", "hardware", "consulting", "materials", "services", "cloud"
-        ]) if config else [
-            "software", "hardware", "consulting", "materials", "services", "cloud"
-        ]
+        self.vendor_categories = (
+            config.get(
+                "vendor_categories",
+                ["software", "hardware", "consulting", "materials", "services", "cloud"],
+            )
+            if config
+            else ["software", "hardware", "consulting", "materials", "services", "cloud"]
+        )
 
         # Data stores (will be replaced with database)
         self.vendors = {}
@@ -79,7 +78,7 @@ class VendorProcurementAgent(BaseAgent):
 
         self.logger.info("Vendor & Procurement Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -101,7 +100,7 @@ class VendorProcurementAgent(BaseAgent):
             "track_vendor_performance",
             "get_vendor_scorecard",
             "search_vendors",
-            "get_procurement_status"
+            "get_procurement_status",
         ]
 
         if action not in valid_actions:
@@ -126,7 +125,7 @@ class VendorProcurementAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process vendor and procurement management requests.
 
@@ -176,29 +175,22 @@ class VendorProcurementAgent(BaseAgent):
             return await self._create_procurement_request(input_data.get("request", {}))
 
         elif action == "generate_rfp":
-            return await self._generate_rfp(
-                input_data.get("request_id"),
-                input_data.get("rfp", {})
-            )
+            return await self._generate_rfp(input_data.get("request_id"), input_data.get("rfp", {}))
 
         elif action == "submit_proposal":
             return await self._submit_proposal(
                 input_data.get("rfp_id"),
                 input_data.get("vendor_id"),
-                input_data.get("proposal", {})
+                input_data.get("proposal", {}),
             )
 
         elif action == "evaluate_proposals":
             return await self._evaluate_proposals(
-                input_data.get("rfp_id"),
-                input_data.get("criteria", {})
+                input_data.get("rfp_id"), input_data.get("criteria", {})
             )
 
         elif action == "select_vendor":
-            return await self._select_vendor(
-                input_data.get("rfp_id"),
-                input_data.get("vendor_id")
-            )
+            return await self._select_vendor(input_data.get("rfp_id"), input_data.get("vendor_id"))
 
         elif action == "create_contract":
             return await self._create_contract(input_data.get("contract", {}))
@@ -227,7 +219,7 @@ class VendorProcurementAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _onboard_vendor(self, vendor_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _onboard_vendor(self, vendor_data: dict[str, Any]) -> dict[str, Any]:
         """
         Onboard a new vendor with compliance checks.
 
@@ -265,8 +257,8 @@ class VendorProcurementAgent(BaseAgent):
                 "total_spend": 0,
                 "on_time_delivery_rate": 0,
                 "quality_rating": 0,
-                "compliance_rating": 0
-            }
+                "compliance_rating": 0,
+            },
         }
 
         # Store vendor
@@ -282,10 +274,10 @@ class VendorProcurementAgent(BaseAgent):
             "legal_name": vendor["legal_name"],
             "risk_score": risk_score,
             "compliance_checks": compliance_checks,
-            "next_steps": "Vendor pending approval. Submit required documentation."
+            "next_steps": "Vendor pending approval. Submit required documentation.",
         }
 
-    async def _create_procurement_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_procurement_request(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create a new procurement request.
 
@@ -325,7 +317,7 @@ class VendorProcurementAgent(BaseAgent):
             "budget_available": budget_check.get("available", False),
             "approval_path": approval_path,
             "status": "Draft",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store request
@@ -342,14 +334,10 @@ class VendorProcurementAgent(BaseAgent):
             "budget_available": budget_check.get("available", False),
             "suggested_vendors": suggested_vendors,
             "approval_required": request_data.get("estimated_cost", 0) > self.procurement_threshold,
-            "next_steps": "Review suggested vendors or generate RFP"
+            "next_steps": "Review suggested vendors or generate RFP",
         }
 
-    async def _generate_rfp(
-        self,
-        request_id: str,
-        rfp_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _generate_rfp(self, request_id: str, rfp_data: dict[str, Any]) -> dict[str, Any]:
         """
         Generate RFP from procurement request.
 
@@ -374,7 +362,7 @@ class VendorProcurementAgent(BaseAgent):
         invited_vendors = await self._select_vendors_to_invite(
             request.get("category"),
             request.get("suggested_vendors", []),
-            rfp_data.get("vendor_ids", [])
+            rfp_data.get("vendor_ids", []),
         )
 
         # Create RFP
@@ -389,7 +377,7 @@ class VendorProcurementAgent(BaseAgent):
             "invited_vendors": invited_vendors,
             "proposals_received": [],
             "status": "Published",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store RFP
@@ -406,15 +394,12 @@ class VendorProcurementAgent(BaseAgent):
             "submission_deadline": rfp["submission_deadline"],
             "invited_vendors": len(invited_vendors),
             "vendor_list": invited_vendors,
-            "next_steps": "Wait for vendor proposals by submission deadline"
+            "next_steps": "Wait for vendor proposals by submission deadline",
         }
 
     async def _submit_proposal(
-        self,
-        rfp_id: str,
-        vendor_id: str,
-        proposal_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, rfp_id: str, vendor_id: str, proposal_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Submit vendor proposal for RFP.
 
@@ -446,7 +431,7 @@ class VendorProcurementAgent(BaseAgent):
             "attachments": proposal_data.get("attachments", []),
             "evaluation_score": None,  # Calculated during evaluation
             "submitted_at": datetime.utcnow().isoformat(),
-            "status": "Submitted"
+            "status": "Submitted",
         }
 
         # Store proposal
@@ -464,14 +449,10 @@ class VendorProcurementAgent(BaseAgent):
             "vendor_id": vendor_id,
             "submitted_at": proposal["submitted_at"],
             "status": "Submitted",
-            "next_steps": "Proposal will be evaluated after submission deadline"
+            "next_steps": "Proposal will be evaluated after submission deadline",
         }
 
-    async def _evaluate_proposals(
-        self,
-        rfp_id: str,
-        criteria: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _evaluate_proposals(self, rfp_id: str, criteria: dict[str, Any]) -> dict[str, Any]:
         """
         Evaluate all proposals for an RFP.
 
@@ -485,16 +466,15 @@ class VendorProcurementAgent(BaseAgent):
 
         proposal_ids = rfp.get("proposals_received", [])
         if len(proposal_ids) < self.min_vendor_proposals:
-            self.logger.warning(f"Only {len(proposal_ids)} proposals received, minimum is {self.min_vendor_proposals}")
+            self.logger.warning(
+                f"Only {len(proposal_ids)} proposals received, minimum is {self.min_vendor_proposals}"
+            )
 
         # Get evaluation criteria with weights
-        eval_criteria = criteria or rfp.get("evaluation_criteria", {
-            "cost": 0.40,
-            "quality": 0.30,
-            "delivery": 0.15,
-            "risk": 0.10,
-            "diversity": 0.05
-        })
+        eval_criteria = criteria or rfp.get(
+            "evaluation_criteria",
+            {"cost": 0.40, "quality": 0.30, "delivery": 0.15, "risk": 0.10, "diversity": 0.05},
+        )
 
         # Evaluate each proposal
         evaluated_proposals = []
@@ -508,28 +488,25 @@ class VendorProcurementAgent(BaseAgent):
 
             # Calculate weighted total score
             total_score = sum(
-                scores.get(criterion, 0) * weight
-                for criterion, weight in eval_criteria.items()
+                scores.get(criterion, 0) * weight for criterion, weight in eval_criteria.items()
             )
 
             # Update proposal with evaluation
             proposal["evaluation_score"] = total_score
             proposal["criterion_scores"] = scores
 
-            evaluated_proposals.append({
-                "proposal_id": proposal_id,
-                "vendor_id": proposal.get("vendor_id"),
-                "total_score": total_score,
-                "scores": scores,
-                "pricing": proposal.get("pricing")
-            })
+            evaluated_proposals.append(
+                {
+                    "proposal_id": proposal_id,
+                    "vendor_id": proposal.get("vendor_id"),
+                    "total_score": total_score,
+                    "scores": scores,
+                    "pricing": proposal.get("pricing"),
+                }
+            )
 
         # Rank proposals by score
-        ranked_proposals = sorted(
-            evaluated_proposals,
-            key=lambda x: x["total_score"],
-            reverse=True
-        )
+        ranked_proposals = sorted(evaluated_proposals, key=lambda x: x["total_score"], reverse=True)
 
         # TODO: Store evaluation results in database
         # TODO: Use Azure ML for AI-based vendor recommendation
@@ -540,14 +517,10 @@ class VendorProcurementAgent(BaseAgent):
             "evaluation_criteria": eval_criteria,
             "rankings": ranked_proposals,
             "recommended_vendor": ranked_proposals[0] if ranked_proposals else None,
-            "evaluation_date": datetime.utcnow().isoformat()
+            "evaluation_date": datetime.utcnow().isoformat(),
         }
 
-    async def _select_vendor(
-        self,
-        rfp_id: str,
-        vendor_id: str
-    ) -> Dict[str, Any]:
+    async def _select_vendor(self, rfp_id: str, vendor_id: str) -> dict[str, Any]:
         """
         Select vendor and finalize procurement.
 
@@ -589,10 +562,10 @@ class VendorProcurementAgent(BaseAgent):
             "proposal_id": selected_proposal.get("proposal_id"),
             "pricing": selected_proposal.get("pricing"),
             "evaluation_score": selected_proposal.get("evaluation_score"),
-            "next_steps": "Generate contract from approved templates"
+            "next_steps": "Generate contract from approved templates",
         }
 
-    async def _create_contract(self, contract_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_contract(self, contract_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create contract from template.
 
@@ -604,7 +577,7 @@ class VendorProcurementAgent(BaseAgent):
         contract_id = await self._generate_contract_id()
 
         # Select contract template
-        template = await self._select_contract_template(contract_data.get("type", "standard"))
+        await self._select_contract_template(contract_data.get("type", "standard"))
 
         # Extract key clauses
         # TODO: Use Azure Form Recognizer for clause extraction
@@ -627,7 +600,7 @@ class VendorProcurementAgent(BaseAgent):
             "key_clauses": key_clauses,
             "attachments": contract_data.get("attachments", []),
             "status": "Draft",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store contract
@@ -645,10 +618,10 @@ class VendorProcurementAgent(BaseAgent):
             "start_date": contract["start_date"],
             "end_date": contract["end_date"],
             "status": "Draft",
-            "next_steps": "Review contract and submit for approval and signatures"
+            "next_steps": "Review contract and submit for approval and signatures",
         }
 
-    async def _create_purchase_order(self, po_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_purchase_order(self, po_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create purchase order from approved procurement.
 
@@ -673,7 +646,7 @@ class VendorProcurementAgent(BaseAgent):
             "payment_terms": po_data.get("payment_terms"),
             "approval_history": [],
             "status": "Pending Approval",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store PO
@@ -689,10 +662,10 @@ class VendorProcurementAgent(BaseAgent):
             "total_value": purchase_order["total_value"],
             "status": "Pending Approval",
             "items_count": len(purchase_order["items"]),
-            "next_steps": "Submit for approval. Will be released to vendor upon approval."
+            "next_steps": "Submit for approval. Will be released to vendor upon approval.",
         }
 
-    async def _submit_invoice(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _submit_invoice(self, invoice_data: dict[str, Any]) -> dict[str, Any]:
         """
         Submit vendor invoice.
 
@@ -720,7 +693,7 @@ class VendorProcurementAgent(BaseAgent):
             "attachments": invoice_data.get("attachments", []),
             "reconciliation_status": "Pending",
             "payment_status": "Unpaid",
-            "received_at": datetime.utcnow().isoformat()
+            "received_at": datetime.utcnow().isoformat(),
         }
 
         # Store invoice
@@ -736,10 +709,10 @@ class VendorProcurementAgent(BaseAgent):
             "po_number": invoice["po_number"],
             "total_amount": invoice["total_amount"],
             "reconciliation_status": "Pending",
-            "next_steps": "Invoice will be automatically reconciled against PO and receipts"
+            "next_steps": "Invoice will be automatically reconciled against PO and receipts",
         }
 
-    async def _reconcile_invoice(self, invoice_id: str) -> Dict[str, Any]:
+    async def _reconcile_invoice(self, invoice_id: str) -> dict[str, Any]:
         """
         Reconcile invoice against PO and receipts (three-way matching).
 
@@ -791,10 +764,12 @@ class VendorProcurementAgent(BaseAgent):
             "approved_for_payment": invoice.get("approved_for_payment", False),
             "payment_status": invoice.get("payment_status"),
             "payment_reference": invoice.get("payment_reference"),
-            "next_steps": "Payment initiated" if not discrepancies else "Review and resolve discrepancies"
+            "next_steps": (
+                "Payment initiated" if not discrepancies else "Review and resolve discrepancies"
+            ),
         }
 
-    async def _track_vendor_performance(self, vendor_id: str) -> Dict[str, Any]:
+    async def _track_vendor_performance(self, vendor_id: str) -> dict[str, Any]:
         """
         Track vendor performance metrics.
 
@@ -817,7 +792,7 @@ class VendorProcurementAgent(BaseAgent):
             "sla_adherence": await self._calculate_sla_adherence(vendor_id),
             "dispute_count": performance_data.get("dispute_count", 0),
             "total_spend": performance_data.get("total_spend", 0),
-            "contract_count": performance_data.get("contract_count", 0)
+            "contract_count": performance_data.get("contract_count", 0),
         }
 
         # Update vendor performance metrics
@@ -831,10 +806,10 @@ class VendorProcurementAgent(BaseAgent):
             "vendor_name": vendor.get("legal_name"),
             "metrics": metrics,
             "performance_trend": await self._analyze_performance_trend(vendor_id),
-            "recommendations": await self._generate_vendor_recommendations(metrics)
+            "recommendations": await self._generate_vendor_recommendations(metrics),
         }
 
-    async def _get_vendor_scorecard(self, vendor_id: str) -> Dict[str, Any]:
+    async def _get_vendor_scorecard(self, vendor_id: str) -> dict[str, Any]:
         """
         Generate comprehensive vendor scorecard.
 
@@ -868,14 +843,14 @@ class VendorProcurementAgent(BaseAgent):
             "contract_summary": {
                 "active_contracts": len([c for c in contracts if c.get("status") == "Active"]),
                 "total_value": sum(c.get("value", 0) for c in contracts),
-                "expiring_soon": len([c for c in contracts if await self._is_expiring_soon(c)])
+                "expiring_soon": len([c for c in contracts if await self._is_expiring_soon(c)]),
             },
             "recent_issues": recent_issues,
             "recommendations": performance.get("recommendations"),
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _search_vendors(self, criteria: Dict[str, Any]) -> Dict[str, Any]:
+    async def _search_vendors(self, criteria: dict[str, Any]) -> dict[str, Any]:
         """
         Search vendors by criteria.
 
@@ -887,30 +862,34 @@ class VendorProcurementAgent(BaseAgent):
         matching_vendors = []
         for vendor_id, vendor in self.vendors.items():
             if await self._matches_criteria(vendor, criteria):
-                matching_vendors.append({
-                    "vendor_id": vendor_id,
-                    "legal_name": vendor.get("legal_name"),
-                    "category": vendor.get("category"),
-                    "risk_score": vendor.get("risk_score"),
-                    "performance_rating": vendor.get("performance_metrics", {}).get("quality_rating", 0),
-                    "status": vendor.get("status")
-                })
+                matching_vendors.append(
+                    {
+                        "vendor_id": vendor_id,
+                        "legal_name": vendor.get("legal_name"),
+                        "category": vendor.get("category"),
+                        "risk_score": vendor.get("risk_score"),
+                        "performance_rating": vendor.get("performance_metrics", {}).get(
+                            "quality_rating", 0
+                        ),
+                        "status": vendor.get("status"),
+                    }
+                )
 
         # Sort by relevance
         # TODO: Use AI-based ranking
         sorted_vendors = sorted(
             matching_vendors,
             key=lambda x: (x.get("performance_rating", 0), -x.get("risk_score", 100)),
-            reverse=True
+            reverse=True,
         )
 
         return {
             "total_results": len(sorted_vendors),
             "vendors": sorted_vendors,
-            "search_criteria": criteria
+            "search_criteria": criteria,
         }
 
-    async def _get_procurement_status(self, request_id: str) -> Dict[str, Any]:
+    async def _get_procurement_status(self, request_id: str) -> dict[str, Any]:
         """
         Get procurement request status.
 
@@ -945,10 +924,12 @@ class VendorProcurementAgent(BaseAgent):
             "estimated_cost": request.get("estimated_cost"),
             "rfp_status": related_rfp.get("status") if related_rfp else None,
             "rfp_id": related_rfp.get("rfp_id") if related_rfp else None,
-            "proposals_received": len(related_rfp.get("proposals_received", [])) if related_rfp else 0,
+            "proposals_received": (
+                len(related_rfp.get("proposals_received", [])) if related_rfp else 0
+            ),
             "selected_vendor": related_rfp.get("selected_vendor_id") if related_rfp else None,
             "po_number": related_po.get("po_number") if related_po else None,
-            "po_status": related_po.get("status") if related_po else None
+            "po_status": related_po.get("status") if related_po else None,
         }
 
     # Helper methods
@@ -988,19 +969,13 @@ class VendorProcurementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"INV-{timestamp}"
 
-    async def _run_compliance_checks(self, vendor_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_compliance_checks(self, vendor_data: dict[str, Any]) -> dict[str, Any]:
         """Run compliance checks on vendor."""
         # TODO: Integrate with sanctions lists, anti-corruption databases
-        return {
-            "sanctions_check": "Pass",
-            "anti_corruption_check": "Pass",
-            "credit_check": "Pass"
-        }
+        return {"sanctions_check": "Pass", "anti_corruption_check": "Pass", "credit_check": "Pass"}
 
     async def _calculate_vendor_risk(
-        self,
-        vendor_data: Dict[str, Any],
-        compliance_checks: Dict[str, Any]
+        self, vendor_data: dict[str, Any], compliance_checks: dict[str, Any]
     ) -> float:
         """Calculate vendor risk score (0-100, lower is better)."""
         # TODO: Use Azure ML for risk scoring
@@ -1016,7 +991,7 @@ class VendorProcurementAgent(BaseAgent):
 
         return max(0, min(100, base_risk))
 
-    async def _categorize_procurement_request(self, request_data: Dict[str, Any]) -> str:
+    async def _categorize_procurement_request(self, request_data: dict[str, Any]) -> str:
         """Categorize procurement request using AI."""
         # TODO: Use Azure ML for classification
         description = request_data.get("description", "").lower()
@@ -1030,12 +1005,12 @@ class VendorProcurementAgent(BaseAgent):
         else:
             return "services"
 
-    async def _check_budget_availability(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _check_budget_availability(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Check budget availability for procurement."""
         # TODO: Integrate with Financial Management Agent
         return {"available": True, "remaining_budget": 100000}
 
-    async def _suggest_vendors(self, category: str, request_data: Dict[str, Any]) -> List[str]:
+    async def _suggest_vendors(self, category: str, request_data: dict[str, Any]) -> list[str]:
         """Suggest vendors based on category and requirements."""
         # TODO: Use Azure ML for vendor recommendation
         suggested = []
@@ -1054,37 +1029,29 @@ class VendorProcurementAgent(BaseAgent):
         else:
             return "Auto-Approved"
 
-    async def _select_rfp_template(self, category: str) -> Dict[str, Any]:
+    async def _select_rfp_template(self, category: str) -> dict[str, Any]:
         """Select RFP template based on category."""
         # TODO: Load from template library
         return {"template_id": f"{category}_template", "sections": []}
 
     async def _generate_rfp_content(
-        self,
-        request: Dict[str, Any],
-        template: Dict[str, Any],
-        rfp_data: Dict[str, Any]
+        self, request: dict[str, Any], template: dict[str, Any], rfp_data: dict[str, Any]
     ) -> str:
         """Generate RFP content from template."""
         # TODO: Use Azure OpenAI for content generation
         return f"RFP for {request.get('description')}"
 
     async def _select_vendors_to_invite(
-        self,
-        category: str,
-        suggested_vendors: List[str],
-        specified_vendors: List[str]
-    ) -> List[str]:
+        self, category: str, suggested_vendors: list[str], specified_vendors: list[str]
+    ) -> list[str]:
         """Select vendors to invite to RFP."""
         if specified_vendors:
             return specified_vendors
-        return suggested_vendors[:self.min_vendor_proposals]
+        return suggested_vendors[: self.min_vendor_proposals]
 
     async def _score_proposal(
-        self,
-        proposal: Dict[str, Any],
-        criteria: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, proposal: dict[str, Any], criteria: dict[str, float]
+    ) -> dict[str, float]:
         """Score proposal against criteria."""
         # TODO: Use AI for automated scoring
         scores = {}
@@ -1107,21 +1074,21 @@ class VendorProcurementAgent(BaseAgent):
 
         return scores
 
-    async def _extract_contract_clauses(self, contract_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _extract_contract_clauses(self, contract_data: dict[str, Any]) -> dict[str, Any]:
         """Extract key clauses from contract."""
         # TODO: Use Azure Form Recognizer
         return {
             "termination": "30 days notice",
             "liability": "Limited to contract value",
-            "warranties": "Standard warranties apply"
+            "warranties": "Standard warranties apply",
         }
 
-    async def _select_contract_template(self, contract_type: str) -> Dict[str, Any]:
+    async def _select_contract_template(self, contract_type: str) -> dict[str, Any]:
         """Select contract template."""
         # TODO: Load from template library
         return {"template_id": f"{contract_type}_contract"}
 
-    async def _calculate_po_total(self, items: List[Dict[str, Any]]) -> float:
+    async def _calculate_po_total(self, items: list[dict[str, Any]]) -> float:
         """Calculate total PO value."""
         total = 0.0
         for item in items:
@@ -1131,10 +1098,8 @@ class VendorProcurementAgent(BaseAgent):
         return total
 
     async def _three_way_match(
-        self,
-        invoice: Dict[str, Any],
-        purchase_order: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, invoice: dict[str, Any], purchase_order: dict[str, Any]
+    ) -> dict[str, Any]:
         """Perform three-way matching between invoice, PO, and receipt."""
         discrepancies = []
 
@@ -1143,37 +1108,32 @@ class VendorProcurementAgent(BaseAgent):
         po_total = purchase_order.get("total_value", 0)
 
         if abs(invoice_total - po_total) > (po_total * self.invoice_tolerance_pct):
-            discrepancies.append({
-                "type": "amount_mismatch",
-                "invoice_amount": invoice_total,
-                "po_amount": po_total,
-                "variance": invoice_total - po_total
-            })
+            discrepancies.append(
+                {
+                    "type": "amount_mismatch",
+                    "invoice_amount": invoice_total,
+                    "po_amount": po_total,
+                    "variance": invoice_total - po_total,
+                }
+            )
 
         # TODO: Check line items
         # TODO: Check receipts
 
-        return {
-            "matched": len(discrepancies) == 0,
-            "discrepancies": discrepancies
-        }
+        return {"matched": len(discrepancies) == 0, "discrepancies": discrepancies}
 
-    async def _initiate_payment(self, invoice: Dict[str, Any]) -> Dict[str, Any]:
+    async def _initiate_payment(self, invoice: dict[str, Any]) -> dict[str, Any]:
         """Initiate payment in ERP."""
         # TODO: Integrate with ERP system
         return {
             "status": "Processing",
-            "reference": f"PAY-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+            "reference": f"PAY-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
         }
 
-    async def _collect_vendor_performance_data(self, vendor_id: str) -> Dict[str, Any]:
+    async def _collect_vendor_performance_data(self, vendor_id: str) -> dict[str, Any]:
         """Collect vendor performance data."""
         # TODO: Query historical data
-        return {
-            "total_spend": 0,
-            "contract_count": 0,
-            "dispute_count": 0
-        }
+        return {"total_spend": 0, "contract_count": 0, "dispute_count": 0}
 
     async def _calculate_delivery_timeliness(self, vendor_id: str) -> float:
         """Calculate vendor delivery timeliness percentage."""
@@ -1200,7 +1160,7 @@ class VendorProcurementAgent(BaseAgent):
         # TODO: Perform trend analysis
         return "Stable"
 
-    async def _generate_vendor_recommendations(self, metrics: Dict[str, Any]) -> List[str]:
+    async def _generate_vendor_recommendations(self, metrics: dict[str, Any]) -> list[str]:
         """Generate recommendations based on vendor metrics."""
         recommendations = []
 
@@ -1215,7 +1175,7 @@ class VendorProcurementAgent(BaseAgent):
 
         return recommendations
 
-    async def _get_vendor_contracts(self, vendor_id: str) -> List[Dict[str, Any]]:
+    async def _get_vendor_contracts(self, vendor_id: str) -> list[dict[str, Any]]:
         """Get all contracts for a vendor."""
         vendor_contracts = []
         for contract_id, contract in self.contracts.items():
@@ -1223,28 +1183,28 @@ class VendorProcurementAgent(BaseAgent):
                 vendor_contracts.append(contract)
         return vendor_contracts
 
-    async def _get_vendor_issues(self, vendor_id: str) -> List[Dict[str, Any]]:
+    async def _get_vendor_issues(self, vendor_id: str) -> list[dict[str, Any]]:
         """Get recent issues with vendor."""
         # TODO: Query issue tracking system
         return []
 
-    async def _calculate_overall_vendor_score(self, vendor: Dict[str, Any]) -> float:
+    async def _calculate_overall_vendor_score(self, vendor: dict[str, Any]) -> float:
         """Calculate overall vendor score."""
         metrics = vendor.get("performance_metrics", {})
         risk_score = vendor.get("risk_score", 50)
 
         # Weighted average
         score = (
-            metrics.get("quality_rating", 0) * 20 +
-            metrics.get("on_time_delivery_rate", 0) * 20 +
-            metrics.get("compliance_rating", 0) * 20 +
-            (100 - risk_score) * 20 +
-            metrics.get("sla_adherence", 0) * 20
+            metrics.get("quality_rating", 0) * 20
+            + metrics.get("on_time_delivery_rate", 0) * 20
+            + metrics.get("compliance_rating", 0) * 20
+            + (100 - risk_score) * 20
+            + metrics.get("sla_adherence", 0) * 20
         ) / 100
 
         return min(100, max(0, score))
 
-    async def _is_expiring_soon(self, contract: Dict[str, Any]) -> bool:
+    async def _is_expiring_soon(self, contract: dict[str, Any]) -> bool:
         """Check if contract is expiring within 90 days."""
         end_date_str = contract.get("end_date")
         if not end_date_str:
@@ -1254,13 +1214,16 @@ class VendorProcurementAgent(BaseAgent):
         days_until_expiry = (end_date - datetime.utcnow()).days
         return 0 < days_until_expiry <= 90
 
-    async def _matches_criteria(self, vendor: Dict[str, Any], criteria: Dict[str, Any]) -> bool:
+    async def _matches_criteria(self, vendor: dict[str, Any], criteria: dict[str, Any]) -> bool:
         """Check if vendor matches search criteria."""
         if "category" in criteria and vendor.get("category") != criteria["category"]:
             return False
 
         if "min_rating" in criteria:
-            if vendor.get("performance_metrics", {}).get("quality_rating", 0) < criteria["min_rating"]:
+            if (
+                vendor.get("performance_metrics", {}).get("quality_rating", 0)
+                < criteria["min_rating"]
+            ):
                 return False
 
         if "max_risk_score" in criteria:
@@ -1280,7 +1243,7 @@ class VendorProcurementAgent(BaseAgent):
         # TODO: Close external API connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "vendor_registry",
@@ -1301,5 +1264,5 @@ class VendorProcurementAgent(BaseAgent):
             "vendor_scorecard_generation",
             "compliance_enforcement",
             "audit_trail_management",
-            "spend_analysis"
+            "spend_analysis",
         ]

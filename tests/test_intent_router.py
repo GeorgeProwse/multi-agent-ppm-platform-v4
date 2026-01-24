@@ -3,6 +3,7 @@ Tests for Intent Router Agent
 """
 
 import pytest
+
 from src.agents.core.orchestration.intent_router_agent import IntentRouterAgent
 
 
@@ -24,10 +25,7 @@ async def test_portfolio_query_classification():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "Show me the portfolio overview",
-        "context": {}
-    })
+    result = await agent.execute({"query": "Show me the portfolio overview", "context": {}})
 
     assert result["success"] is True
     intents = result["data"]["intents"]
@@ -41,10 +39,7 @@ async def test_financial_query_classification():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "What is the budget variance for Q1?",
-        "context": {}
-    })
+    result = await agent.execute({"query": "What is the budget variance for Q1?", "context": {}})
 
     assert result["success"] is True
     intents = result["data"]["intents"]
@@ -58,10 +53,9 @@ async def test_schedule_query_classification():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "When is the deadline for Project Apollo?",
-        "context": {}
-    })
+    result = await agent.execute(
+        {"query": "When is the deadline for Project Apollo?", "context": {}}
+    )
 
     assert result["success"] is True
     intents = result["data"]["intents"]
@@ -75,10 +69,9 @@ async def test_risk_query_classification():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "What are the top risks for my projects?",
-        "context": {}
-    })
+    result = await agent.execute(
+        {"query": "What are the top risks for my projects?", "context": {}}
+    )
 
     assert result["success"] is True
     intents = result["data"]["intents"]
@@ -92,10 +85,7 @@ async def test_agent_routing():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "Show me the budget for Project Alpha",
-        "context": {}
-    })
+    result = await agent.execute({"query": "Show me the budget for Project Alpha", "context": {}})
 
     assert result["success"] is True
     routing = result["data"]["routing"]
@@ -124,10 +114,9 @@ async def test_multi_intent_detection():
     agent = IntentRouterAgent()
     await agent.initialize()
 
-    result = await agent.execute({
-        "query": "Show me the budget and schedule for Project Alpha",
-        "context": {}
-    })
+    result = await agent.execute(
+        {"query": "Show me the budget and schedule for Project Alpha", "context": {}}
+    )
 
     assert result["success"] is True
     intents = result["data"]["intents"]

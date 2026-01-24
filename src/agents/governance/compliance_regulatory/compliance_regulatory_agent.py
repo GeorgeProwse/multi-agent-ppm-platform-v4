@@ -9,10 +9,10 @@ audits and evidence collection.
 Specification: docs_markdown/specs/agents/governance/compliance-regulatory/Agent 16 Compliance & Regulatory Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ComplianceRegulatoryAgent(BaseAgent):
@@ -30,29 +30,34 @@ class ComplianceRegulatoryAgent(BaseAgent):
     - Regulatory change monitoring
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_016",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_016", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.regulations = config.get("regulations", [
-            "GDPR", "SOX", "ISO 27001", "HIPAA", "PCI DSS"
-        ]) if config else ["GDPR", "SOX", "ISO 27001", "HIPAA", "PCI DSS"]
+        self.regulations = (
+            config.get("regulations", ["GDPR", "SOX", "ISO 27001", "HIPAA", "PCI DSS"])
+            if config
+            else ["GDPR", "SOX", "ISO 27001", "HIPAA", "PCI DSS"]
+        )
 
-        self.control_test_frequencies = config.get("control_test_frequencies", {
-            "critical": "monthly",
-            "high": "quarterly",
-            "medium": "semi-annually",
-            "low": "annually"
-        }) if config else {
-            "critical": "monthly",
-            "high": "quarterly",
-            "medium": "semi-annually",
-            "low": "annually"
-        }
+        self.control_test_frequencies = (
+            config.get(
+                "control_test_frequencies",
+                {
+                    "critical": "monthly",
+                    "high": "quarterly",
+                    "medium": "semi-annually",
+                    "low": "annually",
+                },
+            )
+            if config
+            else {
+                "critical": "monthly",
+                "high": "quarterly",
+                "medium": "semi-annually",
+                "low": "annually",
+            }
+        )
 
         # Data stores (will be replaced with database)
         self.regulation_library = {}
@@ -81,7 +86,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         self.logger.info("Compliance & Regulatory Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -101,7 +106,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "upload_evidence",
             "monitor_regulatory_changes",
             "get_compliance_dashboard",
-            "generate_compliance_report"
+            "generate_compliance_report",
         ]
 
         if action not in valid_actions:
@@ -118,7 +123,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process compliance and regulatory requests.
 
@@ -166,20 +171,17 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         elif action == "map_controls_to_project":
             return await self._map_controls_to_project(
-                input_data.get("project_id"),
-                input_data.get("mapping", {})
+                input_data.get("project_id"), input_data.get("mapping", {})
             )
 
         elif action == "assess_compliance":
             return await self._assess_compliance(
-                input_data.get("project_id"),
-                input_data.get("assessment", {})
+                input_data.get("project_id"), input_data.get("assessment", {})
             )
 
         elif action == "test_control":
             return await self._test_control(
-                input_data.get("control_id"),
-                input_data.get("test", {})
+                input_data.get("control_id"), input_data.get("test", {})
             )
 
         elif action == "manage_policy":
@@ -193,8 +195,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         elif action == "upload_evidence":
             return await self._upload_evidence(
-                input_data.get("control_id"),
-                input_data.get("evidence", {})
+                input_data.get("control_id"), input_data.get("evidence", {})
             )
 
         elif action == "monitor_regulatory_changes":
@@ -202,20 +203,18 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         elif action == "get_compliance_dashboard":
             return await self._get_compliance_dashboard(
-                input_data.get("project_id"),
-                input_data.get("portfolio_id")
+                input_data.get("project_id"), input_data.get("portfolio_id")
             )
 
         elif action == "generate_compliance_report":
             return await self._generate_compliance_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _add_regulation(self, regulation_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _add_regulation(self, regulation_data: dict[str, Any]) -> dict[str, Any]:
         """
         Add regulation to library.
 
@@ -228,9 +227,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         # Parse regulation using NLP
         # TODO: Use Azure Cognitive Services to extract obligations
-        parsed_obligations = await self._parse_regulation_text(
-            regulation_data.get("text", "")
-        )
+        parsed_obligations = await self._parse_regulation_text(regulation_data.get("text", ""))
 
         # Determine applicability
         applicability = await self._determine_applicability(regulation_data)
@@ -246,7 +243,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "obligations": parsed_obligations,
             "related_controls": [],
             "applicability_rules": applicability,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store regulation
@@ -259,10 +256,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "name": regulation["name"],
             "obligations_extracted": len(parsed_obligations),
             "applicability": applicability,
-            "next_steps": "Define controls to satisfy regulatory obligations"
+            "next_steps": "Define controls to satisfy regulatory obligations",
         }
 
-    async def _define_control(self, control_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _define_control(self, control_data: dict[str, Any]) -> dict[str, Any]:
         """
         Define compliance control.
 
@@ -290,7 +287,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "status": "Active",
             "last_test_date": None,
             "last_test_result": None,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store control
@@ -308,14 +305,12 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "owner": control["owner"],
             "test_frequency": control["test_frequency"],
             "similar_controls": similar_controls,
-            "next_steps": "Map control to projects and deliverables"
+            "next_steps": "Map control to projects and deliverables",
         }
 
     async def _map_controls_to_project(
-        self,
-        project_id: str,
-        mapping_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, mapping_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Map controls to project.
 
@@ -342,7 +337,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "applicable_regulations": applicable_regulations,
             "applicable_controls": applicable_controls,
             "control_status": {},
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Initialize control status
@@ -351,7 +346,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
                 "implementation_status": "Not Started",
                 "evidence_uploaded": False,
                 "last_tested": None,
-                "test_result": None
+                "test_result": None,
             }
 
         # Store mapping
@@ -368,17 +363,15 @@ class ComplianceRegulatoryAgent(BaseAgent):
                 {
                     "control_id": c_id,
                     "description": self.control_registry.get(c_id, {}).get("description"),
-                    "status": "Not Started"
+                    "status": "Not Started",
                 }
                 for c_id in applicable_controls
-            ]
+            ],
         }
 
     async def _assess_compliance(
-        self,
-        project_id: str,
-        assessment_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, assessment_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Assess compliance readiness.
 
@@ -389,7 +382,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         mapping = self.compliance_mappings.get(project_id)
         if not mapping:
             # Create mapping first
-            mapping_result = await self._map_controls_to_project(project_id, {})
+            await self._map_controls_to_project(project_id, {})
             mapping = self.compliance_mappings.get(project_id)
 
         # Assess each control
@@ -412,18 +405,20 @@ class ComplianceRegulatoryAgent(BaseAgent):
                 "implemented": implemented,
                 "evidence_provided": evidence_provided,
                 "recently_tested": recently_tested,
-                "compliant": implemented and evidence_provided and recently_tested
+                "compliant": implemented and evidence_provided and recently_tested,
             }
 
             control_assessments.append(assessment)
 
             if not assessment["compliant"]:
-                gaps.append({
-                    "control_id": control_id,
-                    "description": control.get("description"),
-                    "gap_type": await self._identify_gap_type(assessment),
-                    "remediation": await self._recommend_remediation(assessment)
-                })
+                gaps.append(
+                    {
+                        "control_id": control_id,
+                        "description": control.get("description"),
+                        "gap_type": await self._identify_gap_type(assessment),
+                        "remediation": await self._recommend_remediation(assessment),
+                    }
+                )
 
         # Calculate compliance score
         total_controls = len(control_assessments)
@@ -438,14 +433,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "gaps_identified": len(gaps),
             "gaps": gaps,
             "control_assessments": control_assessments,
-            "assessment_date": datetime.utcnow().isoformat()
+            "assessment_date": datetime.utcnow().isoformat(),
         }
 
-    async def _test_control(
-        self,
-        control_id: str,
-        test_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _test_control(self, control_id: str, test_data: dict[str, Any]) -> dict[str, Any]:
         """
         Test control effectiveness.
 
@@ -481,10 +472,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "test_date": control["last_test_date"],
             "tester": tester,
             "next_test_date": await self._calculate_next_test_date(control),
-            "notes": test_notes
+            "notes": test_notes,
         }
 
-    async def _manage_policy(self, policy_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _manage_policy(self, policy_data: dict[str, Any]) -> dict[str, Any]:
         """
         Manage policy document.
 
@@ -515,17 +506,21 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "approval_status": "Draft",
             "document_url": policy_data.get("document_url"),
             "related_regulations": policy_data.get("related_regulations", []),
-            "version_history": existing_policy.get("version_history", []) if existing_policy else [],
-            "created_at": datetime.utcnow().isoformat()
+            "version_history": (
+                existing_policy.get("version_history", []) if existing_policy else []
+            ),
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Add to version history
         if existing_policy:
-            policy["version_history"].append({
-                "version": existing_policy["version"],
-                "effective_date": existing_policy["effective_date"],
-                "archived_at": datetime.utcnow().isoformat()
-            })
+            policy["version_history"].append(
+                {
+                    "version": existing_policy["version"],
+                    "effective_date": existing_policy["effective_date"],
+                    "archived_at": datetime.utcnow().isoformat(),
+                }
+            )
 
         # Store policy
         self.policies[policy_id] = policy
@@ -539,10 +534,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "title": policy["title"],
             "version": policy["version"],
             "status": policy["approval_status"],
-            "next_steps": "Submit policy for approval and publication"
+            "next_steps": "Submit policy for approval and publication",
         }
 
-    async def _prepare_audit(self, audit_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _prepare_audit(self, audit_data: dict[str, Any]) -> dict[str, Any]:
         """
         Prepare audit package.
 
@@ -579,7 +574,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "control_summary": control_summary,
             "status": "Prepared",
             "findings": [],
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store audit
@@ -595,10 +590,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "documentation_items": len(documentation),
             "evidence_items": len(evidence_package),
             "controls_in_scope": len(control_summary),
-            "audit_package_url": f"/audits/{audit_id}/package"
+            "audit_package_url": f"/audits/{audit_id}/package",
         }
 
-    async def _conduct_audit(self, audit_id: str) -> Dict[str, Any]:
+    async def _conduct_audit(self, audit_id: str) -> dict[str, Any]:
         """
         Conduct audit and record findings.
 
@@ -628,13 +623,15 @@ class ComplianceRegulatoryAgent(BaseAgent):
             if control_effective:
                 controls_passed += 1
             else:
-                findings.append({
-                    "control_id": control_id,
-                    "description": control.get("description"),
-                    "finding_type": "deficiency",
-                    "severity": "high",
-                    "recommendation": "Strengthen control implementation and testing"
-                })
+                findings.append(
+                    {
+                        "control_id": control_id,
+                        "description": control.get("description"),
+                        "finding_type": "deficiency",
+                        "severity": "high",
+                        "recommendation": "Strengthen control implementation and testing",
+                    }
+                )
 
         # Calculate audit score
         audit_score = (controls_passed / controls_reviewed * 100) if controls_reviewed > 0 else 0
@@ -657,14 +654,12 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "controls_passed": controls_passed,
             "findings_count": len(findings),
             "findings": findings,
-            "completion_date": audit["completion_date"]
+            "completion_date": audit["completion_date"],
         }
 
     async def _upload_evidence(
-        self,
-        control_id: str,
-        evidence_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, control_id: str, evidence_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Upload evidence for control.
 
@@ -689,7 +684,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "description": evidence_data.get("description"),
             "uploaded_by": evidence_data.get("uploaded_by", "unknown"),
             "uploaded_at": datetime.utcnow().isoformat(),
-            "classification": evidence_data.get("classification", "confidential")
+            "classification": evidence_data.get("classification", "confidential"),
         }
 
         # Store evidence
@@ -710,10 +705,10 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "control_id": control_id,
             "file_name": evidence_record["file_name"],
             "uploaded_at": evidence_record["uploaded_at"],
-            "storage_url": evidence_record["file_url"]
+            "storage_url": evidence_record["file_url"],
         }
 
-    async def _monitor_regulatory_changes(self) -> Dict[str, Any]:
+    async def _monitor_regulatory_changes(self) -> dict[str, Any]:
         """
         Monitor regulatory changes and updates.
 
@@ -730,12 +725,14 @@ class ComplianceRegulatoryAgent(BaseAgent):
         for change in changes:
             impact_assessment = await self._assess_regulatory_change_impact(change)
             if impact_assessment.get("projects_affected"):
-                impacted_regulations.append({
-                    "regulation": change.get("regulation"),
-                    "change_description": change.get("description"),
-                    "effective_date": change.get("effective_date"),
-                    "impact_assessment": impact_assessment
-                })
+                impacted_regulations.append(
+                    {
+                        "regulation": change.get("regulation"),
+                        "change_description": change.get("description"),
+                        "effective_date": change.get("effective_date"),
+                        "impact_assessment": impact_assessment,
+                    }
+                )
 
         # TODO: Create tasks for updates
         # TODO: Notify stakeholders
@@ -744,20 +741,20 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "changes_detected": len(changes),
             "regulations_impacted": len(impacted_regulations),
             "impacted_regulations": impacted_regulations,
-            "last_check": datetime.utcnow().isoformat()
+            "last_check": datetime.utcnow().isoformat(),
         }
 
     async def _get_compliance_dashboard(
-        self,
-        project_id: Optional[str],
-        portfolio_id: Optional[str]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, portfolio_id: str | None
+    ) -> dict[str, Any]:
         """
         Get compliance dashboard.
 
         Returns dashboard data.
         """
-        self.logger.info(f"Getting compliance dashboard for project={project_id}, portfolio={portfolio_id}")
+        self.logger.info(
+            f"Getting compliance dashboard for project={project_id}, portfolio={portfolio_id}"
+        )
 
         # Get compliance assessment
         assessment = None
@@ -780,14 +777,12 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "control_testing_status": control_status,
             "upcoming_audits": upcoming_audits,
             "recent_findings": recent_findings,
-            "dashboard_generated_at": datetime.utcnow().isoformat()
+            "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _generate_compliance_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, report_type: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate compliance report.
 
@@ -836,34 +831,30 @@ class ComplianceRegulatoryAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"EV-{timestamp}"
 
-    async def _parse_regulation_text(self, text: str) -> List[Dict[str, Any]]:
+    async def _parse_regulation_text(self, text: str) -> list[dict[str, Any]]:
         """Parse regulation text to extract obligations."""
         # TODO: Use Azure Cognitive Services
         return [{"obligation": "Sample obligation", "deadline": None}]
 
-    async def _determine_applicability(self, regulation_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _determine_applicability(self, regulation_data: dict[str, Any]) -> dict[str, Any]:
         """Determine regulation applicability rules."""
         return {
             "applies_to_all": False,
             "jurisdiction_filter": regulation_data.get("jurisdiction", []),
-            "industry_filter": regulation_data.get("industry", [])
+            "industry_filter": regulation_data.get("industry", []),
         }
 
-    async def _recommend_similar_controls(self, control_data: Dict[str, Any]) -> List[str]:
+    async def _recommend_similar_controls(self, control_data: dict[str, Any]) -> list[str]:
         """Recommend similar controls."""
         # TODO: Use knowledge graphs and similarity algorithms
         return []
 
-    async def _determine_applicable_regulations(self, project_id: str) -> List[str]:
+    async def _determine_applicable_regulations(self, project_id: str) -> list[str]:
         """Determine which regulations apply to project."""
         # TODO: Use project metadata to filter regulations
         return list(self.regulation_library.keys())[:3]  # Placeholder
 
-    async def _is_recently_tested(
-        self,
-        control: Dict[str, Any],
-        status: Dict[str, Any]
-    ) -> bool:
+    async def _is_recently_tested(self, control: dict[str, Any], status: dict[str, Any]) -> bool:
         """Check if control has been tested recently."""
         last_test_date_str = status.get("last_tested")
         if not last_test_date_str:
@@ -873,19 +864,14 @@ class ComplianceRegulatoryAgent(BaseAgent):
         test_frequency = control.get("test_frequency", "quarterly")
 
         # Determine frequency in days
-        frequency_days = {
-            "monthly": 30,
-            "quarterly": 90,
-            "semi-annually": 180,
-            "annually": 365
-        }
+        frequency_days = {"monthly": 30, "quarterly": 90, "semi-annually": 180, "annually": 365}
 
         days_threshold = frequency_days.get(test_frequency, 90)
         days_since_test = (datetime.utcnow() - last_test_date).days
 
         return days_since_test <= days_threshold
 
-    async def _identify_gap_type(self, assessment: Dict[str, Any]) -> str:
+    async def _identify_gap_type(self, assessment: dict[str, Any]) -> str:
         """Identify type of compliance gap."""
         if not assessment["implemented"]:
             return "Not Implemented"
@@ -896,7 +882,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         else:
             return "Unknown"
 
-    async def _recommend_remediation(self, assessment: Dict[str, Any]) -> str:
+    async def _recommend_remediation(self, assessment: dict[str, Any]) -> str:
         """Recommend remediation action."""
         gap_type = await self._identify_gap_type(assessment)
 
@@ -904,12 +890,12 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "Not Implemented": "Implement control and document procedures",
             "Missing Evidence": "Upload evidence of control implementation",
             "Overdue Testing": "Schedule and perform control testing",
-            "Unknown": "Review control status"
+            "Unknown": "Review control status",
         }
 
         return recommendations.get(gap_type, "Review and update")
 
-    async def _calculate_next_test_date(self, control: Dict[str, Any]) -> str:
+    async def _calculate_next_test_date(self, control: dict[str, Any]) -> str:
         """Calculate next test date based on frequency."""
         last_test_date_str = control.get("last_test_date")
         if not last_test_date_str:
@@ -919,12 +905,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         test_frequency = control.get("test_frequency", "quarterly")
 
         # Determine frequency in days
-        frequency_days = {
-            "monthly": 30,
-            "quarterly": 90,
-            "semi-annually": 180,
-            "annually": 365
-        }
+        frequency_days = {"monthly": 30, "quarterly": 90, "semi-annually": 180, "annually": 365}
 
         days_to_add = frequency_days.get(test_frequency, 90)
         next_test_date = last_test_date + timedelta(days=days_to_add)
@@ -932,88 +913,64 @@ class ComplianceRegulatoryAgent(BaseAgent):
         return next_test_date.isoformat()
 
     async def _compile_audit_documentation(
-        self,
-        project_id: str,
-        scope: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str, scope: list[str]
+    ) -> list[dict[str, Any]]:
         """Compile documentation for audit."""
         # TODO: Gather relevant documents
         return []
 
-    async def _compile_evidence(
-        self,
-        project_id: str,
-        scope: List[str]
-    ) -> List[Dict[str, Any]]:
+    async def _compile_evidence(self, project_id: str, scope: list[str]) -> list[dict[str, Any]]:
         """Compile evidence for audit."""
         evidence_package = []
         for control_id, evidence_list in self.evidence.items():
             evidence_package.extend(evidence_list)
         return evidence_package
 
-    async def _generate_control_summary(self, project_id: str) -> List[str]:
+    async def _generate_control_summary(self, project_id: str) -> list[str]:
         """Generate control summary for audit."""
         mapping = self.compliance_mappings.get(project_id)
         if not mapping:
             return []
         return mapping.get("applicable_controls", [])
 
-    async def _verify_control_effectiveness(self, control: Dict[str, Any]) -> bool:
+    async def _verify_control_effectiveness(self, control: dict[str, Any]) -> bool:
         """Verify control effectiveness."""
         # Check if recently tested and passed
         last_result = control.get("last_test_result")
         return last_result == "pass"
 
-    async def _check_regulatory_feeds(self) -> List[Dict[str, Any]]:
+    async def _check_regulatory_feeds(self) -> list[dict[str, Any]]:
         """Check regulatory feeds for updates."""
         # TODO: Query external regulatory feeds
         return []
 
-    async def _assess_regulatory_change_impact(
-        self,
-        change: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _assess_regulatory_change_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Assess impact of regulatory change."""
         # TODO: Analyze impact on projects and controls
-        return {
-            "projects_affected": [],
-            "controls_affected": [],
-            "estimated_effort": "medium"
-        }
+        return {"projects_affected": [], "controls_affected": [], "estimated_effort": "medium"}
 
-    async def _get_control_testing_status(
-        self,
-        project_id: Optional[str]
-    ) -> Dict[str, Any]:
+    async def _get_control_testing_status(self, project_id: str | None) -> dict[str, Any]:
         """Get control testing status."""
         # TODO: Query control test records
-        return {
-            "overdue_tests": 0,
-            "upcoming_tests": 0,
-            "recently_tested": 0
-        }
+        return {"overdue_tests": 0, "upcoming_tests": 0, "recently_tested": 0}
 
-    async def _get_upcoming_audits(
-        self,
-        project_id: Optional[str]
-    ) -> List[Dict[str, Any]]:
+    async def _get_upcoming_audits(self, project_id: str | None) -> list[dict[str, Any]]:
         """Get upcoming audits."""
         upcoming = []
         for audit_id, audit in self.audits.items():
             if project_id and audit.get("project_id") != project_id:
                 continue
             if audit.get("status") in ["Scheduled", "Prepared"]:
-                upcoming.append({
-                    "audit_id": audit_id,
-                    "title": audit.get("title"),
-                    "scheduled_date": audit.get("scheduled_date")
-                })
+                upcoming.append(
+                    {
+                        "audit_id": audit_id,
+                        "title": audit.get("title"),
+                        "scheduled_date": audit.get("scheduled_date"),
+                    }
+                )
         return upcoming
 
-    async def _get_recent_audit_findings(
-        self,
-        project_id: Optional[str]
-    ) -> List[Dict[str, Any]]:
+    async def _get_recent_audit_findings(self, project_id: str | None) -> list[dict[str, Any]]:
         """Get recent audit findings."""
         findings = []
         for audit_id, audit in self.audits.items():
@@ -1023,29 +980,21 @@ class ComplianceRegulatoryAgent(BaseAgent):
                 findings.extend(audit.get("findings", []))
         return findings[:10]  # Most recent 10
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary compliance report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
-    async def _generate_detailed_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_detailed_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate detailed compliance report."""
         return {
             "report_type": "detailed",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_audit_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_audit_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate audit report."""
-        return {
-            "report_type": "audit",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "audit", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
     async def cleanup(self) -> None:
         """Cleanup resources."""
@@ -1054,7 +1003,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         # TODO: Close GRC system connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "regulation_management",
@@ -1073,5 +1022,5 @@ class ComplianceRegulatoryAgent(BaseAgent):
             "regulatory_change_monitoring",
             "compliance_dashboards",
             "compliance_reporting",
-            "automated_control_testing"
+            "automated_control_testing",
         ]

@@ -8,10 +8,10 @@ work breakdown structure (WBS) and requirements. Guides teams through initiation
 Specification: docs_markdown/specs/agents/delivery/project-definition/Agent 8 Project Definition & Scope Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ProjectDefinitionAgent(BaseAgent):
@@ -27,26 +27,18 @@ class ProjectDefinitionAgent(BaseAgent):
     - Requirements validation & verification
     """
 
-    def __init__(
-        self,
-        agent_id: str = "project-definition",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "project-definition", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
         self.template_library = config.get("template_library", {}) if config else {}
-        self.priority_thresholds = config.get("priority_thresholds", {
-            "critical": 0.9,
-            "high": 0.7,
-            "medium": 0.4,
-            "low": 0.0
-        }) if config else {
-            "critical": 0.9,
-            "high": 0.7,
-            "medium": 0.4,
-            "low": 0.0
-        }
+        self.priority_thresholds = (
+            config.get(
+                "priority_thresholds", {"critical": 0.9, "high": 0.7, "medium": 0.4, "low": 0.0}
+            )
+            if config
+            else {"critical": 0.9, "high": 0.7, "medium": 0.4, "low": 0.0}
+        )
         self.traceability_threshold = config.get("traceability_threshold", 0.90) if config else 0.90
         self.scope_change_threshold = config.get("scope_change_threshold", 0.10) if config else 0.10
 
@@ -74,7 +66,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         self.logger.info("Project Definition & Scope Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -93,7 +85,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "detect_scope_creep",
             "get_charter",
             "get_wbs",
-            "get_requirements"
+            "get_requirements",
         ]
 
         if action not in valid_actions:
@@ -115,7 +107,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process project definition and scope management requests.
 
@@ -154,14 +146,12 @@ class ProjectDefinitionAgent(BaseAgent):
 
         elif action == "generate_wbs":
             return await self._generate_wbs(
-                input_data.get("project_id"),
-                input_data.get("scope_statement", {})
+                input_data.get("project_id"), input_data.get("scope_statement", {})
             )
 
         elif action == "manage_requirements":
             return await self._manage_requirements(
-                input_data.get("project_id"),
-                input_data.get("requirements", [])
+                input_data.get("project_id"), input_data.get("requirements", [])
             )
 
         elif action == "create_traceability_matrix":
@@ -169,15 +159,14 @@ class ProjectDefinitionAgent(BaseAgent):
 
         elif action == "analyze_stakeholders":
             return await self._analyze_stakeholders(
-                input_data.get("project_id"),
-                input_data.get("stakeholders", [])
+                input_data.get("project_id"), input_data.get("stakeholders", [])
             )
 
         elif action == "create_raci_matrix":
             return await self._create_raci_matrix(
                 input_data.get("project_id"),
                 input_data.get("stakeholders", []),
-                input_data.get("deliverables", [])
+                input_data.get("deliverables", []),
             )
 
         elif action == "manage_scope_baseline":
@@ -185,8 +174,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         elif action == "detect_scope_creep":
             return await self._detect_scope_creep(
-                input_data.get("project_id"),
-                input_data.get("current_scope", {})
+                input_data.get("project_id"), input_data.get("current_scope", {})
             )
 
         elif action == "get_charter":
@@ -201,7 +189,7 @@ class ProjectDefinitionAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _generate_charter(self, charter_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_charter(self, charter_data: dict[str, Any]) -> dict[str, Any]:
         """
         Generate comprehensive project charter.
 
@@ -217,7 +205,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         # Extract key information
         title = charter_data.get("title")
-        description = charter_data.get("description")
+        charter_data.get("description")
         project_type = charter_data.get("project_type")
         methodology = charter_data.get("methodology", "hybrid")
 
@@ -260,7 +248,7 @@ class ProjectDefinitionAgent(BaseAgent):
                 "assumptions": assumptions,
                 "constraints": constraints,
             },
-            "version": "1.0"
+            "version": "1.0",
         }
 
         # Store charter
@@ -276,14 +264,12 @@ class ProjectDefinitionAgent(BaseAgent):
             "project_id": project_id,
             "status": "Draft",
             "document": charter["document"],
-            "next_steps": "Review and refine charter, then submit for approval"
+            "next_steps": "Review and refine charter, then submit for approval",
         }
 
     async def _generate_wbs(
-        self,
-        project_id: str,
-        scope_statement: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, scope_statement: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate Work Breakdown Structure.
 
@@ -302,9 +288,7 @@ class ProjectDefinitionAgent(BaseAgent):
         # Generate WBS structure using AI
         # TODO: Use Azure OpenAI for WBS generation
         wbs_structure = await self._generate_wbs_structure(
-            charter,
-            scope_statement,
-            similar_projects
+            charter, scope_statement, similar_projects
         )
 
         # Add work package details
@@ -319,7 +303,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "structure": wbs_with_details,
             "created_at": datetime.utcnow().isoformat(),
             "status": "Draft",
-            "version": "1.0"
+            "version": "1.0",
         }
 
         # Store WBS
@@ -333,14 +317,12 @@ class ProjectDefinitionAgent(BaseAgent):
             "project_id": project_id,
             "structure": wbs_with_details,
             "total_work_packages": await self._count_work_packages(wbs_with_details),
-            "next_steps": "Review and refine WBS, then pass to Schedule & Planning Agent"
+            "next_steps": "Review and refine WBS, then pass to Schedule & Planning Agent",
         }
 
     async def _manage_requirements(
-        self,
-        project_id: str,
-        requirements: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, project_id: str, requirements: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Manage project requirements.
 
@@ -351,8 +333,7 @@ class ProjectDefinitionAgent(BaseAgent):
         # Extract requirements from various sources
         # TODO: Use Azure Form Recognizer for document extraction
         extracted_requirements = await self._extract_requirements_from_sources(
-            project_id,
-            requirements
+            project_id, requirements
         )
 
         # Categorize requirements
@@ -374,7 +355,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "conflicts": conflicts,
             "validation": validation,
             "total_count": len(prioritized),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
 
         # Store requirements
@@ -386,7 +367,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         return requirements_repo
 
-    async def _create_traceability_matrix(self, project_id: str) -> Dict[str, Any]:
+    async def _create_traceability_matrix(self, project_id: str) -> dict[str, Any]:
         """
         Create requirements traceability matrix.
 
@@ -410,21 +391,15 @@ class ProjectDefinitionAgent(BaseAgent):
 
         # Create traceability links
         traceability_links = await self._create_traceability_links(
-            requirements_list,
-            user_stories,
-            test_cases
+            requirements_list, user_stories, test_cases
         )
 
         # Identify gaps
-        gaps = await self._identify_traceability_gaps(
-            requirements_list,
-            traceability_links
-        )
+        gaps = await self._identify_traceability_gaps(requirements_list, traceability_links)
 
         # Calculate coverage
         coverage = await self._calculate_traceability_coverage(
-            requirements_list,
-            traceability_links
+            requirements_list, traceability_links
         )
 
         matrix = {
@@ -436,7 +411,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "gaps": gaps,
             "coverage": coverage,
             "meets_threshold": coverage >= self.traceability_threshold,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store matrix
@@ -448,10 +423,8 @@ class ProjectDefinitionAgent(BaseAgent):
         return matrix
 
     async def _analyze_stakeholders(
-        self,
-        project_id: str,
-        stakeholders: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, project_id: str, stakeholders: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Analyze project stakeholders.
 
@@ -467,9 +440,7 @@ class ProjectDefinitionAgent(BaseAgent):
         influence_network = await self._analyze_influence_network(classified)
 
         # Determine communication strategies
-        communication_strategies = await self._determine_communication_strategies(
-            classified
-        )
+        communication_strategies = await self._determine_communication_strategies(classified)
 
         stakeholder_register = {
             "project_id": project_id,
@@ -477,7 +448,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "influence_network": influence_network,
             "communication_strategies": communication_strategies,
             "total_count": len(classified),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store stakeholder register
@@ -491,9 +462,9 @@ class ProjectDefinitionAgent(BaseAgent):
     async def _create_raci_matrix(
         self,
         project_id: str,
-        stakeholders: List[Dict[str, Any]],
-        deliverables: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        stakeholders: list[dict[str, Any]],
+        deliverables: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         Create RACI matrix.
 
@@ -503,10 +474,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         # Generate RACI assignments
         # TODO: Use AI to suggest RACI assignments based on roles
-        raci_assignments = await self._generate_raci_assignments(
-            stakeholders,
-            deliverables
-        )
+        raci_assignments = await self._generate_raci_assignments(stakeholders, deliverables)
 
         # Validate assignments
         validation = await self._validate_raci_assignments(raci_assignments)
@@ -517,7 +485,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "deliverables": deliverables,
             "assignments": raci_assignments,
             "validation": validation,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -525,7 +493,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         return raci_matrix
 
-    async def _manage_scope_baseline(self, project_id: str) -> Dict[str, Any]:
+    async def _manage_scope_baseline(self, project_id: str) -> dict[str, Any]:
         """
         Establish and manage scope baseline.
 
@@ -550,7 +518,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "scope_statement": charter["document"].get("scope_overview"),
             "locked_at": datetime.utcnow().isoformat(),
             "locked_by": "system",  # TODO: Get from user context
-            "status": "Locked"
+            "status": "Locked",
         }
 
         # TODO: Store baseline in database
@@ -559,10 +527,8 @@ class ProjectDefinitionAgent(BaseAgent):
         return baseline
 
     async def _detect_scope_creep(
-        self,
-        project_id: str,
-        current_scope: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, current_scope: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Detect scope creep by comparing current scope to baseline.
 
@@ -592,24 +558,26 @@ class ProjectDefinitionAgent(BaseAgent):
             "scope_variance": variance,
             "approval_needed": approval_needed,
             "threshold": self.scope_change_threshold,
-            "recommendation": "Submit to Change Control Board" if approval_needed else "Accept changes"
+            "recommendation": (
+                "Submit to Change Control Board" if approval_needed else "Accept changes"
+            ),
         }
 
-    async def _get_charter(self, project_id: str) -> Dict[str, Any]:
+    async def _get_charter(self, project_id: str) -> dict[str, Any]:
         """Retrieve project charter by ID."""
         charter = self.charters.get(project_id)
         if not charter:
             raise ValueError(f"Charter not found for project: {project_id}")
         return charter
 
-    async def _get_wbs(self, project_id: str) -> Dict[str, Any]:
+    async def _get_wbs(self, project_id: str) -> dict[str, Any]:
         """Retrieve WBS by project ID."""
         wbs = self.wbs_structures.get(project_id)
         if not wbs:
             raise ValueError(f"WBS not found for project: {project_id}")
         return wbs
 
-    async def _get_requirements(self, project_id: str) -> Dict[str, Any]:
+    async def _get_requirements(self, project_id: str) -> dict[str, Any]:
         """Retrieve requirements repository by project ID."""
         requirements = self.requirements.get(project_id)
         if not requirements:
@@ -632,7 +600,7 @@ class ProjectDefinitionAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"{project_id}-BASELINE-{timestamp}"
 
-    async def _select_charter_template(self, charter_data: Dict[str, Any]) -> str:
+    async def _select_charter_template(self, charter_data: dict[str, Any]) -> str:
         """Select appropriate charter template."""
         project_type = charter_data.get("project_type", "general")
         methodology = charter_data.get("methodology", "hybrid")
@@ -640,7 +608,7 @@ class ProjectDefinitionAgent(BaseAgent):
         # TODO: Implement template selection logic
         return f"template_{project_type}_{methodology}"
 
-    async def _generate_executive_summary(self, charter_data: Dict[str, Any]) -> str:
+    async def _generate_executive_summary(self, charter_data: dict[str, Any]) -> str:
         """Generate executive summary using AI."""
         # TODO: Use Azure OpenAI for natural language generation
         title = charter_data.get("title", "Project")
@@ -648,68 +616,74 @@ class ProjectDefinitionAgent(BaseAgent):
 
         return f"This project charter establishes {title}. {description}"
 
-    async def _generate_objectives(self, charter_data: Dict[str, Any]) -> List[str]:
+    async def _generate_objectives(self, charter_data: dict[str, Any]) -> list[str]:
         """Generate project objectives."""
         # TODO: Extract objectives from description using NLP
-        return charter_data.get("objectives", [
-            "Deliver project on time and within budget",
-            "Meet stakeholder expectations",
-            "Achieve defined success criteria"
-        ])
+        return charter_data.get(
+            "objectives",
+            [
+                "Deliver project on time and within budget",
+                "Meet stakeholder expectations",
+                "Achieve defined success criteria",
+            ],
+        )
 
-    async def _generate_scope_overview(self, charter_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_scope_overview(self, charter_data: dict[str, Any]) -> dict[str, Any]:
         """Generate scope overview."""
         return {
             "in_scope": charter_data.get("in_scope", []),
             "out_of_scope": charter_data.get("out_of_scope", []),
-            "deliverables": charter_data.get("deliverables", [])
+            "deliverables": charter_data.get("deliverables", []),
         }
 
-    async def _generate_governance_structure(self, charter_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_governance_structure(self, charter_data: dict[str, Any]) -> dict[str, Any]:
         """Generate governance structure."""
         return {
             "sponsor": charter_data.get("sponsor", "TBD"),
             "project_manager": charter_data.get("project_manager", "TBD"),
             "steering_committee": charter_data.get("steering_committee", []),
-            "reporting_frequency": charter_data.get("reporting_frequency", "weekly")
+            "reporting_frequency": charter_data.get("reporting_frequency", "weekly"),
         }
 
-    async def _extract_high_level_requirements(self, charter_data: Dict[str, Any]) -> List[str]:
+    async def _extract_high_level_requirements(self, charter_data: dict[str, Any]) -> list[str]:
         """Extract high-level requirements."""
         # TODO: Use NLP to extract requirements
         return charter_data.get("high_level_requirements", [])
 
-    async def _identify_stakeholders(self, charter_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_stakeholders(self, charter_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify project stakeholders."""
         return charter_data.get("stakeholders", [])
 
-    async def _generate_success_criteria(self, charter_data: Dict[str, Any]) -> List[str]:
+    async def _generate_success_criteria(self, charter_data: dict[str, Any]) -> list[str]:
         """Generate success criteria."""
-        return charter_data.get("success_criteria", [
-            "Project completed within approved budget",
-            "All deliverables meet quality standards",
-            "Stakeholder satisfaction > 80%"
-        ])
+        return charter_data.get(
+            "success_criteria",
+            [
+                "Project completed within approved budget",
+                "All deliverables meet quality standards",
+                "Stakeholder satisfaction > 80%",
+            ],
+        )
 
-    async def _generate_assumptions(self, charter_data: Dict[str, Any]) -> List[str]:
+    async def _generate_assumptions(self, charter_data: dict[str, Any]) -> list[str]:
         """Generate project assumptions."""
         return charter_data.get("assumptions", [])
 
-    async def _generate_constraints(self, charter_data: Dict[str, Any]) -> List[str]:
+    async def _generate_constraints(self, charter_data: dict[str, Any]) -> list[str]:
         """Generate project constraints."""
         return charter_data.get("constraints", [])
 
-    async def _find_similar_projects(self, charter: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _find_similar_projects(self, charter: dict[str, Any]) -> list[dict[str, Any]]:
         """Find similar projects for WBS reference."""
         # TODO: Use Azure Cognitive Search for similarity search
         return []
 
     async def _generate_wbs_structure(
         self,
-        charter: Dict[str, Any],
-        scope_statement: Dict[str, Any],
-        similar_projects: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        charter: dict[str, Any],
+        scope_statement: dict[str, Any],
+        similar_projects: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Generate hierarchical WBS structure."""
         # TODO: Use Azure OpenAI to generate WBS
         # Placeholder structure
@@ -718,41 +692,38 @@ class ProjectDefinitionAgent(BaseAgent):
                 "name": "Project Management",
                 "children": {
                     "1.1": {"name": "Project Planning", "children": {}},
-                    "1.2": {"name": "Project Monitoring", "children": {}}
-                }
+                    "1.2": {"name": "Project Monitoring", "children": {}},
+                },
             },
             "2.0": {
                 "name": "Requirements",
                 "children": {
                     "2.1": {"name": "Requirements Gathering", "children": {}},
-                    "2.2": {"name": "Requirements Analysis", "children": {}}
-                }
-            }
+                    "2.2": {"name": "Requirements Analysis", "children": {}},
+                },
+            },
         }
 
-    async def _add_work_package_details(self, wbs_structure: Dict[str, Any]) -> Dict[str, Any]:
+    async def _add_work_package_details(self, wbs_structure: dict[str, Any]) -> dict[str, Any]:
         """Add details to work packages."""
         # TODO: Add effort estimates, resources, durations
         return wbs_structure
 
-    async def _count_work_packages(self, wbs_structure: Dict[str, Any]) -> int:
+    async def _count_work_packages(self, wbs_structure: dict[str, Any]) -> int:
         """Count total work packages in WBS."""
         # TODO: Implement recursive counting
         return 10  # Placeholder
 
     async def _extract_requirements_from_sources(
-        self,
-        project_id: str,
-        requirements: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str, requirements: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Extract requirements from various sources."""
         # TODO: Use Azure Form Recognizer for document extraction
         return requirements
 
     async def _categorize_requirements(
-        self,
-        requirements: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, requirements: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Categorize requirements by type."""
         for req in requirements:
             if "category" not in req:
@@ -761,9 +732,8 @@ class ProjectDefinitionAgent(BaseAgent):
         return requirements
 
     async def _prioritize_requirements(
-        self,
-        requirements: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, requirements: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Prioritize requirements."""
         for req in requirements:
             if "priority" not in req:
@@ -771,28 +741,21 @@ class ProjectDefinitionAgent(BaseAgent):
         return requirements
 
     async def _detect_requirement_conflicts(
-        self,
-        requirements: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, requirements: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Detect conflicting requirements."""
         # TODO: Use semantic similarity to detect conflicts
         return []
 
     async def _validate_requirements_completeness(
-        self,
-        requirements: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, requirements: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Validate requirements completeness."""
-        return {
-            "complete": True,
-            "missing_fields": [],
-            "validation_score": 0.95
-        }
+        return {"complete": True, "missing_fields": [], "validation_score": 0.95}
 
     async def _get_requirement_categories(
-        self,
-        requirements: List[Dict[str, Any]]
-    ) -> Dict[str, int]:
+        self, requirements: list[dict[str, Any]]
+    ) -> dict[str, int]:
         """Get requirement count by category."""
         categories = {}
         for req in requirements:
@@ -800,39 +763,35 @@ class ProjectDefinitionAgent(BaseAgent):
             categories[category] = categories.get(category, 0) + 1
         return categories
 
-    async def _get_user_stories(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _get_user_stories(self, project_id: str) -> list[dict[str, Any]]:
         """Get user stories from work item tracking system."""
         # TODO: Integrate with Jira/Azure DevOps
         return []
 
-    async def _get_test_cases(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _get_test_cases(self, project_id: str) -> list[dict[str, Any]]:
         """Get test cases from test management system."""
         # TODO: Integrate with test management tools
         return []
 
     async def _create_traceability_links(
         self,
-        requirements: List[Dict[str, Any]],
-        user_stories: List[Dict[str, Any]],
-        test_cases: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        requirements: list[dict[str, Any]],
+        user_stories: list[dict[str, Any]],
+        test_cases: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Create traceability links between artifacts."""
         # TODO: Implement linking logic
         return []
 
     async def _identify_traceability_gaps(
-        self,
-        requirements: List[Dict[str, Any]],
-        traceability_links: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, requirements: list[dict[str, Any]], traceability_links: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Identify gaps in traceability."""
         # TODO: Find unlinked requirements
         return []
 
     async def _calculate_traceability_coverage(
-        self,
-        requirements: List[Dict[str, Any]],
-        traceability_links: List[Dict[str, Any]]
+        self, requirements: list[dict[str, Any]], traceability_links: list[dict[str, Any]]
     ) -> float:
         """Calculate traceability coverage percentage."""
         if not requirements:
@@ -841,9 +800,8 @@ class ProjectDefinitionAgent(BaseAgent):
         return 0.85
 
     async def _classify_stakeholders(
-        self,
-        stakeholders: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, stakeholders: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Classify stakeholders by influence and interest."""
         for stakeholder in stakeholders:
             if "influence" not in stakeholder:
@@ -853,17 +811,15 @@ class ProjectDefinitionAgent(BaseAgent):
         return stakeholders
 
     async def _analyze_influence_network(
-        self,
-        stakeholders: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, stakeholders: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Analyze stakeholder influence network."""
         # TODO: Use social network analysis
         return {"nodes": len(stakeholders), "edges": 0}
 
     async def _determine_communication_strategies(
-        self,
-        stakeholders: List[Dict[str, Any]]
-    ) -> Dict[str, str]:
+        self, stakeholders: list[dict[str, Any]]
+    ) -> dict[str, str]:
         """Determine communication strategies for stakeholders."""
         strategies = {}
         for stakeholder in stakeholders:
@@ -883,35 +839,24 @@ class ProjectDefinitionAgent(BaseAgent):
         return strategies
 
     async def _generate_raci_assignments(
-        self,
-        stakeholders: List[Dict[str, Any]],
-        deliverables: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, stakeholders: list[dict[str, Any]], deliverables: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Generate RACI assignments."""
         # TODO: Use AI to suggest assignments based on roles
         return []
 
-    async def _validate_raci_assignments(
-        self,
-        assignments: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def _validate_raci_assignments(self, assignments: list[dict[str, Any]]) -> dict[str, Any]:
         """Validate RACI assignments."""
-        return {
-            "valid": True,
-            "issues": [],
-            "warnings": []
-        }
+        return {"valid": True, "issues": [], "warnings": []}
 
     async def _compare_scope(
-        self,
-        baseline_scope: Dict[str, Any],
-        current_scope: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, baseline_scope: dict[str, Any], current_scope: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Compare current scope to baseline."""
         # TODO: Use semantic similarity analysis
         return []
 
-    async def _calculate_scope_variance(self, changes: List[Dict[str, Any]]) -> float:
+    async def _calculate_scope_variance(self, changes: list[dict[str, Any]]) -> float:
         """Calculate scope variance percentage."""
         # TODO: Calculate actual variance
         return 0.05  # 5% variance
@@ -923,7 +868,7 @@ class ProjectDefinitionAgent(BaseAgent):
         # TODO: Close external API connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "charter_generation",
@@ -935,5 +880,5 @@ class ProjectDefinitionAgent(BaseAgent):
             "scope_baseline_management",
             "scope_creep_detection",
             "requirements_validation",
-            "requirements_extraction"
+            "requirements_extraction",
         ]

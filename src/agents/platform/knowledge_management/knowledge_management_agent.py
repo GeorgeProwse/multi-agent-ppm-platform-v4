@@ -8,10 +8,10 @@ documents, decisions and lessons learned across the project portfolio.
 Specification: docs_markdown/specs/agents/platform/knowledge-documentation/Agent 19 Knowledge & Document Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class KnowledgeManagementAgent(BaseAgent):
@@ -29,11 +29,7 @@ class KnowledgeManagementAgent(BaseAgent):
     - Access control and permissions
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_019",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_019", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
@@ -42,13 +38,34 @@ class KnowledgeManagementAgent(BaseAgent):
         self.similarity_threshold = config.get("similarity_threshold", 0.75) if config else 0.75
 
         # Document categories
-        self.document_types = config.get("document_types", [
-            "charter", "requirements", "design", "test_plan", "meeting_minutes",
-            "lessons_learned", "policy", "procedure", "report"
-        ]) if config else [
-            "charter", "requirements", "design", "test_plan", "meeting_minutes",
-            "lessons_learned", "policy", "procedure", "report"
-        ]
+        self.document_types = (
+            config.get(
+                "document_types",
+                [
+                    "charter",
+                    "requirements",
+                    "design",
+                    "test_plan",
+                    "meeting_minutes",
+                    "lessons_learned",
+                    "policy",
+                    "procedure",
+                    "report",
+                ],
+            )
+            if config
+            else [
+                "charter",
+                "requirements",
+                "design",
+                "test_plan",
+                "meeting_minutes",
+                "lessons_learned",
+                "policy",
+                "procedure",
+                "report",
+            ]
+        )
 
         # Data stores (will be replaced with database)
         self.documents = {}
@@ -78,7 +95,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         self.logger.info("Knowledge & Document Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -100,7 +117,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "recommend_documents",
             "manage_taxonomy",
             "track_document_access",
-            "get_document_version_history"
+            "get_document_version_history",
         ]
 
         if action not in valid_actions:
@@ -120,7 +137,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process knowledge and document management requests.
 
@@ -164,8 +181,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         elif action == "search_documents":
             return await self._search_documents(
-                input_data.get("query"),
-                input_data.get("filters", {})
+                input_data.get("query"), input_data.get("filters", {})
             )
 
         elif action == "get_document":
@@ -173,8 +189,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         elif action == "update_document":
             return await self._update_document(
-                input_data.get("document_id"),
-                input_data.get("document", {})
+                input_data.get("document_id"), input_data.get("document", {})
             )
 
         elif action == "delete_document":
@@ -210,7 +225,7 @@ class KnowledgeManagementAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _upload_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _upload_document(self, document_data: dict[str, Any]) -> dict[str, Any]:
         """
         Upload and classify document.
 
@@ -246,7 +261,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "permissions": document_data.get("permissions", {"public": False}),
             "created_at": datetime.utcnow().isoformat(),
             "modified_at": datetime.utcnow().isoformat(),
-            "accessed_count": 0
+            "accessed_count": 0,
         }
 
         # Store document
@@ -274,14 +289,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "type": document["type"],
             "tags": tags,
             "classification": classification,
-            "next_steps": "Document indexed and ready for search"
+            "next_steps": "Document indexed and ready for search",
         }
 
-    async def _search_documents(
-        self,
-        query: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _search_documents(self, query: str, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Search documents using semantic search.
 
@@ -297,19 +308,16 @@ class KnowledgeManagementAgent(BaseAgent):
         ranked_results = await self._rank_search_results(search_results, query)
 
         # Generate excerpts
-        results_with_excerpts = await self._generate_excerpts(
-            ranked_results,
-            query
-        )
+        results_with_excerpts = await self._generate_excerpts(ranked_results, query)
 
         return {
             "query": query,
             "total_results": len(results_with_excerpts),
-            "results": results_with_excerpts[:self.search_result_limit],
-            "filters": filters
+            "results": results_with_excerpts[: self.search_result_limit],
+            "filters": filters,
         }
 
-    async def _get_document(self, document_id: str) -> Dict[str, Any]:
+    async def _get_document(self, document_id: str) -> dict[str, Any]:
         """
         Retrieve document with metadata.
 
@@ -347,14 +355,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "created_at": document.get("created_at"),
             "modified_at": document.get("modified_at"),
             "accessed_count": document.get("accessed_count"),
-            "related_documents": related_documents
+            "related_documents": related_documents,
         }
 
-    async def _update_document(
-        self,
-        document_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _update_document(self, document_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """
         Update document and create new version.
 
@@ -396,10 +400,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "document_id": document_id,
             "version": document["version"],
             "modified_at": document["modified_at"],
-            "changes": list(updates.keys())
+            "changes": list(updates.keys()),
         }
 
-    async def _delete_document(self, document_id: str) -> Dict[str, Any]:
+    async def _delete_document(self, document_id: str) -> dict[str, Any]:
         """
         Delete document (soft delete).
 
@@ -419,13 +423,9 @@ class KnowledgeManagementAgent(BaseAgent):
         # TODO: Remove from search index
         # TODO: Publish document.deleted event
 
-        return {
-            "document_id": document_id,
-            "deleted": True,
-            "deleted_at": document["deleted_at"]
-        }
+        return {"document_id": document_id, "deleted": True, "deleted_at": document["deleted_at"]}
 
-    async def _classify_document(self, document_id: str) -> Dict[str, Any]:
+    async def _classify_document(self, document_id: str) -> dict[str, Any]:
         """
         Classify document using AI.
 
@@ -456,10 +456,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "type": classification.get("type"),
             "tags": tags,
             "confidence": classification.get("confidence"),
-            "suggested_category": classification.get("category")
+            "suggested_category": classification.get("category"),
         }
 
-    async def _summarize_document(self, document_id: str) -> Dict[str, Any]:
+    async def _summarize_document(self, document_id: str) -> dict[str, Any]:
         """
         Generate document summary using NLG.
 
@@ -474,8 +474,7 @@ class KnowledgeManagementAgent(BaseAgent):
         # Generate summary using AI
         # TODO: Use Azure OpenAI for summarization
         summary_content = await self._generate_summary(
-            document.get("content", ""),
-            self.max_summary_length
+            document.get("content", ""), self.max_summary_length
         )
 
         # Store summary
@@ -483,7 +482,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "document_id": document_id,
             "content": summary_content,
             "length": len(summary_content),
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -491,10 +490,10 @@ class KnowledgeManagementAgent(BaseAgent):
         return {
             "document_id": document_id,
             "summary": summary_content,
-            "length": len(summary_content)
+            "length": len(summary_content),
         }
 
-    async def _extract_entities(self, document_id: str) -> Dict[str, Any]:
+    async def _extract_entities(self, document_id: str) -> dict[str, Any]:
         """
         Extract entities from document using NLP.
 
@@ -518,13 +517,9 @@ class KnowledgeManagementAgent(BaseAgent):
 
         # TODO: Store in graph database
 
-        return {
-            "document_id": document_id,
-            "entities": entities,
-            "entity_count": len(entities)
-        }
+        return {"document_id": document_id, "entities": entities, "entity_count": len(entities)}
 
-    async def _build_knowledge_graph(self, document_id: str) -> Dict[str, Any]:
+    async def _build_knowledge_graph(self, document_id: str) -> dict[str, Any]:
         """
         Build knowledge graph relationships.
 
@@ -554,10 +549,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "document_id": document_id,
             "entities": len(entities),
             "relationships": len(relationships),
-            "graph": self.knowledge_graph[document_id]
+            "graph": self.knowledge_graph[document_id],
         }
 
-    async def _capture_lesson_learned(self, lesson_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _capture_lesson_learned(self, lesson_data: dict[str, Any]) -> dict[str, Any]:
         """
         Capture and categorize lesson learned.
 
@@ -588,7 +583,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "date": lesson_data.get("date", datetime.utcnow().isoformat()),
             "owner": lesson_data.get("owner"),
             "similar_lessons": similar_lessons,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store lesson
@@ -603,10 +598,10 @@ class KnowledgeManagementAgent(BaseAgent):
             "title": lesson["title"],
             "category": category,
             "similar_lessons": len(similar_lessons),
-            "recommendations": lesson.get("recommendation")
+            "recommendations": lesson.get("recommendation"),
         }
 
-    async def _recommend_documents(self, user_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _recommend_documents(self, user_context: dict[str, Any]) -> dict[str, Any]:
         """
         Recommend relevant documents based on context.
 
@@ -621,25 +616,18 @@ class KnowledgeManagementAgent(BaseAgent):
 
         # Find relevant documents
         # TODO: Use recommendation engine
-        recommendations = await self._find_relevant_documents(
-            current_task,
-            project_id,
-            role
-        )
+        recommendations = await self._find_relevant_documents(current_task, project_id, role)
 
         # Rank by relevance
-        ranked_recommendations = await self._rank_recommendations(
-            recommendations,
-            user_context
-        )
+        ranked_recommendations = await self._rank_recommendations(recommendations, user_context)
 
         return {
             "recommendations": ranked_recommendations,
             "count": len(ranked_recommendations),
-            "context": user_context
+            "context": user_context,
         }
 
-    async def _manage_taxonomy(self, taxonomy_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _manage_taxonomy(self, taxonomy_data: dict[str, Any]) -> dict[str, Any]:
         """
         Manage knowledge taxonomy.
 
@@ -665,12 +653,9 @@ class KnowledgeManagementAgent(BaseAgent):
             return {"action": "delete", "category_id": category_id}
 
         else:  # get
-            return {
-                "taxonomy": self.taxonomy,
-                "total_categories": len(self.taxonomy)
-            }
+            return {"taxonomy": self.taxonomy, "total_categories": len(self.taxonomy)}
 
-    async def _track_document_access(self, document_id: str) -> Dict[str, Any]:
+    async def _track_document_access(self, document_id: str) -> dict[str, Any]:
         """
         Track document access patterns.
 
@@ -688,15 +673,12 @@ class KnowledgeManagementAgent(BaseAgent):
             "total_accesses": document.get("accessed_count", 0),
             "last_accessed": document.get("last_accessed_at"),
             "unique_users": 0,  # TODO: Calculate from logs
-            "access_trend": "stable"  # TODO: Calculate trend
+            "access_trend": "stable",  # TODO: Calculate trend
         }
 
-        return {
-            "document_id": document_id,
-            "access_stats": access_stats
-        }
+        return {"document_id": document_id, "access_stats": access_stats}
 
-    async def _get_document_version_history(self, document_id: str) -> Dict[str, Any]:
+    async def _get_document_version_history(self, document_id: str) -> dict[str, Any]:
         """
         Get document version history.
 
@@ -713,7 +695,7 @@ class KnowledgeManagementAgent(BaseAgent):
             {
                 "version": v.get("version"),
                 "modified_at": v.get("modified_at"),
-                "author": v.get("author")
+                "author": v.get("author"),
             }
             for v in versions
         ]
@@ -721,7 +703,7 @@ class KnowledgeManagementAgent(BaseAgent):
         return {
             "document_id": document_id,
             "current_version": len(versions),
-            "version_history": version_list
+            "version_history": version_list,
         }
 
     # Helper methods
@@ -736,15 +718,15 @@ class KnowledgeManagementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"LESSON-{timestamp}"
 
-    async def _extract_metadata(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _extract_metadata(self, document_data: dict[str, Any]) -> dict[str, Any]:
         """Extract metadata from document."""
         return {
             "file_size": len(document_data.get("content", "")),
             "format": document_data.get("format", "text"),
-            "language": "en"  # TODO: Detect language
+            "language": "en",  # TODO: Detect language
         }
 
-    async def _auto_classify_document(self, document_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _auto_classify_document(self, document_data: dict[str, Any]) -> dict[str, Any]:
         """Auto-classify document using AI."""
         # TODO: Use Azure ML for classification
         content = document_data.get("content", "").lower()
@@ -760,17 +742,11 @@ class KnowledgeManagementAgent(BaseAgent):
         else:
             doc_type = "report"
 
-        return {
-            "type": doc_type,
-            "confidence": 0.85,
-            "category": doc_type
-        }
+        return {"type": doc_type, "confidence": 0.85, "category": doc_type}
 
     async def _generate_tags(
-        self,
-        document_data: Dict[str, Any],
-        classification: Dict[str, Any]
-    ) -> List[str]:
+        self, document_data: dict[str, Any], classification: dict[str, Any]
+    ) -> list[str]:
         """Generate tags for document."""
         # TODO: Use NLP for tag generation
         tags = [classification.get("type")]
@@ -780,11 +756,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         return tags
 
-    async def _semantic_search(
-        self,
-        query: str,
-        filters: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    async def _semantic_search(self, query: str, filters: dict[str, Any]) -> list[dict[str, Any]]:
         """Perform semantic search."""
         # TODO: Use Azure Cognitive Search
         results = []
@@ -798,28 +770,26 @@ class KnowledgeManagementAgent(BaseAgent):
             if query_lower in document.get("content", "").lower():
                 # Apply filters
                 if await self._matches_search_filters(document, filters):
-                    results.append({
-                        "document_id": doc_id,
-                        "document": document,
-                        "relevance_score": 0.8  # TODO: Calculate actual score
-                    })
+                    results.append(
+                        {
+                            "document_id": doc_id,
+                            "document": document,
+                            "relevance_score": 0.8,  # TODO: Calculate actual score
+                        }
+                    )
 
         return results
 
     async def _rank_search_results(
-        self,
-        results: List[Dict[str, Any]],
-        query: str
-    ) -> List[Dict[str, Any]]:
+        self, results: list[dict[str, Any]], query: str
+    ) -> list[dict[str, Any]]:
         """Rank search results by relevance."""
         # Sort by relevance score
         return sorted(results, key=lambda x: x.get("relevance_score", 0), reverse=True)
 
     async def _generate_excerpts(
-        self,
-        results: List[Dict[str, Any]],
-        query: str
-    ) -> List[Dict[str, Any]]:
+        self, results: list[dict[str, Any]], query: str
+    ) -> list[dict[str, Any]]:
         """Generate highlighted excerpts."""
         results_with_excerpts = []
 
@@ -830,17 +800,19 @@ class KnowledgeManagementAgent(BaseAgent):
             # Simple excerpt generation (replace with better algorithm)
             excerpt = content[:200] + "..." if len(content) > 200 else content
 
-            results_with_excerpts.append({
-                "document_id": result.get("document_id"),
-                "title": document.get("title"),
-                "type": document.get("type"),
-                "excerpt": excerpt,
-                "relevance_score": result.get("relevance_score")
-            })
+            results_with_excerpts.append(
+                {
+                    "document_id": result.get("document_id"),
+                    "title": document.get("title"),
+                    "type": document.get("type"),
+                    "excerpt": excerpt,
+                    "relevance_score": result.get("relevance_score"),
+                }
+            )
 
         return results_with_excerpts
 
-    async def _find_related_documents(self, document_id: str) -> List[Dict[str, Any]]:
+    async def _find_related_documents(self, document_id: str) -> list[dict[str, Any]]:
         """Find related documents."""
         # TODO: Use knowledge graph and similarity
         return []
@@ -853,7 +825,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         return content[:max_length] + "..."
 
-    async def _extract_entities_from_text(self, text: str) -> List[Dict[str, Any]]:
+    async def _extract_entities_from_text(self, text: str) -> list[dict[str, Any]]:
         """Extract entities from text using NLP."""
         # TODO: Use Azure Form Recognizer or Azure OpenAI
         entities = []
@@ -862,35 +834,31 @@ class KnowledgeManagementAgent(BaseAgent):
         words = text.split()
         for i, word in enumerate(words):
             if word.istitle() and len(word) > 3:
-                entities.append({
-                    "text": word,
-                    "type": "entity",
-                    "position": i
-                })
+                entities.append({"text": word, "type": "entity", "position": i})
 
         return entities[:10]  # Limit to 10
 
     async def _build_entity_relationships(
-        self,
-        document_id: str,
-        entities: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, document_id: str, entities: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Build relationships between entities."""
         # TODO: Use graph algorithms
         relationships = []
 
         for i, entity1 in enumerate(entities):
-            for entity2 in entities[i+1:]:
-                relationships.append({
-                    "from": entity1.get("text"),
-                    "to": entity2.get("text"),
-                    "type": "related",
-                    "confidence": 0.6
-                })
+            for entity2 in entities[i + 1 :]:
+                relationships.append(
+                    {
+                        "from": entity1.get("text"),
+                        "to": entity2.get("text"),
+                        "type": "related",
+                        "confidence": 0.6,
+                    }
+                )
 
         return relationships
 
-    async def _categorize_lesson(self, lesson_data: Dict[str, Any]) -> str:
+    async def _categorize_lesson(self, lesson_data: dict[str, Any]) -> str:
         """Categorize lesson learned."""
         # TODO: Use AI for categorization
         description = lesson_data.get("description", "").lower()
@@ -904,7 +872,7 @@ class KnowledgeManagementAgent(BaseAgent):
         else:
             return "general"
 
-    async def _find_similar_lessons(self, lesson_data: Dict[str, Any]) -> List[str]:
+    async def _find_similar_lessons(self, lesson_data: dict[str, Any]) -> list[str]:
         """Find similar lessons learned."""
         # TODO: Use similarity search
         similar = []
@@ -916,11 +884,8 @@ class KnowledgeManagementAgent(BaseAgent):
         return similar[:5]
 
     async def _find_relevant_documents(
-        self,
-        task: str,
-        project_id: str,
-        role: str
-    ) -> List[Dict[str, Any]]:
+        self, task: str, project_id: str, role: str
+    ) -> list[dict[str, Any]]:
         """Find relevant documents for recommendation."""
         relevant = []
 
@@ -929,37 +894,23 @@ class KnowledgeManagementAgent(BaseAgent):
                 continue
 
             if document.get("project_id") == project_id:
-                relevant.append({
-                    "document_id": doc_id,
-                    "document": document,
-                    "relevance": 0.8
-                })
+                relevant.append({"document_id": doc_id, "document": document, "relevance": 0.8})
 
         return relevant
 
     async def _rank_recommendations(
-        self,
-        recommendations: List[Dict[str, Any]],
-        context: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, recommendations: list[dict[str, Any]], context: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Rank recommendations by relevance."""
-        return sorted(
-            recommendations,
-            key=lambda x: x.get("relevance", 0),
-            reverse=True
-        )[:10]
+        return sorted(recommendations, key=lambda x: x.get("relevance", 0), reverse=True)[:10]
 
-    async def _add_taxonomy_category(self, category: Dict[str, Any]) -> str:
+    async def _add_taxonomy_category(self, category: dict[str, Any]) -> str:
         """Add taxonomy category."""
         category_id = f"CAT-{len(self.taxonomy) + 1}"
         self.taxonomy[category_id] = category
         return category_id
 
-    async def _update_taxonomy_category(
-        self,
-        category_id: str,
-        updates: Dict[str, Any]
-    ) -> None:
+    async def _update_taxonomy_category(self, category_id: str, updates: dict[str, Any]) -> None:
         """Update taxonomy category."""
         if category_id in self.taxonomy:
             self.taxonomy[category_id].update(updates)
@@ -970,9 +921,7 @@ class KnowledgeManagementAgent(BaseAgent):
             del self.taxonomy[category_id]
 
     async def _matches_search_filters(
-        self,
-        document: Dict[str, Any],
-        filters: Dict[str, Any]
+        self, document: dict[str, Any], filters: dict[str, Any]
     ) -> bool:
         """Check if document matches search filters."""
         if "type" in filters and document.get("type") != filters["type"]:
@@ -997,7 +946,7 @@ class KnowledgeManagementAgent(BaseAgent):
         # TODO: Close search service connections
         # TODO: Flush pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "document_repository",
@@ -1014,5 +963,5 @@ class KnowledgeManagementAgent(BaseAgent):
             "access_control",
             "audit_logging",
             "nlp_processing",
-            "content_analysis"
+            "content_analysis",
         ]

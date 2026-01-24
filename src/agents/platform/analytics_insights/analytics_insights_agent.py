@@ -8,10 +8,10 @@ portfolio through advanced analytics and machine learning.
 Specification: docs_markdown/specs/agents/platform/analytics-insights/Agent 22 Analytics & Insights Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class AnalyticsInsightsAgent(BaseAgent):
@@ -29,16 +29,14 @@ class AnalyticsInsightsAgent(BaseAgent):
     - Data governance and lineage
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_022",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_022", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
         self.refresh_interval_minutes = config.get("refresh_interval_minutes", 60) if config else 60
-        self.prediction_confidence_threshold = config.get("prediction_confidence_threshold", 0.75) if config else 0.75
+        self.prediction_confidence_threshold = (
+            config.get("prediction_confidence_threshold", 0.75) if config else 0.75
+        )
         self.max_dashboard_widgets = config.get("max_dashboard_widgets", 20) if config else 20
 
         # Data stores (will be replaced with database)
@@ -69,7 +67,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         self.logger.info("Analytics & Insights Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -88,7 +86,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "query_data",
             "get_dashboard",
             "get_insights",
-            "update_data_lineage"
+            "update_data_lineage",
         ]
 
         if action not in valid_actions:
@@ -107,7 +105,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process analytics and insights requests.
 
@@ -155,8 +153,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         elif action == "run_prediction":
             return await self._run_prediction(
-                input_data.get("model_type"),
-                input_data.get("input_data", {})
+                input_data.get("model_type"), input_data.get("input_data", {})
             )
 
         elif action == "scenario_analysis":
@@ -169,10 +166,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             return await self._track_kpi(input_data.get("kpi", {}))
 
         elif action == "query_data":
-            return await self._query_data(
-                input_data.get("query"),
-                input_data.get("filters", {})
-            )
+            return await self._query_data(input_data.get("query"), input_data.get("filters", {}))
 
         elif action == "get_dashboard":
             return await self._get_dashboard(input_data.get("dashboard_id"))
@@ -186,7 +180,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _aggregate_data(self, data_sources: List[str]) -> Dict[str, Any]:
+    async def _aggregate_data(self, data_sources: list[str]) -> dict[str, Any]:
         """
         Aggregate data from multiple sources.
 
@@ -212,10 +206,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "data_sources": data_sources,
             "statistics": statistics,
             "lineage_id": lineage_id,
-            "aggregated_at": datetime.utcnow().isoformat()
+            "aggregated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _create_dashboard(self, dashboard_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_dashboard(self, dashboard_config: dict[str, Any]) -> dict[str, Any]:
         """
         Create interactive dashboard.
 
@@ -249,7 +243,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "refresh_schedule": refresh_schedule,
             "owner": dashboard_config.get("owner"),
             "shared_with": dashboard_config.get("shared_with", []),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store dashboard
@@ -264,10 +258,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "name": dashboard["name"],
             "widgets": len(configured_widgets),
             "refresh_schedule": refresh_schedule,
-            "url": f"/dashboards/{dashboard_id}"
+            "url": f"/dashboards/{dashboard_id}",
         }
 
-    async def _generate_report(self, report_spec: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_report(self, report_spec: dict[str, Any]) -> dict[str, Any]:
         """
         Generate analytical report.
 
@@ -296,7 +290,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "visualizations": visualizations,
             "narrative": narrative,
             "generated_at": datetime.utcnow().isoformat(),
-            "generated_by": report_spec.get("requester")
+            "generated_by": report_spec.get("requester"),
         }
 
         # Store report
@@ -310,14 +304,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "title": report["title"],
             "visualizations": len(visualizations),
             "narrative": narrative,
-            "download_url": f"/reports/{report_id}/download"
+            "download_url": f"/reports/{report_id}/download",
         }
 
-    async def _run_prediction(
-        self,
-        model_type: str,
-        input_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _run_prediction(self, model_type: str, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Run predictive analytics model.
 
@@ -336,10 +326,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         prediction = await self._make_prediction(model, features)
 
         # Calculate confidence interval
-        confidence_interval = await self._calculate_confidence_interval(
-            prediction,
-            model_type
-        )
+        confidence_interval = await self._calculate_confidence_interval(prediction, model_type)
 
         # Store prediction
         prediction_id = await self._generate_prediction_id()
@@ -350,7 +337,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "prediction": prediction,
             "confidence_interval": confidence_interval,
             "confidence": prediction.get("confidence", 0.0),
-            "predicted_at": datetime.utcnow().isoformat()
+            "predicted_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -362,10 +349,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "prediction": prediction.get("value"),
             "confidence": prediction.get("confidence"),
             "confidence_interval": confidence_interval,
-            "recommendations": await self._generate_prediction_recommendations(prediction)
+            "recommendations": await self._generate_prediction_recommendations(prediction),
         }
 
-    async def _scenario_analysis(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    async def _scenario_analysis(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """
         Perform what-if scenario analysis.
 
@@ -381,8 +368,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         # Apply scenario parameters
         scenario_metrics = await self._calculate_scenario_metrics(
-            baseline,
-            scenario.get("parameters", {})
+            baseline, scenario.get("parameters", {})
         )
 
         # Compare to baseline
@@ -400,7 +386,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "scenario_metrics": scenario_metrics,
             "comparison": comparison,
             "impact": impact,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         return {
@@ -410,10 +396,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "scenario_metrics": scenario_metrics,
             "comparison": comparison,
             "impact": impact,
-            "recommendations": await self._generate_scenario_recommendations(impact)
+            "recommendations": await self._generate_scenario_recommendations(impact),
         }
 
-    async def _generate_narrative(self, data: Dict[str, Any]) -> str:
+    async def _generate_narrative(self, data: dict[str, Any]) -> str:
         """
         Generate narrative summary using NLG.
 
@@ -433,7 +419,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         return narrative
 
-    async def _track_kpi(self, kpi_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _track_kpi(self, kpi_config: dict[str, Any]) -> dict[str, Any]:
         """
         Track KPI metrics.
 
@@ -455,8 +441,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         # Check against thresholds
         threshold_status = await self._check_kpi_thresholds(
-            current_value,
-            kpi_config.get("thresholds", {})
+            current_value, kpi_config.get("thresholds", {})
         )
 
         # Update KPI record
@@ -468,7 +453,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "trend": trend,
             "threshold_status": threshold_status,
             "historical_values": historical_values,
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
 
         # Trigger alerts if threshold breached
@@ -483,10 +468,14 @@ class AnalyticsInsightsAgent(BaseAgent):
             "target_value": kpi_config.get("target"),
             "trend": trend,
             "threshold_status": threshold_status,
-            "achievement_percentage": (current_value / kpi_config.get("target", 1)) * 100 if kpi_config.get("target") else 0
+            "achievement_percentage": (
+                (current_value / kpi_config.get("target", 1)) * 100
+                if kpi_config.get("target")
+                else 0
+            ),
         }
 
-    async def _query_data(self, query: str, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _query_data(self, query: str, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Execute data query.
 
@@ -509,10 +498,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "query": query,
             "result_count": len(results),
             "results": formatted_results,
-            "executed_at": datetime.utcnow().isoformat()
+            "executed_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_dashboard(self, dashboard_id: str) -> Dict[str, Any]:
+    async def _get_dashboard(self, dashboard_id: str) -> dict[str, Any]:
         """
         Get dashboard data.
 
@@ -532,10 +521,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "name": dashboard.get("name"),
             "description": dashboard.get("description"),
             "widgets": widget_data,
-            "last_refreshed": datetime.utcnow().isoformat()
+            "last_refreshed": datetime.utcnow().isoformat(),
         }
 
-    async def _get_insights(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_insights(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get AI-generated insights.
 
@@ -563,10 +552,10 @@ class AnalyticsInsightsAgent(BaseAgent):
             "anomalies": anomalies,
             "patterns": patterns,
             "recommendations": recommendations,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _update_data_lineage(self, lineage_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _update_data_lineage(self, lineage_data: dict[str, Any]) -> dict[str, Any]:
         """
         Update data lineage tracking.
 
@@ -583,7 +572,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             "source_systems": lineage_data.get("sources", []),
             "transformations": lineage_data.get("transformations", []),
             "target_dataset": lineage_data.get("target"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         self.data_lineage[lineage_id] = lineage
@@ -593,7 +582,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         return {
             "lineage_id": lineage_id,
             "sources": len(lineage.get("source_systems", [])),
-            "transformations": len(lineage.get("transformations", []))
+            "transformations": len(lineage.get("transformations", [])),
         }
 
     # Helper methods
@@ -628,117 +617,101 @@ class AnalyticsInsightsAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"LINEAGE-{timestamp}"
 
-    async def _collect_from_sources(self, sources: List[str]) -> List[Dict[str, Any]]:
+    async def _collect_from_sources(self, sources: list[str]) -> list[dict[str, Any]]:
         """Collect data from multiple sources."""
         # TODO: Query from actual data sources
         return []
 
-    async def _harmonize_data(self, data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _harmonize_data(self, data: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Harmonize data definitions."""
         # TODO: Apply data transformation rules
         return data
 
-    async def _calculate_statistics(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _calculate_statistics(self, data: list[dict[str, Any]]) -> dict[str, Any]:
         """Calculate summary statistics."""
-        return {
-            "mean": 0,
-            "median": 0,
-            "std_dev": 0,
-            "min": 0,
-            "max": 0
-        }
+        return {"mean": 0, "median": 0, "std_dev": 0, "min": 0, "max": 0}
 
-    async def _record_data_lineage(self, sources: List[str], data: List[Dict[str, Any]]) -> str:
+    async def _record_data_lineage(self, sources: list[str], data: list[dict[str, Any]]) -> str:
         """Record data lineage."""
         return await self._generate_lineage_id()
 
-    async def _configure_widgets(self, widgets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _configure_widgets(self, widgets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Configure dashboard widgets."""
         configured = []
         for widget in widgets:
-            configured.append({
-                "widget_id": f"W-{len(configured) + 1}",
-                "type": widget.get("type"),
-                "title": widget.get("title"),
-                "data_source": widget.get("data_source"),
-                "config": widget.get("config", {})
-            })
+            configured.append(
+                {
+                    "widget_id": f"W-{len(configured) + 1}",
+                    "type": widget.get("type"),
+                    "title": widget.get("title"),
+                    "data_source": widget.get("data_source"),
+                    "config": widget.get("config", {}),
+                }
+            )
         return configured
 
-    async def _setup_refresh_schedule(self, interval_minutes: int) -> Dict[str, Any]:
+    async def _setup_refresh_schedule(self, interval_minutes: int) -> dict[str, Any]:
         """Set up data refresh schedule."""
         return {
             "interval_minutes": interval_minutes,
-            "next_refresh": (datetime.utcnow() + timedelta(minutes=interval_minutes)).isoformat()
+            "next_refresh": (datetime.utcnow() + timedelta(minutes=interval_minutes)).isoformat(),
         }
 
-    async def _collect_report_data(self, report_spec: Dict[str, Any]) -> Dict[str, Any]:
+    async def _collect_report_data(self, report_spec: dict[str, Any]) -> dict[str, Any]:
         """Collect data for report."""
         # TODO: Query from data warehouse
         return {}
 
     async def _generate_visualizations(
-        self,
-        data: Dict[str, Any],
-        report_spec: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, data: dict[str, Any], report_spec: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Generate visualizations for report."""
         # TODO: Create charts using Power BI or custom charting
         return []
 
-    async def _load_ml_model(self, model_type: str) -> Dict[str, Any]:
+    async def _load_ml_model(self, model_type: str) -> dict[str, Any]:
         """Load ML model."""
         # TODO: Load from Azure ML
         return {"model_type": model_type, "version": "1.0"}
 
-    async def _prepare_features(self, input_data: Dict[str, Any], model_type: str) -> List[float]:
+    async def _prepare_features(self, input_data: dict[str, Any], model_type: str) -> list[float]:
         """Prepare features for ML model."""
         # TODO: Feature engineering
         return []
 
-    async def _make_prediction(self, model: Dict[str, Any], features: List[float]) -> Dict[str, Any]:
+    async def _make_prediction(
+        self, model: dict[str, Any], features: list[float]
+    ) -> dict[str, Any]:
         """Make prediction using ML model."""
         # TODO: Call ML model endpoint
         return {"value": 0.0, "confidence": 0.85}
 
     async def _calculate_confidence_interval(
-        self,
-        prediction: Dict[str, Any],
-        model_type: str
-    ) -> Dict[str, float]:
+        self, prediction: dict[str, Any], model_type: str
+    ) -> dict[str, float]:
         """Calculate prediction confidence interval."""
         value = prediction.get("value", 0.0)
-        return {
-            "lower": value * 0.9,
-            "upper": value * 1.1
-        }
+        return {"lower": value * 0.9, "upper": value * 1.1}
 
-    async def _generate_prediction_recommendations(
-        self,
-        prediction: Dict[str, Any]
-    ) -> List[str]:
+    async def _generate_prediction_recommendations(self, prediction: dict[str, Any]) -> list[str]:
         """Generate recommendations based on prediction."""
         return ["Monitor actual values against prediction"]
 
-    async def _get_baseline_metrics(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_baseline_metrics(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """Get baseline metrics for scenario."""
         # TODO: Query current metrics
         return {"metric_1": 100, "metric_2": 200}
 
     async def _calculate_scenario_metrics(
-        self,
-        baseline: Dict[str, Any],
-        parameters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, baseline: dict[str, Any], parameters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate metrics under scenario."""
         # TODO: Apply scenario parameters to model
         return baseline.copy()
 
     async def _compare_scenarios(
-        self,
-        baseline: Dict[str, Any],
-        scenario: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, baseline: dict[str, Any], scenario: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compare baseline to scenario."""
         comparison = {}
         for key in baseline.keys():
@@ -747,52 +720,49 @@ class AnalyticsInsightsAgent(BaseAgent):
                     "baseline": baseline[key],
                     "scenario": scenario[key],
                     "delta": scenario[key] - baseline[key],
-                    "delta_pct": ((scenario[key] - baseline[key]) / baseline[key] * 100) if baseline[key] != 0 else 0
+                    "delta_pct": (
+                        ((scenario[key] - baseline[key]) / baseline[key] * 100)
+                        if baseline[key] != 0
+                        else 0
+                    ),
                 }
         return comparison
 
-    async def _calculate_scenario_impact(self, comparison: Dict[str, Any]) -> str:
+    async def _calculate_scenario_impact(self, comparison: dict[str, Any]) -> str:
         """Calculate overall scenario impact."""
         # TODO: Analyze comparison
         return "Moderate positive impact"
 
-    async def _generate_scenario_recommendations(self, impact: str) -> List[str]:
+    async def _generate_scenario_recommendations(self, impact: str) -> list[str]:
         """Generate recommendations based on scenario."""
         return [f"Scenario shows {impact} - consider implementation"]
 
-    async def _extract_key_insights(self, data: Dict[str, Any]) -> List[str]:
+    async def _extract_key_insights(self, data: dict[str, Any]) -> list[str]:
         """Extract key insights from data."""
         return []
 
-    async def _identify_trends(self, data: Dict[str, Any]) -> List[str]:
+    async def _identify_trends(self, data: dict[str, Any]) -> list[str]:
         """Identify trends in data."""
         return []
 
     async def _generate_narrative_text(
-        self,
-        insights: List[str],
-        trends: List[str],
-        data: Dict[str, Any]
+        self, insights: list[str], trends: list[str], data: dict[str, Any]
     ) -> str:
         """Generate narrative text using NLG."""
         # TODO: Use Azure OpenAI for NLG
         return "Portfolio performance summary: Key metrics indicate stable progress with some areas requiring attention."
 
-    async def _calculate_kpi_value(self, kpi_config: Dict[str, Any]) -> float:
+    async def _calculate_kpi_value(self, kpi_config: dict[str, Any]) -> float:
         """Calculate current KPI value."""
         # TODO: Calculate from actual data
         return 85.0
 
-    async def _get_kpi_history(self, kpi_id: str) -> List[Dict[str, Any]]:
+    async def _get_kpi_history(self, kpi_id: str) -> list[dict[str, Any]]:
         """Get historical KPI values."""
         # TODO: Query from database
         return []
 
-    async def _calculate_kpi_trend(
-        self,
-        historical: List[Dict[str, Any]],
-        current: float
-    ) -> str:
+    async def _calculate_kpi_trend(self, historical: list[dict[str, Any]], current: float) -> str:
         """Calculate KPI trend."""
         if not historical:
             return "stable"
@@ -800,10 +770,8 @@ class AnalyticsInsightsAgent(BaseAgent):
         return "improving"
 
     async def _check_kpi_thresholds(
-        self,
-        value: float,
-        thresholds: Dict[str, float]
-    ) -> Dict[str, Any]:
+        self, value: float, thresholds: dict[str, float]
+    ) -> dict[str, Any]:
         """Check KPI against thresholds."""
         breached = False
         if "min" in thresholds and value < thresholds["min"]:
@@ -814,28 +782,26 @@ class AnalyticsInsightsAgent(BaseAgent):
         return {
             "breached": breached,
             "thresholds": thresholds,
-            "status": "critical" if breached else "normal"
+            "status": "critical" if breached else "normal",
         }
 
-    async def _parse_query(self, query: str) -> Dict[str, Any]:
+    async def _parse_query(self, query: str) -> dict[str, Any]:
         """Parse natural language query."""
         # TODO: Use NLP to parse query
         return {"parsed": query}
 
     async def _execute_query(
-        self,
-        parsed_query: Dict[str, Any],
-        filters: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, parsed_query: dict[str, Any], filters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Execute data query."""
         # TODO: Execute against data warehouse
         return []
 
-    async def _format_query_results(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _format_query_results(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Format query results."""
         return results
 
-    async def _refresh_widget_data(self, widgets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _refresh_widget_data(self, widgets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Refresh data for dashboard widgets."""
         refreshed = []
         for widget in widgets:
@@ -845,27 +811,24 @@ class AnalyticsInsightsAgent(BaseAgent):
             refreshed.append(widget_data)
         return refreshed
 
-    async def _collect_insights_data(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _collect_insights_data(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Collect data for insights generation."""
         # TODO: Query from data warehouse
         return {}
 
-    async def _detect_anomalies(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _detect_anomalies(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         """Detect anomalies in data."""
         # TODO: Use anomaly detection algorithms
         return []
 
-    async def _identify_patterns(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_patterns(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify patterns in data."""
         # TODO: Use pattern recognition algorithms
         return []
 
     async def _generate_insights(
-        self,
-        data: Dict[str, Any],
-        anomalies: List[Dict[str, Any]],
-        patterns: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, data: dict[str, Any], anomalies: list[dict[str, Any]], patterns: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate AI insights."""
         insights = []
         if anomalies:
@@ -874,7 +837,7 @@ class AnalyticsInsightsAgent(BaseAgent):
             insights.append(f"Identified {len(patterns)} recurring patterns")
         return insights
 
-    async def _generate_recommendations(self, insights: List[str]) -> List[str]:
+    async def _generate_recommendations(self, insights: list[str]) -> list[str]:
         """Generate recommendations from insights."""
         return ["Review identified anomalies", "Monitor emerging patterns"]
 
@@ -885,7 +848,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         # TODO: Close ML model connections
         # TODO: Flush pending analytics jobs
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "data_aggregation",
@@ -901,5 +864,5 @@ class AnalyticsInsightsAgent(BaseAgent):
             "data_visualization",
             "self_service_analytics",
             "data_lineage",
-            "ml_predictions"
+            "ml_predictions",
         ]
