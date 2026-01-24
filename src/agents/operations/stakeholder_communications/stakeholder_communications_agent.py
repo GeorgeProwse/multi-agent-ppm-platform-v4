@@ -9,10 +9,10 @@ right time through appropriate channels, fostering engagement and monitoring sen
 Specification: docs_markdown/specs/agents/operations/stakeholder-communications/Agent 21 Stakeholder & Communications Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timedelta
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class StakeholderCommunicationsAgent(BaseAgent):
@@ -30,21 +30,21 @@ class StakeholderCommunicationsAgent(BaseAgent):
     - Stakeholder engagement dashboards
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_021",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_021", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.communication_channels = config.get("communication_channels", [
-            "email", "teams", "slack", "sms", "portal"
-        ]) if config else ["email", "teams", "slack", "sms", "portal"]
+        self.communication_channels = (
+            config.get("communication_channels", ["email", "teams", "slack", "sms", "portal"])
+            if config
+            else ["email", "teams", "slack", "sms", "portal"]
+        )
 
-        self.engagement_levels = config.get("engagement_levels", [
-            "high", "medium", "low", "minimal"
-        ]) if config else ["high", "medium", "low", "minimal"]
+        self.engagement_levels = (
+            config.get("engagement_levels", ["high", "medium", "low", "minimal"])
+            if config
+            else ["high", "medium", "low", "minimal"]
+        )
 
         self.sentiment_threshold = config.get("sentiment_threshold", -0.3) if config else -0.3
 
@@ -76,7 +76,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         self.logger.info("Stakeholder & Communications Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -95,7 +95,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "schedule_event",
             "track_engagement",
             "get_stakeholder_dashboard",
-            "generate_communication_report"
+            "generate_communication_report",
         ]
 
         if action not in valid_actions:
@@ -112,7 +112,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process stakeholder and communications management requests.
 
@@ -167,20 +167,18 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         elif action == "get_stakeholder_dashboard":
             return await self._get_stakeholder_dashboard(
-                input_data.get("project_id"),
-                input_data.get("filters", {})
+                input_data.get("project_id"), input_data.get("filters", {})
             )
 
         elif action == "generate_communication_report":
             return await self._generate_communication_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _register_stakeholder(self, stakeholder_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _register_stakeholder(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
         """Register new stakeholder."""
         self.logger.info(f"Registering stakeholder: {stakeholder_data.get('name')}")
 
@@ -189,7 +187,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         # Enrich profile from CRM
         # TODO: Fetch additional data from CRM
-        enriched_data = await self._enrich_stakeholder_profile(stakeholder_data)
+        await self._enrich_stakeholder_profile(stakeholder_data)
 
         # Suggest classification
         suggested_classification = await self._suggest_classification(stakeholder_data)
@@ -212,7 +210,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "projects": stakeholder_data.get("projects", []),
             "engagement_score": 0,
             "sentiment_score": 0,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store stakeholder
@@ -224,7 +222,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "messages_opened": 0,
             "messages_clicked": 0,
             "responses_received": 0,
-            "events_attended": 0
+            "events_attended": 0,
         }
 
         # TODO: Store in database
@@ -234,10 +232,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "stakeholder_id": stakeholder_id,
             "name": stakeholder["name"],
             "suggested_classification": suggested_classification,
-            "next_steps": "Classify stakeholder and add to communication plans"
+            "next_steps": "Classify stakeholder and add to communication plans",
         }
 
-    async def _classify_stakeholder(self, stakeholder_id: str) -> Dict[str, Any]:
+    async def _classify_stakeholder(self, stakeholder_id: str) -> dict[str, Any]:
         """Classify stakeholder using power-interest matrix."""
         self.logger.info(f"Classifying stakeholder: {stakeholder_id}")
 
@@ -262,10 +260,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "influence": influence,
             "interest": interest,
             "engagement_strategy": engagement_strategy,
-            "recommended_frequency": engagement_strategy.get("frequency")
+            "recommended_frequency": engagement_strategy.get("frequency"),
         }
 
-    async def _create_communication_plan(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_communication_plan(self, plan_data: dict[str, Any]) -> dict[str, Any]:
         """Create communication plan."""
         self.logger.info(f"Creating communication plan: {plan_data.get('name')}")
 
@@ -274,10 +272,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         # Validate schedule and stakeholders
         stakeholder_ids = plan_data.get("stakeholder_ids", [])
-        valid_stakeholders = [
-            s_id for s_id in stakeholder_ids
-            if s_id in self.stakeholder_register
-        ]
+        valid_stakeholders = [s_id for s_id in stakeholder_ids if s_id in self.stakeholder_register]
 
         # Create communication plan
         plan = {
@@ -291,7 +286,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "schedule": plan_data.get("schedule", []),
             "template_id": plan_data.get("template_id"),
             "status": "Active",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store plan
@@ -305,10 +300,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "name": plan["name"],
             "stakeholders": len(valid_stakeholders),
             "channel": plan["channel"],
-            "frequency": plan["frequency"]
+            "frequency": plan["frequency"],
         }
 
-    async def _generate_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_message(self, message_data: dict[str, Any]) -> dict[str, Any]:
         """Generate personalized message."""
         self.logger.info(f"Generating message: {message_data.get('subject')}")
 
@@ -321,8 +316,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         # Generate content using NLG
         # TODO: Use Azure OpenAI for natural language generation
         content = await self._generate_message_content(
-            message_data.get("template", ""),
-            message_data.get("data", {})
+            message_data.get("template", ""), message_data.get("data", {})
         )
 
         # Personalize for each stakeholder
@@ -330,14 +324,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
         for stakeholder_id in stakeholder_ids:
             stakeholder = self.stakeholder_register.get(stakeholder_id)
             if stakeholder:
-                personalized_content = await self._personalize_content(
-                    content,
-                    stakeholder
+                personalized_content = await self._personalize_content(content, stakeholder)
+                personalized_messages.append(
+                    {"stakeholder_id": stakeholder_id, "content": personalized_content}
                 )
-                personalized_messages.append({
-                    "stakeholder_id": stakeholder_id,
-                    "content": personalized_content
-                })
 
         # Create message
         message = {
@@ -350,7 +340,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "scheduled_send": message_data.get("scheduled_send"),
             "attachments": message_data.get("attachments", []),
             "status": "Draft",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store message
@@ -364,10 +354,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "recipients": len(personalized_messages),
             "channel": message["channel"],
             "status": "Draft",
-            "preview": content[:200]
+            "preview": content[:200],
         }
 
-    async def _send_message(self, message_id: str) -> Dict[str, Any]:
+    async def _send_message(self, message_id: str) -> dict[str, Any]:
         """Send message to stakeholders."""
         self.logger.info(f"Sending message: {message_id}")
 
@@ -393,14 +383,16 @@ class StakeholderCommunicationsAgent(BaseAgent):
                 stakeholder.get("email") if channel == "email" else stakeholder.get("phone"),
                 message.get("subject"),
                 personalized.get("content"),
-                message.get("attachments", [])
+                message.get("attachments", []),
             )
 
-            delivery_results.append({
-                "stakeholder_id": stakeholder_id,
-                "status": result.get("status"),
-                "sent_at": result.get("sent_at")
-            })
+            delivery_results.append(
+                {
+                    "stakeholder_id": stakeholder_id,
+                    "status": result.get("status"),
+                    "sent_at": result.get("sent_at"),
+                }
+            )
 
             # Update engagement metrics
             if stakeholder_id in self.engagement_metrics:
@@ -418,11 +410,13 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "message_id": message_id,
             "status": "Sent",
             "recipients": len(delivery_results),
-            "successful_deliveries": len([r for r in delivery_results if r["status"] == "delivered"]),
-            "sent_at": message["sent_at"]
+            "successful_deliveries": len(
+                [r for r in delivery_results if r["status"] == "delivered"]
+            ),
+            "sent_at": message["sent_at"],
         }
 
-    async def _collect_feedback(self, feedback_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _collect_feedback(self, feedback_data: dict[str, Any]) -> dict[str, Any]:
         """Collect stakeholder feedback."""
         self.logger.info(f"Collecting feedback from: {feedback_data.get('stakeholder_id')}")
 
@@ -443,7 +437,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "comments": feedback_data.get("comments"),
             "rating": feedback_data.get("rating"),
             "sentiment": sentiment,
-            "received_at": datetime.utcnow().isoformat()
+            "received_at": datetime.utcnow().isoformat(),
         }
 
         # Store feedback
@@ -470,10 +464,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "feedback_id": feedback_id,
             "stakeholder_id": feedback_record["stakeholder_id"],
             "sentiment": sentiment,
-            "alert_triggered": sentiment.get("score", 0) < self.sentiment_threshold
+            "alert_triggered": sentiment.get("score", 0) < self.sentiment_threshold,
         }
 
-    async def _analyze_sentiment(self, stakeholder_id: Optional[str]) -> Dict[str, Any]:
+    async def _analyze_sentiment(self, stakeholder_id: str | None) -> dict[str, Any]:
         """Analyze stakeholder sentiment trends."""
         self.logger.info(f"Analyzing sentiment for stakeholder: {stakeholder_id}")
 
@@ -486,17 +480,17 @@ class StakeholderCommunicationsAgent(BaseAgent):
                 "stakeholder_id": stakeholder_id,
                 "current_sentiment": sentiment_trend.get("current"),
                 "trend": sentiment_trend.get("trend"),
-                "feedback_count": len(stakeholder_feedback)
+                "feedback_count": len(stakeholder_feedback),
             }
         else:
             # Analyze all stakeholders
             overall_sentiment = await self._calculate_overall_sentiment()
             return {
                 "overall_sentiment": overall_sentiment,
-                "stakeholders_analyzed": len(self.feedback)
+                "stakeholders_analyzed": len(self.feedback),
             }
 
-    async def _schedule_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _schedule_event(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """Schedule event or meeting."""
         self.logger.info(f"Scheduling event: {event_data.get('title')}")
 
@@ -506,8 +500,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         # Propose optimal time
         # TODO: Consider stakeholder time zones and availability
         optimal_time = await self._propose_optimal_time(
-            event_data.get("stakeholder_ids", []),
-            event_data.get("duration", 60)
+            event_data.get("stakeholder_ids", []), event_data.get("duration", 60)
         )
 
         # Create event
@@ -524,7 +517,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "meeting_link": event_data.get("meeting_link"),
             "rsvp_status": {},
             "status": "Scheduled",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store event
@@ -539,10 +532,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "title": event["title"],
             "scheduled_time": event["scheduled_time"],
             "invitees": len(event["stakeholder_ids"]),
-            "optimal_time_suggested": optimal_time
+            "optimal_time_suggested": optimal_time,
         }
 
-    async def _track_engagement(self, stakeholder_id: Optional[str]) -> Dict[str, Any]:
+    async def _track_engagement(self, stakeholder_id: str | None) -> dict[str, Any]:
         """Track stakeholder engagement metrics."""
         self.logger.info(f"Tracking engagement for stakeholder: {stakeholder_id}")
 
@@ -564,21 +557,19 @@ class StakeholderCommunicationsAgent(BaseAgent):
                 "stakeholder_id": stakeholder_id,
                 "engagement_score": engagement_score,
                 "metrics": metrics,
-                "engagement_level": await self._classify_engagement_level(engagement_score)
+                "engagement_level": await self._classify_engagement_level(engagement_score),
             }
         else:
             # Track all stakeholders
             overall_engagement = await self._calculate_overall_engagement()
             return {
                 "overall_engagement": overall_engagement,
-                "stakeholders_tracked": len(self.engagement_metrics)
+                "stakeholders_tracked": len(self.engagement_metrics),
             }
 
     async def _get_stakeholder_dashboard(
-        self,
-        project_id: Optional[str],
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get stakeholder dashboard data."""
         self.logger.info(f"Getting stakeholder dashboard for project: {project_id}")
 
@@ -600,14 +591,12 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "engagement_overview": engagement_overview,
             "sentiment_trends": sentiment_trends,
             "upcoming_communications": upcoming_communications,
-            "dashboard_generated_at": datetime.utcnow().isoformat()
+            "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _generate_communication_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, report_type: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate communication report."""
         self.logger.info(f"Generating {report_type} communication report")
 
@@ -647,84 +636,56 @@ class StakeholderCommunicationsAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"EVT-{timestamp}"
 
-    async def _enrich_stakeholder_profile(self, stakeholder_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _enrich_stakeholder_profile(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
         """Enrich stakeholder profile from CRM."""
         # TODO: Fetch from CRM
         return stakeholder_data
 
-    async def _suggest_classification(self, stakeholder_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _suggest_classification(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
         """Suggest stakeholder classification."""
         # TODO: Use ML for classification
         role = stakeholder_data.get("role", "").lower()
 
         if "executive" in role or "director" in role:
-            return {
-                "influence": "high",
-                "interest": "high",
-                "engagement_level": "high"
-            }
+            return {"influence": "high", "interest": "high", "engagement_level": "high"}
         elif "manager" in role:
-            return {
-                "influence": "medium",
-                "interest": "high",
-                "engagement_level": "medium"
-            }
+            return {"influence": "medium", "interest": "high", "engagement_level": "medium"}
         else:
-            return {
-                "influence": "low",
-                "interest": "medium",
-                "engagement_level": "low"
-            }
+            return {"influence": "low", "interest": "medium", "engagement_level": "low"}
 
-    async def _determine_engagement_strategy(
-        self,
-        influence: str,
-        interest: str
-    ) -> Dict[str, Any]:
+    async def _determine_engagement_strategy(self, influence: str, interest: str) -> dict[str, Any]:
         """Determine engagement strategy based on power-interest matrix."""
         # High influence, high interest: Manage closely
         if influence == "high" and interest == "high":
             return {
                 "strategy": "manage_closely",
                 "frequency": "weekly",
-                "channels": ["email", "teams", "meetings"]
+                "channels": ["email", "teams", "meetings"],
             }
         # High influence, low interest: Keep satisfied
         elif influence == "high" and interest == "low":
             return {
                 "strategy": "keep_satisfied",
                 "frequency": "bi-weekly",
-                "channels": ["email", "meetings"]
+                "channels": ["email", "meetings"],
             }
         # Low influence, high interest: Keep informed
         elif influence == "low" and interest == "high":
             return {
                 "strategy": "keep_informed",
                 "frequency": "weekly",
-                "channels": ["email", "portal"]
+                "channels": ["email", "portal"],
             }
         # Low influence, low interest: Monitor
         else:
-            return {
-                "strategy": "monitor",
-                "frequency": "monthly",
-                "channels": ["email"]
-            }
+            return {"strategy": "monitor", "frequency": "monthly", "channels": ["email"]}
 
-    async def _generate_message_content(
-        self,
-        template: str,
-        data: Dict[str, Any]
-    ) -> str:
+    async def _generate_message_content(self, template: str, data: dict[str, Any]) -> str:
         """Generate message content using NLG."""
         # TODO: Use Azure OpenAI for content generation
         return template.format(**data) if template else "Sample message content"
 
-    async def _personalize_content(
-        self,
-        content: str,
-        stakeholder: Dict[str, Any]
-    ) -> str:
+    async def _personalize_content(self, content: str, stakeholder: dict[str, Any]) -> str:
         """Personalize content for stakeholder."""
         # Replace placeholders with stakeholder data
         personalized = content.replace("{name}", stakeholder.get("name", ""))
@@ -732,34 +693,21 @@ class StakeholderCommunicationsAgent(BaseAgent):
         return personalized
 
     async def _send_via_channel(
-        self,
-        channel: str,
-        recipient: str,
-        subject: str,
-        content: str,
-        attachments: List[str]
-    ) -> Dict[str, Any]:
+        self, channel: str, recipient: str, subject: str, content: str, attachments: list[str]
+    ) -> dict[str, Any]:
         """Send message via communication channel."""
         # TODO: Integrate with actual platforms
-        return {
-            "status": "delivered",
-            "sent_at": datetime.utcnow().isoformat()
-        }
+        return {"status": "delivered", "sent_at": datetime.utcnow().isoformat()}
 
-    async def _analyze_text_sentiment(self, text: str) -> Dict[str, Any]:
+    async def _analyze_text_sentiment(self, text: str) -> dict[str, Any]:
         """Analyze sentiment of text."""
         # TODO: Use Azure Cognitive Services
         # Placeholder implementation
-        return {
-            "score": 0.5,  # -1 to 1
-            "label": "neutral",
-            "confidence": 0.8
-        }
+        return {"score": 0.5, "label": "neutral", "confidence": 0.8}  # -1 to 1
 
     async def _calculate_sentiment_trend(
-        self,
-        feedback_list: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, feedback_list: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate sentiment trend."""
         if not feedback_list:
             return {"current": 0, "trend": "stable"}
@@ -781,7 +729,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         return {"current": current, "trend": trend}
 
-    async def _calculate_overall_sentiment(self) -> Dict[str, Any]:
+    async def _calculate_overall_sentiment(self) -> dict[str, Any]:
         """Calculate overall sentiment across all stakeholders."""
         all_scores = []
         for stakeholder_id, feedback_list in self.feedback.items():
@@ -799,18 +747,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         return {
             "average": average,
-            "distribution": {
-                "positive": positive,
-                "neutral": neutral,
-                "negative": negative
-            }
+            "distribution": {"positive": positive, "neutral": neutral, "negative": negative},
         }
 
-    async def _propose_optimal_time(
-        self,
-        stakeholder_ids: List[str],
-        duration: int
-    ) -> str:
+    async def _propose_optimal_time(self, stakeholder_ids: list[str], duration: int) -> str:
         """Propose optimal meeting time considering time zones."""
         # TODO: Use calendar availability and time zone analysis
         # Placeholder: suggest tomorrow at 10 AM UTC
@@ -818,7 +758,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         optimal_time = optimal_time.replace(hour=10, minute=0, second=0, microsecond=0)
         return optimal_time.isoformat()
 
-    async def _calculate_engagement_score(self, metrics: Dict[str, Any]) -> float:
+    async def _calculate_engagement_score(self, metrics: dict[str, Any]) -> float:
         """Calculate engagement score from metrics."""
         messages_sent = metrics.get("messages_sent", 0)
         messages_opened = metrics.get("messages_opened", 0)
@@ -834,7 +774,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         click_rate = messages_clicked / messages_sent if messages_sent > 0 else 0
         response_rate = responses / messages_sent if messages_sent > 0 else 0
 
-        score = (open_rate * 30 + click_rate * 30 + response_rate * 30 + events_attended * 10)
+        score = open_rate * 30 + click_rate * 30 + response_rate * 30 + events_attended * 10
 
         return min(100, score)
 
@@ -849,7 +789,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         else:
             return "minimal"
 
-    async def _calculate_overall_engagement(self) -> Dict[str, Any]:
+    async def _calculate_overall_engagement(self) -> dict[str, Any]:
         """Calculate overall engagement metrics."""
         total_stakeholders = len(self.engagement_metrics)
         if total_stakeholders == 0:
@@ -869,64 +809,58 @@ class StakeholderCommunicationsAgent(BaseAgent):
                 "high": len([s for s in scores if s >= 70]),
                 "medium": len([s for s in scores if 40 <= s < 70]),
                 "low": len([s for s in scores if 20 <= s < 40]),
-                "minimal": len([s for s in scores if s < 20])
-            }
+                "minimal": len([s for s in scores if s < 20]),
+            },
         }
 
-    async def _get_stakeholder_summary(self, project_id: Optional[str]) -> Dict[str, Any]:
+    async def _get_stakeholder_summary(self, project_id: str | None) -> dict[str, Any]:
         """Get stakeholder summary."""
         # TODO: Filter by project
         return {
             "total_stakeholders": len(self.stakeholder_register),
-            "by_engagement_level": {
-                "high": 0,
-                "medium": 0,
-                "low": 0
-            }
+            "by_engagement_level": {"high": 0, "medium": 0, "low": 0},
         }
 
-    async def _get_engagement_overview(self, project_id: Optional[str]) -> Dict[str, Any]:
+    async def _get_engagement_overview(self, project_id: str | None) -> dict[str, Any]:
         """Get engagement overview."""
         return await self._calculate_overall_engagement()
 
-    async def _get_sentiment_trends(self, project_id: Optional[str]) -> Dict[str, Any]:
+    async def _get_sentiment_trends(self, project_id: str | None) -> dict[str, Any]:
         """Get sentiment trends."""
         return await self._calculate_overall_sentiment()
 
-    async def _get_upcoming_communications(self, project_id: Optional[str]) -> List[Dict[str, Any]]:
+    async def _get_upcoming_communications(self, project_id: str | None) -> list[dict[str, Any]]:
         """Get upcoming communications."""
         upcoming = []
         for message_id, message in self.messages.items():
             if message.get("status") == "Draft" and message.get("scheduled_send"):
-                upcoming.append({
-                    "message_id": message_id,
-                    "subject": message.get("subject"),
-                    "scheduled_send": message.get("scheduled_send")
-                })
+                upcoming.append(
+                    {
+                        "message_id": message_id,
+                        "subject": message.get("subject"),
+                        "scheduled_send": message.get("scheduled_send"),
+                    }
+                )
         return upcoming[:10]
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary communication report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
-    async def _generate_engagement_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_engagement_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate engagement report."""
         return {
             "report_type": "engagement",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_sentiment_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_sentiment_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate sentiment report."""
         return {
             "report_type": "sentiment",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
     async def cleanup(self) -> None:
@@ -936,7 +870,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         # TODO: Close communication platform connections
         # TODO: Flush any pending messages
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "stakeholder_registry",
@@ -956,5 +890,5 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "engagement_scoring",
             "communication_analytics",
             "stakeholder_dashboards",
-            "communication_reporting"
+            "communication_reporting",
         ]

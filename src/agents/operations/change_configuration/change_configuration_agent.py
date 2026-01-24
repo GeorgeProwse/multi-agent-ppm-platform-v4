@@ -9,10 +9,10 @@ and preserve integrity. Maintains CMDB for project artifacts and infrastructure.
 Specification: docs_markdown/specs/agents/operations/change-configuration/Agent 17 Change & Configuration Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ChangeConfigurationAgent(BaseAgent):
@@ -30,21 +30,21 @@ class ChangeConfigurationAgent(BaseAgent):
     - Configuration visualization and dependency mapping
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_017",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_017", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.change_types = config.get("change_types", [
-            "normal", "standard", "emergency"
-        ]) if config else ["normal", "standard", "emergency"]
+        self.change_types = (
+            config.get("change_types", ["normal", "standard", "emergency"])
+            if config
+            else ["normal", "standard", "emergency"]
+        )
 
-        self.priority_levels = config.get("priority_levels", [
-            "critical", "high", "medium", "low"
-        ]) if config else ["critical", "high", "medium", "low"]
+        self.priority_levels = (
+            config.get("priority_levels", ["critical", "high", "medium", "low"])
+            if config
+            else ["critical", "high", "medium", "low"]
+        )
 
         self.baseline_threshold = config.get("baseline_threshold", 0.10) if config else 0.10
 
@@ -73,7 +73,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         self.logger.info("Change & Configuration Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -92,7 +92,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "audit_changes",
             "visualize_dependencies",
             "get_change_dashboard",
-            "generate_change_report"
+            "generate_change_report",
         ]
 
         if action not in valid_actions:
@@ -109,7 +109,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process change and configuration management requests.
 
@@ -144,8 +144,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         elif action == "approve_change":
             return await self._approve_change(
-                input_data.get("change_id"),
-                input_data.get("approval", {})
+                input_data.get("change_id"), input_data.get("approval", {})
             )
 
         elif action == "register_ci":
@@ -168,14 +167,13 @@ class ChangeConfigurationAgent(BaseAgent):
 
         elif action == "generate_change_report":
             return await self._generate_change_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _submit_change_request(self, change_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _submit_change_request(self, change_data: dict[str, Any]) -> dict[str, Any]:
         """Submit change request."""
         self.logger.info(f"Submitting change request: {change_data.get('title')}")
 
@@ -202,7 +200,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "risk_assessment": None,
             "approval_status": "Pending",
             "status": "Submitted",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store change
@@ -216,10 +214,10 @@ class ChangeConfigurationAgent(BaseAgent):
             "type": change_type,
             "status": "Submitted",
             "impacted_cis": len(impacted_cis),
-            "next_steps": "Impact assessment will be performed"
+            "next_steps": "Impact assessment will be performed",
         }
 
-    async def _classify_change(self, change_id: str) -> Dict[str, Any]:
+    async def _classify_change(self, change_id: str) -> dict[str, Any]:
         """Classify change request using AI."""
         self.logger.info(f"Classifying change: {change_id}")
 
@@ -229,21 +227,17 @@ class ChangeConfigurationAgent(BaseAgent):
 
         # Use NLP to classify
         # TODO: Use Azure ML for classification
-        classification = await self._auto_classify_change_type({
-            "description": change.get("description")
-        })
+        classification = await self._auto_classify_change_type(
+            {"description": change.get("description")}
+        )
 
         # Update change
         change["type"] = classification
         change["routing"] = await self._determine_routing(classification)
 
-        return {
-            "change_id": change_id,
-            "type": classification,
-            "routing": change["routing"]
-        }
+        return {"change_id": change_id, "type": classification, "routing": change["routing"]}
 
-    async def _assess_impact(self, change_id: str) -> Dict[str, Any]:
+    async def _assess_impact(self, change_id: str) -> dict[str, Any]:
         """Assess change impact."""
         self.logger.info(f"Assessing impact for change: {change_id}")
 
@@ -275,7 +269,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "overall_risk_score": await self._calculate_overall_risk(
                 schedule_impact, cost_impact, risk_impact
             ),
-            "assessed_at": datetime.utcnow().isoformat()
+            "assessed_at": datetime.utcnow().isoformat(),
         }
 
         # Update change
@@ -286,14 +280,12 @@ class ChangeConfigurationAgent(BaseAgent):
         return {
             "change_id": change_id,
             "impact_assessment": impact_assessment,
-            "recommendation": await self._generate_impact_recommendation(impact_assessment)
+            "recommendation": await self._generate_impact_recommendation(impact_assessment),
         }
 
     async def _approve_change(
-        self,
-        change_id: str,
-        approval_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, change_id: str, approval_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Approve or reject change."""
         self.logger.info(f"Processing approval for change: {change_id}")
 
@@ -323,10 +315,12 @@ class ChangeConfigurationAgent(BaseAgent):
             "change_id": change_id,
             "approval_status": change["approval_status"],
             "approved_by": approver,
-            "next_steps": "Proceed with implementation" if decision == "approve" else "Review and resubmit"
+            "next_steps": (
+                "Proceed with implementation" if decision == "approve" else "Review and resubmit"
+            ),
         }
 
-    async def _register_ci(self, ci_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _register_ci(self, ci_data: dict[str, Any]) -> dict[str, Any]:
         """Register configuration item in CMDB."""
         self.logger.info(f"Registering CI: {ci_data.get('name')}")
 
@@ -345,7 +339,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "relationships": ci_data.get("relationships", []),
             "attributes": ci_data.get("attributes", {}),
             "created_at": datetime.utcnow().isoformat(),
-            "last_modified": datetime.utcnow().isoformat()
+            "last_modified": datetime.utcnow().isoformat(),
         }
 
         # Store CI
@@ -353,14 +347,9 @@ class ChangeConfigurationAgent(BaseAgent):
 
         # TODO: Store in database with graph features
 
-        return {
-            "ci_id": ci_id,
-            "name": ci["name"],
-            "type": ci["type"],
-            "version": ci["version"]
-        }
+        return {"ci_id": ci_id, "name": ci["name"], "type": ci["type"], "version": ci["version"]}
 
-    async def _create_baseline(self, baseline_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_baseline(self, baseline_data: dict[str, Any]) -> dict[str, Any]:
         """Create configuration baseline."""
         self.logger.info(f"Creating baseline: {baseline_data.get('description')}")
 
@@ -376,7 +365,7 @@ class ChangeConfigurationAgent(BaseAgent):
                 ci_snapshot[ci_id] = {
                     "name": ci.get("name"),
                     "version": ci.get("version"),
-                    "attributes": ci.get("attributes", {}).copy()
+                    "attributes": ci.get("attributes", {}).copy(),
                 }
 
         # Create baseline
@@ -387,7 +376,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "ci_snapshot": ci_snapshot,
             "created_at": datetime.utcnow().isoformat(),
             "created_by": baseline_data.get("created_by", "unknown"),
-            "locked": True
+            "locked": True,
         }
 
         # Store baseline
@@ -399,10 +388,10 @@ class ChangeConfigurationAgent(BaseAgent):
             "baseline_id": baseline_id,
             "description": baseline["description"],
             "ci_count": len(ci_snapshot),
-            "created_at": baseline["created_at"]
+            "created_at": baseline["created_at"],
         }
 
-    async def _track_change_implementation(self, change_id: str) -> Dict[str, Any]:
+    async def _track_change_implementation(self, change_id: str) -> dict[str, Any]:
         """Track change implementation progress."""
         self.logger.info(f"Tracking implementation for change: {change_id}")
 
@@ -430,10 +419,10 @@ class ChangeConfigurationAgent(BaseAgent):
             "completion_percentage": completion_pct,
             "total_tasks": total_tasks,
             "completed_tasks": completed_tasks,
-            "implementation_tasks": implementation_tasks
+            "implementation_tasks": implementation_tasks,
         }
 
-    async def _audit_changes(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _audit_changes(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Audit change history."""
         self.logger.info("Auditing changes")
 
@@ -448,14 +437,18 @@ class ChangeConfigurationAgent(BaseAgent):
 
         return {
             "total_changes": len(changes_to_audit),
-            "approved_changes": len([c for c in changes_to_audit if c.get("approval_status") == "Approved"]),
-            "rejected_changes": len([c for c in changes_to_audit if c.get("approval_status") == "Rejected"]),
+            "approved_changes": len(
+                [c for c in changes_to_audit if c.get("approval_status") == "Approved"]
+            ),
+            "rejected_changes": len(
+                [c for c in changes_to_audit if c.get("approval_status") == "Rejected"]
+            ),
             "emergency_changes": len([c for c in changes_to_audit if c.get("type") == "emergency"]),
             "patterns": patterns,
-            "audit_date": datetime.utcnow().isoformat()
+            "audit_date": datetime.utcnow().isoformat(),
         }
 
-    async def _visualize_dependencies(self, ci_id: Optional[str]) -> Dict[str, Any]:
+    async def _visualize_dependencies(self, ci_id: str | None) -> dict[str, Any]:
         """Visualize CI dependencies."""
         self.logger.info(f"Visualizing dependencies for CI: {ci_id}")
 
@@ -475,10 +468,10 @@ class ChangeConfigurationAgent(BaseAgent):
             "ci_id": ci_id,
             "dependency_graph": dependency_graph,
             "node_count": len(dependency_graph.get("nodes", [])),
-            "edge_count": len(dependency_graph.get("edges", []))
+            "edge_count": len(dependency_graph.get("edges", [])),
         }
 
-    async def _get_change_dashboard(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_change_dashboard(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Get change dashboard data."""
         self.logger.info("Getting change dashboard")
 
@@ -500,14 +493,12 @@ class ChangeConfigurationAgent(BaseAgent):
             "change_statistics": stats,
             "cab_workload": cab_workload,
             "recent_changes": open_changes[:10],
-            "dashboard_generated_at": datetime.utcnow().isoformat()
+            "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _generate_change_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, report_type: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate change management report."""
         self.logger.info(f"Generating {report_type} change report")
 
@@ -535,7 +526,7 @@ class ChangeConfigurationAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"BL-{timestamp}"
 
-    async def _auto_classify_change_type(self, change_data: Dict[str, Any]) -> str:
+    async def _auto_classify_change_type(self, change_data: dict[str, Any]) -> str:
         """Auto-classify change type using NLP."""
         # TODO: Use Azure ML for classification
         description = change_data.get("description", "").lower()
@@ -547,7 +538,7 @@ class ChangeConfigurationAgent(BaseAgent):
         else:
             return "normal"
 
-    async def _identify_impacted_cis(self, change_data: Dict[str, Any]) -> List[str]:
+    async def _identify_impacted_cis(self, change_data: dict[str, Any]) -> list[str]:
         """Identify impacted configuration items."""
         # TODO: Use NLP and CMDB relationships
         return []
@@ -557,45 +548,45 @@ class ChangeConfigurationAgent(BaseAgent):
         routing_map = {
             "emergency": "Emergency CAB",
             "standard": "Auto-Approved",
-            "normal": "CAB Review"
+            "normal": "CAB Review",
         }
         return routing_map.get(change_type, "CAB Review")
 
-    async def _assess_schedule_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _assess_schedule_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Assess schedule impact of change."""
         # TODO: Integrate with Schedule Agent
         return {"impact_days": 0, "critical_path_affected": False}
 
-    async def _assess_cost_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _assess_cost_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Assess cost impact of change."""
         # TODO: Integrate with Financial Agent
         return {"cost_variance": 0, "budget_available": True}
 
-    async def _assess_resource_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _assess_resource_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Assess resource impact of change."""
         # TODO: Integrate with Resource Agent
         return {"resources_required": [], "availability": True}
 
-    async def _assess_risk_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _assess_risk_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Assess risk impact of change."""
         # TODO: Integrate with Risk Management Agent
         return {"new_risks": [], "risk_score_increase": 0}
 
-    async def _analyze_dependency_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _analyze_dependency_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Analyze CI dependency impact."""
         # TODO: Use graph analysis
         return {"dependent_cis": [], "cascading_impact": False}
 
-    async def _predict_change_impact(self, change: Dict[str, Any]) -> Dict[str, Any]:
+    async def _predict_change_impact(self, change: dict[str, Any]) -> dict[str, Any]:
         """Predict change impact using ML."""
         # TODO: Use Azure ML
         return {"success_probability": 0.8, "predicted_duration": 5}
 
     async def _calculate_overall_risk(
         self,
-        schedule_impact: Dict[str, Any],
-        cost_impact: Dict[str, Any],
-        risk_impact: Dict[str, Any]
+        schedule_impact: dict[str, Any],
+        cost_impact: dict[str, Any],
+        risk_impact: dict[str, Any],
     ) -> float:
         """Calculate overall risk score for change."""
         score = 0.0
@@ -610,10 +601,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         return min(100, score)
 
-    async def _generate_impact_recommendation(
-        self,
-        impact_assessment: Dict[str, Any]
-    ) -> str:
+    async def _generate_impact_recommendation(self, impact_assessment: dict[str, Any]) -> str:
         """Generate recommendation based on impact assessment."""
         risk_score = impact_assessment.get("overall_risk_score", 0)
 
@@ -624,12 +612,12 @@ class ChangeConfigurationAgent(BaseAgent):
         else:
             return "Low risk change. Can proceed with standard approval process."
 
-    async def _get_implementation_tasks(self, change_id: str) -> List[Dict[str, Any]]:
+    async def _get_implementation_tasks(self, change_id: str) -> list[dict[str, Any]]:
         """Get implementation tasks for change."""
         # TODO: Query task management system
         return []
 
-    async def _matches_filters(self, change: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+    async def _matches_filters(self, change: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if change matches filters."""
         if "status" in filters and change.get("status") != filters["status"]:
             return False
@@ -639,71 +627,52 @@ class ChangeConfigurationAgent(BaseAgent):
 
         return True
 
-    async def _analyze_change_patterns(
-        self,
-        changes: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def _analyze_change_patterns(self, changes: list[dict[str, Any]]) -> dict[str, Any]:
         """Analyze patterns in changes."""
         # TODO: Perform pattern analysis
         return {
             "most_common_type": "normal",
             "average_approval_time_days": 3,
-            "rejection_rate": 0.15
+            "rejection_rate": 0.15,
         }
 
-    async def _build_dependency_graph(self, ci_id: str) -> Dict[str, Any]:
+    async def _build_dependency_graph(self, ci_id: str) -> dict[str, Any]:
         """Build dependency graph for CI."""
         # TODO: Use graph algorithms
-        return {
-            "nodes": [{"id": ci_id, "label": "CI"}],
-            "edges": []
-        }
+        return {"nodes": [{"id": ci_id, "label": "CI"}], "edges": []}
 
-    async def _build_full_cmdb_graph(self) -> Dict[str, Any]:
+    async def _build_full_cmdb_graph(self) -> dict[str, Any]:
         """Build full CMDB dependency graph."""
         nodes = []
         edges = []
 
         for ci_id, ci in self.cmdb.items():
-            nodes.append({
-                "id": ci_id,
-                "label": ci.get("name"),
-                "type": ci.get("type")
-            })
+            nodes.append({"id": ci_id, "label": ci.get("name"), "type": ci.get("type")})
 
             for rel in ci.get("relationships", []):
-                edges.append({
-                    "source": ci_id,
-                    "target": rel.get("target_ci_id"),
-                    "type": rel.get("relationship_type")
-                })
+                edges.append(
+                    {
+                        "source": ci_id,
+                        "target": rel.get("target_ci_id"),
+                        "type": rel.get("relationship_type"),
+                    }
+                )
 
         return {"nodes": nodes, "edges": edges}
 
-    async def _calculate_change_statistics(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _calculate_change_statistics(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Calculate change statistics."""
         # TODO: Aggregate statistics
-        return {
-            "total_changes": 0,
-            "approved_rate": 0,
-            "average_lead_time": 0
-        }
+        return {"total_changes": 0, "approved_rate": 0, "average_lead_time": 0}
 
-    async def _calculate_cab_workload(self) -> Dict[str, Any]:
+    async def _calculate_cab_workload(self) -> dict[str, Any]:
         """Calculate CAB workload."""
         # TODO: Analyze pending changes
-        return {
-            "pending_reviews": 0,
-            "next_meeting": None
-        }
+        return {"pending_reviews": 0, "next_meeting": None}
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary change report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
     async def cleanup(self) -> None:
         """Cleanup resources."""
@@ -712,7 +681,7 @@ class ChangeConfigurationAgent(BaseAgent):
         # TODO: Close ITSM connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "change_request_intake",
@@ -730,5 +699,5 @@ class ChangeConfigurationAgent(BaseAgent):
             "dependency_mapping",
             "configuration_visualization",
             "change_dashboards",
-            "change_reporting"
+            "change_reporting",
         ]

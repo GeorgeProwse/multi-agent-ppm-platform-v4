@@ -8,10 +8,10 @@ Supports budgeting, cost tracking, forecasting, variance analysis and profitabil
 Specification: docs_markdown/specs/agents/portfolio/financial-management/Agent 12 Financial Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class FinancialManagementAgent(BaseAgent):
@@ -31,9 +31,7 @@ class FinancialManagementAgent(BaseAgent):
     """
 
     def __init__(
-        self,
-        agent_id: str = "financial-management",
-        config: Optional[Dict[str, Any]] = None
+        self, agent_id: str = "financial-management", config: dict[str, Any] | None = None
     ):
         super().__init__(agent_id, config)
 
@@ -41,14 +39,19 @@ class FinancialManagementAgent(BaseAgent):
         self.default_currency = config.get("default_currency", "USD") if config else "USD"
         self.fiscal_year_start = config.get("fiscal_year_start", "01-01") if config else "01-01"
         self.variance_threshold_pct = config.get("variance_threshold_pct", 0.10) if config else 0.10
-        self.variance_threshold_abs = config.get("variance_threshold_abs", 10000) if config else 10000
+        self.variance_threshold_abs = (
+            config.get("variance_threshold_abs", 10000) if config else 10000
+        )
 
         # Cost categories
-        self.cost_categories = config.get("cost_categories", [
-            "labor", "overhead", "materials", "contracts", "travel", "software", "other"
-        ]) if config else [
-            "labor", "overhead", "materials", "contracts", "travel", "software", "other"
-        ]
+        self.cost_categories = (
+            config.get(
+                "cost_categories",
+                ["labor", "overhead", "materials", "contracts", "travel", "software", "other"],
+            )
+            if config
+            else ["labor", "overhead", "materials", "contracts", "travel", "software", "other"]
+        )
 
         # Data stores (will be replaced with database)
         self.budgets = {}
@@ -73,7 +76,7 @@ class FinancialManagementAgent(BaseAgent):
 
         self.logger.info("Financial Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -92,7 +95,7 @@ class FinancialManagementAgent(BaseAgent):
             "update_budget",
             "approve_budget",
             "convert_currency",
-            "calculate_profitability"
+            "calculate_profitability",
         ]
 
         if action not in valid_actions:
@@ -109,7 +112,7 @@ class FinancialManagementAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process financial management requests.
 
@@ -151,14 +154,12 @@ class FinancialManagementAgent(BaseAgent):
 
         elif action == "generate_forecast":
             return await self._generate_forecast(
-                input_data.get("project_id"),
-                input_data.get("time_period", {})
+                input_data.get("project_id"), input_data.get("time_period", {})
             )
 
         elif action == "analyze_variance":
             return await self._analyze_variance(
-                input_data.get("project_id"),
-                input_data.get("time_period", {})
+                input_data.get("project_id"), input_data.get("time_period", {})
             )
 
         elif action == "calculate_evm":
@@ -166,20 +167,17 @@ class FinancialManagementAgent(BaseAgent):
 
         elif action == "get_financial_summary":
             return await self._get_financial_summary(
-                input_data.get("project_id"),
-                input_data.get("portfolio_id")
+                input_data.get("project_id"), input_data.get("portfolio_id")
             )
 
         elif action == "generate_report":
             return await self._generate_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         elif action == "update_budget":
             return await self._update_budget(
-                input_data.get("budget_id"),
-                input_data.get("updates", {})
+                input_data.get("budget_id"), input_data.get("updates", {})
             )
 
         elif action == "approve_budget":
@@ -189,7 +187,7 @@ class FinancialManagementAgent(BaseAgent):
             return await self._convert_currency(
                 input_data.get("amount"),
                 input_data.get("from_currency"),
-                input_data.get("to_currency")
+                input_data.get("to_currency"),
             )
 
         elif action == "calculate_profitability":
@@ -198,7 +196,7 @@ class FinancialManagementAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _create_budget(self, budget_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_budget(self, budget_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create a new budget baseline.
 
@@ -215,7 +213,9 @@ class FinancialManagementAgent(BaseAgent):
         total_amount = budget_data.get("total_amount", 0)
 
         if abs(total_from_breakdown - total_amount) > 0.01:
-            self.logger.warning(f"Cost breakdown sum ({total_from_breakdown}) doesn't match total ({total_amount})")
+            self.logger.warning(
+                f"Cost breakdown sum ({total_from_breakdown}) doesn't match total ({total_amount})"
+            )
 
         # Create budget structure aligned to WBS
         budget = {
@@ -231,7 +231,7 @@ class FinancialManagementAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
             "created_by": budget_data.get("owner", "unknown"),
             "baseline_date": None,  # Set when approved
-            "wbs_allocation": budget_data.get("wbs_allocation", {})
+            "wbs_allocation": budget_data.get("wbs_allocation", {}),
         }
 
         # Store budget
@@ -247,10 +247,10 @@ class FinancialManagementAgent(BaseAgent):
             "currency": budget["currency"],
             "cost_breakdown": cost_breakdown,
             "next_steps": "Submit budget for approval via Approval Workflow Agent",
-            "created_at": budget["created_at"]
+            "created_at": budget["created_at"],
         }
 
-    async def _track_costs(self, cost_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _track_costs(self, cost_data: dict[str, Any]) -> dict[str, Any]:
         """
         Track actual costs and accruals.
 
@@ -270,11 +270,7 @@ class FinancialManagementAgent(BaseAgent):
         # Update actuals
         project_id = cost_data.get("project_id")
         if project_id not in self.actuals:
-            self.actuals[project_id] = {
-                "transactions": [],
-                "total_actual": 0,
-                "by_category": {}
-            }
+            self.actuals[project_id] = {"transactions": [], "total_actual": 0, "by_category": {}}
 
         total_actual = sum(t.get("amount", 0) for t in matched_costs)
         self.actuals[project_id]["transactions"].extend(matched_costs)
@@ -299,14 +295,12 @@ class FinancialManagementAgent(BaseAgent):
             "total_actual": total_actual,
             "by_category": by_category,
             "accruals": accruals,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.utcnow().isoformat(),
         }
 
     async def _generate_forecast(
-        self,
-        project_id: str,
-        time_period: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, time_period: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate rolling forecast using AI-driven models.
 
@@ -326,9 +320,7 @@ class FinancialManagementAgent(BaseAgent):
         # Run forecasting model
         # TODO: Use Azure Machine Learning (Prophet, ARIMA, LSTM)
         forecast = await self._run_forecasting_model(
-            historical_data,
-            resource_plans,
-            schedule_progress
+            historical_data, resource_plans, schedule_progress
         )
 
         # Calculate Estimate at Completion (EAC)
@@ -339,7 +331,7 @@ class FinancialManagementAgent(BaseAgent):
             "forecast_data": forecast,
             "eac": eac,
             "generated_at": datetime.utcnow().isoformat(),
-            "time_period": time_period
+            "time_period": time_period,
         }
 
         # TODO: Store in database
@@ -351,14 +343,12 @@ class FinancialManagementAgent(BaseAgent):
             "eac": eac,
             "variance_from_baseline": await self._calculate_forecast_variance(project_id, eac),
             "confidence_interval": await self._calculate_confidence_interval(forecast),
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _analyze_variance(
-        self,
-        project_id: str,
-        time_period: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str, time_period: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Analyze cost and schedule variances.
 
@@ -394,20 +384,24 @@ class FinancialManagementAgent(BaseAgent):
 
         # Generate alerts if thresholds exceeded
         alerts = []
-        if abs(budget_variance_pct) > self.variance_threshold_pct or \
-           abs(budget_variance) > self.variance_threshold_abs:
-            alerts.append({
-                "severity": "high" if abs(budget_variance_pct) > 0.20 else "medium",
-                "type": "budget_variance",
-                "message": f"Budget variance of {budget_variance_pct:.1%} exceeds threshold",
-                "recommended_actions": await self._suggest_corrective_actions(budget_variance_pct)
-            })
+        if (
+            abs(budget_variance_pct) > self.variance_threshold_pct
+            or abs(budget_variance) > self.variance_threshold_abs
+        ):
+            alerts.append(
+                {
+                    "severity": "high" if abs(budget_variance_pct) > 0.20 else "medium",
+                    "type": "budget_variance",
+                    "message": f"Budget variance of {budget_variance_pct:.1%} exceeds threshold",
+                    "recommended_actions": await self._suggest_corrective_actions(
+                        budget_variance_pct
+                    ),
+                }
+            )
 
         # TODO: Generate contextual narrative using Azure OpenAI
         narrative = await self._generate_variance_narrative(
-            budget_variance_pct,
-            forecast_variance_pct,
-            drivers
+            budget_variance_pct, forecast_variance_pct, drivers
         )
 
         return {
@@ -423,10 +417,10 @@ class FinancialManagementAgent(BaseAgent):
             "variance_drivers": drivers,
             "alerts": alerts,
             "narrative": narrative,
-            "analyzed_at": datetime.utcnow().isoformat()
+            "analyzed_at": datetime.utcnow().isoformat(),
         }
 
-    async def _calculate_evm(self, project_id: str) -> Dict[str, Any]:
+    async def _calculate_evm(self, project_id: str) -> dict[str, Any]:
         """
         Calculate Earned Value Management metrics.
 
@@ -447,7 +441,9 @@ class FinancialManagementAgent(BaseAgent):
         actual_cost = actuals.get("total_actual", 0)
 
         # Planned Value (PV) - should be based on schedule baseline
-        planned_value = budget_at_completion * schedule_progress.get("planned_percent", percent_complete)
+        planned_value = budget_at_completion * schedule_progress.get(
+            "planned_percent", percent_complete
+        )
 
         # Earned Value (EV) - based on work completed
         earned_value = budget_at_completion * percent_complete
@@ -474,8 +470,11 @@ class FinancialManagementAgent(BaseAgent):
         vac = budget_at_completion - eac
 
         # To Complete Performance Index (TCPI)
-        tcpi = (budget_at_completion - earned_value) / (budget_at_completion - actual_cost) \
-               if (budget_at_completion - actual_cost) > 0 else 1.0
+        tcpi = (
+            (budget_at_completion - earned_value) / (budget_at_completion - actual_cost)
+            if (budget_at_completion - actual_cost) > 0
+            else 1.0
+        )
 
         return {
             "project_id": project_id,
@@ -493,20 +492,20 @@ class FinancialManagementAgent(BaseAgent):
             "variance_at_completion": vac,
             "to_complete_performance_index": tcpi,
             "performance_status": await self._assess_performance_status(cpi, spi),
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
     async def _get_financial_summary(
-        self,
-        project_id: Optional[str] = None,
-        portfolio_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, project_id: str | None = None, portfolio_id: str | None = None
+    ) -> dict[str, Any]:
         """
         Get financial summary for a project or portfolio.
 
         Returns comprehensive financial overview.
         """
-        self.logger.info(f"Getting financial summary for project={project_id}, portfolio={portfolio_id}")
+        self.logger.info(
+            f"Getting financial summary for project={project_id}, portfolio={portfolio_id}"
+        )
 
         if project_id:
             return await self._get_project_financial_summary(project_id)
@@ -515,11 +514,7 @@ class FinancialManagementAgent(BaseAgent):
         else:
             raise ValueError("Either project_id or portfolio_id must be provided")
 
-    async def _generate_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _generate_report(self, report_type: str, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Generate financial reports.
 
@@ -540,11 +535,7 @@ class FinancialManagementAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown report type: {report_type}")
 
-    async def _update_budget(
-        self,
-        budget_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _update_budget(self, budget_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """Update an existing budget (requires approval for baseline changes)."""
         self.logger.info(f"Updating budget: {budget_id}")
 
@@ -553,8 +544,7 @@ class FinancialManagementAgent(BaseAgent):
             raise ValueError(f"Budget not found: {budget_id}")
 
         # Check if this is a baseline change
-        is_baseline_change = budget.get("status") == "Approved" and \
-                           "total_amount" in updates
+        is_baseline_change = budget.get("status") == "Approved" and "total_amount" in updates
 
         if is_baseline_change:
             # Requires approval workflow
@@ -564,7 +554,7 @@ class FinancialManagementAgent(BaseAgent):
                 "budget_id": budget_id,
                 "status": "Pending Approval",
                 "updates": updates,
-                "requires_approval": True
+                "requires_approval": True,
             }
 
         # Apply updates
@@ -579,10 +569,10 @@ class FinancialManagementAgent(BaseAgent):
         return {
             "budget_id": budget_id,
             "status": budget["status"],
-            "updated_at": budget["last_updated"]
+            "updated_at": budget["last_updated"],
         }
 
-    async def _approve_budget(self, budget_id: str) -> Dict[str, Any]:
+    async def _approve_budget(self, budget_id: str) -> dict[str, Any]:
         """Approve a budget and lock it as baseline."""
         self.logger.info(f"Approving budget: {budget_id}")
 
@@ -599,26 +589,18 @@ class FinancialManagementAgent(BaseAgent):
         return {
             "budget_id": budget_id,
             "status": "Approved",
-            "baseline_date": budget["baseline_date"]
+            "baseline_date": budget["baseline_date"],
         }
 
     async def _convert_currency(
-        self,
-        amount: float,
-        from_currency: str,
-        to_currency: str
-    ) -> Dict[str, Any]:
+        self, amount: float, from_currency: str, to_currency: str
+    ) -> dict[str, Any]:
         """Convert amount between currencies."""
         self.logger.info(f"Converting {amount} {from_currency} to {to_currency}")
 
         # TODO: Fetch real-time exchange rates from API
         # Placeholder exchange rates
-        exchange_rates = {
-            "USD": 1.0,
-            "EUR": 0.85,
-            "GBP": 0.73,
-            "JPY": 110.0
-        }
+        exchange_rates = {"USD": 1.0, "EUR": 0.85, "GBP": 0.73, "JPY": 110.0}
 
         if from_currency not in exchange_rates or to_currency not in exchange_rates:
             raise ValueError(f"Unsupported currency: {from_currency} or {to_currency}")
@@ -633,16 +615,16 @@ class FinancialManagementAgent(BaseAgent):
             "to_currency": to_currency,
             "converted_amount": converted_amount,
             "exchange_rate": exchange_rates[to_currency] / exchange_rates[from_currency],
-            "conversion_date": datetime.utcnow().isoformat()
+            "conversion_date": datetime.utcnow().isoformat(),
         }
 
-    async def _calculate_profitability(self, project_id: str) -> Dict[str, Any]:
+    async def _calculate_profitability(self, project_id: str) -> dict[str, Any]:
         """Calculate profitability metrics including ROI, NPV, and IRR."""
         self.logger.info(f"Calculating profitability for project: {project_id}")
 
         # Get budget and actuals
         budget = await self._get_budget_for_project(project_id)
-        actuals = self.actuals.get(project_id, {})
+        self.actuals.get(project_id, {})
         forecast = self.forecasts.get(project_id, {})
 
         # Get benefit cash flows
@@ -650,7 +632,11 @@ class FinancialManagementAgent(BaseAgent):
         benefits = await self._get_project_benefits(project_id)
 
         # Calculate metrics
-        total_cost = forecast.get("eac", budget.get("total_amount", 0)) if forecast else budget.get("total_amount", 0)
+        total_cost = (
+            forecast.get("eac", budget.get("total_amount", 0))
+            if forecast
+            else budget.get("total_amount", 0)
+        )
         total_benefits = sum(benefits.get("cash_flows", []))
 
         # Calculate NPV
@@ -663,7 +649,9 @@ class FinancialManagementAgent(BaseAgent):
         roi = (total_benefits - total_cost) / total_cost if total_cost > 0 else 0
 
         # Calculate payback period
-        payback_period = await self._calculate_payback_period(total_cost, benefits.get("cash_flows", []))
+        payback_period = await self._calculate_payback_period(
+            total_cost, benefits.get("cash_flows", [])
+        )
 
         return {
             "project_id": project_id,
@@ -674,7 +662,7 @@ class FinancialManagementAgent(BaseAgent):
             "roi": roi,
             "roi_percentage": roi * 100,
             "payback_period_months": payback_period,
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
     # Helper methods
@@ -684,55 +672,52 @@ class FinancialManagementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"BDG-{timestamp}"
 
-    async def _import_cost_transactions(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _import_cost_transactions(self, project_id: str) -> list[dict[str, Any]]:
         """Import cost transactions from ERP."""
         # TODO: Query ERP system for transactions
         return []
 
-    async def _match_costs_to_wbs(self, transactions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _match_costs_to_wbs(self, transactions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Match cost transactions to WBS elements."""
         # TODO: Use AI classification when codes are missing
         return transactions
 
-    async def _calculate_accruals(self, project_id: str) -> Dict[str, Any]:
+    async def _calculate_accruals(self, project_id: str) -> dict[str, Any]:
         """Calculate accrued expenses based on percent complete."""
         # TODO: Calculate accruals
         return {"total_accruals": 0}
 
-    async def _get_historical_spending(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _get_historical_spending(self, project_id: str) -> list[dict[str, Any]]:
         """Get historical spending data."""
         # TODO: Query database
         return []
 
-    async def _get_resource_plans(self, project_id: str) -> Dict[str, Any]:
+    async def _get_resource_plans(self, project_id: str) -> dict[str, Any]:
         """Get resource allocation plans from Resource Agent."""
         # TODO: Call Resource Management Agent
         return {}
 
-    async def _get_schedule_progress(self, project_id: str) -> Dict[str, Any]:
+    async def _get_schedule_progress(self, project_id: str) -> dict[str, Any]:
         """Get schedule progress from Schedule Agent."""
         # TODO: Call Schedule & Planning Agent
         return {"percent_complete": 0.5, "planned_percent": 0.5}
 
     async def _run_forecasting_model(
         self,
-        historical_data: List[Dict[str, Any]],
-        resource_plans: Dict[str, Any],
-        schedule_progress: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        historical_data: list[dict[str, Any]],
+        resource_plans: dict[str, Any],
+        schedule_progress: dict[str, Any],
+    ) -> dict[str, Any]:
         """Run AI forecasting model."""
         # TODO: Use Azure ML (Prophet, ARIMA, LSTM)
-        return {
-            "monthly_forecast": [],
-            "total_forecast": 0
-        }
+        return {"monthly_forecast": [], "total_forecast": 0}
 
-    async def _calculate_eac(self, project_id: str, forecast: Dict[str, Any]) -> float:
+    async def _calculate_eac(self, project_id: str, forecast: dict[str, Any]) -> float:
         """Calculate Estimate at Completion."""
         # TODO: More sophisticated EAC calculation
         return forecast.get("total_forecast", 0)
 
-    async def _calculate_forecast_variance(self, project_id: str, eac: float) -> Dict[str, Any]:
+    async def _calculate_forecast_variance(self, project_id: str, eac: float) -> dict[str, Any]:
         """Calculate variance between forecast and baseline."""
         budget = await self._get_budget_for_project(project_id)
         baseline = budget.get("total_amount", 0) if budget else 0
@@ -740,21 +725,14 @@ class FinancialManagementAgent(BaseAgent):
         variance = eac - baseline
         variance_pct = variance / baseline if baseline > 0 else 0
 
-        return {
-            "variance": variance,
-            "variance_pct": variance_pct
-        }
+        return {"variance": variance, "variance_pct": variance_pct}
 
-    async def _calculate_confidence_interval(self, forecast: Dict[str, Any]) -> Dict[str, Any]:
+    async def _calculate_confidence_interval(self, forecast: dict[str, Any]) -> dict[str, Any]:
         """Calculate forecast confidence interval."""
         # TODO: Statistical confidence interval calculation
-        return {
-            "lower_bound": 0,
-            "upper_bound": 0,
-            "confidence_level": 0.95
-        }
+        return {"lower_bound": 0, "upper_bound": 0, "confidence_level": 0.95}
 
-    async def _get_budget_for_project(self, project_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_budget_for_project(self, project_id: str) -> dict[str, Any] | None:
         """Get budget for a specific project."""
         for budget in self.budgets.values():
             if budget.get("project_id") == project_id:
@@ -762,10 +740,8 @@ class FinancialManagementAgent(BaseAgent):
         return None
 
     async def _analyze_variance_by_category(
-        self,
-        project_id: str,
-        budget: Dict[str, Any]
-    ) -> Dict[str, Dict[str, Any]]:
+        self, project_id: str, budget: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """Analyze variance broken down by cost category."""
         actuals = self.actuals.get(project_id, {})
         budget_breakdown = budget.get("cost_breakdown", {})
@@ -783,45 +759,45 @@ class FinancialManagementAgent(BaseAgent):
                 "budget": budget_amount,
                 "actual": actual_amount,
                 "variance": variance,
-                "variance_pct": variance_pct
+                "variance_pct": variance_pct,
             }
 
         return variance_by_category
 
     async def _identify_variance_drivers(
-        self,
-        project_id: str,
-        variance_by_category: Dict[str, Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str, variance_by_category: dict[str, dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Identify key drivers of cost variance."""
         # TODO: Use regression and clustering to determine drivers
 
         drivers = []
         for category, data in variance_by_category.items():
             if abs(data["variance_pct"]) > 0.15:  # More than 15% variance
-                drivers.append({
-                    "category": category,
-                    "impact": data["variance"],
-                    "variance_pct": data["variance_pct"],
-                    "explanation": f"{category.title()} costs are {data['variance_pct']:.1%} over budget"
-                })
+                drivers.append(
+                    {
+                        "category": category,
+                        "impact": data["variance"],
+                        "variance_pct": data["variance_pct"],
+                        "explanation": f"{category.title()} costs are {data['variance_pct']:.1%} over budget",
+                    }
+                )
 
         return drivers
 
-    async def _suggest_corrective_actions(self, variance_pct: float) -> List[str]:
+    async def _suggest_corrective_actions(self, variance_pct: float) -> list[str]:
         """Suggest corrective actions based on variance."""
         if variance_pct > 0.10:  # Over budget
             return [
                 "Review and reduce discretionary spending",
                 "Defer non-critical activities",
                 "Request budget increase through change control",
-                "Optimize resource allocation"
+                "Optimize resource allocation",
             ]
         elif variance_pct < -0.10:  # Under budget
             return [
                 "Verify all costs are being captured",
                 "Check for delayed invoices or accruals",
-                "Review project schedule for delays"
+                "Review project schedule for delays",
             ]
         else:
             return ["Continue monitoring"]
@@ -830,7 +806,7 @@ class FinancialManagementAgent(BaseAgent):
         self,
         budget_variance_pct: float,
         forecast_variance_pct: float,
-        drivers: List[Dict[str, Any]]
+        drivers: list[dict[str, Any]],
     ) -> str:
         """Generate narrative explanation of variance."""
         # TODO: Use Azure OpenAI for NLG
@@ -858,7 +834,7 @@ class FinancialManagementAgent(BaseAgent):
         else:
             return "Off Track"
 
-    async def _get_project_financial_summary(self, project_id: str) -> Dict[str, Any]:
+    async def _get_project_financial_summary(self, project_id: str) -> dict[str, Any]:
         """Get financial summary for a project."""
         budget = await self._get_budget_for_project(project_id)
         actuals = self.actuals.get(project_id, {})
@@ -874,10 +850,10 @@ class FinancialManagementAgent(BaseAgent):
             "cost_performance_index": evm.get("cost_performance_index", 1.0),
             "schedule_performance_index": evm.get("schedule_performance_index", 1.0),
             "variance_at_completion": evm.get("variance_at_completion", 0),
-            "performance_status": evm.get("performance_status", "Unknown")
+            "performance_status": evm.get("performance_status", "Unknown"),
         }
 
-    async def _get_portfolio_financial_summary(self, portfolio_id: str) -> Dict[str, Any]:
+    async def _get_portfolio_financial_summary(self, portfolio_id: str) -> dict[str, Any]:
         """Get financial summary for a portfolio."""
         # TODO: Aggregate across all projects in portfolio
 
@@ -887,58 +863,51 @@ class FinancialManagementAgent(BaseAgent):
             "total_actual": 0,
             "total_forecast": 0,
             "average_cpi": 1.0,
-            "project_count": 0
+            "project_count": 0,
         }
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary financial report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
-    async def _generate_variance_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_variance_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate variance analysis report."""
         return {
             "report_type": "variance",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_forecast_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_forecast_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate forecast report."""
         return {
             "report_type": "forecast",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_cash_flow_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_cash_flow_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate cash flow report."""
         return {
             "report_type": "cash_flow",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_profitability_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_profitability_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate profitability analysis report."""
         return {
             "report_type": "profitability",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_project_benefits(self, project_id: str) -> Dict[str, Any]:
+    async def _get_project_benefits(self, project_id: str) -> dict[str, Any]:
         """Get project benefits and cash flows."""
         # TODO: Query Business Case Agent
-        return {
-            "cash_flows": [],
-            "total_benefits": 0
-        }
+        return {"cash_flows": [], "total_benefits": 0}
 
-    async def _calculate_npv(self, total_cost: float, cash_flows: List[float]) -> float:
+    async def _calculate_npv(self, total_cost: float, cash_flows: list[float]) -> float:
         """Calculate Net Present Value."""
         # TODO: Implement proper NPV calculation with discount rate
         discount_rate = 0.10
@@ -949,12 +918,12 @@ class FinancialManagementAgent(BaseAgent):
 
         return npv
 
-    async def _calculate_irr(self, total_cost: float, cash_flows: List[float]) -> float:
+    async def _calculate_irr(self, total_cost: float, cash_flows: list[float]) -> float:
         """Calculate Internal Rate of Return."""
         # TODO: Implement proper IRR calculation
         return 0.15  # Placeholder
 
-    async def _calculate_payback_period(self, total_cost: float, cash_flows: List[float]) -> int:
+    async def _calculate_payback_period(self, total_cost: float, cash_flows: list[float]) -> int:
         """Calculate payback period in months."""
         # TODO: Implement proper payback period calculation
         if not cash_flows or sum(cash_flows) == 0:
@@ -975,7 +944,7 @@ class FinancialManagementAgent(BaseAgent):
         # TODO: Flush any pending events
         # TODO: Save any unsaved data
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "budget_creation",
@@ -997,5 +966,5 @@ class FinancialManagementAgent(BaseAgent):
             "budget_variance_alerts",
             "cost_driver_analysis",
             "financial_compliance",
-            "audit_trail_management"
+            "audit_trail_management",
         ]

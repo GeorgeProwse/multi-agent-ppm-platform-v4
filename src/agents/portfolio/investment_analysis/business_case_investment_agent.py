@@ -8,10 +8,10 @@ Performs financial analysis and ROI modelling to support investment decisions.
 Specification: docs_markdown/specs/agents/portfolio/investment-analysis/Agent 5 Business Case & Investment Analysis Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class BusinessCaseInvestmentAgent(BaseAgent):
@@ -28,9 +28,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
     """
 
     def __init__(
-        self,
-        agent_id: str = "business-case-investment",
-        config: Optional[Dict[str, Any]] = None
+        self, agent_id: str = "business-case-investment", config: dict[str, Any] | None = None
     ):
         super().__init__(agent_id, config)
 
@@ -61,7 +59,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         self.logger.info("Business Case & Investment Analysis Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -75,7 +73,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "run_scenario_analysis",
             "compare_to_historical",
             "generate_recommendation",
-            "get_business_case"
+            "get_business_case",
         ]
 
         if action not in valid_actions:
@@ -84,7 +82,13 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         if action == "generate_business_case":
             request_data = input_data.get("request", {})
-            required_fields = ["title", "description", "project_type", "estimated_cost", "estimated_benefits"]
+            required_fields = [
+                "title",
+                "description",
+                "project_type",
+                "estimated_cost",
+                "estimated_benefits",
+            ]
             for field in required_fields:
                 if field not in request_data:
                     self.logger.warning(f"Missing required field: {field}")
@@ -97,7 +101,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process business case and investment analysis requests.
 
@@ -130,8 +134,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         elif action == "run_scenario_analysis":
             return await self._run_scenario_analysis(
-                input_data.get("business_case_id"),
-                input_data.get("scenarios", [])
+                input_data.get("business_case_id"), input_data.get("scenarios", [])
             )
 
         elif action == "compare_to_historical":
@@ -146,7 +149,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _generate_business_case(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_business_case(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """
         Generate a comprehensive business case document.
 
@@ -166,7 +169,9 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         market_data = await self._gather_market_data(request_data)
 
         # Generate document sections using AI
-        executive_summary = await self._generate_executive_summary(request_data, cost_data, benefit_data)
+        executive_summary = await self._generate_executive_summary(
+            request_data, cost_data, benefit_data
+        )
         problem_statement = await self._generate_problem_statement(request_data)
         proposed_solution = await self._generate_proposed_solution(request_data)
 
@@ -203,7 +208,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
                 "estimated_cost": cost_data.get("total_cost", 0),
                 "estimated_benefits": benefit_data.get("total_benefits", 0),
                 "created_at": datetime.utcnow().isoformat(),
-            }
+            },
         }
 
         # Store business case
@@ -219,10 +224,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "status": "Draft",
             "document": business_case["document"],
             "financial_metrics": business_case["financial_metrics"],
-            "next_steps": "Review and edit the business case, then run scenario analysis or generate recommendation."
+            "next_steps": "Review and edit the business case, then run scenario analysis or generate recommendation.",
         }
 
-    async def _calculate_roi(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _calculate_roi(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Calculate ROI metrics including NPV, IRR, payback period, and TCO.
 
@@ -255,14 +260,12 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "tco": tco,
             "roi_percentage": roi,
             "discount_rate": self.discount_rate,
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
     async def _run_scenario_analysis(
-        self,
-        business_case_id: str,
-        scenarios: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, business_case_id: str, scenarios: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Run what-if scenario analysis with varying assumptions.
 
@@ -282,17 +285,18 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             adjusted_benefits = await self._adjust_benefits(scenario)
 
             # Recalculate financial metrics
-            metrics = await self._calculate_roi({
-                "costs": adjusted_costs,
-                "benefits": adjusted_benefits
-            })
+            metrics = await self._calculate_roi(
+                {"costs": adjusted_costs, "benefits": adjusted_benefits}
+            )
 
-            scenario_results.append({
-                "scenario_name": scenario_name,
-                "parameters": scenario.get("parameters", {}),
-                "metrics": metrics,
-                "risk_level": scenario.get("risk_level", "medium")
-            })
+            scenario_results.append(
+                {
+                    "scenario_name": scenario_name,
+                    "parameters": scenario.get("parameters", {}),
+                    "metrics": metrics,
+                    "risk_level": scenario.get("risk_level", "medium"),
+                }
+            )
 
         # Generate comparison summary
         comparison = await self._compare_scenarios(scenario_results)
@@ -301,10 +305,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "business_case_id": business_case_id,
             "scenarios": scenario_results,
             "comparison": comparison,
-            "recommendation": await self._select_best_scenario(scenario_results)
+            "recommendation": await self._select_best_scenario(scenario_results),
         }
 
-    async def _compare_to_historical(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _compare_to_historical(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """
         Compare proposed initiative to historical projects for benchmarking.
 
@@ -322,10 +326,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "similar_projects": similar_projects,
             "benchmark_roi": 0.0,
             "benchmark_payback": 0,
-            "comparison_window_years": self.comparison_window_years
+            "comparison_window_years": self.comparison_window_years,
         }
 
-    async def _generate_recommendation(self, business_case_id: str) -> Dict[str, Any]:
+    async def _generate_recommendation(self, business_case_id: str) -> dict[str, Any]:
         """
         Generate investment recommendation with confidence level.
 
@@ -355,7 +359,9 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             rationale = f"Strong financial metrics: ROI {roi:.1%}, payback period {payback_period} months, positive NPV"
         elif roi >= self.min_roi_threshold * 0.7:
             recommendation = "defer"
-            rationale = f"Moderate financial metrics. Consider phased approach or MVP to reduce risk."
+            rationale = (
+                "Moderate financial metrics. Consider phased approach or MVP to reduce risk."
+            )
         else:
             recommendation = "reject"
             rationale = f"Financial metrics below thresholds: ROI {roi:.1%} (required: {self.min_roi_threshold:.1%})"
@@ -369,10 +375,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "rationale": rationale,
             "phasing_suggestion": "Consider MVP approach" if recommendation == "defer" else None,
             "comparable_projects": historical_comparison.get("similar_projects", []),
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_business_case(self, business_case_id: str) -> Dict[str, Any]:
+    async def _get_business_case(self, business_case_id: str) -> dict[str, Any]:
         """Retrieve a business case by ID."""
         business_case = self.business_cases.get(business_case_id)
         if not business_case:
@@ -386,7 +392,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"BC-{timestamp}"
 
-    async def _select_template(self, request_data: Dict[str, Any]) -> str:
+    async def _select_template(self, request_data: dict[str, Any]) -> str:
         """Select appropriate business case template."""
         project_type = request_data.get("project_type", "general")
         methodology = request_data.get("methodology", "hybrid")
@@ -394,7 +400,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         # TODO: Implement template selection logic based on configuration
         return f"template_{project_type}_{methodology}"
 
-    async def _gather_cost_data(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _gather_cost_data(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Gather cost data from ERP and other sources."""
         # TODO: Query ERP systems for labor rates, overhead rates
         # TODO: Get resource costs from Resource Management Agent
@@ -406,10 +412,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "labor_costs": estimated_cost * 0.6,
             "overhead_costs": estimated_cost * 0.2,
             "material_costs": estimated_cost * 0.2,
-            "contingency": estimated_cost * 0.1
+            "contingency": estimated_cost * 0.1,
         }
 
-    async def _gather_benefit_data(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _gather_benefit_data(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Gather benefit data from CRM and other sources."""
         # TODO: Query CRM for revenue opportunities
         # TODO: Get benefit estimates from request data
@@ -420,24 +426,21 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "total_benefits": estimated_benefits,
             "revenue_increase": estimated_benefits * 0.5,
             "cost_savings": estimated_benefits * 0.3,
-            "risk_reduction": estimated_benefits * 0.2
+            "risk_reduction": estimated_benefits * 0.2,
         }
 
-    async def _gather_market_data(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _gather_market_data(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Gather market data from external providers."""
         # TODO: Integrate with Bloomberg, S&P Capital IQ
 
         return {
             "market_size": "To be determined",
             "growth_rate": "To be determined",
-            "competitive_landscape": "To be determined"
+            "competitive_landscape": "To be determined",
         }
 
     async def _generate_executive_summary(
-        self,
-        request_data: Dict[str, Any],
-        cost_data: Dict[str, Any],
-        benefit_data: Dict[str, Any]
+        self, request_data: dict[str, Any], cost_data: dict[str, Any], benefit_data: dict[str, Any]
     ) -> str:
         """Generate executive summary using AI."""
         # TODO: Use Azure OpenAI for natural language generation
@@ -446,37 +449,30 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         total_cost = cost_data.get("total_cost", 0)
         total_benefits = benefit_data.get("total_benefits", 0)
 
-        return f"This business case proposes {title} with an estimated investment of ${total_cost:,.0f} " \
-               f"and projected benefits of ${total_benefits:,.0f}."
+        return (
+            f"This business case proposes {title} with an estimated investment of ${total_cost:,.0f} "
+            f"and projected benefits of ${total_benefits:,.0f}."
+        )
 
-    async def _generate_problem_statement(self, request_data: Dict[str, Any]) -> str:
+    async def _generate_problem_statement(self, request_data: dict[str, Any]) -> str:
         """Generate problem statement."""
         # TODO: Use Azure OpenAI for narrative generation
         return request_data.get("description", "Problem statement to be defined")
 
-    async def _generate_proposed_solution(self, request_data: Dict[str, Any]) -> str:
+    async def _generate_proposed_solution(self, request_data: dict[str, Any]) -> str:
         """Generate proposed solution description."""
         # TODO: Use Azure OpenAI for narrative generation
         return request_data.get("proposed_solution", "Solution to be defined")
 
     async def _calculate_financial_metrics(
-        self,
-        cost_data: Dict[str, Any],
-        benefit_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, cost_data: dict[str, Any], benefit_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate comprehensive financial metrics."""
-        metrics = await self._calculate_roi({
-            "costs": cost_data,
-            "benefits": benefit_data
-        })
+        metrics = await self._calculate_roi({"costs": cost_data, "benefits": benefit_data})
 
-        return {
-            "metrics": metrics,
-            "cost_breakdown": cost_data,
-            "benefit_breakdown": benefit_data
-        }
+        return {"metrics": metrics, "cost_breakdown": cost_data, "benefit_breakdown": benefit_data}
 
-    async def _identify_risks(self, request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_risks(self, request_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify and assess risks."""
         # TODO: Use AI to identify risks from description
         # TODO: Integrate with Risk Management Agent
@@ -486,17 +482,17 @@ class BusinessCaseInvestmentAgent(BaseAgent):
                 "risk": "Implementation delay",
                 "likelihood": "medium",
                 "impact": "medium",
-                "mitigation": "Establish clear milestones and monitoring"
+                "mitigation": "Establish clear milestones and monitoring",
             },
             {
                 "risk": "Cost overrun",
                 "likelihood": "medium",
                 "impact": "high",
-                "mitigation": "Include contingency buffer and regular cost reviews"
-            }
+                "mitigation": "Include contingency buffer and regular cost reviews",
+            },
         ]
 
-    async def _generate_implementation_approach(self, request_data: Dict[str, Any]) -> str:
+    async def _generate_implementation_approach(self, request_data: dict[str, Any]) -> str:
         """Generate implementation approach."""
         methodology = request_data.get("methodology", "hybrid")
 
@@ -507,7 +503,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         else:
             return "Hybrid approach combining agile delivery within waterfall governance."
 
-    async def _calculate_npv(self, costs: Dict[str, Any], benefits: Dict[str, Any]) -> float:
+    async def _calculate_npv(self, costs: dict[str, Any], benefits: dict[str, Any]) -> float:
         """Calculate Net Present Value."""
         # TODO: Implement proper NPV calculation with cash flows
         total_cost = costs.get("total_cost", 0)
@@ -516,12 +512,14 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         # Simplified NPV calculation (placeholder)
         return total_benefits - total_cost
 
-    async def _calculate_irr(self, costs: Dict[str, Any], benefits: Dict[str, Any]) -> float:
+    async def _calculate_irr(self, costs: dict[str, Any], benefits: dict[str, Any]) -> float:
         """Calculate Internal Rate of Return."""
         # TODO: Implement proper IRR calculation
         return 0.15  # Placeholder
 
-    async def _calculate_payback_period(self, costs: Dict[str, Any], benefits: Dict[str, Any]) -> int:
+    async def _calculate_payback_period(
+        self, costs: dict[str, Any], benefits: dict[str, Any]
+    ) -> int:
         """Calculate payback period in months."""
         # TODO: Implement proper payback period calculation
         total_cost = costs.get("total_cost", 0)
@@ -537,13 +535,15 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         payback_years = total_cost / annual_benefit
         return int(payback_years * 12)
 
-    async def _calculate_tco(self, costs: Dict[str, Any]) -> float:
+    async def _calculate_tco(self, costs: dict[str, Any]) -> float:
         """Calculate Total Cost of Ownership."""
         total_cost = costs.get("total_cost", 0)
         # TODO: Add ongoing operational costs
         return total_cost * 1.3  # Assume 30% ongoing costs
 
-    async def _calculate_roi_percentage(self, costs: Dict[str, Any], benefits: Dict[str, Any]) -> float:
+    async def _calculate_roi_percentage(
+        self, costs: dict[str, Any], benefits: dict[str, Any]
+    ) -> float:
         """Calculate ROI percentage."""
         total_cost = costs.get("total_cost", 0)
         total_benefits = benefits.get("total_benefits", 0)
@@ -553,24 +553,24 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         return (total_benefits - total_cost) / total_cost
 
-    async def _adjust_costs(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    async def _adjust_costs(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """Adjust costs based on scenario parameters."""
         # TODO: Implement scenario-based cost adjustments
         return {"total_cost": 100000}  # Placeholder
 
-    async def _adjust_benefits(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    async def _adjust_benefits(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """Adjust benefits based on scenario parameters."""
         # TODO: Implement scenario-based benefit adjustments
         return {"total_benefits": 150000}  # Placeholder
 
-    async def _compare_scenarios(self, scenario_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _compare_scenarios(self, scenario_results: list[dict[str, Any]]) -> dict[str, Any]:
         """Generate scenario comparison summary."""
         return {
             "best_case": scenario_results[0]["scenario_name"] if scenario_results else None,
-            "worst_case": scenario_results[-1]["scenario_name"] if scenario_results else None
+            "worst_case": scenario_results[-1]["scenario_name"] if scenario_results else None,
         }
 
-    async def _select_best_scenario(self, scenario_results: List[Dict[str, Any]]) -> str:
+    async def _select_best_scenario(self, scenario_results: list[dict[str, Any]]) -> str:
         """Select the best scenario based on metrics."""
         if not scenario_results:
             return "No scenarios available"
@@ -580,9 +580,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         return best_scenario["scenario_name"]
 
     async def _calculate_confidence(
-        self,
-        metrics: Dict[str, Any],
-        historical_comparison: Dict[str, Any]
+        self, metrics: dict[str, Any], historical_comparison: dict[str, Any]
     ) -> float:
         """Calculate confidence level for recommendation."""
         # TODO: Use machine learning model to calculate confidence
@@ -597,7 +595,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         # TODO: Close external API connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "business_case_generation",
@@ -612,5 +610,5 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "npv_calculation",
             "irr_calculation",
             "payback_period_calculation",
-            "tco_calculation"
+            "tco_calculation",
         ]

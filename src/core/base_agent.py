@@ -4,10 +4,10 @@ Base Agent Class for Multi-Agent PPM Platform
 This module provides the abstract base class that all agents inherit from.
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
-from datetime import datetime
 import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class BaseAgent(ABC):
     override lifecycle hooks (initialize, validate, cleanup).
     """
 
-    def __init__(self, agent_id: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, agent_id: str, config: dict[str, Any] | None = None):
         """
         Initialize the agent.
 
@@ -43,7 +43,7 @@ class BaseAgent(ABC):
         self.logger.info(f"Initializing agent {self.agent_id}")
         self.initialized = True
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """
         Validate input data before processing.
 
@@ -58,7 +58,7 @@ class BaseAgent(ABC):
         return True
 
     @abstractmethod
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process the agent's core logic.
 
@@ -85,7 +85,7 @@ class BaseAgent(ABC):
         """
         self.logger.info(f"Cleaning up agent {self.agent_id}")
 
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Execute the full agent workflow with validation and error handling.
 
@@ -114,7 +114,7 @@ class BaseAgent(ABC):
                     "metadata": {
                         "agent_id": self.agent_id,
                         "timestamp": start_time.isoformat(),
-                    }
+                    },
                 }
 
             # Process the request
@@ -131,7 +131,7 @@ class BaseAgent(ABC):
                     "agent_id": self.agent_id,
                     "timestamp": start_time.isoformat(),
                     "execution_time_seconds": execution_time,
-                }
+                },
             }
 
         except Exception as e:
@@ -145,10 +145,10 @@ class BaseAgent(ABC):
                     "agent_id": self.agent_id,
                     "timestamp": start_time.isoformat(),
                     "execution_time_seconds": execution_time,
-                }
+                },
             }
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """
         Return list of capabilities this agent provides.
 

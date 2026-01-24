@@ -2,9 +2,10 @@
 Pytest configuration and fixtures for Multi-Agent PPM Platform tests
 """
 
-import pytest
 import asyncio
-from typing import AsyncGenerator
+
+import pytest
+
 
 # Configure event loop for async tests
 @pytest.fixture(scope="session")

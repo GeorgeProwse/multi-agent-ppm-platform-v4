@@ -8,10 +8,10 @@ governance gates and continuously monitors project health.
 Specification: docs_markdown/specs/agents/delivery/lifecycle-governance/Agent 9 Project Lifecycle & Governance Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ProjectLifecycleAgent(BaseAgent):
@@ -31,26 +31,23 @@ class ProjectLifecycleAgent(BaseAgent):
     def __init__(
         self,
         agent_id: str = "project-lifecycle-governance",
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None,
     ):
         super().__init__(agent_id, config)
 
         # Configuration parameters
         self.gate_criteria = config.get("gate_criteria", {}) if config else {}
-        self.health_score_weights = config.get("health_score_weights", {
-            "schedule": 0.25,
-            "cost": 0.25,
-            "risk": 0.20,
-            "quality": 0.15,
-            "resource": 0.15
-        }) if config else {
-            "schedule": 0.25,
-            "cost": 0.25,
-            "risk": 0.20,
-            "quality": 0.15,
-            "resource": 0.15
-        }
-        self.monitoring_frequency = config.get("monitoring_frequency", "hourly") if config else "hourly"
+        self.health_score_weights = (
+            config.get(
+                "health_score_weights",
+                {"schedule": 0.25, "cost": 0.25, "risk": 0.20, "quality": 0.15, "resource": 0.15},
+            )
+            if config
+            else {"schedule": 0.25, "cost": 0.25, "risk": 0.20, "quality": 0.15, "resource": 0.15}
+        )
+        self.monitoring_frequency = (
+            config.get("monitoring_frequency", "hourly") if config else "hourly"
+        )
         self.methodology_rules = config.get("methodology_rules", {}) if config else {}
 
         # Data stores (will be replaced with database connections)
@@ -75,7 +72,7 @@ class ProjectLifecycleAgent(BaseAgent):
 
         self.logger.info("Project Lifecycle & Governance Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -92,7 +89,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "adjust_methodology",
             "get_project_status",
             "get_health_dashboard",
-            "override_gate"
+            "override_gate",
         ]
 
         if action not in valid_actions:
@@ -114,7 +111,7 @@ class ProjectLifecycleAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process project lifecycle and governance requests.
 
@@ -149,14 +146,12 @@ class ProjectLifecycleAgent(BaseAgent):
 
         elif action == "transition_phase":
             return await self._transition_phase(
-                input_data.get("project_id"),
-                input_data.get("target_phase")
+                input_data.get("project_id"), input_data.get("target_phase")
             )
 
         elif action == "evaluate_gate":
             return await self._evaluate_gate(
-                input_data.get("project_id"),
-                input_data.get("gate_name")
+                input_data.get("project_id"), input_data.get("gate_name")
             )
 
         elif action == "monitor_health":
@@ -167,8 +162,7 @@ class ProjectLifecycleAgent(BaseAgent):
 
         elif action == "adjust_methodology":
             return await self._adjust_methodology(
-                input_data.get("project_id"),
-                input_data.get("new_methodology")
+                input_data.get("project_id"), input_data.get("new_methodology")
             )
 
         elif action == "get_project_status":
@@ -181,13 +175,13 @@ class ProjectLifecycleAgent(BaseAgent):
             return await self._override_gate(
                 input_data.get("project_id"),
                 input_data.get("gate_name"),
-                input_data.get("override_reason", "")
+                input_data.get("override_reason", ""),
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _initiate_project(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _initiate_project(self, project_data: dict[str, Any]) -> dict[str, Any]:
         """
         Initiate a new project and set initial lifecycle state.
 
@@ -217,7 +211,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "current_phase": methodology_map["initial_phase"],
             "phase_history": [],
             "created_at": datetime.utcnow().isoformat(),
-            "status": "Active"
+            "status": "Active",
         }
 
         # Create initial lifecycle state
@@ -228,7 +222,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "methodology_map": methodology_map,
             "transitions": [],
             "gates_passed": [],
-            "gates_pending": []
+            "gates_pending": [],
         }
 
         # Store project and state
@@ -248,14 +242,10 @@ class ProjectLifecycleAgent(BaseAgent):
             "current_phase": methodology_map["initial_phase"],
             "methodology": methodology,
             "methodology_map": methodology_map,
-            "next_steps": "Generate project charter and complete initiation activities"
+            "next_steps": "Generate project charter and complete initiation activities",
         }
 
-    async def _transition_phase(
-        self,
-        project_id: str,
-        target_phase: str
-    ) -> Dict[str, Any]:
+    async def _transition_phase(self, project_id: str, target_phase: str) -> dict[str, Any]:
         """
         Transition project to a new phase.
 
@@ -271,12 +261,14 @@ class ProjectLifecycleAgent(BaseAgent):
         methodology_map = lifecycle_state.get("methodology_map", {})
 
         # Validate transition is allowed
-        allowed_transitions = methodology_map.get("phases", {}).get(current_phase, {}).get("next_phases", [])
+        allowed_transitions = (
+            methodology_map.get("phases", {}).get(current_phase, {}).get("next_phases", [])
+        )
         if target_phase not in allowed_transitions:
             return {
                 "success": False,
                 "reason": f"Invalid transition from {current_phase} to {target_phase}",
-                "allowed_transitions": allowed_transitions
+                "allowed_transitions": allowed_transitions,
             }
 
         # Get gate name for this transition
@@ -292,7 +284,7 @@ class ProjectLifecycleAgent(BaseAgent):
                 "reason": "Gate criteria not met",
                 "gate_evaluation": gate_evaluation,
                 "missing_criteria": gate_evaluation.get("missing_criteria", []),
-                "next_steps": "Complete missing activities or request override"
+                "next_steps": "Complete missing activities or request override",
             }
 
         # Perform transition
@@ -301,7 +293,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "to_phase": target_phase,
             "gate_name": gate_name,
             "transitioned_at": datetime.utcnow().isoformat(),
-            "transitioned_by": "system"  # TODO: Get from user context
+            "transitioned_by": "system",  # TODO: Get from user context
         }
 
         lifecycle_state["current_phase"] = target_phase
@@ -316,7 +308,9 @@ class ProjectLifecycleAgent(BaseAgent):
         # TODO: Update in Azure Cosmos DB
         # TODO: Publish project.transitioned event
 
-        self.logger.info(f"Transitioned project {project_id} from {current_phase} to {target_phase}")
+        self.logger.info(
+            f"Transitioned project {project_id} from {current_phase} to {target_phase}"
+        )
 
         return {
             "success": True,
@@ -324,14 +318,10 @@ class ProjectLifecycleAgent(BaseAgent):
             "previous_phase": current_phase,
             "current_phase": target_phase,
             "gate_evaluation": gate_evaluation,
-            "transition_record": transition_record
+            "transition_record": transition_record,
         }
 
-    async def _evaluate_gate(
-        self,
-        project_id: str,
-        gate_name: str
-    ) -> Dict[str, Any]:
+    async def _evaluate_gate(self, project_id: str, gate_name: str) -> dict[str, Any]:
         """
         Evaluate phase gate criteria.
 
@@ -350,15 +340,21 @@ class ProjectLifecycleAgent(BaseAgent):
         criteria_status = []
         for criterion in gate_criteria_def:
             status = await self._check_criterion(project_id, criterion)
-            criteria_status.append({
-                "criterion": criterion,
-                "met": status,
-                "description": await self._get_criterion_description(criterion)
-            })
+            criteria_status.append(
+                {
+                    "criterion": criterion,
+                    "met": status,
+                    "description": await self._get_criterion_description(criterion),
+                }
+            )
 
         # Calculate readiness score
         # TODO: Use ML model for readiness prediction
-        readiness_score = sum(1 for c in criteria_status if c["met"]) / len(criteria_status) if criteria_status else 0
+        readiness_score = (
+            sum(1 for c in criteria_status if c["met"]) / len(criteria_status)
+            if criteria_status
+            else 0
+        )
 
         # Identify missing criteria
         missing_criteria = [c for c in criteria_status if not c["met"]]
@@ -374,7 +370,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "criteria_status": criteria_status,
             "missing_criteria": missing_criteria,
             "evaluated_at": datetime.utcnow().isoformat(),
-            "recommendation": "Proceed" if criteria_met else "Complete missing activities"
+            "recommendation": "Proceed" if criteria_met else "Complete missing activities",
         }
 
         # Store evaluation
@@ -387,7 +383,7 @@ class ProjectLifecycleAgent(BaseAgent):
 
         return evaluation
 
-    async def _monitor_health(self, project_id: str) -> Dict[str, Any]:
+    async def _monitor_health(self, project_id: str) -> dict[str, Any]:
         """
         Monitor project health continuously.
 
@@ -414,11 +410,11 @@ class ProjectLifecycleAgent(BaseAgent):
 
         # Calculate composite health score
         composite_score = (
-            schedule_health * self.health_score_weights["schedule"] +
-            cost_health * self.health_score_weights["cost"] +
-            risk_health * self.health_score_weights["risk"] +
-            quality_health * self.health_score_weights["quality"] +
-            resource_health * self.health_score_weights["resource"]
+            schedule_health * self.health_score_weights["schedule"]
+            + cost_health * self.health_score_weights["cost"]
+            + risk_health * self.health_score_weights["risk"]
+            + quality_health * self.health_score_weights["quality"]
+            + resource_health * self.health_score_weights["resource"]
         )
 
         # Determine health status
@@ -442,16 +438,31 @@ class ProjectLifecycleAgent(BaseAgent):
             "composite_score": composite_score,
             "health_status": health_status,
             "metrics": {
-                "schedule": {"score": schedule_health, "status": await self._get_metric_status(schedule_health)},
-                "cost": {"score": cost_health, "status": await self._get_metric_status(cost_health)},
-                "risk": {"score": risk_health, "status": await self._get_metric_status(risk_health)},
-                "quality": {"score": quality_health, "status": await self._get_metric_status(quality_health)},
-                "resource": {"score": resource_health, "status": await self._get_metric_status(resource_health)}
+                "schedule": {
+                    "score": schedule_health,
+                    "status": await self._get_metric_status(schedule_health),
+                },
+                "cost": {
+                    "score": cost_health,
+                    "status": await self._get_metric_status(cost_health),
+                },
+                "risk": {
+                    "score": risk_health,
+                    "status": await self._get_metric_status(risk_health),
+                },
+                "quality": {
+                    "score": quality_health,
+                    "status": await self._get_metric_status(quality_health),
+                },
+                "resource": {
+                    "score": resource_health,
+                    "status": await self._get_metric_status(resource_health),
+                },
             },
             "concerns": concerns,
             "warnings": warnings,
             "recommendations": recommendations,
-            "monitored_at": datetime.utcnow().isoformat()
+            "monitored_at": datetime.utcnow().isoformat(),
         }
 
         # Store health score
@@ -463,7 +474,7 @@ class ProjectLifecycleAgent(BaseAgent):
 
         return health_data
 
-    async def _recommend_methodology(self, project_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _recommend_methodology(self, project_data: dict[str, Any]) -> dict[str, Any]:
         """
         Recommend appropriate methodology based on project characteristics.
 
@@ -472,7 +483,7 @@ class ProjectLifecycleAgent(BaseAgent):
         self.logger.info("Recommending methodology")
 
         # Extract project characteristics
-        size = project_data.get("size", "medium")
+        project_data.get("size", "medium")
         complexity = project_data.get("complexity", "medium")
         requirement_volatility = project_data.get("requirement_volatility", "medium")
         stakeholder_engagement = project_data.get("stakeholder_engagement", "medium")
@@ -482,7 +493,9 @@ class ProjectLifecycleAgent(BaseAgent):
         # Simplified rule-based logic
         if requirement_volatility == "high" and stakeholder_engagement == "high":
             methodology = "agile"
-            rationale = "High requirement volatility and stakeholder engagement favor Agile approach"
+            rationale = (
+                "High requirement volatility and stakeholder engagement favor Agile approach"
+            )
         elif regulatory_requirements or complexity == "high":
             methodology = "waterfall"
             rationale = "Regulatory requirements and high complexity favor Waterfall approach"
@@ -494,14 +507,10 @@ class ProjectLifecycleAgent(BaseAgent):
             "methodology": methodology,
             "rationale": rationale,
             "confidence": 0.85,
-            "alternatives": await self._get_alternative_methodologies(methodology)
+            "alternatives": await self._get_alternative_methodologies(methodology),
         }
 
-    async def _adjust_methodology(
-        self,
-        project_id: str,
-        new_methodology: str
-    ) -> Dict[str, Any]:
+    async def _adjust_methodology(self, project_id: str, new_methodology: str) -> dict[str, Any]:
         """
         Adjust project methodology.
 
@@ -520,7 +529,9 @@ class ProjectLifecycleAgent(BaseAgent):
 
         # Map current phase to equivalent in new methodology
         current_phase = lifecycle_state.get("current_phase")
-        new_phase = await self._map_phase_to_methodology(current_phase, old_methodology, new_methodology)
+        new_phase = await self._map_phase_to_methodology(
+            current_phase, old_methodology, new_methodology
+        )
 
         # Update project and lifecycle state
         self.projects[project_id]["methodology"] = new_methodology
@@ -535,10 +546,10 @@ class ProjectLifecycleAgent(BaseAgent):
             "old_methodology": old_methodology,
             "new_methodology": new_methodology,
             "current_phase": new_phase,
-            "methodology_map": new_methodology_map
+            "methodology_map": new_methodology_map,
         }
 
-    async def _get_project_status(self, project_id: str) -> Dict[str, Any]:
+    async def _get_project_status(self, project_id: str) -> dict[str, Any]:
         """Get current project status."""
         project = self.projects.get(project_id)
         lifecycle_state = self.lifecycle_states.get(project_id)
@@ -562,10 +573,10 @@ class ProjectLifecycleAgent(BaseAgent):
             "composite_score": health_data.get("composite_score", 0),
             "pending_gates": pending_gates,
             "phase_start_date": lifecycle_state.get("phase_start_date"),
-            "transitions_count": len(lifecycle_state.get("transitions", []))
+            "transitions_count": len(lifecycle_state.get("transitions", [])),
         }
 
-    async def _get_health_dashboard(self, project_id: str) -> Dict[str, Any]:
+    async def _get_health_dashboard(self, project_id: str) -> dict[str, Any]:
         """Generate comprehensive health dashboard."""
         health_data = await self._monitor_health(project_id)
         project_status = await self._get_project_status(project_id)
@@ -583,15 +594,12 @@ class ProjectLifecycleAgent(BaseAgent):
             "health_data": health_data,
             "trends": trends,
             "alerts": alerts,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _override_gate(
-        self,
-        project_id: str,
-        gate_name: str,
-        override_reason: str
-    ) -> Dict[str, Any]:
+        self, project_id: str, gate_name: str, override_reason: str
+    ) -> dict[str, Any]:
         """
         Override a gate that doesn't meet criteria.
 
@@ -609,7 +617,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "gate_evaluation": gate_evaluation,
             "override_reason": override_reason,
             "overridden_by": "system",  # TODO: Get from user context
-            "overridden_at": datetime.utcnow().isoformat()
+            "overridden_at": datetime.utcnow().isoformat(),
         }
 
         # Mark gate as passed despite not meeting criteria
@@ -626,12 +634,12 @@ class ProjectLifecycleAgent(BaseAgent):
         return {
             "success": True,
             "override_record": override_record,
-            "warning": "Gate criteria were not met. Override has been recorded for audit."
+            "warning": "Gate criteria were not met. Override has been recorded for audit.",
         }
 
     # Helper methods
 
-    async def _load_methodology_map(self, methodology: str) -> Dict[str, Any]:
+    async def _load_methodology_map(self, methodology: str) -> dict[str, Any]:
         """Load methodology map with phases and gates."""
         # TODO: Load from configuration or database
 
@@ -642,19 +650,19 @@ class ProjectLifecycleAgent(BaseAgent):
                     "Sprint 0": {
                         "name": "Sprint 0",
                         "next_phases": ["Sprint 1"],
-                        "gates": ["sprint_planning_complete"]
+                        "gates": ["sprint_planning_complete"],
                     },
                     "Sprint 1": {
                         "name": "Sprint 1",
                         "next_phases": ["Sprint 2", "Release"],
-                        "gates": ["sprint_review", "sprint_retrospective"]
+                        "gates": ["sprint_review", "sprint_retrospective"],
                     },
                     "Release": {
                         "name": "Release",
                         "next_phases": [],
-                        "gates": ["release_criteria_met"]
-                    }
-                }
+                        "gates": ["release_criteria_met"],
+                    },
+                },
             }
         elif methodology == "waterfall":
             return {
@@ -663,29 +671,25 @@ class ProjectLifecycleAgent(BaseAgent):
                     "Initiate": {
                         "name": "Initiate",
                         "next_phases": ["Plan"],
-                        "gates": ["charter_approved"]
+                        "gates": ["charter_approved"],
                     },
                     "Plan": {
                         "name": "Plan",
                         "next_phases": ["Execute"],
-                        "gates": ["baseline_approved"]
+                        "gates": ["baseline_approved"],
                     },
                     "Execute": {
                         "name": "Execute",
                         "next_phases": ["Monitor", "Close"],
-                        "gates": ["deliverables_complete"]
+                        "gates": ["deliverables_complete"],
                     },
                     "Monitor": {
                         "name": "Monitor",
                         "next_phases": ["Close"],
-                        "gates": ["acceptance_complete"]
+                        "gates": ["acceptance_complete"],
                     },
-                    "Close": {
-                        "name": "Close",
-                        "next_phases": [],
-                        "gates": ["closure_approved"]
-                    }
-                }
+                    "Close": {"name": "Close", "next_phases": [], "gates": ["closure_approved"]},
+                },
             }
         else:  # hybrid
             return {
@@ -694,36 +698,32 @@ class ProjectLifecycleAgent(BaseAgent):
                     "Initiate": {
                         "name": "Initiate",
                         "next_phases": ["Plan"],
-                        "gates": ["charter_approved"]
+                        "gates": ["charter_approved"],
                     },
                     "Plan": {
                         "name": "Plan",
                         "next_phases": ["Iterate"],
-                        "gates": ["baseline_approved"]
+                        "gates": ["baseline_approved"],
                     },
                     "Iterate": {
                         "name": "Iterate",
                         "next_phases": ["Release", "Iterate"],
-                        "gates": ["iteration_complete"]
+                        "gates": ["iteration_complete"],
                     },
                     "Release": {
                         "name": "Release",
                         "next_phases": ["Close"],
-                        "gates": ["release_approved"]
+                        "gates": ["release_approved"],
                     },
-                    "Close": {
-                        "name": "Close",
-                        "next_phases": [],
-                        "gates": ["closure_approved"]
-                    }
-                }
+                    "Close": {"name": "Close", "next_phases": [], "gates": ["closure_approved"]},
+                },
             }
 
     async def _get_gate_name(self, from_phase: str, to_phase: str) -> str:
         """Get gate name for phase transition."""
         return f"{from_phase}_to_{to_phase}_gate"
 
-    async def _get_gate_criteria(self, gate_name: str) -> List[str]:
+    async def _get_gate_criteria(self, gate_name: str) -> list[str]:
         """Get criteria for a specific gate."""
         # TODO: Load from configuration
         # Simplified criteria
@@ -750,7 +750,7 @@ class ProjectLifecycleAgent(BaseAgent):
             "schedule_baseline_approved": "Schedule baseline has been approved",
             "budget_approved": "Project budget has been approved",
             "deliverables_complete": "All phase deliverables are complete",
-            "quality_criteria_met": "Quality criteria have been met"
+            "quality_criteria_met": "Quality criteria have been met",
         }
         return descriptions.get(criterion, criterion)
 
@@ -798,13 +798,8 @@ class ProjectLifecycleAgent(BaseAgent):
             return "red"
 
     async def _identify_concerns(
-        self,
-        schedule: float,
-        cost: float,
-        risk: float,
-        quality: float,
-        resource: float
-    ) -> List[str]:
+        self, schedule: float, cost: float, risk: float, quality: float, resource: float
+    ) -> list[str]:
         """Identify health concerns."""
         concerns = []
         if schedule < 0.70:
@@ -819,24 +814,25 @@ class ProjectLifecycleAgent(BaseAgent):
             concerns.append("Resource constraints affecting delivery")
         return concerns
 
-    async def _detect_warnings(self, project_id: str) -> List[Dict[str, Any]]:
+    async def _detect_warnings(self, project_id: str) -> list[dict[str, Any]]:
         """Detect early warning signals."""
         # TODO: Implement pattern recognition for warnings
         return []
 
     async def _generate_health_recommendations(
-        self,
-        composite_score: float,
-        concerns: List[str],
-        warnings: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, composite_score: float, concerns: list[str], warnings: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate health improvement recommendations."""
         recommendations = []
         for concern in concerns:
             if "schedule" in concern.lower():
-                recommendations.append("Review critical path and consider fast-tracking or crashing")
+                recommendations.append(
+                    "Review critical path and consider fast-tracking or crashing"
+                )
             if "cost" in concern.lower():
-                recommendations.append("Conduct budget review and identify cost reduction opportunities")
+                recommendations.append(
+                    "Conduct budget review and identify cost reduction opportunities"
+                )
             if "risk" in concern.lower():
                 recommendations.append("Escalate high-priority risks to steering committee")
             if "quality" in concern.lower():
@@ -845,16 +841,13 @@ class ProjectLifecycleAgent(BaseAgent):
                 recommendations.append("Review resource allocation and consider augmentation")
         return recommendations
 
-    async def _get_alternative_methodologies(self, primary: str) -> List[str]:
+    async def _get_alternative_methodologies(self, primary: str) -> list[str]:
         """Get alternative methodologies."""
         all_methodologies = ["agile", "waterfall", "hybrid"]
         return [m for m in all_methodologies if m != primary]
 
     async def _map_phase_to_methodology(
-        self,
-        current_phase: str,
-        old_methodology: str,
-        new_methodology: str
+        self, current_phase: str, old_methodology: str, new_methodology: str
     ) -> str:
         """Map current phase to equivalent in new methodology."""
         # TODO: Implement intelligent phase mapping
@@ -862,7 +855,7 @@ class ProjectLifecycleAgent(BaseAgent):
         new_map = await self._load_methodology_map(new_methodology)
         return new_map["initial_phase"]
 
-    async def _get_pending_gates(self, project_id: str) -> List[str]:
+    async def _get_pending_gates(self, project_id: str) -> list[str]:
         """Get list of pending gates."""
         lifecycle_state = self.lifecycle_states.get(project_id)
         if not lifecycle_state:
@@ -874,7 +867,7 @@ class ProjectLifecycleAgent(BaseAgent):
         phase_info = methodology_map.get("phases", {}).get(current_phase, {})
         return phase_info.get("gates", [])
 
-    async def _generate_health_trends(self, project_id: str) -> Dict[str, Any]:
+    async def _generate_health_trends(self, project_id: str) -> dict[str, Any]:
         """Generate health trend data."""
         # TODO: Query historical health scores
         return {
@@ -882,18 +875,20 @@ class ProjectLifecycleAgent(BaseAgent):
             "cost_trend": "stable",
             "risk_trend": "declining",
             "quality_trend": "improving",
-            "resource_trend": "stable"
+            "resource_trend": "stable",
         }
 
-    async def _generate_alerts(self, health_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _generate_alerts(self, health_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Generate alerts based on health data."""
         alerts = []
         if health_data.get("health_status") == "Critical":
-            alerts.append({
-                "severity": "high",
-                "message": "Project health is critical. Immediate action required.",
-                "recommended_action": "Escalate to PMO and steering committee"
-            })
+            alerts.append(
+                {
+                    "severity": "high",
+                    "message": "Project health is critical. Immediate action required.",
+                    "recommended_action": "Escalate to PMO and steering committee",
+                }
+            )
         return alerts
 
     async def cleanup(self) -> None:
@@ -904,7 +899,7 @@ class ProjectLifecycleAgent(BaseAgent):
         # TODO: Close external API connections
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "project_initiation",
@@ -917,5 +912,5 @@ class ProjectLifecycleAgent(BaseAgent):
             "compliance_monitoring",
             "dashboard_generation",
             "early_warning_detection",
-            "governance_reporting"
+            "governance_reporting",
         ]

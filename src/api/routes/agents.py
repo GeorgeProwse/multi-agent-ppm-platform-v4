@@ -2,25 +2,28 @@
 Agent API Routes
 """
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
 
 router = APIRouter()
 
 
 class QueryRequest(BaseModel):
     """Request model for agent queries."""
+
     query: str
-    context: Optional[Dict[str, Any]] = None
+    context: dict[str, Any] | None = None
 
 
 class QueryResponse(BaseModel):
     """Response model for agent queries."""
+
     success: bool
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
+    error: str | None = None
+    metadata: dict[str, Any] | None = None
 
 
 @router.post("/query", response_model=QueryResponse)

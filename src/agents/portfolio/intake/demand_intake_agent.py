@@ -8,9 +8,10 @@ Manages the demand pipeline with automatic categorization and deduplication.
 Specification: docs_markdown/specs/agents/portfolio/intake/Agent 4 Demand & Intake Agent.md
 """
 
-from typing import Dict, Any, List
-from src.core.base_agent import BaseAgent
 from datetime import datetime
+from typing import Any
+
+from src.core.base_agent import BaseAgent
 
 
 class DemandIntakeAgent(BaseAgent):
@@ -25,12 +26,14 @@ class DemandIntakeAgent(BaseAgent):
     - Pipeline visualization
     """
 
-    def __init__(
-        self, agent_id: str = "demand-intake", config: Dict[str, Any] = None
-    ):
+    def __init__(self, agent_id: str = "demand-intake", config: dict[str, Any] = None):
         super().__init__(agent_id, config)
         self.similarity_threshold = config.get("similarity_threshold", 0.85) if config else 0.85
-        self.mandatory_fields = config.get("mandatory_fields", ["title", "description", "business_objective"]) if config else ["title", "description", "business_objective"]
+        self.mandatory_fields = (
+            config.get("mandatory_fields", ["title", "description", "business_objective"])
+            if config
+            else ["title", "description", "business_objective"]
+        )
 
     async def initialize(self) -> None:
         """Initialize NLP models and database connections."""
@@ -40,7 +43,7 @@ class DemandIntakeAgent(BaseAgent):
         # TODO: Initialize database connection for demand repository
         # TODO: Initialize vector search (Azure Cognitive Search)
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate intake request has required fields."""
         action = input_data.get("action", "")
 
@@ -53,7 +56,7 @@ class DemandIntakeAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process demand intake request.
 
@@ -81,7 +84,7 @@ class DemandIntakeAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _submit_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _submit_request(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """
         Submit a new demand intake request.
 
@@ -99,7 +102,7 @@ class DemandIntakeAgent(BaseAgent):
         demand_id = await self._generate_demand_id()
 
         # Store the request
-        stored_request = {
+        {
             "demand_id": demand_id,
             "title": request_data.get("title"),
             "description": request_data.get("description"),
@@ -127,7 +130,7 @@ class DemandIntakeAgent(BaseAgent):
             "next_steps": "Request is in screening queue. You will be notified of status updates.",
         }
 
-    async def _categorize_request(self, request_data: Dict[str, Any]) -> str:
+    async def _categorize_request(self, request_data: dict[str, Any]) -> str:
         """
         Automatically categorize the request using NLP.
 
@@ -148,9 +151,7 @@ class DemandIntakeAgent(BaseAgent):
         else:
             return "idea"
 
-    async def _find_duplicates(
-        self, request_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+    async def _find_duplicates(self, request_data: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Find similar existing requests using semantic similarity.
 
@@ -160,7 +161,7 @@ class DemandIntakeAgent(BaseAgent):
         # For now, return empty list
         return []
 
-    async def _check_duplicates(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _check_duplicates(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """
         Check for duplicate requests without submitting.
 
@@ -173,7 +174,7 @@ class DemandIntakeAgent(BaseAgent):
             "similar_requests": duplicates,
         }
 
-    async def _get_pipeline(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_pipeline(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get current demand pipeline status.
 
@@ -205,7 +206,7 @@ class DemandIntakeAgent(BaseAgent):
         # TODO: Add sequence number from database
         return f"DEM-{timestamp}"
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of capabilities."""
         return [
             "multi_channel_intake",

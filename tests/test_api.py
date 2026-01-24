@@ -10,6 +10,7 @@ from httpx import AsyncClient
 def app():
     """Create FastAPI app for testing."""
     from src.api.main import app
+
     return app
 
 
@@ -77,10 +78,7 @@ async def test_query_endpoint(app):
     async with AsyncClient(app=app, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/query",
-            json={
-                "query": "Show me the portfolio overview",
-                "context": {"user_id": "test_user"}
-            }
+            json={"query": "Show me the portfolio overview", "context": {"user_id": "test_user"}},
         )
 
     assert response.status_code == 200
@@ -93,10 +91,7 @@ async def test_query_endpoint_validation(app):
     """Test query endpoint validates input."""
     async with AsyncClient(app=app, base_url="http://test") as client:
         # Missing query field
-        response = await client.post(
-            "/api/v1/query",
-            json={"context": {}}
-        )
+        response = await client.post("/api/v1/query", json={"context": {}})
 
     assert response.status_code == 422  # Validation error
 

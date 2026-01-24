@@ -8,10 +8,10 @@ consistent, up-to-date and accurate through master data management and event-dri
 Specification: docs_markdown/specs/agents/platform/data-sync-consistency/Agent 23 Data Synchronization & Consistency Agent.md
 """
 
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class DataSyncAgent(BaseAgent):
@@ -29,17 +29,19 @@ class DataSyncAgent(BaseAgent):
     - Synchronization monitoring
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_023",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_023", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
         self.sync_latency_sla_seconds = config.get("sync_latency_sla_seconds", 60) if config else 60
-        self.duplicate_confidence_threshold = config.get("duplicate_confidence_threshold", 0.85) if config else 0.85
-        self.conflict_resolution_strategy = config.get("conflict_resolution_strategy", "last_write_wins") if config else "last_write_wins"
+        self.duplicate_confidence_threshold = (
+            config.get("duplicate_confidence_threshold", 0.85) if config else 0.85
+        )
+        self.conflict_resolution_strategy = (
+            config.get("conflict_resolution_strategy", "last_write_wins")
+            if config
+            else "last_write_wins"
+        )
 
         # Data stores (will be replaced with database)
         self.master_records = {}
@@ -67,7 +69,7 @@ class DataSyncAgent(BaseAgent):
 
         self.logger.info("Data Synchronization & Consistency Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -86,7 +88,7 @@ class DataSyncAgent(BaseAgent):
             "validate_data",
             "define_mapping",
             "get_sync_status",
-            "get_master_record"
+            "get_master_record",
         ]
 
         if action not in valid_actions:
@@ -100,7 +102,7 @@ class DataSyncAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process data synchronization requests.
 
@@ -139,20 +141,17 @@ class DataSyncAgent(BaseAgent):
             return await self._sync_data(
                 input_data.get("entity_type"),
                 input_data.get("data"),
-                input_data.get("source_system")
+                input_data.get("source_system"),
             )
 
         elif action == "create_master_record":
             return await self._create_master_record(
-                input_data.get("entity_type"),
-                input_data.get("data")
+                input_data.get("entity_type"), input_data.get("data")
             )
 
         elif action == "update_master_record":
             return await self._update_master_record(
-                input_data.get("master_id"),
-                input_data.get("data"),
-                input_data.get("source_system")
+                input_data.get("master_id"), input_data.get("data"), input_data.get("source_system")
             )
 
         elif action == "detect_conflicts":
@@ -160,8 +159,7 @@ class DataSyncAgent(BaseAgent):
 
         elif action == "resolve_conflict":
             return await self._resolve_conflict(
-                input_data.get("conflict_id"),
-                input_data.get("resolution")
+                input_data.get("conflict_id"), input_data.get("resolution")
             )
 
         elif action == "detect_duplicates":
@@ -169,15 +167,11 @@ class DataSyncAgent(BaseAgent):
 
         elif action == "merge_duplicates":
             return await self._merge_duplicates(
-                input_data.get("master_ids", []),
-                input_data.get("primary_id")
+                input_data.get("master_ids", []), input_data.get("primary_id")
             )
 
         elif action == "validate_data":
-            return await self._validate_data(
-                input_data.get("entity_type"),
-                input_data.get("data")
-            )
+            return await self._validate_data(input_data.get("entity_type"), input_data.get("data"))
 
         elif action == "define_mapping":
             return await self._define_mapping(input_data.get("mapping", {}))
@@ -192,11 +186,8 @@ class DataSyncAgent(BaseAgent):
             raise ValueError(f"Unknown action: {action}")
 
     async def _sync_data(
-        self,
-        entity_type: str,
-        data: Dict[str, Any],
-        source_system: str
-    ) -> Dict[str, Any]:
+        self, entity_type: str, data: dict[str, Any], source_system: str
+    ) -> dict[str, Any]:
         """
         Synchronize data from source system.
 
@@ -210,7 +201,7 @@ class DataSyncAgent(BaseAgent):
             return {
                 "status": "failed",
                 "error": "Data validation failed",
-                "validation_errors": validation_result.get("errors")
+                "validation_errors": validation_result.get("errors"),
             }
 
         # Transform data using mapping rules
@@ -222,9 +213,7 @@ class DataSyncAgent(BaseAgent):
         if existing_master:
             # Update existing record
             result = await self._update_master_record(
-                existing_master.get("master_id"),
-                transformed_data,
-                source_system
+                existing_master.get("master_id"), transformed_data, source_system
             )
             master_id = existing_master.get("master_id")
         else:
@@ -234,10 +223,7 @@ class DataSyncAgent(BaseAgent):
 
         # Record sync event
         sync_event_id = await self._record_sync_event(
-            entity_type,
-            master_id,
-            source_system,
-            "success"
+            entity_type, master_id, source_system, "success"
         )
 
         # Publish sync event
@@ -248,14 +234,10 @@ class DataSyncAgent(BaseAgent):
             "master_id": master_id,
             "sync_event_id": sync_event_id,
             "action": "updated" if existing_master else "created",
-            "latency_seconds": 0.5  # TODO: Calculate actual latency
+            "latency_seconds": 0.5,  # TODO: Calculate actual latency
         }
 
-    async def _create_master_record(
-        self,
-        entity_type: str,
-        data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _create_master_record(self, entity_type: str, data: dict[str, Any]) -> dict[str, Any]:
         """
         Create new master record.
 
@@ -274,7 +256,7 @@ class DataSyncAgent(BaseAgent):
             "source_systems": {},
             "version": 1,
             "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat()
+            "updated_at": datetime.utcnow().isoformat(),
         }
 
         # Store master record
@@ -283,18 +265,11 @@ class DataSyncAgent(BaseAgent):
         # TODO: Store in database
         # TODO: Publish master_record.created event
 
-        return {
-            "master_id": master_id,
-            "entity_type": entity_type,
-            "version": 1
-        }
+        return {"master_id": master_id, "entity_type": entity_type, "version": 1}
 
     async def _update_master_record(
-        self,
-        master_id: str,
-        data: Dict[str, Any],
-        source_system: str
-    ) -> Dict[str, Any]:
+        self, master_id: str, data: dict[str, Any], source_system: str
+    ) -> dict[str, Any]:
         """
         Update existing master record.
 
@@ -311,14 +286,10 @@ class DataSyncAgent(BaseAgent):
 
         if conflicts:
             # Record conflicts
-            conflict_id = await self._record_conflicts(master_id, conflicts)
+            await self._record_conflicts(master_id, conflicts)
 
             # Apply conflict resolution strategy
-            resolved_data = await self._apply_conflict_resolution(
-                master_record,
-                data,
-                conflicts
-            )
+            resolved_data = await self._apply_conflict_resolution(master_record, data, conflicts)
         else:
             resolved_data = data
 
@@ -335,10 +306,10 @@ class DataSyncAgent(BaseAgent):
             "master_id": master_id,
             "version": master_record["version"],
             "conflicts_detected": len(conflicts) if conflicts else 0,
-            "updated_at": master_record["updated_at"]
+            "updated_at": master_record["updated_at"],
         }
 
-    async def _detect_conflicts(self, master_id: str) -> Dict[str, Any]:
+    async def _detect_conflicts(self, master_id: str) -> dict[str, Any]:
         """
         Detect data conflicts for master record.
 
@@ -348,21 +319,20 @@ class DataSyncAgent(BaseAgent):
 
         # Get conflicts for this master record
         record_conflicts = [
-            conflict for conflict_id, conflict in self.conflicts.items()
+            conflict
+            for conflict_id, conflict in self.conflicts.items()
             if conflict.get("master_id") == master_id and conflict.get("status") == "pending"
         ]
 
         return {
             "master_id": master_id,
             "conflicts": record_conflicts,
-            "conflict_count": len(record_conflicts)
+            "conflict_count": len(record_conflicts),
         }
 
     async def _resolve_conflict(
-        self,
-        conflict_id: str,
-        resolution: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, conflict_id: str, resolution: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Resolve data conflict.
 
@@ -393,10 +363,10 @@ class DataSyncAgent(BaseAgent):
         return {
             "conflict_id": conflict_id,
             "resolution": "success",
-            "resolved_value": resolved_value
+            "resolved_value": resolved_value,
         }
 
-    async def _detect_duplicates(self, entity_type: str) -> Dict[str, Any]:
+    async def _detect_duplicates(self, entity_type: str) -> dict[str, Any]:
         """
         Detect duplicate master records.
 
@@ -406,7 +376,8 @@ class DataSyncAgent(BaseAgent):
 
         # Get all master records of this type
         type_records = [
-            (master_id, record) for master_id, record in self.master_records.items()
+            (master_id, record)
+            for master_id, record in self.master_records.items()
             if record.get("entity_type") == entity_type
         ]
 
@@ -416,14 +387,10 @@ class DataSyncAgent(BaseAgent):
         return {
             "entity_type": entity_type,
             "duplicate_sets": duplicates,
-            "duplicate_count": len(duplicates)
+            "duplicate_count": len(duplicates),
         }
 
-    async def _merge_duplicates(
-        self,
-        master_ids: List[str],
-        primary_id: str
-    ) -> Dict[str, Any]:
+    async def _merge_duplicates(self, master_ids: list[str], primary_id: str) -> dict[str, Any]:
         """
         Merge duplicate records.
 
@@ -467,14 +434,10 @@ class DataSyncAgent(BaseAgent):
         return {
             "primary_id": primary_id,
             "merged_count": len(master_ids) - 1,
-            "merged_ids": [mid for mid in master_ids if mid != primary_id]
+            "merged_ids": [mid for mid in master_ids if mid != primary_id],
         }
 
-    async def _validate_data(
-        self,
-        entity_type: str,
-        data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _validate_data(self, entity_type: str, data: dict[str, Any]) -> dict[str, Any]:
         """
         Validate data quality.
 
@@ -502,10 +465,10 @@ class DataSyncAgent(BaseAgent):
             "valid": len(errors) == 0,
             "errors": errors,
             "warnings": warnings,
-            "validated_at": datetime.utcnow().isoformat()
+            "validated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _define_mapping(self, mapping_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _define_mapping(self, mapping_config: dict[str, Any]) -> dict[str, Any]:
         """
         Define data mapping rule.
 
@@ -524,7 +487,7 @@ class DataSyncAgent(BaseAgent):
             "target_entity": mapping_config.get("target_entity"),
             "field_mappings": mapping_config.get("field_mappings", {}),
             "transformations": mapping_config.get("transformations", []),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store mapping rule
@@ -535,10 +498,10 @@ class DataSyncAgent(BaseAgent):
         return {
             "mapping_id": mapping_id,
             "name": mapping_rule["name"],
-            "field_count": len(mapping_rule["field_mappings"])
+            "field_count": len(mapping_rule["field_mappings"]),
         }
 
-    async def _get_sync_status(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_sync_status(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get synchronization status.
 
@@ -549,22 +512,18 @@ class DataSyncAgent(BaseAgent):
         # Calculate sync statistics
         total_events = len(self.sync_events)
         successful_syncs = sum(
-            1 for event in self.sync_events.values()
-            if event.get("status") == "success"
+            1 for event in self.sync_events.values() if event.get("status") == "success"
         )
         failed_syncs = total_events - successful_syncs
 
         # Get recent events
         recent_events = sorted(
-            self.sync_events.values(),
-            key=lambda x: x.get("timestamp", ""),
-            reverse=True
+            self.sync_events.values(), key=lambda x: x.get("timestamp", ""), reverse=True
         )[:10]
 
         # Get conflict and duplicate counts
         pending_conflicts = sum(
-            1 for conflict in self.conflicts.values()
-            if conflict.get("status") == "pending"
+            1 for conflict in self.conflicts.values() if conflict.get("status") == "pending"
         )
 
         return {
@@ -574,10 +533,10 @@ class DataSyncAgent(BaseAgent):
             "success_rate": (successful_syncs / total_events * 100) if total_events > 0 else 0,
             "pending_conflicts": pending_conflicts,
             "recent_events": recent_events,
-            "avg_latency_seconds": 0.8  # TODO: Calculate actual average
+            "avg_latency_seconds": 0.8,  # TODO: Calculate actual average
         }
 
-    async def _get_master_record(self, master_id: str) -> Dict[str, Any]:
+    async def _get_master_record(self, master_id: str) -> dict[str, Any]:
         """
         Get master record with lineage.
 
@@ -596,7 +555,7 @@ class DataSyncAgent(BaseAgent):
             "version": master_record.get("version"),
             "source_systems": master_record.get("source_systems"),
             "created_at": master_record.get("created_at"),
-            "updated_at": master_record.get("updated_at")
+            "updated_at": master_record.get("updated_at"),
         }
 
     # Helper methods
@@ -612,34 +571,26 @@ class DataSyncAgent(BaseAgent):
         return f"MAP-{timestamp}"
 
     async def _transform_data(
-        self,
-        entity_type: str,
-        data: Dict[str, Any],
-        source_system: str
-    ) -> Dict[str, Any]:
+        self, entity_type: str, data: dict[str, Any], source_system: str
+    ) -> dict[str, Any]:
         """Transform data using mapping rules."""
         # TODO: Apply actual transformation rules
         return data
 
     async def _find_existing_master(
-        self,
-        entity_type: str,
-        data: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+        self, entity_type: str, data: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Find existing master record."""
         # TODO: Use matching algorithm
         for master_id, record in self.master_records.items():
-            if (record.get("entity_type") == entity_type and
-                record.get("data", {}).get("id") == data.get("id")):
+            if record.get("entity_type") == entity_type and record.get("data", {}).get(
+                "id"
+            ) == data.get("id"):
                 return record
         return None
 
     async def _record_sync_event(
-        self,
-        entity_type: str,
-        master_id: str,
-        source_system: str,
-        status: str
+        self, entity_type: str, master_id: str, source_system: str, status: str
     ) -> str:
         """Record sync event."""
         event_id = f"EVENT-{len(self.sync_events) + 1}"
@@ -649,16 +600,13 @@ class DataSyncAgent(BaseAgent):
             "master_id": master_id,
             "source_system": source_system,
             "status": status,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
         return event_id
 
     async def _detect_update_conflicts(
-        self,
-        master_record: Dict[str, Any],
-        new_data: Dict[str, Any],
-        source_system: str
-    ) -> List[Dict[str, Any]]:
+        self, master_record: dict[str, Any], new_data: dict[str, Any], source_system: str
+    ) -> list[dict[str, Any]]:
         """Detect conflicts in update."""
         conflicts = []
 
@@ -666,20 +614,18 @@ class DataSyncAgent(BaseAgent):
         for key, new_value in new_data.items():
             current_value = current_data.get(key)
             if current_value and current_value != new_value:
-                conflicts.append({
-                    "field": key,
-                    "current_value": current_value,
-                    "new_value": new_value,
-                    "source_system": source_system
-                })
+                conflicts.append(
+                    {
+                        "field": key,
+                        "current_value": current_value,
+                        "new_value": new_value,
+                        "source_system": source_system,
+                    }
+                )
 
         return conflicts
 
-    async def _record_conflicts(
-        self,
-        master_id: str,
-        conflicts: List[Dict[str, Any]]
-    ) -> str:
+    async def _record_conflicts(self, master_id: str, conflicts: list[dict[str, Any]]) -> str:
         """Record conflicts."""
         conflict_id = f"CONFLICT-{len(self.conflicts) + 1}"
         self.conflicts[conflict_id] = {
@@ -687,16 +633,16 @@ class DataSyncAgent(BaseAgent):
             "master_id": master_id,
             "conflicts": conflicts,
             "status": "pending",
-            "detected_at": datetime.utcnow().isoformat()
+            "detected_at": datetime.utcnow().isoformat(),
         }
         return conflict_id
 
     async def _apply_conflict_resolution(
         self,
-        master_record: Dict[str, Any],
-        new_data: Dict[str, Any],
-        conflicts: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        master_record: dict[str, Any],
+        new_data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Apply conflict resolution strategy."""
         if self.conflict_resolution_strategy == "last_write_wins":
             return new_data
@@ -706,28 +652,23 @@ class DataSyncAgent(BaseAgent):
         else:
             return new_data
 
-    async def _fuzzy_match_duplicates(
-        self,
-        records: List[tuple]
-    ) -> List[List[str]]:
+    async def _fuzzy_match_duplicates(self, records: list[tuple]) -> list[list[str]]:
         """Find duplicates using fuzzy matching."""
         # TODO: Implement actual fuzzy matching
         duplicates = []
         return duplicates
 
-    async def _get_validation_rules(self, entity_type: str) -> List[Dict[str, Any]]:
+    async def _get_validation_rules(self, entity_type: str) -> list[dict[str, Any]]:
         """Get validation rules for entity type."""
         # TODO: Load from configuration
         return [
             {"field": "id", "required": True, "severity": "error"},
-            {"field": "name", "required": True, "severity": "error"}
+            {"field": "name", "required": True, "severity": "error"},
         ]
 
     async def _apply_validation_rule(
-        self,
-        data: Dict[str, Any],
-        rule: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, data: dict[str, Any], rule: dict[str, Any]
+    ) -> dict[str, Any]:
         """Apply validation rule."""
         field = rule.get("field")
         required = rule.get("required", False)
@@ -736,7 +677,7 @@ class DataSyncAgent(BaseAgent):
             return {
                 "valid": False,
                 "severity": rule.get("severity", "error"),
-                "message": f"Required field '{field}' is missing"
+                "message": f"Required field '{field}' is missing",
             }
 
         return {"valid": True}
@@ -748,7 +689,7 @@ class DataSyncAgent(BaseAgent):
         # TODO: Close event bus connections
         # TODO: Flush pending sync events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "master_data_management",
@@ -763,5 +704,5 @@ class DataSyncAgent(BaseAgent):
             "data_quality",
             "sync_monitoring",
             "audit_logging",
-            "fuzzy_matching"
+            "fuzzy_matching",
         ]

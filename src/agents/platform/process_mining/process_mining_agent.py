@@ -8,10 +8,10 @@ bottlenecks and deviations, and by managing improvement initiatives.
 Specification: docs_markdown/specs/agents/platform/continuous-improvement-process-mining/Agent 20 Continuous Improvement & Process Mining Agent.md
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class ProcessMiningAgent(BaseAgent):
@@ -28,11 +28,7 @@ class ProcessMiningAgent(BaseAgent):
     - Improvement culture enablement
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_020",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_020", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
@@ -41,9 +37,11 @@ class ProcessMiningAgent(BaseAgent):
         self.min_frequency_threshold = config.get("min_frequency_threshold", 5) if config else 5
 
         # Process mining algorithms
-        self.mining_algorithms = config.get("mining_algorithms", [
-            "alpha_miner", "heuristic_miner", "fuzzy_miner"
-        ]) if config else ["alpha_miner", "heuristic_miner", "fuzzy_miner"]
+        self.mining_algorithms = (
+            config.get("mining_algorithms", ["alpha_miner", "heuristic_miner", "fuzzy_miner"])
+            if config
+            else ["alpha_miner", "heuristic_miner", "fuzzy_miner"]
+        )
 
         # Data stores (will be replaced with database)
         self.event_logs = {}
@@ -71,7 +69,7 @@ class ProcessMiningAgent(BaseAgent):
 
         self.logger.info("Continuous Improvement & Process Mining Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -91,7 +89,7 @@ class ProcessMiningAgent(BaseAgent):
             "benchmark_performance",
             "share_best_practices",
             "get_process_insights",
-            "get_improvement_backlog"
+            "get_improvement_backlog",
         ]
 
         if action not in valid_actions:
@@ -110,7 +108,7 @@ class ProcessMiningAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process mining and continuous improvement requests.
 
@@ -150,8 +148,7 @@ class ProcessMiningAgent(BaseAgent):
 
         elif action == "discover_process":
             return await self._discover_process(
-                input_data.get("process_id"),
-                input_data.get("algorithm", "heuristic_miner")
+                input_data.get("process_id"), input_data.get("algorithm", "heuristic_miner")
             )
 
         elif action == "detect_bottlenecks":
@@ -162,8 +159,7 @@ class ProcessMiningAgent(BaseAgent):
 
         elif action == "analyze_root_cause":
             return await self._analyze_root_cause(
-                input_data.get("process_id"),
-                input_data.get("issue_id")
+                input_data.get("process_id"), input_data.get("issue_id")
             )
 
         elif action == "create_improvement":
@@ -177,8 +173,7 @@ class ProcessMiningAgent(BaseAgent):
 
         elif action == "benchmark_performance":
             return await self._benchmark_performance(
-                input_data.get("process_id"),
-                input_data.get("benchmark_criteria", {})
+                input_data.get("process_id"), input_data.get("benchmark_criteria", {})
             )
 
         elif action == "share_best_practices":
@@ -193,7 +188,7 @@ class ProcessMiningAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _ingest_event_log(self, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def _ingest_event_log(self, events: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Ingest event log data for process mining.
 
@@ -214,7 +209,7 @@ class ProcessMiningAgent(BaseAgent):
             "events": mapped_events,
             "event_count": len(mapped_events),
             "case_count": len(set(e.get("case_id") for e in mapped_events)),
-            "ingested_at": datetime.utcnow().isoformat()
+            "ingested_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in Azure Data Lake Storage
@@ -225,14 +220,12 @@ class ProcessMiningAgent(BaseAgent):
             "log_id": log_id,
             "events_ingested": len(mapped_events),
             "cases_identified": len(set(e.get("case_id") for e in mapped_events)),
-            "time_range": await self._calculate_time_range(mapped_events)
+            "time_range": await self._calculate_time_range(mapped_events),
         }
 
     async def _discover_process(
-        self,
-        process_id: str,
-        algorithm: str = "heuristic_miner"
-    ) -> Dict[str, Any]:
+        self, process_id: str, algorithm: str = "heuristic_miner"
+    ) -> dict[str, Any]:
         """
         Discover process model from event logs.
 
@@ -255,8 +248,7 @@ class ProcessMiningAgent(BaseAgent):
 
         # Generate visualization data
         visualization = await self._generate_process_visualization(
-            process_model,
-            performance_metrics
+            process_model, performance_metrics
         )
 
         # Store process model
@@ -266,7 +258,7 @@ class ProcessMiningAgent(BaseAgent):
             "algorithm": algorithm,
             "metrics": performance_metrics,
             "visualization": visualization,
-            "discovered_at": datetime.utcnow().isoformat()
+            "discovered_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -278,10 +270,10 @@ class ProcessMiningAgent(BaseAgent):
             "activities": len(process_model.get("activities", [])),
             "transitions": len(process_model.get("transitions", [])),
             "metrics": performance_metrics,
-            "visualization": visualization
+            "visualization": visualization,
         }
 
-    async def _detect_bottlenecks(self, process_id: str) -> Dict[str, Any]:
+    async def _detect_bottlenecks(self, process_id: str) -> dict[str, Any]:
         """
         Detect bottlenecks in process execution.
 
@@ -305,12 +297,14 @@ class ProcessMiningAgent(BaseAgent):
         bottlenecks = []
         for activity, metrics in waiting_times.items():
             if metrics.get("avg_waiting_time", 0) > self.bottleneck_threshold * 100:
-                bottlenecks.append({
-                    "activity": activity,
-                    "avg_waiting_time": metrics.get("avg_waiting_time"),
-                    "frequency": metrics.get("frequency"),
-                    "severity": "high" if metrics.get("avg_waiting_time") > 50 else "medium"
-                })
+                bottlenecks.append(
+                    {
+                        "activity": activity,
+                        "avg_waiting_time": metrics.get("avg_waiting_time"),
+                        "frequency": metrics.get("frequency"),
+                        "severity": "high" if metrics.get("avg_waiting_time") > 50 else "medium",
+                    }
+                )
 
         # Generate recommendations
         recommendations = await self._generate_bottleneck_recommendations(bottlenecks)
@@ -320,10 +314,10 @@ class ProcessMiningAgent(BaseAgent):
             "bottlenecks_detected": len(bottlenecks),
             "bottlenecks": bottlenecks,
             "recommendations": recommendations,
-            "overall_throughput": throughput
+            "overall_throughput": throughput,
         }
 
-    async def _detect_deviations(self, process_id: str) -> Dict[str, Any]:
+    async def _detect_deviations(self, process_id: str) -> dict[str, Any]:
         """
         Detect deviations from designed process.
 
@@ -342,17 +336,14 @@ class ProcessMiningAgent(BaseAgent):
             actual_model = self.process_models.get(process_id)
 
         # Compare models
-        deviations = await self._compare_process_models(
-            designed_model,
-            actual_model.get("model")
-        )
+        deviations = await self._compare_process_models(designed_model, actual_model.get("model"))
 
         # Categorize deviations
         categorized_deviations = {
             "skipped_activities": [],
             "extra_activities": [],
             "wrong_sequence": [],
-            "excessive_loops": []
+            "excessive_loops": [],
         }
 
         for deviation in deviations:
@@ -364,14 +355,10 @@ class ProcessMiningAgent(BaseAgent):
             "process_id": process_id,
             "total_deviations": len(deviations),
             "deviations": categorized_deviations,
-            "compliance_rate": await self._calculate_compliance_rate(deviations)
+            "compliance_rate": await self._calculate_compliance_rate(deviations),
         }
 
-    async def _analyze_root_cause(
-        self,
-        process_id: str,
-        issue_id: str
-    ) -> Dict[str, Any]:
+    async def _analyze_root_cause(self, process_id: str, issue_id: str) -> dict[str, Any]:
         """
         Perform root cause analysis on process issue.
 
@@ -402,10 +389,10 @@ class ProcessMiningAgent(BaseAgent):
             "contributing_factors": factors,
             "correlations": correlations,
             "insights": insights,
-            "recommendations": await self._generate_remediation_recommendations(factors)
+            "recommendations": await self._generate_remediation_recommendations(factors),
         }
 
-    async def _create_improvement(self, improvement_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_improvement(self, improvement_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create improvement initiative.
 
@@ -424,9 +411,7 @@ class ProcessMiningAgent(BaseAgent):
 
         # Calculate priority score
         priority_score = await self._calculate_improvement_priority(
-            expected_benefits,
-            feasibility,
-            improvement_data
+            expected_benefits, feasibility, improvement_data
         )
 
         # Create improvement record
@@ -441,7 +426,7 @@ class ProcessMiningAgent(BaseAgent):
             "priority_score": priority_score,
             "owner": improvement_data.get("owner"),
             "status": "Idea",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store improvement
@@ -457,10 +442,10 @@ class ProcessMiningAgent(BaseAgent):
             "priority_score": priority_score,
             "expected_benefits": expected_benefits,
             "feasibility": feasibility,
-            "next_steps": "Review and prioritize in improvement backlog"
+            "next_steps": "Review and prioritize in improvement backlog",
         }
 
-    async def _prioritize_improvements(self) -> Dict[str, Any]:
+    async def _prioritize_improvements(self) -> dict[str, Any]:
         """
         Prioritize improvement backlog.
 
@@ -472,19 +457,10 @@ class ProcessMiningAgent(BaseAgent):
         improvements = list(self.improvement_backlog.values())
 
         # Sort by priority score
-        prioritized = sorted(
-            improvements,
-            key=lambda x: x.get("priority_score", 0),
-            reverse=True
-        )
+        prioritized = sorted(improvements, key=lambda x: x.get("priority_score", 0), reverse=True)
 
         # Categorize by status
-        by_status = {
-            "Idea": [],
-            "Planned": [],
-            "In Progress": [],
-            "Completed": []
-        }
+        by_status = {"Idea": [], "Planned": [], "In Progress": [], "Completed": []}
 
         for improvement in prioritized:
             status = improvement.get("status")
@@ -498,14 +474,14 @@ class ProcessMiningAgent(BaseAgent):
                     "improvement_id": i.get("improvement_id"),
                     "title": i.get("title"),
                     "priority_score": i.get("priority_score"),
-                    "status": i.get("status")
+                    "status": i.get("status"),
                 }
                 for i in prioritized
             ],
-            "by_status": {k: len(v) for k, v in by_status.items()}
+            "by_status": {k: len(v) for k, v in by_status.items()},
         }
 
-    async def _track_benefits(self, improvement_id: str) -> Dict[str, Any]:
+    async def _track_benefits(self, improvement_id: str) -> dict[str, Any]:
         """
         Track benefit realization for improvement.
 
@@ -524,10 +500,7 @@ class ProcessMiningAgent(BaseAgent):
         expected_benefits = improvement.get("expected_benefits", {})
 
         # Calculate realization percentage
-        realization = await self._calculate_benefit_realization(
-            expected_benefits,
-            actual_benefits
-        )
+        realization = await self._calculate_benefit_realization(expected_benefits, actual_benefits)
 
         # Store tracking data
         self.benefit_tracking[improvement_id] = {
@@ -535,7 +508,7 @@ class ProcessMiningAgent(BaseAgent):
             "expected_benefits": expected_benefits,
             "actual_benefits": actual_benefits,
             "realization_percentage": realization,
-            "measured_at": datetime.utcnow().isoformat()
+            "measured_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store in database
@@ -547,14 +520,12 @@ class ProcessMiningAgent(BaseAgent):
             "expected_benefits": expected_benefits,
             "actual_benefits": actual_benefits,
             "realization_percentage": realization,
-            "roi": await self._calculate_improvement_roi(improvement, actual_benefits)
+            "roi": await self._calculate_improvement_roi(improvement, actual_benefits),
         }
 
     async def _benchmark_performance(
-        self,
-        process_id: str,
-        benchmark_criteria: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, process_id: str, benchmark_criteria: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Benchmark process performance.
 
@@ -566,10 +537,7 @@ class ProcessMiningAgent(BaseAgent):
         current_metrics = await self._get_current_process_metrics(process_id)
 
         # Get benchmark data
-        benchmark_data = await self._get_benchmark_data(
-            process_id,
-            benchmark_criteria
-        )
+        benchmark_data = await self._get_benchmark_data(process_id, benchmark_criteria)
 
         # Compare metrics
         comparison = await self._compare_metrics(current_metrics, benchmark_data)
@@ -583,10 +551,10 @@ class ProcessMiningAgent(BaseAgent):
             "benchmark_metrics": benchmark_data,
             "comparison": comparison,
             "performance_gaps": gaps,
-            "ranking": await self._calculate_performance_ranking(comparison)
+            "ranking": await self._calculate_performance_ranking(comparison),
         }
 
-    async def _share_best_practices(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _share_best_practices(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Share best practices across teams.
 
@@ -610,10 +578,10 @@ class ProcessMiningAgent(BaseAgent):
             "total_practices": len(best_practices),
             "best_practices": best_practices,
             "categorized": categorized_practices,
-            "top_performers": top_performers
+            "top_performers": top_performers,
         }
 
-    async def _get_process_insights(self, process_id: str) -> Dict[str, Any]:
+    async def _get_process_insights(self, process_id: str) -> dict[str, Any]:
         """
         Get comprehensive process insights.
 
@@ -642,13 +610,11 @@ class ProcessMiningAgent(BaseAgent):
             "deviations": deviations_result.get("total_deviations", 0),
             "compliance_rate": deviations_result.get("compliance_rate", 100),
             "recommendations": await self._generate_process_recommendations(
-                metrics,
-                bottlenecks_result,
-                deviations_result
-            )
+                metrics, bottlenecks_result, deviations_result
+            ),
         }
 
-    async def _get_improvement_backlog(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_improvement_backlog(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get improvement backlog with filters.
 
@@ -664,15 +630,13 @@ class ProcessMiningAgent(BaseAgent):
 
         # Sort by priority
         sorted_improvements = sorted(
-            filtered,
-            key=lambda x: x.get("priority_score", 0),
-            reverse=True
+            filtered, key=lambda x: x.get("priority_score", 0), reverse=True
         )
 
         return {
             "total_improvements": len(sorted_improvements),
             "improvements": sorted_improvements,
-            "filters": filters
+            "filters": filters,
         }
 
     # Helper methods
@@ -687,7 +651,7 @@ class ProcessMiningAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"IMP-{timestamp}"
 
-    async def _validate_events(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _validate_events(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate event log entries."""
         valid_events = []
         for event in events:
@@ -695,7 +659,7 @@ class ProcessMiningAgent(BaseAgent):
                 valid_events.append(event)
         return valid_events
 
-    async def _map_events_to_cases(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _map_events_to_cases(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Map events to process cases."""
         for event in events:
             if "case_id" not in event:
@@ -703,21 +667,20 @@ class ProcessMiningAgent(BaseAgent):
                 event["case_id"] = event.get("request_id", "unknown")
         return events
 
-    async def _calculate_time_range(self, events: List[Dict[str, Any]]) -> Dict[str, str]:
+    async def _calculate_time_range(self, events: list[dict[str, Any]]) -> dict[str, str]:
         """Calculate time range of events."""
         if not events:
             return {"start": None, "end": None}
 
-        timestamps = [datetime.fromisoformat(e.get("timestamp")) for e in events if e.get("timestamp")]
+        timestamps = [
+            datetime.fromisoformat(e.get("timestamp")) for e in events if e.get("timestamp")
+        ]
         if not timestamps:
             return {"start": None, "end": None}
 
-        return {
-            "start": min(timestamps).isoformat(),
-            "end": max(timestamps).isoformat()
-        }
+        return {"start": min(timestamps).isoformat(), "end": max(timestamps).isoformat()}
 
-    async def _get_process_events(self, process_id: str) -> List[Dict[str, Any]]:
+    async def _get_process_events(self, process_id: str) -> list[dict[str, Any]]:
         """Get events for a specific process."""
         # TODO: Query from event log storage
         all_events = []
@@ -728,10 +691,8 @@ class ProcessMiningAgent(BaseAgent):
         return [e for e in all_events if e.get("process_id") == process_id]
 
     async def _apply_mining_algorithm(
-        self,
-        events: List[Dict[str, Any]],
-        algorithm: str
-    ) -> Dict[str, Any]:
+        self, events: list[dict[str, Any]], algorithm: str
+    ) -> dict[str, Any]:
         """Apply process mining algorithm."""
         # TODO: Use pm4py or implement mining algorithms
         # For now, create a simple model
@@ -741,51 +702,45 @@ class ProcessMiningAgent(BaseAgent):
 
         # Simple sequential model
         for i in range(len(activities) - 1):
-            transitions.append({
-                "from": activities[i],
-                "to": activities[i + 1],
-                "frequency": len(events) // len(activities)
-            })
+            transitions.append(
+                {
+                    "from": activities[i],
+                    "to": activities[i + 1],
+                    "frequency": len(events) // len(activities),
+                }
+            )
 
-        return {
-            "activities": activities,
-            "transitions": transitions,
-            "algorithm": algorithm
-        }
+        return {"activities": activities, "transitions": transitions, "algorithm": algorithm}
 
     async def _calculate_process_metrics(
-        self,
-        events: List[Dict[str, Any]],
-        process_model: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, events: list[dict[str, Any]], process_model: dict[str, Any]
+    ) -> dict[str, Any]:
         """Calculate process performance metrics."""
         # TODO: Calculate actual metrics from events
         return {
             "median_cycle_time": 24.5,  # hours
             "throughput": len(events),
             "activity_count": len(process_model.get("activities", [])),
-            "avg_waiting_time": 2.3  # hours
+            "avg_waiting_time": 2.3,  # hours
         }
 
     async def _generate_process_visualization(
-        self,
-        process_model: Dict[str, Any],
-        metrics: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, process_model: dict[str, Any], metrics: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate process visualization data."""
         return {
             "type": "process_map",
             "nodes": process_model.get("activities", []),
             "edges": process_model.get("transitions", []),
-            "metrics_overlay": metrics
+            "metrics_overlay": metrics,
         }
 
-    async def _analyze_waiting_times(self, process_id: str) -> Dict[str, Dict[str, Any]]:
+    async def _analyze_waiting_times(self, process_id: str) -> dict[str, dict[str, Any]]:
         """Analyze waiting times per activity."""
         # TODO: Calculate from event logs
         return {
             "activity_1": {"avg_waiting_time": 15.2, "frequency": 100},
-            "activity_2": {"avg_waiting_time": 45.8, "frequency": 98}
+            "activity_2": {"avg_waiting_time": 45.8, "frequency": 98},
         }
 
     async def _analyze_throughput(self, process_id: str) -> float:
@@ -794,9 +749,8 @@ class ProcessMiningAgent(BaseAgent):
         return 25.5  # cases per day
 
     async def _generate_bottleneck_recommendations(
-        self,
-        bottlenecks: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, bottlenecks: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate recommendations for bottlenecks."""
         recommendations = []
         for bottleneck in bottlenecks:
@@ -805,16 +759,14 @@ class ProcessMiningAgent(BaseAgent):
             )
         return recommendations
 
-    async def _get_designed_process_model(self, process_id: str) -> Dict[str, Any]:
+    async def _get_designed_process_model(self, process_id: str) -> dict[str, Any]:
         """Get designed process model."""
         # TODO: Query from Workflow & Process Engine Agent
         return {"activities": [], "transitions": []}
 
     async def _compare_process_models(
-        self,
-        designed: Dict[str, Any],
-        actual: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, designed: dict[str, Any], actual: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Compare designed vs actual process models."""
         deviations = []
 
@@ -825,24 +777,20 @@ class ProcessMiningAgent(BaseAgent):
         # Find skipped activities
         skipped = designed_activities - actual_activities
         for activity in skipped:
-            deviations.append({
-                "category": "skipped_activities",
-                "activity": activity,
-                "severity": "medium"
-            })
+            deviations.append(
+                {"category": "skipped_activities", "activity": activity, "severity": "medium"}
+            )
 
         # Find extra activities
         extra = actual_activities - designed_activities
         for activity in extra:
-            deviations.append({
-                "category": "extra_activities",
-                "activity": activity,
-                "severity": "low"
-            })
+            deviations.append(
+                {"category": "extra_activities", "activity": activity, "severity": "low"}
+            )
 
         return deviations
 
-    async def _calculate_compliance_rate(self, deviations: List[Dict[str, Any]]) -> float:
+    async def _calculate_compliance_rate(self, deviations: list[dict[str, Any]]) -> float:
         """Calculate process compliance rate."""
         if not deviations:
             return 100.0
@@ -851,96 +799,83 @@ class ProcessMiningAgent(BaseAgent):
         return max(0, 100 - (len(deviations) * 5))
 
     async def _identify_problematic_cases(
-        self,
-        events: List[Dict[str, Any]],
-        issue_id: str
-    ) -> List[str]:
+        self, events: list[dict[str, Any]], issue_id: str
+    ) -> list[str]:
         """Identify problematic cases."""
         # TODO: Identify cases with issues
         return []
 
     async def _analyze_correlations(
-        self,
-        problematic_cases: List[str],
-        events: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, problematic_cases: list[str], events: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Analyze correlations for root cause."""
         # TODO: Use statistical analysis
         return []
 
     async def _identify_contributing_factors(
-        self,
-        correlations: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, correlations: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Identify contributing factors."""
         return [
             {"factor": "High workload", "correlation": 0.75},
-            {"factor": "Insufficient resources", "correlation": 0.65}
+            {"factor": "Insufficient resources", "correlation": 0.65},
         ]
 
-    async def _generate_root_cause_insights(
-        self,
-        factors: List[Dict[str, Any]]
-    ) -> List[str]:
+    async def _generate_root_cause_insights(self, factors: list[dict[str, Any]]) -> list[str]:
         """Generate root cause insights."""
         return [f"Primary factor: {f.get('factor')}" for f in factors[:3]]
 
     async def _generate_remediation_recommendations(
-        self,
-        factors: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, factors: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate remediation recommendations."""
         return ["Increase resource allocation", "Redistribute workload"]
 
     async def _estimate_improvement_benefits(
-        self,
-        improvement_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, improvement_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Estimate expected benefits."""
         # TODO: Use regression models
         return {
             "cycle_time_reduction": 15.0,  # percent
             "cost_savings": 25000,  # dollars
-            "quality_improvement": 10.0  # percent
+            "quality_improvement": 10.0,  # percent
         }
 
     async def _assess_improvement_feasibility(
-        self,
-        improvement_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, improvement_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Assess improvement feasibility."""
         return {
             "technical_feasibility": 0.85,
             "resource_availability": 0.70,
-            "estimated_effort": 40  # hours
+            "estimated_effort": 40,  # hours
         }
 
     async def _calculate_improvement_priority(
         self,
-        benefits: Dict[str, Any],
-        feasibility: Dict[str, Any],
-        improvement_data: Dict[str, Any]
+        benefits: dict[str, Any],
+        feasibility: dict[str, Any],
+        improvement_data: dict[str, Any],
     ) -> float:
         """Calculate improvement priority score."""
         # Weighted score
-        benefit_score = benefits.get("cycle_time_reduction", 0) + (benefits.get("cost_savings", 0) / 1000)
-        feasibility_score = feasibility.get("technical_feasibility", 0) * feasibility.get("resource_availability", 0)
+        benefit_score = benefits.get("cycle_time_reduction", 0) + (
+            benefits.get("cost_savings", 0) / 1000
+        )
+        feasibility_score = feasibility.get("technical_feasibility", 0) * feasibility.get(
+            "resource_availability", 0
+        )
 
         return benefit_score * feasibility_score
 
-    async def _measure_actual_benefits(self, improvement: Dict[str, Any]) -> Dict[str, Any]:
+    async def _measure_actual_benefits(self, improvement: dict[str, Any]) -> dict[str, Any]:
         """Measure actual benefits achieved."""
         # TODO: Measure from actual process data
-        return {
-            "cycle_time_reduction": 12.0,
-            "cost_savings": 22000,
-            "quality_improvement": 8.5
-        }
+        return {"cycle_time_reduction": 12.0, "cost_savings": 22000, "quality_improvement": 8.5}
 
     async def _calculate_benefit_realization(
-        self,
-        expected: Dict[str, Any],
-        actual: Dict[str, Any]
+        self, expected: dict[str, Any], actual: dict[str, Any]
     ) -> float:
         """Calculate benefit realization percentage."""
         if not expected:
@@ -955,9 +890,7 @@ class ProcessMiningAgent(BaseAgent):
         return sum(realizations) / len(realizations) if realizations else 0.0
 
     async def _calculate_improvement_roi(
-        self,
-        improvement: Dict[str, Any],
-        actual_benefits: Dict[str, Any]
+        self, improvement: dict[str, Any], actual_benefits: dict[str, Any]
     ) -> float:
         """Calculate ROI for improvement."""
         # TODO: Calculate actual ROI
@@ -970,7 +903,7 @@ class ProcessMiningAgent(BaseAgent):
 
         return ((cost_savings - cost) / cost) * 100
 
-    async def _get_current_process_metrics(self, process_id: str) -> Dict[str, Any]:
+    async def _get_current_process_metrics(self, process_id: str) -> dict[str, Any]:
         """Get current process metrics."""
         process_model = self.process_models.get(process_id)
         if process_model:
@@ -978,23 +911,15 @@ class ProcessMiningAgent(BaseAgent):
         return {}
 
     async def _get_benchmark_data(
-        self,
-        process_id: str,
-        criteria: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, process_id: str, criteria: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get benchmark data for comparison."""
         # TODO: Query benchmark database
-        return {
-            "median_cycle_time": 20.0,
-            "throughput": 30.0,
-            "avg_waiting_time": 1.8
-        }
+        return {"median_cycle_time": 20.0, "throughput": 30.0, "avg_waiting_time": 1.8}
 
     async def _compare_metrics(
-        self,
-        current: Dict[str, Any],
-        benchmark: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, current: dict[str, Any], benchmark: dict[str, Any]
+    ) -> dict[str, Any]:
         """Compare current metrics to benchmark."""
         comparison = {}
         for key in benchmark.keys():
@@ -1002,43 +927,46 @@ class ProcessMiningAgent(BaseAgent):
                 comparison[key] = {
                     "current": current[key],
                     "benchmark": benchmark[key],
-                    "variance": current[key] - benchmark[key]
+                    "variance": current[key] - benchmark[key],
                 }
         return comparison
 
-    async def _identify_performance_gaps(self, comparison: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_performance_gaps(self, comparison: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify performance gaps."""
         gaps = []
         for metric, data in comparison.items():
             if data.get("variance", 0) > 0:  # Worse than benchmark
-                gaps.append({
-                    "metric": metric,
-                    "gap": data["variance"],
-                    "severity": "high" if abs(data["variance"]) > 10 else "medium"
-                })
+                gaps.append(
+                    {
+                        "metric": metric,
+                        "gap": data["variance"],
+                        "severity": "high" if abs(data["variance"]) > 10 else "medium",
+                    }
+                )
         return gaps
 
-    async def _calculate_performance_ranking(self, comparison: Dict[str, Any]) -> str:
+    async def _calculate_performance_ranking(self, comparison: dict[str, Any]) -> str:
         """Calculate performance ranking."""
         # TODO: Calculate actual ranking
         return "Average"
 
-    async def _identify_top_performers(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _identify_top_performers(self, filters: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify top-performing processes."""
         # TODO: Identify from benchmarks
         return []
 
-    async def _extract_best_practices(self, top_performers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _extract_best_practices(
+        self, top_performers: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Extract best practices from top performers."""
         return [
             {"practice": "Automate manual approvals", "impact": "High"},
-            {"practice": "Parallel processing where possible", "impact": "Medium"}
+            {"practice": "Parallel processing where possible", "impact": "Medium"},
         ]
 
     async def _categorize_best_practices(
-        self,
-        practices: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+        self, practices: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
         """Categorize best practices."""
         categorized = {"automation": [], "optimization": [], "standardization": []}
         for practice in practices:
@@ -1046,11 +974,8 @@ class ProcessMiningAgent(BaseAgent):
         return categorized
 
     async def _generate_process_recommendations(
-        self,
-        metrics: Dict[str, Any],
-        bottlenecks: Dict[str, Any],
-        deviations: Dict[str, Any]
-    ) -> List[str]:
+        self, metrics: dict[str, Any], bottlenecks: dict[str, Any], deviations: dict[str, Any]
+    ) -> list[str]:
         """Generate comprehensive process recommendations."""
         recommendations = []
 
@@ -1066,9 +991,7 @@ class ProcessMiningAgent(BaseAgent):
         return recommendations
 
     async def _matches_improvement_filters(
-        self,
-        improvement: Dict[str, Any],
-        filters: Dict[str, Any]
+        self, improvement: dict[str, Any], filters: dict[str, Any]
     ) -> bool:
         """Check if improvement matches filters."""
         if "status" in filters and improvement.get("status") != filters["status"]:
@@ -1086,7 +1009,7 @@ class ProcessMiningAgent(BaseAgent):
         # TODO: Close analytics connections
         # TODO: Flush pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "process_discovery",
@@ -1101,5 +1024,5 @@ class ProcessMiningAgent(BaseAgent):
             "process_optimization",
             "event_log_analysis",
             "performance_metrics",
-            "continuous_improvement"
+            "continuous_improvement",
         ]

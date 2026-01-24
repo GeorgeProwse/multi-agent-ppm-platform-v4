@@ -9,10 +9,10 @@ performing reviews and audits, and continuously improving processes.
 Specification: docs_markdown/specs/agents/operations/quality-management/Agent 14 Quality Management Agent.md
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class QualityManagementAgent(BaseAgent):
@@ -29,24 +29,26 @@ class QualityManagementAgent(BaseAgent):
     - Compliance and standards management
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_014",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_014", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.defect_severity_levels = config.get("defect_severity_levels", [
-            "critical", "high", "medium", "low"
-        ]) if config else ["critical", "high", "medium", "low"]
+        self.defect_severity_levels = (
+            config.get("defect_severity_levels", ["critical", "high", "medium", "low"])
+            if config
+            else ["critical", "high", "medium", "low"]
+        )
 
-        self.quality_standards = config.get("quality_standards", [
-            "ISO 9001", "CMMI", "IEEE 829"
-        ]) if config else ["ISO 9001", "CMMI", "IEEE 829"]
+        self.quality_standards = (
+            config.get("quality_standards", ["ISO 9001", "CMMI", "IEEE 829"])
+            if config
+            else ["ISO 9001", "CMMI", "IEEE 829"]
+        )
 
         self.min_test_coverage = config.get("min_test_coverage", 0.80) if config else 0.80
-        self.defect_density_threshold = config.get("defect_density_threshold", 0.05) if config else 0.05
+        self.defect_density_threshold = (
+            config.get("defect_density_threshold", 0.05) if config else 0.05
+        )
 
         # Data stores (will be replaced with database)
         self.quality_plans = {}
@@ -76,7 +78,7 @@ class QualityManagementAgent(BaseAgent):
 
         self.logger.info("Quality Management Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -98,7 +100,7 @@ class QualityManagementAgent(BaseAgent):
             "analyze_defect_trends",
             "perform_root_cause_analysis",
             "get_quality_dashboard",
-            "generate_quality_report"
+            "generate_quality_report",
         ]
 
         if action not in valid_actions:
@@ -123,7 +125,7 @@ class QualityManagementAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process quality management requests.
 
@@ -172,8 +174,7 @@ class QualityManagementAgent(BaseAgent):
 
         elif action == "define_metrics":
             return await self._define_metrics(
-                input_data.get("project_id"),
-                input_data.get("metrics", [])
+                input_data.get("project_id"), input_data.get("metrics", [])
             )
 
         elif action == "create_test_case":
@@ -190,8 +191,7 @@ class QualityManagementAgent(BaseAgent):
 
         elif action == "update_defect":
             return await self._update_defect(
-                input_data.get("defect_id"),
-                input_data.get("updates", {})
+                input_data.get("defect_id"), input_data.get("updates", {})
             )
 
         elif action == "schedule_review":
@@ -211,20 +211,18 @@ class QualityManagementAgent(BaseAgent):
 
         elif action == "get_quality_dashboard":
             return await self._get_quality_dashboard(
-                input_data.get("project_id"),
-                input_data.get("filters", {})
+                input_data.get("project_id"), input_data.get("filters", {})
             )
 
         elif action == "generate_quality_report":
             return await self._generate_quality_report(
-                input_data.get("report_type", "summary"),
-                input_data.get("filters", {})
+                input_data.get("report_type", "summary"), input_data.get("filters", {})
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _create_quality_plan(self, plan_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_quality_plan(self, plan_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create quality plan with objectives and metrics.
 
@@ -252,7 +250,7 @@ class QualityManagementAgent(BaseAgent):
             "standards": plan_data.get("standards", self.quality_standards),
             "status": "Draft",
             "created_at": datetime.utcnow().isoformat(),
-            "created_by": plan_data.get("owner", "unknown")
+            "created_by": plan_data.get("owner", "unknown"),
         }
 
         # Store plan
@@ -269,14 +267,12 @@ class QualityManagementAgent(BaseAgent):
             "metrics": quality_plan["metrics"],
             "recommended_metrics": recommended_metrics,
             "status": "Draft",
-            "next_steps": "Review plan and submit for approval"
+            "next_steps": "Review plan and submit for approval",
         }
 
     async def _define_metrics(
-        self,
-        project_id: str,
-        metrics: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, project_id: str, metrics: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Define quality metrics for project.
 
@@ -299,7 +295,7 @@ class QualityManagementAgent(BaseAgent):
                 "target": metric_def.get("target"),
                 "unit": metric_def.get("unit"),
                 "collection_frequency": metric_def.get("collection_frequency", "daily"),
-                "created_at": datetime.utcnow().isoformat()
+                "created_at": datetime.utcnow().isoformat(),
             }
 
             if project_id not in self.quality_metrics:
@@ -313,10 +309,10 @@ class QualityManagementAgent(BaseAgent):
         return {
             "project_id": project_id,
             "metrics_defined": len(defined_metrics),
-            "metrics": defined_metrics
+            "metrics": defined_metrics,
         }
 
-    async def _create_test_case(self, test_case_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_test_case(self, test_case_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create test case.
 
@@ -344,7 +340,7 @@ class QualityManagementAgent(BaseAgent):
             "requirements": requirements,
             "automation_status": test_case_data.get("automation_status", "manual"),
             "status": "Active",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store test case
@@ -359,10 +355,10 @@ class QualityManagementAgent(BaseAgent):
             "type": test_case["type"],
             "priority": test_case["priority"],
             "automation_status": test_case["automation_status"],
-            "requirements_linked": len(requirements)
+            "requirements_linked": len(requirements),
         }
 
-    async def _create_test_suite(self, suite_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_test_suite(self, suite_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create test suite from test cases.
 
@@ -375,10 +371,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Validate test case IDs
         test_case_ids = suite_data.get("test_case_ids", [])
-        valid_test_cases = [
-            tc_id for tc_id in test_case_ids
-            if tc_id in self.test_cases
-        ]
+        valid_test_cases = [tc_id for tc_id in test_case_ids if tc_id in self.test_cases]
 
         # Create test suite
         test_suite = {
@@ -388,7 +381,7 @@ class QualityManagementAgent(BaseAgent):
             "description": suite_data.get("description"),
             "test_case_ids": valid_test_cases,
             "test_environment": suite_data.get("test_environment"),
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store suite
@@ -400,10 +393,10 @@ class QualityManagementAgent(BaseAgent):
             "suite_id": suite_id,
             "name": test_suite["name"],
             "test_case_count": len(valid_test_cases),
-            "test_environment": test_suite["test_environment"]
+            "test_environment": test_suite["test_environment"],
         }
 
-    async def _execute_tests(self, execution_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_tests(self, execution_data: dict[str, Any]) -> dict[str, Any]:
         """
         Execute tests and record results.
 
@@ -423,8 +416,7 @@ class QualityManagementAgent(BaseAgent):
         # Execute tests
         # TODO: Integrate with test automation frameworks
         test_results = await self._run_test_suite(
-            test_suite,
-            execution_data.get("execution_mode", "manual")
+            test_suite, execution_data.get("execution_mode", "manual")
         )
 
         # Calculate pass rate
@@ -435,9 +427,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Calculate code coverage
         # TODO: Integrate with code coverage tools
-        code_coverage = await self._calculate_code_coverage(
-            execution_data.get("project_id")
-        )
+        code_coverage = await self._calculate_code_coverage(execution_data.get("project_id"))
 
         # Create execution record
         execution = {
@@ -452,7 +442,7 @@ class QualityManagementAgent(BaseAgent):
             "failed": failed_tests,
             "pass_rate": pass_rate,
             "code_coverage": code_coverage,
-            "executed_at": datetime.utcnow().isoformat()
+            "executed_at": datetime.utcnow().isoformat(),
         }
 
         # Store execution
@@ -479,10 +469,10 @@ class QualityManagementAgent(BaseAgent):
             "code_coverage": code_coverage,
             "coverage_threshold_met": code_coverage >= self.min_test_coverage,
             "defects_logged": len(defects_logged),
-            "defect_ids": defects_logged
+            "defect_ids": defects_logged,
         }
 
-    async def _log_defect(self, defect_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _log_defect(self, defect_data: dict[str, Any]) -> dict[str, Any]:
         """
         Log a defect.
 
@@ -518,9 +508,7 @@ class QualityManagementAgent(BaseAgent):
             "resolution": None,
             "logged_at": datetime.utcnow().isoformat(),
             "logged_by": defect_data.get("logged_by", "unknown"),
-            "status_history": [
-                {"status": "Open", "timestamp": datetime.utcnow().isoformat()}
-            ]
+            "status_history": [{"status": "Open", "timestamp": datetime.utcnow().isoformat()}],
         }
 
         # Store defect
@@ -542,14 +530,10 @@ class QualityManagementAgent(BaseAgent):
             "priority": defect["priority"],
             "assigned_to": defect["assigned_to"],
             "status": "Open",
-            "auto_classification": auto_classification
+            "auto_classification": auto_classification,
         }
 
-    async def _update_defect(
-        self,
-        defect_id: str,
-        updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _update_defect(self, defect_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """
         Update defect status and details.
 
@@ -563,11 +547,13 @@ class QualityManagementAgent(BaseAgent):
 
         # Track status changes
         if "status" in updates and updates["status"] != defect.get("status"):
-            defect["status_history"].append({
-                "status": updates["status"],
-                "timestamp": datetime.utcnow().isoformat(),
-                "updated_by": updates.get("updated_by", "unknown")
-            })
+            defect["status_history"].append(
+                {
+                    "status": updates["status"],
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "updated_by": updates.get("updated_by", "unknown"),
+                }
+            )
 
         # Apply updates
         for key, value in updates.items():
@@ -589,10 +575,10 @@ class QualityManagementAgent(BaseAgent):
             "status": defect["status"],
             "resolution": defect.get("resolution"),
             "resolution_time_hours": defect.get("resolution_time_hours"),
-            "last_updated": defect["last_updated"]
+            "last_updated": defect["last_updated"],
         }
 
-    async def _schedule_review(self, review_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _schedule_review(self, review_data: dict[str, Any]) -> dict[str, Any]:
         """
         Schedule quality review or audit.
 
@@ -607,7 +593,9 @@ class QualityManagementAgent(BaseAgent):
         review = {
             "review_id": review_id,
             "project_id": review_data.get("project_id"),
-            "type": review_data.get("type", "peer_review"),  # peer_review, code_review, design_review
+            "type": review_data.get(
+                "type", "peer_review"
+            ),  # peer_review, code_review, design_review
             "title": review_data.get("title"),
             "scope": review_data.get("scope"),
             "participants": review_data.get("participants", []),
@@ -617,7 +605,7 @@ class QualityManagementAgent(BaseAgent):
             "findings": [],
             "action_items": [],
             "status": "Scheduled",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store review
@@ -633,10 +621,10 @@ class QualityManagementAgent(BaseAgent):
             "type": review["type"],
             "scheduled_date": review["scheduled_date"],
             "participants": review["participants"],
-            "participant_count": len(review["participants"])
+            "participant_count": len(review["participants"]),
         }
 
-    async def _conduct_audit(self, audit_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _conduct_audit(self, audit_data: dict[str, Any]) -> dict[str, Any]:
         """
         Conduct quality audit.
 
@@ -649,8 +637,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Perform audit checks
         audit_checks = await self._perform_audit_checks(
-            audit_data.get("project_id"),
-            audit_data.get("checklist", [])
+            audit_data.get("project_id"), audit_data.get("checklist", [])
         )
 
         # Calculate audit score
@@ -670,7 +657,7 @@ class QualityManagementAgent(BaseAgent):
             "findings": await self._extract_audit_findings(audit_checks),
             "recommendations": await self._generate_audit_recommendations(audit_checks),
             "status": "Completed",
-            "report": audit_data.get("report")
+            "report": audit_data.get("report"),
         }
 
         # Store audit
@@ -686,10 +673,10 @@ class QualityManagementAgent(BaseAgent):
             "total_checks": len(audit_checks),
             "passed_checks": sum(1 for c in audit_checks if c.get("result") == "pass"),
             "findings": audit["findings"],
-            "recommendations": audit["recommendations"]
+            "recommendations": audit["recommendations"],
         }
 
-    async def _calculate_metrics(self, project_id: str) -> Dict[str, Any]:
+    async def _calculate_metrics(self, project_id: str) -> dict[str, Any]:
         """
         Calculate quality metrics for project.
 
@@ -698,10 +685,7 @@ class QualityManagementAgent(BaseAgent):
         self.logger.info(f"Calculating quality metrics for project: {project_id}")
 
         # Get project defects
-        project_defects = [
-            d for d in self.defects.values()
-            if d.get("project_id") == project_id
-        ]
+        project_defects = [d for d in self.defects.values() if d.get("project_id") == project_id]
 
         # Calculate defect metrics
         total_defects = len(project_defects)
@@ -723,9 +707,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Calculate quality score
         quality_score = await self._calculate_quality_score(
-            defect_density,
-            test_coverage,
-            pass_rate
+            defect_density, test_coverage, pass_rate
         )
 
         metrics = {
@@ -738,14 +720,14 @@ class QualityManagementAgent(BaseAgent):
             "pass_rate_pct": pass_rate,
             "mean_time_to_resolution_hours": mttr,
             "quality_score": quality_score,
-            "calculated_at": datetime.utcnow().isoformat()
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
         # TODO: Store metrics in database
 
         return metrics
 
-    async def _analyze_defect_trends(self, project_id: str) -> Dict[str, Any]:
+    async def _analyze_defect_trends(self, project_id: str) -> dict[str, Any]:
         """
         Analyze defect trends and patterns.
 
@@ -754,10 +736,7 @@ class QualityManagementAgent(BaseAgent):
         self.logger.info(f"Analyzing defect trends for project: {project_id}")
 
         # Get project defects
-        project_defects = [
-            d for d in self.defects.values()
-            if d.get("project_id") == project_id
-        ]
+        project_defects = [d for d in self.defects.values() if d.get("project_id") == project_id]
 
         # Analyze trends over time
         trends = await self._calculate_defect_trends_over_time(project_defects)
@@ -775,10 +754,10 @@ class QualityManagementAgent(BaseAgent):
             "trends": trends,
             "patterns": patterns,
             "anomalies": anomalies,
-            "total_defects_analyzed": len(project_defects)
+            "total_defects_analyzed": len(project_defects),
         }
 
-    async def _perform_root_cause_analysis(self, defect_ids: List[str]) -> Dict[str, Any]:
+    async def _perform_root_cause_analysis(self, defect_ids: list[str]) -> dict[str, Any]:
         """
         Perform root cause analysis on defects.
 
@@ -788,9 +767,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Get defects
         defects_to_analyze = [
-            self.defects.get(defect_id)
-            for defect_id in defect_ids
-            if defect_id in self.defects
+            self.defects.get(defect_id) for defect_id in defect_ids if defect_id in self.defects
         ]
 
         # Identify common root causes
@@ -802,8 +779,7 @@ class QualityManagementAgent(BaseAgent):
 
         # Generate recommendations
         recommendations = await self._generate_improvement_recommendations(
-            root_causes,
-            pareto_analysis
+            root_causes, pareto_analysis
         )
 
         return {
@@ -811,14 +787,12 @@ class QualityManagementAgent(BaseAgent):
             "root_causes": root_causes,
             "pareto_analysis": pareto_analysis,
             "recommendations": recommendations,
-            "analyzed_at": datetime.utcnow().isoformat()
+            "analyzed_at": datetime.utcnow().isoformat(),
         }
 
     async def _get_quality_dashboard(
-        self,
-        project_id: Optional[str],
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Get quality dashboard data.
 
@@ -844,14 +818,12 @@ class QualityManagementAgent(BaseAgent):
             "defect_statistics": defect_stats,
             "test_summary": test_summary,
             "recent_audits": recent_audits,
-            "dashboard_generated_at": datetime.utcnow().isoformat()
+            "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
     async def _generate_quality_report(
-        self,
-        report_type: str,
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, report_type: str, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Generate quality report.
 
@@ -912,26 +884,28 @@ class QualityManagementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"AUD-{timestamp}"
 
-    async def _recommend_quality_metrics(self, plan_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _recommend_quality_metrics(self, plan_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Recommend quality metrics based on project type."""
         # TODO: Use AI to recommend metrics
         return [
-            {"name": "defect_density", "threshold": self.defect_density_threshold, "unit": "defects/kloc"},
+            {
+                "name": "defect_density",
+                "threshold": self.defect_density_threshold,
+                "unit": "defects/kloc",
+            },
             {"name": "test_coverage", "threshold": self.min_test_coverage, "unit": "percentage"},
             {"name": "pass_rate", "threshold": 0.95, "unit": "percentage"},
-            {"name": "mean_time_to_resolution", "threshold": 48, "unit": "hours"}
+            {"name": "mean_time_to_resolution", "threshold": 48, "unit": "hours"},
         ]
 
-    async def _link_to_requirements(self, requirement_ids: List[str]) -> List[str]:
+    async def _link_to_requirements(self, requirement_ids: list[str]) -> list[str]:
         """Link test case to requirements."""
         # TODO: Integrate with Project Definition Agent
         return requirement_ids
 
     async def _run_test_suite(
-        self,
-        test_suite: Dict[str, Any],
-        execution_mode: str
-    ) -> List[Dict[str, Any]]:
+        self, test_suite: dict[str, Any], execution_mode: str
+    ) -> list[dict[str, Any]]:
         """Execute test suite."""
         # TODO: Integrate with test automation frameworks
         results = []
@@ -939,12 +913,14 @@ class QualityManagementAgent(BaseAgent):
             test_case = self.test_cases.get(test_case_id)
             if test_case:
                 # Simulate test execution
-                results.append({
-                    "test_case_id": test_case_id,
-                    "name": test_case.get("name"),
-                    "result": "pass",  # Placeholder
-                    "execution_time_ms": 1000
-                })
+                results.append(
+                    {
+                        "test_case_id": test_case_id,
+                        "name": test_case.get("name"),
+                        "result": "pass",  # Placeholder
+                        "execution_time_ms": 1000,
+                    }
+                )
         return results
 
     async def _calculate_code_coverage(self, project_id: str) -> float:
@@ -952,7 +928,7 @@ class QualityManagementAgent(BaseAgent):
         # TODO: Integrate with code coverage tools
         return 85.0  # Placeholder
 
-    async def _auto_log_defect_from_test(self, test_result: Dict[str, Any]) -> Dict[str, Any]:
+    async def _auto_log_defect_from_test(self, test_result: dict[str, Any]) -> dict[str, Any]:
         """Automatically log defect from failed test."""
         defect_data = {
             "project_id": test_result.get("project_id"),
@@ -961,25 +937,25 @@ class QualityManagementAgent(BaseAgent):
             "severity": "medium",
             "component": "unknown",
             "test_case_id": test_result.get("test_case_id"),
-            "logged_by": "system"
+            "logged_by": "system",
         }
         return await self._log_defect(defect_data)
 
-    async def _auto_classify_defect(self, defect_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _auto_classify_defect(self, defect_data: dict[str, Any]) -> dict[str, Any]:
         """Auto-classify defect severity and root cause using AI."""
         # TODO: Use Azure ML for classification
         return {
             "severity": defect_data.get("severity", "medium"),
             "priority": "high" if defect_data.get("severity") == "critical" else "medium",
-            "root_cause": "code_defect"
+            "root_cause": "code_defect",
         }
 
-    async def _assign_defect_owner(self, defect: Dict[str, Any]) -> str:
+    async def _assign_defect_owner(self, defect: dict[str, Any]) -> str:
         """Assign defect owner based on component."""
         # TODO: Integrate with Resource Management Agent
         return "unassigned"
 
-    async def _calculate_resolution_time(self, defect: Dict[str, Any]) -> float:
+    async def _calculate_resolution_time(self, defect: dict[str, Any]) -> float:
         """Calculate defect resolution time in hours."""
         logged_at = datetime.fromisoformat(defect.get("logged_at"))
         resolved_at = datetime.utcnow()
@@ -994,18 +970,13 @@ class QualityManagementAgent(BaseAgent):
         return delta.total_seconds() / 3600
 
     async def _perform_audit_checks(
-        self,
-        project_id: str,
-        checklist: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str, checklist: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Perform audit checks."""
         # TODO: Implement actual audit checks
-        return [
-            {"check": item.get("check"), "result": "pass", "notes": ""}
-            for item in checklist
-        ]
+        return [{"check": item.get("check"), "result": "pass", "notes": ""} for item in checklist]
 
-    async def _calculate_audit_score(self, checks: List[Dict[str, Any]]) -> float:
+    async def _calculate_audit_score(self, checks: list[dict[str, Any]]) -> float:
         """Calculate audit score."""
         if not checks:
             return 0.0
@@ -1013,19 +984,21 @@ class QualityManagementAgent(BaseAgent):
         passed = sum(1 for c in checks if c.get("result") == "pass")
         return (passed / len(checks)) * 100
 
-    async def _extract_audit_findings(self, checks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _extract_audit_findings(self, checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Extract audit findings from checks."""
         findings = []
         for check in checks:
             if check.get("result") == "fail":
-                findings.append({
-                    "check": check.get("check"),
-                    "severity": "high",
-                    "description": check.get("notes", "Failed audit check")
-                })
+                findings.append(
+                    {
+                        "check": check.get("check"),
+                        "severity": "high",
+                        "description": check.get("notes", "Failed audit check"),
+                    }
+                )
         return findings
 
-    async def _generate_audit_recommendations(self, checks: List[Dict[str, Any]]) -> List[str]:
+    async def _generate_audit_recommendations(self, checks: list[dict[str, Any]]) -> list[str]:
         """Generate audit recommendations."""
         recommendations = []
         failed_checks = [c for c in checks if c.get("result") == "fail"]
@@ -1047,11 +1020,10 @@ class QualityManagementAgent(BaseAgent):
         # TODO: Query from test executions
         return 85.0  # Placeholder
 
-    async def _calculate_mttr(self, defects: List[Dict[str, Any]]) -> float:
+    async def _calculate_mttr(self, defects: list[dict[str, Any]]) -> float:
         """Calculate mean time to resolution."""
         resolved_defects = [
-            d for d in defects
-            if d.get("status") in ["Resolved", "Closed", "Verified"]
+            d for d in defects if d.get("status") in ["Resolved", "Closed", "Verified"]
         ]
 
         if not resolved_defects:
@@ -1070,54 +1042,37 @@ class QualityManagementAgent(BaseAgent):
         return 95.0  # Placeholder
 
     async def _calculate_quality_score(
-        self,
-        defect_density: float,
-        test_coverage: float,
-        pass_rate: float
+        self, defect_density: float, test_coverage: float, pass_rate: float
     ) -> float:
         """Calculate overall quality score."""
         # Weighted score
         score = (
-            (1 - min(defect_density / self.defect_density_threshold, 1.0)) * 30 +
-            (test_coverage / 100) * 40 +
-            (pass_rate / 100) * 30
+            (1 - min(defect_density / self.defect_density_threshold, 1.0)) * 30
+            + (test_coverage / 100) * 40
+            + (pass_rate / 100) * 30
         )
         return min(100, max(0, score))
 
     async def _calculate_defect_trends_over_time(
-        self,
-        defects: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, defects: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate defect trends over time."""
         # TODO: Perform time series analysis
-        return {
-            "trend": "stable",
-            "weekly_average": len(defects) / 4,
-            "peak_week": 1
-        }
+        return {"trend": "stable", "weekly_average": len(defects) / 4, "peak_week": 1}
 
     async def _identify_defect_patterns(
-        self,
-        defects: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, defects: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Identify patterns in defects."""
         # TODO: Use clustering and association rules
-        return [
-            {"pattern": "Most defects in authentication module", "count": 10}
-        ]
+        return [{"pattern": "Most defects in authentication module", "count": 10}]
 
-    async def _detect_defect_anomalies(
-        self,
-        defects: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _detect_defect_anomalies(self, defects: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Detect anomalies in defect data."""
         # TODO: Use anomaly detection
         return []
 
-    async def _identify_root_causes(
-        self,
-        defects: List[Dict[str, Any]]
-    ) -> Dict[str, int]:
+    async def _identify_root_causes(self, defects: list[dict[str, Any]]) -> dict[str, int]:
         """Identify root causes from defects."""
         root_causes = {}
         for defect in defects:
@@ -1125,7 +1080,7 @@ class QualityManagementAgent(BaseAgent):
             root_causes[cause] = root_causes.get(cause, 0) + 1
         return root_causes
 
-    async def _perform_pareto_analysis(self, root_causes: Dict[str, int]) -> Dict[str, Any]:
+    async def _perform_pareto_analysis(self, root_causes: dict[str, int]) -> dict[str, Any]:
         """Perform Pareto analysis on root causes."""
         total = sum(root_causes.values())
         sorted_causes = sorted(root_causes.items(), key=lambda x: x[1], reverse=True)
@@ -1136,23 +1091,23 @@ class QualityManagementAgent(BaseAgent):
         for cause, count in sorted_causes:
             pct = (count / total) * 100 if total > 0 else 0
             cumulative_pct += pct
-            pareto.append({
-                "root_cause": cause,
-                "count": count,
-                "percentage": pct,
-                "cumulative_percentage": cumulative_pct
-            })
+            pareto.append(
+                {
+                    "root_cause": cause,
+                    "count": count,
+                    "percentage": pct,
+                    "cumulative_percentage": cumulative_pct,
+                }
+            )
 
         return {
             "pareto_chart": pareto,
-            "vital_few": [p for p in pareto if p["cumulative_percentage"] <= 80]
+            "vital_few": [p for p in pareto if p["cumulative_percentage"] <= 80],
         }
 
     async def _generate_improvement_recommendations(
-        self,
-        root_causes: Dict[str, int],
-        pareto_analysis: Dict[str, Any]
-    ) -> List[str]:
+        self, root_causes: dict[str, int], pareto_analysis: dict[str, Any]
+    ) -> list[str]:
         """Generate improvement recommendations."""
         recommendations = []
         vital_few = pareto_analysis.get("vital_few", [])
@@ -1165,70 +1120,52 @@ class QualityManagementAgent(BaseAgent):
         return recommendations
 
     async def _get_defect_statistics(
-        self,
-        project_id: Optional[str],
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get defect statistics."""
         # TODO: Query and aggregate defect data
-        return {
-            "total": 0,
-            "by_severity": {},
-            "by_status": {}
-        }
+        return {"total": 0, "by_severity": {}, "by_status": {}}
 
     async def _get_test_execution_summary(
-        self,
-        project_id: Optional[str],
-        filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, project_id: str | None, filters: dict[str, Any]
+    ) -> dict[str, Any]:
         """Get test execution summary."""
         # TODO: Query test executions
-        return {
-            "total_executions": 0,
-            "pass_rate": 0,
-            "coverage": 0
-        }
+        return {"total_executions": 0, "pass_rate": 0, "coverage": 0}
 
     async def _get_recent_audits(
-        self,
-        project_id: Optional[str],
-        filters: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, project_id: str | None, filters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Get recent audits."""
         # TODO: Query audit records
         return []
 
-    async def _generate_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary quality report."""
-        return {
-            "report_type": "summary",
-            "data": {},
-            "generated_at": datetime.utcnow().isoformat()
-        }
+        return {"report_type": "summary", "data": {}, "generated_at": datetime.utcnow().isoformat()}
 
-    async def _generate_defect_analysis_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_defect_analysis_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate defect analysis report."""
         return {
             "report_type": "defect_analysis",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_test_coverage_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_test_coverage_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate test coverage report."""
         return {
             "report_type": "test_coverage",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _generate_audit_summary_report(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_audit_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate audit summary report."""
         return {
             "report_type": "audit_summary",
             "data": {},
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
     async def cleanup(self) -> None:
@@ -1238,7 +1175,7 @@ class QualityManagementAgent(BaseAgent):
         # TODO: Close test tool integrations
         # TODO: Flush any pending events
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "quality_planning",
@@ -1257,5 +1194,5 @@ class QualityManagementAgent(BaseAgent):
             "continuous_improvement",
             "quality_dashboards",
             "quality_reporting",
-            "standards_compliance"
+            "standards_compliance",
         ]

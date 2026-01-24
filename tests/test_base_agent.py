@@ -3,6 +3,7 @@ Tests for Base Agent functionality
 """
 
 import pytest
+
 from src.core.base_agent import BaseAgent
 
 
@@ -101,10 +102,7 @@ def test_agent_get_capabilities():
 
 def test_agent_get_config():
     """Test getting configuration values."""
-    agent = TestAgent(
-        agent_id="test-agent",
-        config={"setting1": "value1", "setting2": 42}
-    )
+    agent = TestAgent(agent_id="test-agent", config={"setting1": "value1", "setting2": 42})
 
     assert agent.get_config("setting1") == "value1"
     assert agent.get_config("setting2") == 42

@@ -8,7 +8,8 @@ should handle the request.
 Specification: docs_markdown/specs/agents/core/orchestration/Agent 1 Intent Router Agent.md
 """
 
-from typing import Dict, Any, List
+from typing import Any
+
 from src.core.base_agent import BaseAgent
 
 
@@ -23,7 +24,7 @@ class IntentRouterAgent(BaseAgent):
     - Agent routing and prioritization
     """
 
-    def __init__(self, agent_id: str = "intent-router", config: Dict[str, Any] = None):
+    def __init__(self, agent_id: str = "intent-router", config: dict[str, Any] = None):
         super().__init__(agent_id, config)
         self.supported_intents = [
             "portfolio_query",
@@ -44,7 +45,7 @@ class IntentRouterAgent(BaseAgent):
         # TODO: Load Azure OpenAI or other NLP models
         # TODO: Load routing configuration
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate that query is present and valid."""
         if "query" not in input_data:
             return False
@@ -54,7 +55,7 @@ class IntentRouterAgent(BaseAgent):
             return False
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Classify intent and route to appropriate agents.
 
@@ -90,7 +91,7 @@ class IntentRouterAgent(BaseAgent):
             "context": context,
         }
 
-    async def _classify_intent(self, query: str) -> List[Dict[str, Any]]:
+    async def _classify_intent(self, query: str) -> list[dict[str, Any]]:
         """
         Classify user intent using NLP models.
 
@@ -119,7 +120,7 @@ class IntentRouterAgent(BaseAgent):
 
         return intents
 
-    async def _determine_agents(self, intents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def _determine_agents(self, intents: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Map intents to specific agents that should handle the request.
 
@@ -139,11 +140,13 @@ class IntentRouterAgent(BaseAgent):
             intent_type = intent["intent"]
             if intent_type in agent_mapping:
                 for agent_id in agent_mapping[intent_type]:
-                    agents.append({
-                        "agent_id": agent_id,
-                        "priority": intent["confidence"],
-                        "intent": intent_type,
-                    })
+                    agents.append(
+                        {
+                            "agent_id": agent_id,
+                            "priority": intent["confidence"],
+                            "intent": intent_type,
+                        }
+                    )
 
         # Sort by priority (confidence)
         agents.sort(key=lambda x: x["priority"], reverse=True)
@@ -151,8 +154,8 @@ class IntentRouterAgent(BaseAgent):
         return agents
 
     async def _extract_parameters(
-        self, query: str, intents: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, query: str, intents: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Extract parameters from the query for downstream agents.
 
@@ -175,7 +178,7 @@ class IntentRouterAgent(BaseAgent):
 
         return parameters
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of capabilities."""
         return [
             "intent_classification",

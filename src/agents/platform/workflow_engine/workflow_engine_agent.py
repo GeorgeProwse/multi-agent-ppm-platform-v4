@@ -8,10 +8,10 @@ workflow execution, state management, and human task coordination.
 Specification: docs_markdown/specs/agents/platform/workflow-process-engine/Agent 24 Workflow & Process Engine Agent.md
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class WorkflowEngineAgent(BaseAgent):
@@ -29,11 +29,7 @@ class WorkflowEngineAgent(BaseAgent):
     - Exception handling and compensation
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_024",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_024", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
@@ -66,7 +62,7 @@ class WorkflowEngineAgent(BaseAgent):
 
         self.logger.info("Workflow & Process Engine Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -86,7 +82,7 @@ class WorkflowEngineAgent(BaseAgent):
             "handle_event",
             "retry_failed_task",
             "get_workflow_instances",
-            "get_task_inbox"
+            "get_task_inbox",
         ]
 
         if action not in valid_actions:
@@ -105,7 +101,7 @@ class WorkflowEngineAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process workflow and orchestration requests.
 
@@ -148,23 +144,18 @@ class WorkflowEngineAgent(BaseAgent):
 
         elif action == "start_workflow":
             return await self._start_workflow(
-                input_data.get("workflow_id"),
-                input_data.get("input_variables", {})
+                input_data.get("workflow_id"), input_data.get("input_variables", {})
             )
 
         elif action == "get_workflow_status":
             return await self._get_workflow_status(input_data.get("instance_id"))
 
         elif action == "assign_task":
-            return await self._assign_task(
-                input_data.get("task_id"),
-                input_data.get("assignee")
-            )
+            return await self._assign_task(input_data.get("task_id"), input_data.get("assignee"))
 
         elif action == "complete_task":
             return await self._complete_task(
-                input_data.get("task_id"),
-                input_data.get("task_result", {})
+                input_data.get("task_id"), input_data.get("task_result", {})
             )
 
         elif action == "cancel_workflow":
@@ -191,7 +182,7 @@ class WorkflowEngineAgent(BaseAgent):
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _define_workflow(self, workflow_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _define_workflow(self, workflow_config: dict[str, Any]) -> dict[str, Any]:
         """
         Define new workflow process.
 
@@ -206,11 +197,7 @@ class WorkflowEngineAgent(BaseAgent):
         validation = await self._validate_workflow_definition(workflow_config)
 
         if not validation.get("valid"):
-            return {
-                "workflow_id": None,
-                "status": "invalid",
-                "errors": validation.get("errors")
-            }
+            return {"workflow_id": None, "status": "invalid", "errors": validation.get("errors")}
 
         # Parse workflow definition
         parsed_workflow = await self._parse_workflow_definition(workflow_config)
@@ -227,7 +214,7 @@ class WorkflowEngineAgent(BaseAgent):
             "transitions": parsed_workflow.get("transitions", []),
             "variables": workflow_config.get("variables", {}),
             "created_at": datetime.utcnow().isoformat(),
-            "created_by": workflow_config.get("author")
+            "created_by": workflow_config.get("author"),
         }
 
         # Store workflow definition
@@ -242,14 +229,12 @@ class WorkflowEngineAgent(BaseAgent):
             "name": workflow["name"],
             "version": workflow["version"],
             "tasks": len(workflow["tasks"]),
-            "status": "defined"
+            "status": "defined",
         }
 
     async def _start_workflow(
-        self,
-        workflow_id: str,
-        input_variables: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, workflow_id: str, input_variables: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Start workflow instance.
 
@@ -277,7 +262,7 @@ class WorkflowEngineAgent(BaseAgent):
             "variables": input_variables,
             "started_at": datetime.utcnow().isoformat(),
             "started_by": input_variables.get("requester"),
-            "history": []
+            "history": [],
         }
 
         # Store instance
@@ -296,10 +281,10 @@ class WorkflowEngineAgent(BaseAgent):
             "workflow_id": workflow_id,
             "status": "running",
             "current_tasks": instance["current_tasks"],
-            "started_at": instance["started_at"]
+            "started_at": instance["started_at"],
         }
 
-    async def _get_workflow_status(self, instance_id: str) -> Dict[str, Any]:
+    async def _get_workflow_status(self, instance_id: str) -> dict[str, Any]:
         """
         Get workflow instance status.
 
@@ -327,10 +312,10 @@ class WorkflowEngineAgent(BaseAgent):
             "completed_tasks": len(instance.get("completed_tasks", [])),
             "failed_tasks": len(instance.get("failed_tasks", [])),
             "started_at": instance.get("started_at"),
-            "completed_at": instance.get("completed_at")
+            "completed_at": instance.get("completed_at"),
         }
 
-    async def _assign_task(self, task_id: str, assignee: str) -> Dict[str, Any]:
+    async def _assign_task(self, task_id: str, assignee: str) -> dict[str, Any]:
         """
         Assign task to user.
 
@@ -346,7 +331,7 @@ class WorkflowEngineAgent(BaseAgent):
                 "task_id": task_id,
                 "assignee": assignee,
                 "assigned_at": datetime.utcnow().isoformat(),
-                "status": "assigned"
+                "status": "assigned",
             }
             self.task_assignments[task_id] = assignment
         else:
@@ -358,17 +343,9 @@ class WorkflowEngineAgent(BaseAgent):
         # TODO: Send notification to assignee
         # TODO: Publish task.assigned event
 
-        return {
-            "task_id": task_id,
-            "assignee": assignee,
-            "assigned_at": assignment["assigned_at"]
-        }
+        return {"task_id": task_id, "assignee": assignee, "assigned_at": assignment["assigned_at"]}
 
-    async def _complete_task(
-        self,
-        task_id: str,
-        task_result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _complete_task(self, task_id: str, task_result: dict[str, Any]) -> dict[str, Any]:
         """
         Complete workflow task.
 
@@ -417,10 +394,10 @@ class WorkflowEngineAgent(BaseAgent):
             "task_id": task_id,
             "status": "completed",
             "next_tasks": [t.get("task_id") for t in next_tasks] if next_tasks else [],
-            "workflow_status": instance.get("status") if instance else "unknown"
+            "workflow_status": instance.get("status") if instance else "unknown",
         }
 
-    async def _cancel_workflow(self, instance_id: str) -> Dict[str, Any]:
+    async def _cancel_workflow(self, instance_id: str) -> dict[str, Any]:
         """
         Cancel workflow instance.
 
@@ -450,10 +427,10 @@ class WorkflowEngineAgent(BaseAgent):
         return {
             "instance_id": instance_id,
             "status": "cancelled",
-            "cancelled_at": instance["cancelled_at"]
+            "cancelled_at": instance["cancelled_at"],
         }
 
-    async def _pause_workflow(self, instance_id: str) -> Dict[str, Any]:
+    async def _pause_workflow(self, instance_id: str) -> dict[str, Any]:
         """
         Pause workflow execution.
 
@@ -471,13 +448,9 @@ class WorkflowEngineAgent(BaseAgent):
         # TODO: Store in database
         # TODO: Publish workflow.paused event
 
-        return {
-            "instance_id": instance_id,
-            "status": "paused",
-            "paused_at": instance["paused_at"]
-        }
+        return {"instance_id": instance_id, "status": "paused", "paused_at": instance["paused_at"]}
 
-    async def _resume_workflow(self, instance_id: str) -> Dict[str, Any]:
+    async def _resume_workflow(self, instance_id: str) -> dict[str, Any]:
         """
         Resume paused workflow.
 
@@ -502,10 +475,10 @@ class WorkflowEngineAgent(BaseAgent):
         return {
             "instance_id": instance_id,
             "status": "running",
-            "resumed_at": instance["resumed_at"]
+            "resumed_at": instance["resumed_at"],
         }
 
-    async def _handle_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    async def _handle_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """
         Handle workflow event.
 
@@ -525,10 +498,7 @@ class WorkflowEngineAgent(BaseAgent):
             if await self._event_matches_criteria(event_data, subscription.get("criteria", {})):
                 # Start or advance workflow
                 if subscription.get("action") == "start":
-                    result = await self._start_workflow(
-                        subscription.get("workflow_id"),
-                        event_data
-                    )
+                    result = await self._start_workflow(subscription.get("workflow_id"), event_data)
                     triggered_instances.append(result.get("instance_id"))
                 elif subscription.get("action") == "trigger_task":
                     # Trigger specific task in running instance
@@ -539,10 +509,10 @@ class WorkflowEngineAgent(BaseAgent):
             "event_type": event_type,
             "subscriptions_matched": len(subscribed_workflows),
             "instances_triggered": len(triggered_instances),
-            "triggered_instances": triggered_instances
+            "triggered_instances": triggered_instances,
         }
 
-    async def _retry_failed_task(self, task_id: str) -> Dict[str, Any]:
+    async def _retry_failed_task(self, task_id: str) -> dict[str, Any]:
         """
         Retry failed task.
 
@@ -560,7 +530,7 @@ class WorkflowEngineAgent(BaseAgent):
             return {
                 "task_id": task_id,
                 "status": "max_retries_exceeded",
-                "retry_count": retry_count
+                "retry_count": retry_count,
             }
 
         # Reset task status
@@ -569,16 +539,12 @@ class WorkflowEngineAgent(BaseAgent):
         assignment["retried_at"] = datetime.utcnow().isoformat()
 
         # Re-execute task
-        instance_id = assignment.get("instance_id")
+        assignment.get("instance_id")
         # TODO: Re-execute task logic
 
-        return {
-            "task_id": task_id,
-            "status": "retrying",
-            "retry_count": assignment["retry_count"]
-        }
+        return {"task_id": task_id, "status": "retrying", "retry_count": assignment["retry_count"]}
 
-    async def _get_workflow_instances(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_workflow_instances(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get workflow instances with filters.
 
@@ -590,24 +556,22 @@ class WorkflowEngineAgent(BaseAgent):
         filtered = []
         for instance_id, instance in self.workflow_instances.items():
             if await self._matches_instance_filters(instance, filters):
-                filtered.append({
-                    "instance_id": instance_id,
-                    "workflow_id": instance.get("workflow_id"),
-                    "status": instance.get("status"),
-                    "started_at": instance.get("started_at"),
-                    "completed_at": instance.get("completed_at")
-                })
+                filtered.append(
+                    {
+                        "instance_id": instance_id,
+                        "workflow_id": instance.get("workflow_id"),
+                        "status": instance.get("status"),
+                        "started_at": instance.get("started_at"),
+                        "completed_at": instance.get("completed_at"),
+                    }
+                )
 
         # Sort by start date
         filtered.sort(key=lambda x: x.get("started_at", ""), reverse=True)
 
-        return {
-            "total_instances": len(filtered),
-            "instances": filtered,
-            "filters": filters
-        }
+        return {"total_instances": len(filtered), "instances": filtered, "filters": filters}
 
-    async def _get_task_inbox(self, user_id: str) -> Dict[str, Any]:
+    async def _get_task_inbox(self, user_id: str) -> dict[str, Any]:
         """
         Get user's pending tasks.
 
@@ -618,23 +582,20 @@ class WorkflowEngineAgent(BaseAgent):
         # Find tasks assigned to user
         user_tasks = []
         for task_id, assignment in self.task_assignments.items():
-            if (assignment.get("assignee") == user_id and
-                assignment.get("status") == "assigned"):
-                user_tasks.append({
-                    "task_id": task_id,
-                    "instance_id": assignment.get("instance_id"),
-                    "assigned_at": assignment.get("assigned_at"),
-                    "task_type": assignment.get("task_type")
-                })
+            if assignment.get("assignee") == user_id and assignment.get("status") == "assigned":
+                user_tasks.append(
+                    {
+                        "task_id": task_id,
+                        "instance_id": assignment.get("instance_id"),
+                        "assigned_at": assignment.get("assigned_at"),
+                        "task_type": assignment.get("task_type"),
+                    }
+                )
 
         # Sort by assigned date
         user_tasks.sort(key=lambda x: x.get("assigned_at", ""))
 
-        return {
-            "user_id": user_id,
-            "pending_tasks": len(user_tasks),
-            "tasks": user_tasks
-        }
+        return {"user_id": user_id, "pending_tasks": len(user_tasks), "tasks": user_tasks}
 
     # Helper methods
 
@@ -648,7 +609,9 @@ class WorkflowEngineAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"INST-{timestamp}"
 
-    async def _validate_workflow_definition(self, workflow_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _validate_workflow_definition(
+        self, workflow_config: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate workflow definition."""
         errors = []
 
@@ -658,27 +621,24 @@ class WorkflowEngineAgent(BaseAgent):
         if not workflow_config.get("tasks"):
             errors.append("Workflow must have at least one task")
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors
-        }
+        return {"valid": len(errors) == 0, "errors": errors}
 
-    async def _parse_workflow_definition(self, workflow_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _parse_workflow_definition(self, workflow_config: dict[str, Any]) -> dict[str, Any]:
         """Parse workflow definition."""
         # TODO: Parse BPMN XML if provided
         return {
             "tasks": workflow_config.get("tasks", []),
             "events": workflow_config.get("events", []),
             "gateways": workflow_config.get("gateways", []),
-            "transitions": workflow_config.get("transitions", [])
+            "transitions": workflow_config.get("transitions", []),
         }
 
-    async def _get_initial_tasks(self, workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _get_initial_tasks(self, workflow: dict[str, Any]) -> list[dict[str, Any]]:
         """Get initial tasks to execute."""
         tasks = workflow.get("tasks", [])
         return [t for t in tasks if t.get("initial", False)][:1]
 
-    async def _execute_task(self, instance_id: str, task: Dict[str, Any]) -> None:
+    async def _execute_task(self, instance_id: str, task: dict[str, Any]) -> None:
         """Execute workflow task."""
         task_id = task.get("task_id")
 
@@ -688,7 +648,7 @@ class WorkflowEngineAgent(BaseAgent):
             "instance_id": instance_id,
             "task_type": task.get("type"),
             "status": "pending",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Add to instance current tasks
@@ -702,19 +662,17 @@ class WorkflowEngineAgent(BaseAgent):
             pass
 
     async def _determine_next_tasks(
-        self,
-        instance: Dict[str, Any],
-        completed_task_id: str
-    ) -> List[Dict[str, Any]]:
+        self, instance: dict[str, Any], completed_task_id: str
+    ) -> list[dict[str, Any]]:
         """Determine next tasks to execute."""
         # TODO: Implement transition logic based on gateways
         return []
 
-    async def _is_workflow_complete(self, instance: Dict[str, Any]) -> bool:
+    async def _is_workflow_complete(self, instance: dict[str, Any]) -> bool:
         """Check if workflow is complete."""
         return len(instance.get("current_tasks", [])) == 0 and instance.get("status") == "running"
 
-    async def _find_event_subscriptions(self, event_type: str) -> List[Dict[str, Any]]:
+    async def _find_event_subscriptions(self, event_type: str) -> list[dict[str, Any]]:
         """Find workflows subscribed to event type."""
         subscriptions = []
         for sub_id, subscription in self.event_subscriptions.items():
@@ -723,18 +681,14 @@ class WorkflowEngineAgent(BaseAgent):
         return subscriptions
 
     async def _event_matches_criteria(
-        self,
-        event_data: Dict[str, Any],
-        criteria: Dict[str, Any]
+        self, event_data: dict[str, Any], criteria: dict[str, Any]
     ) -> bool:
         """Check if event matches subscription criteria."""
         # TODO: Implement criteria matching
         return True
 
     async def _matches_instance_filters(
-        self,
-        instance: Dict[str, Any],
-        filters: Dict[str, Any]
+        self, instance: dict[str, Any], filters: dict[str, Any]
     ) -> bool:
         """Check if instance matches filters."""
         if "status" in filters and instance.get("status") != filters["status"]:
@@ -752,7 +706,7 @@ class WorkflowEngineAgent(BaseAgent):
         # TODO: Close orchestration connections
         # TODO: Cancel running workflows if needed
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "workflow_definition",
@@ -766,5 +720,5 @@ class WorkflowEngineAgent(BaseAgent):
             "compensation",
             "workflow_monitoring",
             "bpmn_support",
-            "state_management"
+            "state_management",
         ]

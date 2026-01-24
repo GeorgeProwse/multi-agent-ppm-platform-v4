@@ -8,9 +8,10 @@ and aggregates responses into coherent outputs.
 Specification: docs_markdown/specs/agents/core/orchestration/Agent 2 Response Orchestration Agent.md
 """
 
-from typing import Dict, Any, List
-from src.core.base_agent import BaseAgent
 import asyncio
+from typing import Any
+
+from src.core.base_agent import BaseAgent
 
 
 class ResponseOrchestrationAgent(BaseAgent):
@@ -25,9 +26,7 @@ class ResponseOrchestrationAgent(BaseAgent):
     - Result caching
     """
 
-    def __init__(
-        self, agent_id: str = "response-orchestration", config: Dict[str, Any] = None
-    ):
+    def __init__(self, agent_id: str = "response-orchestration", config: dict[str, Any] = None):
         super().__init__(agent_id, config)
         self.max_concurrency = config.get("max_concurrency", 5) if config else 5
         self.agent_timeout = config.get("agent_timeout", 30) if config else 30
@@ -40,7 +39,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         # TODO: Initialize cache (Redis)
         # TODO: Load agent registry
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Orchestrate multi-agent workflow.
 
@@ -87,9 +86,7 @@ class ResponseOrchestrationAgent(BaseAgent):
             },
         }
 
-    async def _build_execution_plan(
-        self, routing: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def _build_execution_plan(self, routing: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Build execution plan determining parallel vs sequential execution.
 
@@ -103,8 +100,8 @@ class ResponseOrchestrationAgent(BaseAgent):
         }
 
     async def _execute_plan(
-        self, execution_plan: Dict[str, Any], parameters: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, execution_plan: dict[str, Any], parameters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Execute the plan, invoking agents in parallel or sequentially.
 
@@ -120,15 +117,15 @@ class ResponseOrchestrationAgent(BaseAgent):
         return results
 
     async def _execute_parallel(
-        self, agents: List[Dict[str, Any]], parameters: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, agents: list[dict[str, Any]], parameters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Execute multiple agents in parallel.
 
         Returns list of results from all agents.
         """
         tasks = []
-        for agent_info in agents[:self.max_concurrency]:
+        for agent_info in agents[: self.max_concurrency]:
             task = self._invoke_agent(agent_info, parameters)
             tasks.append(task)
 
@@ -138,19 +135,21 @@ class ResponseOrchestrationAgent(BaseAgent):
         processed_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                processed_results.append({
-                    "success": False,
-                    "agent_id": agents[i]["agent_id"],
-                    "error": str(result),
-                })
+                processed_results.append(
+                    {
+                        "success": False,
+                        "agent_id": agents[i]["agent_id"],
+                        "error": str(result),
+                    }
+                )
             else:
                 processed_results.append(result)
 
         return processed_results
 
     async def _invoke_agent(
-        self, agent_info: Dict[str, Any], parameters: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, agent_info: dict[str, Any], parameters: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Invoke a single agent with timeout.
 
@@ -175,7 +174,7 @@ class ResponseOrchestrationAgent(BaseAgent):
                 },
             }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.warning(f"Agent {agent_id} timed out")
             return {
                 "success": False,
@@ -190,9 +189,7 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "error": str(e),
             }
 
-    async def _aggregate_responses(
-        self, results: List[Dict[str, Any]]
-    ) -> str:
+    async def _aggregate_responses(self, results: list[dict[str, Any]]) -> str:
         """
         Aggregate multiple agent responses into coherent output.
 
@@ -214,7 +211,7 @@ class ResponseOrchestrationAgent(BaseAgent):
 
         return "\n".join(responses)
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of capabilities."""
         return [
             "multi_agent_orchestration",

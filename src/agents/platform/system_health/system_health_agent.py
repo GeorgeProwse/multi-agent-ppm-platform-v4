@@ -8,10 +8,10 @@ comprehensive monitoring, alerting, and proactive maintenance.
 Specification: docs_markdown/specs/agents/platform/health-monitoring/Agent 25 System Health & Monitoring Agent.md
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from src.core.base_agent import BaseAgent
-import logging
 
 
 class SystemHealthAgent(BaseAgent):
@@ -29,16 +29,16 @@ class SystemHealthAgent(BaseAgent):
     - Capacity planning and scaling recommendations
     """
 
-    def __init__(
-        self,
-        agent_id: str = "agent_025",
-        config: Optional[Dict[str, Any]] = None
-    ):
+    def __init__(self, agent_id: str = "agent_025", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters
-        self.alert_threshold_error_rate = config.get("alert_threshold_error_rate", 0.05) if config else 0.05
-        self.alert_threshold_response_time_ms = config.get("alert_threshold_response_time_ms", 1000) if config else 1000
+        self.alert_threshold_error_rate = (
+            config.get("alert_threshold_error_rate", 0.05) if config else 0.05
+        )
+        self.alert_threshold_response_time_ms = (
+            config.get("alert_threshold_response_time_ms", 1000) if config else 1000
+        )
         self.metrics_retention_days = config.get("metrics_retention_days", 90) if config else 90
 
         # Data stores (will be replaced with database)
@@ -68,7 +68,7 @@ class SystemHealthAgent(BaseAgent):
 
         self.logger.info("System Health & Monitoring Agent initialized")
 
-    async def validate_input(self, input_data: Dict[str, Any]) -> bool:
+    async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate input data based on the requested action."""
         action = input_data.get("action", "")
 
@@ -88,7 +88,7 @@ class SystemHealthAgent(BaseAgent):
             "get_alerts",
             "get_capacity_recommendations",
             "acknowledge_alert",
-            "resolve_incident"
+            "resolve_incident",
         ]
 
         if action not in valid_actions:
@@ -97,7 +97,7 @@ class SystemHealthAgent(BaseAgent):
 
         return True
 
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
         """
         Process system health and monitoring requests.
 
@@ -136,8 +136,7 @@ class SystemHealthAgent(BaseAgent):
 
         if action == "collect_metrics":
             return await self._collect_metrics(
-                input_data.get("service_name"),
-                input_data.get("metrics", {})
+                input_data.get("service_name"), input_data.get("metrics", {})
             )
 
         elif action == "check_health":
@@ -148,8 +147,7 @@ class SystemHealthAgent(BaseAgent):
 
         elif action == "detect_anomalies":
             return await self._detect_anomalies(
-                input_data.get("service_name"),
-                input_data.get("time_range", {})
+                input_data.get("service_name"), input_data.get("time_range", {})
             )
 
         elif action == "create_incident":
@@ -165,7 +163,7 @@ class SystemHealthAgent(BaseAgent):
             return await self._get_metrics(
                 input_data.get("service_name"),
                 input_data.get("metric_name"),
-                input_data.get("time_range", {})
+                input_data.get("time_range", {}),
             )
 
         elif action == "get_alerts":
@@ -176,24 +174,20 @@ class SystemHealthAgent(BaseAgent):
 
         elif action == "acknowledge_alert":
             return await self._acknowledge_alert(
-                input_data.get("alert_id"),
-                input_data.get("acknowledged_by")
+                input_data.get("alert_id"), input_data.get("acknowledged_by")
             )
 
         elif action == "resolve_incident":
             return await self._resolve_incident(
-                input_data.get("incident_id"),
-                input_data.get("resolution", {})
+                input_data.get("incident_id"), input_data.get("resolution", {})
             )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
     async def _collect_metrics(
-        self,
-        service_name: str,
-        metrics_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, service_name: str, metrics_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Collect metrics from service.
 
@@ -210,7 +204,7 @@ class SystemHealthAgent(BaseAgent):
             "service_name": service_name,
             "timestamp": timestamp,
             "metrics": metrics_data,
-            "collected_at": timestamp
+            "collected_at": timestamp,
         }
 
         self.metrics[metric_id] = metric_record
@@ -225,10 +219,10 @@ class SystemHealthAgent(BaseAgent):
             "metric_id": metric_id,
             "service_name": service_name,
             "metrics_collected": len(metrics_data),
-            "timestamp": timestamp
+            "timestamp": timestamp,
         }
 
-    async def _check_health(self, service_name: Optional[str] = None) -> Dict[str, Any]:
+    async def _check_health(self, service_name: str | None = None) -> dict[str, Any]:
         """
         Check health of services.
 
@@ -251,10 +245,10 @@ class SystemHealthAgent(BaseAgent):
         return {
             "overall_status": overall_status,
             "services": services,
-            "checked_at": datetime.utcnow().isoformat()
+            "checked_at": datetime.utcnow().isoformat(),
         }
 
-    async def _create_alert(self, alert_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_alert(self, alert_config: dict[str, Any]) -> dict[str, Any]:
         """
         Create monitoring alert.
 
@@ -276,7 +270,7 @@ class SystemHealthAgent(BaseAgent):
             "threshold": alert_config.get("threshold"),
             "notification_channels": alert_config.get("notification_channels", []),
             "status": "active",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
         }
 
         # Store alert
@@ -289,14 +283,12 @@ class SystemHealthAgent(BaseAgent):
             "alert_id": alert_id,
             "name": alert["name"],
             "severity": alert["severity"],
-            "status": "active"
+            "status": "active",
         }
 
     async def _detect_anomalies(
-        self,
-        service_name: str,
-        time_range: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, service_name: str, time_range: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Detect anomalies in service metrics.
 
@@ -321,17 +313,17 @@ class SystemHealthAgent(BaseAgent):
                 "value": anomaly.get("value"),
                 "expected_range": anomaly.get("expected_range"),
                 "severity": anomaly.get("severity"),
-                "detected_at": datetime.utcnow().isoformat()
+                "detected_at": datetime.utcnow().isoformat(),
             }
 
         return {
             "service_name": service_name,
             "anomalies_detected": len(anomalies),
             "anomalies": anomalies,
-            "time_range": time_range
+            "time_range": time_range,
         }
 
-    async def _create_incident(self, incident_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _create_incident(self, incident_data: dict[str, Any]) -> dict[str, Any]:
         """
         Create system incident.
 
@@ -352,7 +344,7 @@ class SystemHealthAgent(BaseAgent):
             "status": "open",
             "assignee": incident_data.get("assignee"),
             "created_at": datetime.utcnow().isoformat(),
-            "created_by": incident_data.get("reporter")
+            "created_by": incident_data.get("reporter"),
         }
 
         # Store incident
@@ -367,10 +359,10 @@ class SystemHealthAgent(BaseAgent):
             "title": incident["title"],
             "severity": incident["severity"],
             "status": "open",
-            "assignee": incident.get("assignee")
+            "assignee": incident.get("assignee"),
         }
 
-    async def _analyze_root_cause(self, incident_id: str) -> Dict[str, Any]:
+    async def _analyze_root_cause(self, incident_id: str) -> dict[str, Any]:
         """
         Perform root cause analysis for incident.
 
@@ -391,11 +383,7 @@ class SystemHealthAgent(BaseAgent):
         traces_data = await self._collect_incident_traces(affected_services)
 
         # Correlate data
-        correlations = await self._correlate_incident_data(
-            metrics_data,
-            logs_data,
-            traces_data
-        )
+        correlations = await self._correlate_incident_data(metrics_data, logs_data, traces_data)
 
         # Identify probable causes
         probable_causes = await self._identify_probable_causes(correlations)
@@ -408,10 +396,10 @@ class SystemHealthAgent(BaseAgent):
             "probable_causes": probable_causes,
             "correlations": correlations,
             "recommendations": recommendations,
-            "analyzed_at": datetime.utcnow().isoformat()
+            "analyzed_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_system_status(self) -> Dict[str, Any]:
+    async def _get_system_status(self) -> dict[str, Any]:
         """
         Get overall system status.
 
@@ -424,14 +412,14 @@ class SystemHealthAgent(BaseAgent):
 
         # Get active alerts
         active_alerts = [
-            alert for alert in self.alerts.values()
+            alert
+            for alert in self.alerts.values()
             if alert.get("status") == "active" and not alert.get("acknowledged")
         ]
 
         # Get open incidents
         open_incidents = [
-            incident for incident in self.incidents.values()
-            if incident.get("status") == "open"
+            incident for incident in self.incidents.values() if incident.get("status") == "open"
         ]
 
         # Calculate overall status
@@ -452,15 +440,12 @@ class SystemHealthAgent(BaseAgent):
             "open_incidents": len(open_incidents),
             "critical_alerts": critical_alerts,
             "critical_incidents": critical_incidents,
-            "checked_at": datetime.utcnow().isoformat()
+            "checked_at": datetime.utcnow().isoformat(),
         }
 
     async def _get_metrics(
-        self,
-        service_name: str,
-        metric_name: str,
-        time_range: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, service_name: str, metric_name: str, time_range: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Get metric values for time range.
 
@@ -477,10 +462,10 @@ class SystemHealthAgent(BaseAgent):
             "metric_name": metric_name,
             "time_range": time_range,
             "values": metric_values,
-            "retrieved_at": datetime.utcnow().isoformat()
+            "retrieved_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_alerts(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_alerts(self, filters: dict[str, Any]) -> dict[str, Any]:
         """
         Get alerts with filters.
 
@@ -492,33 +477,34 @@ class SystemHealthAgent(BaseAgent):
         filtered = []
         for alert_id, alert in self.alerts.items():
             if await self._matches_alert_filters(alert, filters):
-                filtered.append({
-                    "alert_id": alert_id,
-                    "name": alert.get("name"),
-                    "severity": alert.get("severity"),
-                    "service_name": alert.get("service_name"),
-                    "status": alert.get("status"),
-                    "created_at": alert.get("created_at")
-                })
+                filtered.append(
+                    {
+                        "alert_id": alert_id,
+                        "name": alert.get("name"),
+                        "severity": alert.get("severity"),
+                        "service_name": alert.get("service_name"),
+                        "status": alert.get("status"),
+                        "created_at": alert.get("created_at"),
+                    }
+                )
 
         # Sort by severity and time
         filtered.sort(
             key=lambda x: (
-                0 if x.get("severity") == "critical" else 1 if x.get("severity") == "warning" else 2,
-                x.get("created_at", "")
+                (
+                    0
+                    if x.get("severity") == "critical"
+                    else 1 if x.get("severity") == "warning" else 2
+                ),
+                x.get("created_at", ""),
             )
         )
 
-        return {
-            "total_alerts": len(filtered),
-            "alerts": filtered,
-            "filters": filters
-        }
+        return {"total_alerts": len(filtered), "alerts": filtered, "filters": filters}
 
     async def _get_capacity_recommendations(
-        self,
-        service_name: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, service_name: str | None = None
+    ) -> dict[str, Any]:
         """
         Get capacity planning recommendations.
 
@@ -540,14 +526,10 @@ class SystemHealthAgent(BaseAgent):
             "utilization_trends": utilization_trends,
             "forecasts": forecasts,
             "recommendations": recommendations,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _acknowledge_alert(
-        self,
-        alert_id: str,
-        acknowledged_by: str
-    ) -> Dict[str, Any]:
+    async def _acknowledge_alert(self, alert_id: str, acknowledged_by: str) -> dict[str, Any]:
         """
         Acknowledge alert.
 
@@ -570,14 +552,12 @@ class SystemHealthAgent(BaseAgent):
             "alert_id": alert_id,
             "acknowledged": True,
             "acknowledged_by": acknowledged_by,
-            "acknowledged_at": alert["acknowledged_at"]
+            "acknowledged_at": alert["acknowledged_at"],
         }
 
     async def _resolve_incident(
-        self,
-        incident_id: str,
-        resolution: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, incident_id: str, resolution: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Resolve incident.
 
@@ -608,7 +588,7 @@ class SystemHealthAgent(BaseAgent):
             "incident_id": incident_id,
             "status": "resolved",
             "resolution_time_minutes": resolution_time,
-            "resolved_at": incident["resolved_at"]
+            "resolved_at": incident["resolved_at"],
         }
 
     # Helper methods
@@ -634,9 +614,7 @@ class SystemHealthAgent(BaseAgent):
         return f"ANOM-{timestamp}"
 
     async def _check_metric_thresholds(
-        self,
-        service_name: str,
-        metrics_data: Dict[str, Any]
+        self, service_name: str, metrics_data: dict[str, Any]
     ) -> None:
         """Check metrics against alert thresholds."""
         # Check error rate
@@ -651,105 +629,71 @@ class SystemHealthAgent(BaseAgent):
             # TODO: Trigger alert
             pass
 
-    async def _check_service_health(self, service_name: str) -> Dict[str, Any]:
+    async def _check_service_health(self, service_name: str) -> dict[str, Any]:
         """Check health of specific service."""
         # TODO: Call service health endpoint
-        return {
-            "healthy": True,
-            "response_time_ms": 50,
-            "status_code": 200
-        }
+        return {"healthy": True, "response_time_ms": 50, "status_code": 200}
 
-    async def _check_all_services_health(self) -> Dict[str, Dict[str, Any]]:
+    async def _check_all_services_health(self) -> dict[str, dict[str, Any]]:
         """Check health of all services."""
         # TODO: Check all registered services
         services = {
             "api_gateway": {"healthy": True, "response_time_ms": 45},
             "database": {"healthy": True, "response_time_ms": 10},
-            "cache": {"healthy": True, "response_time_ms": 5}
+            "cache": {"healthy": True, "response_time_ms": 5},
         }
         return services
 
     async def _get_service_metrics(
-        self,
-        service_name: str,
-        time_range: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, service_name: str, time_range: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Get metrics for service in time range."""
         # TODO: Query from metrics store
         return []
 
-    async def _apply_anomaly_detection(
-        self,
-        metrics: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    async def _apply_anomaly_detection(self, metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Apply anomaly detection to metrics."""
         # TODO: Use ML model for anomaly detection
         return []
 
-    async def _collect_incident_metrics(
-        self,
-        affected_services: List[str]
-    ) -> Dict[str, Any]:
+    async def _collect_incident_metrics(self, affected_services: list[str]) -> dict[str, Any]:
         """Collect metrics related to incident."""
         # TODO: Collect metrics from Azure Monitor
         return {}
 
-    async def _collect_incident_logs(
-        self,
-        affected_services: List[str]
-    ) -> List[Dict[str, Any]]:
+    async def _collect_incident_logs(self, affected_services: list[str]) -> list[dict[str, Any]]:
         """Collect logs related to incident."""
         # TODO: Collect logs from Log Analytics
         return []
 
-    async def _collect_incident_traces(
-        self,
-        affected_services: List[str]
-    ) -> List[Dict[str, Any]]:
+    async def _collect_incident_traces(self, affected_services: list[str]) -> list[dict[str, Any]]:
         """Collect traces related to incident."""
         # TODO: Collect traces from Application Insights
         return []
 
     async def _correlate_incident_data(
-        self,
-        metrics: Dict[str, Any],
-        logs: List[Dict[str, Any]],
-        traces: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, metrics: dict[str, Any], logs: list[dict[str, Any]], traces: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Correlate incident data sources."""
         # TODO: Implement correlation logic
         return []
 
-    async def _identify_probable_causes(
-        self,
-        correlations: List[Dict[str, Any]]
-    ) -> List[str]:
+    async def _identify_probable_causes(self, correlations: list[dict[str, Any]]) -> list[str]:
         """Identify probable causes from correlations."""
         return ["High database load", "Network latency spike"]
 
-    async def _generate_incident_recommendations(
-        self,
-        probable_causes: List[str]
-    ) -> List[str]:
+    async def _generate_incident_recommendations(self, probable_causes: list[str]) -> list[str]:
         """Generate recommendations based on probable causes."""
         return ["Scale database resources", "Check network connectivity"]
 
     async def _query_metrics(
-        self,
-        service_name: str,
-        metric_name: str,
-        time_range: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, service_name: str, metric_name: str, time_range: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Query metrics from store."""
         # TODO: Query from Azure Monitor
         return []
 
-    async def _matches_alert_filters(
-        self,
-        alert: Dict[str, Any],
-        filters: Dict[str, Any]
-    ) -> bool:
+    async def _matches_alert_filters(self, alert: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if alert matches filters."""
         if "severity" in filters and alert.get("severity") != filters["severity"]:
             return False
@@ -759,34 +703,17 @@ class SystemHealthAgent(BaseAgent):
 
         return True
 
-    async def _analyze_utilization_trends(
-        self,
-        service_name: Optional[str]
-    ) -> Dict[str, Any]:
+    async def _analyze_utilization_trends(self, service_name: str | None) -> dict[str, Any]:
         """Analyze resource utilization trends."""
         # TODO: Analyze historical metrics
-        return {
-            "cpu_trend": "increasing",
-            "memory_trend": "stable",
-            "storage_trend": "increasing"
-        }
+        return {"cpu_trend": "increasing", "memory_trend": "stable", "storage_trend": "increasing"}
 
-    async def _forecast_capacity_needs(
-        self,
-        trends: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _forecast_capacity_needs(self, trends: dict[str, Any]) -> dict[str, Any]:
         """Forecast future capacity needs."""
         # TODO: Use forecasting models
-        return {
-            "cpu_forecast_30d": 75.0,
-            "memory_forecast_30d": 60.0,
-            "storage_forecast_30d": 85.0
-        }
+        return {"cpu_forecast_30d": 75.0, "memory_forecast_30d": 60.0, "storage_forecast_30d": 85.0}
 
-    async def _generate_capacity_recommendations(
-        self,
-        forecasts: Dict[str, Any]
-    ) -> List[str]:
+    async def _generate_capacity_recommendations(self, forecasts: dict[str, Any]) -> list[str]:
         """Generate capacity recommendations."""
         recommendations = []
 
@@ -808,7 +735,7 @@ class SystemHealthAgent(BaseAgent):
         # TODO: Flush pending metrics
         # TODO: Close incident management connections
 
-    def get_capabilities(self) -> List[str]:
+    def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
         return [
             "resource_monitoring",
@@ -823,5 +750,5 @@ class SystemHealthAgent(BaseAgent):
             "capacity_planning",
             "health_checks",
             "performance_monitoring",
-            "dashboard_creation"
+            "dashboard_creation",
         ]

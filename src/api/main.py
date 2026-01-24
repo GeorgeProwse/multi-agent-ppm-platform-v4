@@ -4,19 +4,18 @@ Multi-Agent PPM Platform - FastAPI Application
 This is the main entry point for the PPM platform REST API.
 """
 
-from fastapi import FastAPI, HTTPException
+import logging
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import Dict, Any
-import logging
 
 from src.api.routes import agents, health
 from src.core.orchestration.orchestrator import AgentOrchestrator
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 logger = logging.getLogger(__name__)
