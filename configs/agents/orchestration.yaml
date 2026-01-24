@@ -1,0 +1,37 @@
+# Intent Router Agent Configuration
+intent_router:
+  agent_id: "intent-router"
+  enabled: true
+  model:
+    provider: "azure_openai"
+    deployment: "gpt-4"
+    temperature: 0.3
+    max_tokens: 500
+  intents:
+    - portfolio_query
+    - project_create
+    - schedule_query
+    - financial_query
+    - risk_query
+    - resource_query
+    - demand_intake
+    - compliance_query
+    - analytics_query
+  confidence_threshold: 0.7
+
+# Response Orchestration Agent Configuration
+response_orchestration:
+  agent_id: "response-orchestration"
+  enabled: true
+  max_concurrency: 5
+  agent_timeout: 30  # seconds
+  cache_ttl: 900  # 15 minutes
+  retry_policy:
+    max_attempts: 3
+    backoff_multiplier: 2
+    initial_backoff: 1  # seconds
+  fallback_policy: "partial_return"  # fail_fast, partial_return, block
+  aggregation:
+    provider: "azure_openai"
+    deployment: "gpt-4"
+    max_tokens: 1000

@@ -1,0 +1,111 @@
+"""
+Tests for Base Agent functionality
+"""
+
+import pytest
+from src.core.base_agent import BaseAgent
+
+
+class TestAgent(BaseAgent):
+    """Test agent implementation."""
+
+    async def process(self, input_data: dict) -> dict:
+        """Simple test processing."""
+        return {"result": "processed", "input": input_data}
+
+
+@pytest.mark.asyncio
+async def test_agent_initialization():
+    """Test agent initialization."""
+    agent = TestAgent(agent_id="test-agent", config={"test": "config"})
+
+    assert agent.agent_id == "test-agent"
+    assert agent.config == {"test": "config"}
+    assert not agent.initialized
+
+    await agent.initialize()
+
+    assert agent.initialized
+
+
+@pytest.mark.asyncio
+async def test_agent_execute():
+    """Test agent execute method."""
+    agent = TestAgent(agent_id="test-agent")
+
+    result = await agent.execute({"data": "test"})
+
+    assert result["success"] is True
+    assert "data" in result
+    assert result["data"]["result"] == "processed"
+    assert "metadata" in result
+    assert result["metadata"]["agent_id"] == "test-agent"
+
+
+@pytest.mark.asyncio
+async def test_agent_validation():
+    """Test agent input validation."""
+
+    class ValidatingAgent(BaseAgent):
+        async def validate_input(self, input_data: dict) -> bool:
+            return "required_field" in input_data
+
+        async def process(self, input_data: dict) -> dict:
+            return {"result": "ok"}
+
+    agent = ValidatingAgent(agent_id="validating-agent")
+
+    # Should fail validation
+    result = await agent.execute({})
+    assert result["success"] is False
+    assert "validation" in result["error"].lower()
+
+    # Should pass validation
+    result = await agent.execute({"required_field": "value"})
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_agent_error_handling():
+    """Test agent error handling."""
+
+    class ErrorAgent(BaseAgent):
+        async def process(self, input_data: dict) -> dict:
+            raise ValueError("Test error")
+
+    agent = ErrorAgent(agent_id="error-agent")
+
+    result = await agent.execute({"data": "test"})
+
+    assert result["success"] is False
+    assert "Test error" in result["error"]
+    assert "metadata" in result
+
+
+def test_agent_get_capabilities():
+    """Test getting agent capabilities."""
+
+    class CapableAgent(BaseAgent):
+        async def process(self, input_data: dict) -> dict:
+            return {}
+
+        def get_capabilities(self) -> list:
+            return ["capability1", "capability2"]
+
+    agent = CapableAgent(agent_id="capable-agent")
+
+    capabilities = agent.get_capabilities()
+    assert "capability1" in capabilities
+    assert "capability2" in capabilities
+
+
+def test_agent_get_config():
+    """Test getting configuration values."""
+    agent = TestAgent(
+        agent_id="test-agent",
+        config={"setting1": "value1", "setting2": 42}
+    )
+
+    assert agent.get_config("setting1") == "value1"
+    assert agent.get_config("setting2") == 42
+    assert agent.get_config("nonexistent", "default") == "default"

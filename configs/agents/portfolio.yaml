@@ -1,0 +1,68 @@
+# Demand & Intake Agent Configuration
+demand_intake:
+  agent_id: "demand-intake"
+  enabled: true
+  similarity_threshold: 0.85
+  mandatory_fields:
+    - title
+    - description
+    - business_objective
+  auto_categorization:
+    enabled: true
+    model:
+      provider: "azure_openai"
+      deployment: "gpt-4"
+  duplicate_detection:
+    enabled: true
+    search_provider: "azure_cognitive_search"
+    min_similarity: 0.85
+  notification:
+    enabled: true
+    channels: ["email", "teams"]
+
+# Business Case & Investment Analysis Agent
+business_case:
+  agent_id: "business-case"
+  enabled: true
+  roi_calculation:
+    discount_rate: 0.10
+    analysis_period_years: 5
+  financial_models:
+    - npv
+    - irr
+    - payback_period
+    - benefit_cost_ratio
+  sensitivity_analysis:
+    enabled: true
+    variables: ["revenue", "costs", "discount_rate"]
+
+# Portfolio Strategy & Optimization Agent
+portfolio_strategy:
+  agent_id: "portfolio-strategy"
+  enabled: true
+  optimization:
+    algorithm: "nsga2"  # Multi-objective genetic algorithm
+    population_size: 100
+    generations: 50
+    mutation_rate: 0.1
+  criteria_weights:
+    strategic_alignment: 0.30
+    financial_value: 0.25
+    risk: 0.20
+    resource_feasibility: 0.15
+    compliance: 0.10
+  rebalancing:
+    frequency: "quarterly"
+    auto_trigger: true
+    threshold_variance: 0.15
+
+# Program Management Agent
+program_management:
+  agent_id: "program-management"
+  enabled: true
+  dependency_tracking:
+    enabled: true
+    conflict_detection: true
+  benefits_realization:
+    tracking_frequency: "monthly"
+    variance_threshold: 0.10
