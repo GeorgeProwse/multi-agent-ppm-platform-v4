@@ -131,9 +131,9 @@ def entity_edit_form(store: Store, *, user: User, entity_id: str) -> None:
     status = st.text_input("Status", value=ent.status, key=f"edit_status_{entity_id}")
     allowed_cls = allowed_classifications_for_user(user.clearance)
     cls_index = allowed_cls.index(ent.classification) if ent.classification in allowed_cls else 0
-    classification = st.selectbox("Classification", allowed_cls, index=cls_index)
+    classification = st.selectbox("Classification", allowed_cls, index=cls_index, key=f"edit_classification_{entity_id}")
 
-    data_text = st.text_area("Data JSON", value=json_dumps(ent.data), height=280)
+    data_text = st.text_area("Data JSON", value=json_dumps(ent.data), height=280, key=f"edit_data_{entity_id}")
 
     cols = st.columns(2)
     with cols[0]:
