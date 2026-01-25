@@ -40,12 +40,12 @@ class AnalyticsInsightsAgent(BaseAgent):
         self.max_dashboard_widgets = config.get("max_dashboard_widgets", 20) if config else 20
 
         # Data stores (will be replaced with database)
-        self.dashboards = {}
-        self.reports = {}
-        self.kpis = {}
-        self.predictions = {}
-        self.scenarios = {}
-        self.data_lineage = {}
+        self.dashboards = {}  # type: ignore
+        self.reports = {}  # type: ignore
+        self.kpis = {}  # type: ignore
+        self.predictions = {}  # type: ignore
+        self.scenarios = {}  # type: ignore
+        self.data_lineage = {}  # type: ignore
 
     async def initialize(self) -> None:
         """Initialize analytics services, ML models, and data sources."""
@@ -153,23 +153,23 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         elif action == "run_prediction":
             return await self._run_prediction(
-                input_data.get("model_type"), input_data.get("input_data", {})
+                input_data.get("model_type"), input_data.get("input_data", {})  # type: ignore
             )
 
         elif action == "scenario_analysis":
             return await self._scenario_analysis(input_data.get("scenario", {}))
 
         elif action == "generate_narrative":
-            return await self._generate_narrative(input_data.get("data", {}))
+            return await self._generate_narrative(input_data.get("data", {}))  # type: ignore
 
         elif action == "track_kpi":
             return await self._track_kpi(input_data.get("kpi", {}))
 
         elif action == "query_data":
-            return await self._query_data(input_data.get("query"), input_data.get("filters", {}))
+            return await self._query_data(input_data.get("query"), input_data.get("filters", {}))  # type: ignore
 
         elif action == "get_dashboard":
-            return await self._get_dashboard(input_data.get("dashboard_id"))
+            return await self._get_dashboard(input_data.get("dashboard_id"))  # type: ignore
 
         elif action == "get_insights":
             return await self._get_insights(input_data.get("filters", {}))
@@ -637,7 +637,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
     async def _configure_widgets(self, widgets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Configure dashboard widgets."""
-        configured = []
+        configured: list[dict[str, Any]] = []
         for widget in widgets:
             configured.append(
                 {

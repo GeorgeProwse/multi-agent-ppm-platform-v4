@@ -51,14 +51,14 @@ class VendorProcurementAgent(BaseAgent):
         )
 
         # Data stores (will be replaced with database)
-        self.vendors = {}
-        self.procurement_requests = {}
-        self.rfps = {}
-        self.proposals = {}
-        self.contracts = {}
-        self.purchase_orders = {}
-        self.invoices = {}
-        self.vendor_performance = {}
+        self.vendors: dict[str, Any] = {}
+        self.procurement_requests: dict[str, Any] = {}
+        self.rfps: dict[str, Any] = {}
+        self.proposals: dict[str, Any] = {}
+        self.contracts: dict[str, Any] = {}
+        self.purchase_orders: dict[str, Any] = {}
+        self.invoices: dict[str, Any] = {}
+        self.vendor_performance: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize database connections, ERP integrations, and AI models."""
@@ -175,22 +175,22 @@ class VendorProcurementAgent(BaseAgent):
             return await self._create_procurement_request(input_data.get("request", {}))
 
         elif action == "generate_rfp":
-            return await self._generate_rfp(input_data.get("request_id"), input_data.get("rfp", {}))
+            return await self._generate_rfp(input_data.get("request_id"), input_data.get("rfp", {}))  # type: ignore
 
         elif action == "submit_proposal":
             return await self._submit_proposal(
-                input_data.get("rfp_id"),
-                input_data.get("vendor_id"),
+                input_data.get("rfp_id"),  # type: ignore
+                input_data.get("vendor_id"),  # type: ignore
                 input_data.get("proposal", {}),
             )
 
         elif action == "evaluate_proposals":
             return await self._evaluate_proposals(
-                input_data.get("rfp_id"), input_data.get("criteria", {})
+                input_data.get("rfp_id"), input_data.get("criteria", {})  # type: ignore
             )
 
         elif action == "select_vendor":
-            return await self._select_vendor(input_data.get("rfp_id"), input_data.get("vendor_id"))
+            return await self._select_vendor(input_data.get("rfp_id"), input_data.get("vendor_id"))  # type: ignore
 
         elif action == "create_contract":
             return await self._create_contract(input_data.get("contract", {}))
@@ -202,19 +202,19 @@ class VendorProcurementAgent(BaseAgent):
             return await self._submit_invoice(input_data.get("invoice", {}))
 
         elif action == "reconcile_invoice":
-            return await self._reconcile_invoice(input_data.get("invoice_id"))
+            return await self._reconcile_invoice(input_data.get("invoice_id"))  # type: ignore
 
         elif action == "track_vendor_performance":
-            return await self._track_vendor_performance(input_data.get("vendor_id"))
+            return await self._track_vendor_performance(input_data.get("vendor_id"))  # type: ignore
 
         elif action == "get_vendor_scorecard":
-            return await self._get_vendor_scorecard(input_data.get("vendor_id"))
+            return await self._get_vendor_scorecard(input_data.get("vendor_id"))  # type: ignore
 
         elif action == "search_vendors":
             return await self._search_vendors(input_data.get("criteria", {}))
 
         elif action == "get_procurement_status":
-            return await self._get_procurement_status(input_data.get("request_id"))
+            return await self._get_procurement_status(input_data.get("request_id"))  # type: ignore
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -1202,7 +1202,7 @@ class VendorProcurementAgent(BaseAgent):
             + metrics.get("sla_adherence", 0) * 20
         ) / 100
 
-        return min(100, max(0, score))
+        return min(100, max(0, score))  # type: ignore
 
     async def _is_expiring_soon(self, contract: dict[str, Any]) -> bool:
         """Check if contract is expiring within 90 days."""

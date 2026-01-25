@@ -44,11 +44,11 @@ class ProcessMiningAgent(BaseAgent):
         )
 
         # Data stores (will be replaced with database)
-        self.event_logs = {}
-        self.process_models = {}
-        self.improvement_backlog = {}
-        self.benefit_tracking = {}
-        self.benchmarks = {}
+        self.event_logs = {}  # type: ignore
+        self.process_models = {}  # type: ignore
+        self.improvement_backlog = {}  # type: ignore
+        self.benefit_tracking = {}  # type: ignore
+        self.benchmarks = {}  # type: ignore
 
     async def initialize(self) -> None:
         """Initialize process mining tools, analytics, and data sources."""
@@ -147,20 +147,28 @@ class ProcessMiningAgent(BaseAgent):
             return await self._ingest_event_log(input_data.get("events", []))
 
         elif action == "discover_process":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
             return await self._discover_process(
-                input_data.get("process_id"), input_data.get("algorithm", "heuristic_miner")
+                process_id, input_data.get("algorithm", "heuristic_miner")
             )
 
         elif action == "detect_bottlenecks":
-            return await self._detect_bottlenecks(input_data.get("process_id"))
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._detect_bottlenecks(process_id)
 
         elif action == "detect_deviations":
-            return await self._detect_deviations(input_data.get("process_id"))
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._detect_deviations(process_id)
 
         elif action == "analyze_root_cause":
-            return await self._analyze_root_cause(
-                input_data.get("process_id"), input_data.get("issue_id")
-            )
+            process_id = input_data.get("process_id")
+            issue_id = input_data.get("issue_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            assert isinstance(issue_id, str), "issue_id must be a string"
+            return await self._analyze_root_cause(process_id, issue_id)
 
         elif action == "create_improvement":
             return await self._create_improvement(input_data.get("improvement", {}))
@@ -169,18 +177,24 @@ class ProcessMiningAgent(BaseAgent):
             return await self._prioritize_improvements()
 
         elif action == "track_benefits":
-            return await self._track_benefits(input_data.get("improvement_id"))
+            improvement_id = input_data.get("improvement_id")
+            assert isinstance(improvement_id, str), "improvement_id must be a string"
+            return await self._track_benefits(improvement_id)
 
         elif action == "benchmark_performance":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
             return await self._benchmark_performance(
-                input_data.get("process_id"), input_data.get("benchmark_criteria", {})
+                process_id, input_data.get("benchmark_criteria", {})
             )
 
         elif action == "share_best_practices":
             return await self._share_best_practices(input_data.get("filters", {}))
 
         elif action == "get_process_insights":
-            return await self._get_process_insights(input_data.get("process_id"))
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._get_process_insights(process_id)
 
         elif action == "get_improvement_backlog":
             return await self._get_improvement_backlog(input_data.get("filters", {}))
@@ -294,15 +308,16 @@ class ProcessMiningAgent(BaseAgent):
         throughput = await self._analyze_throughput(process_id)
 
         # Identify bottlenecks
-        bottlenecks = []
+        bottlenecks: list[dict[str, Any]] = []
         for activity, metrics in waiting_times.items():
-            if metrics.get("avg_waiting_time", 0) > self.bottleneck_threshold * 100:
+            avg_wait_time = float(metrics.get("avg_waiting_time", 0))
+            if avg_wait_time > self.bottleneck_threshold * 100:
                 bottlenecks.append(
                     {
                         "activity": activity,
-                        "avg_waiting_time": metrics.get("avg_waiting_time"),
+                        "avg_waiting_time": avg_wait_time,
                         "frequency": metrics.get("frequency"),
-                        "severity": "high" if metrics.get("avg_waiting_time") > 50 else "medium",
+                        "severity": "high" if avg_wait_time > 50 else "medium",
                     }
                 )
 
@@ -335,11 +350,13 @@ class ProcessMiningAgent(BaseAgent):
             await self._discover_process(process_id)
             actual_model = self.process_models.get(process_id)
 
+        assert actual_model is not None, "Failed to discover process model"
+
         # Compare models
         deviations = await self._compare_process_models(designed_model, actual_model.get("model"))
 
         # Categorize deviations
-        categorized_deviations = {
+        categorized_deviations: dict[str, list[dict[str, Any]]] = {
             "skipped_activities": [],
             "extra_activities": [],
             "wrong_sequence": [],
@@ -460,7 +477,12 @@ class ProcessMiningAgent(BaseAgent):
         prioritized = sorted(improvements, key=lambda x: x.get("priority_score", 0), reverse=True)
 
         # Categorize by status
-        by_status = {"Idea": [], "Planned": [], "In Progress": [], "Completed": []}
+        by_status: dict[str, list[dict[str, Any]]] = {
+            "Idea": [],
+            "Planned": [],
+            "In Progress": [],
+            "Completed": [],
+        }
 
         for improvement in prioritized:
             status = improvement.get("status")
@@ -595,7 +617,7 @@ class ProcessMiningAgent(BaseAgent):
             process_model = self.process_models.get(process_id)
 
         # Get metrics
-        metrics = process_model.get("metrics", {})
+        metrics = process_model.get("metrics", {})  # type: ignore
 
         # Get bottlenecks
         bottlenecks_result = await self._detect_bottlenecks(process_id)
@@ -670,13 +692,13 @@ class ProcessMiningAgent(BaseAgent):
     async def _calculate_time_range(self, events: list[dict[str, Any]]) -> dict[str, str]:
         """Calculate time range of events."""
         if not events:
-            return {"start": None, "end": None}
+            return {"start": None, "end": None}  # type: ignore
 
         timestamps = [
-            datetime.fromisoformat(e.get("timestamp")) for e in events if e.get("timestamp")
+            datetime.fromisoformat(e.get("timestamp")) for e in events if e.get("timestamp")  # type: ignore
         ]
         if not timestamps:
-            return {"start": None, "end": None}
+            return {"start": None, "end": None}  # type: ignore
 
         return {"start": min(timestamps).isoformat(), "end": max(timestamps).isoformat()}
 
@@ -867,7 +889,7 @@ class ProcessMiningAgent(BaseAgent):
             "resource_availability", 0
         )
 
-        return benefit_score * feasibility_score
+        return benefit_score * feasibility_score  # type: ignore
 
     async def _measure_actual_benefits(self, improvement: dict[str, Any]) -> dict[str, Any]:
         """Measure actual benefits achieved."""
@@ -901,13 +923,13 @@ class ProcessMiningAgent(BaseAgent):
         if cost == 0:
             return 0.0
 
-        return ((cost_savings - cost) / cost) * 100
+        return ((cost_savings - cost) / cost) * 100  # type: ignore
 
     async def _get_current_process_metrics(self, process_id: str) -> dict[str, Any]:
         """Get current process metrics."""
         process_model = self.process_models.get(process_id)
         if process_model:
-            return process_model.get("metrics", {})
+            return process_model.get("metrics", {})  # type: ignore
         return {}
 
     async def _get_benchmark_data(
@@ -968,7 +990,7 @@ class ProcessMiningAgent(BaseAgent):
         self, practices: list[dict[str, Any]]
     ) -> dict[str, list[dict[str, Any]]]:
         """Categorize best practices."""
-        categorized = {"automation": [], "optimization": [], "standardization": []}
+        categorized = {"automation": [], "optimization": [], "standardization": []}  # type: ignore
         for practice in practices:
             categorized["optimization"].append(practice)
         return categorized

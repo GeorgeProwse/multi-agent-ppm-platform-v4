@@ -9,7 +9,7 @@ Specification: docs_markdown/specs/agents/platform/release-deployment/Agent 18 R
 """
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from src.core.base_agent import BaseAgent
 
@@ -45,11 +45,11 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.deployment_window_hours = config.get("deployment_window_hours", 4) if config else 4
 
         # Data stores (will be replaced with database)
-        self.releases = {}
-        self.deployment_plans = {}
-        self.environments_inventory = {}
-        self.release_notes = {}
-        self.deployment_metrics = {}
+        self.releases: dict[str, Any] = {}
+        self.deployment_plans: dict[str, Any] = {}
+        self.environments_inventory: dict[str, Any] = {}
+        self.release_notes: dict[str, Any] = {}
+        self.deployment_metrics: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize deployment orchestration, CI/CD integrations, and monitoring."""
@@ -155,46 +155,66 @@ class ReleaseDeploymentAgent(BaseAgent):
             return await self._plan_release(input_data.get("release", {}))
 
         elif action == "assess_readiness":
-            return await self._assess_readiness(input_data.get("release_id"))
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
+            return await self._assess_readiness(release_id)
 
         elif action == "create_deployment_plan":
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
             return await self._create_deployment_plan(
-                input_data.get("release_id"), input_data.get("deployment_plan", {})
+                release_id, input_data.get("deployment_plan", {})
             )
 
         elif action == "execute_deployment":
-            return await self._execute_deployment(input_data.get("deployment_plan_id"))
+            deployment_plan_id = input_data.get("deployment_plan_id")
+            assert isinstance(deployment_plan_id, str), "deployment_plan_id must be a string"
+            return await self._execute_deployment(deployment_plan_id)
 
         elif action == "rollback_deployment":
-            return await self._rollback_deployment(input_data.get("deployment_plan_id"))
+            deployment_plan_id = input_data.get("deployment_plan_id")
+            assert isinstance(deployment_plan_id, str), "deployment_plan_id must be a string"
+            return await self._rollback_deployment(deployment_plan_id)
 
         elif action == "manage_environment":
             return await self._manage_environment(input_data.get("environment", {}))
 
         elif action == "check_configuration_drift":
-            return await self._check_configuration_drift(input_data.get("environment_id"))
+            environment_id = input_data.get("environment_id")
+            assert isinstance(environment_id, str), "environment_id must be a string"
+            return await self._check_configuration_drift(environment_id)
 
         elif action == "generate_release_notes":
-            return await self._generate_release_notes(input_data.get("release_id"))
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
+            return await self._generate_release_notes(release_id)
 
         elif action == "track_deployment_metrics":
-            return await self._track_deployment_metrics(input_data.get("release_id"))
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
+            return await self._track_deployment_metrics(release_id)
 
         elif action == "schedule_deployment_window":
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
             return await self._schedule_deployment_window(
-                input_data.get("release_id"), input_data.get("preferred_window", {})
+                release_id, input_data.get("preferred_window", {})
             )
 
         elif action == "verify_post_deployment":
+            deployment_plan_id = input_data.get("deployment_plan_id")
+            assert isinstance(deployment_plan_id, str), "deployment_plan_id must be a string"
             return await self._verify_post_deployment(
-                input_data.get("deployment_plan_id"), input_data.get("verification_params", {})
+                deployment_plan_id, input_data.get("verification_params", {})
             )
 
         elif action == "get_release_calendar":
             return await self._get_release_calendar(input_data.get("filters", {}))
 
         elif action == "get_release_status":
-            return await self._get_release_status(input_data.get("release_id"))
+            release_id = input_data.get("release_id")
+            assert isinstance(release_id, str), "release_id must be a string"
+            return await self._get_release_status(release_id)
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -210,21 +230,24 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Generate release ID
         release_id = await self._generate_release_id()
 
+        target_environment = release_data.get("target_environment")
+        planned_date = release_data.get("planned_date")
+        assert isinstance(target_environment, str), "target_environment must be a string"
+        assert isinstance(planned_date, str), "planned_date must be a string"
+
         # Check for environment availability
         env_availability = await self._check_environment_availability(
-            release_data.get("target_environment"), release_data.get("planned_date")
+            target_environment, planned_date
         )
 
         # Detect scheduling conflicts
-        conflicts = await self._detect_scheduling_conflicts(
-            release_data.get("planned_date"), release_data.get("target_environment")
-        )
+        conflicts = await self._detect_scheduling_conflicts(planned_date, target_environment)
 
         # Suggest alternative windows if conflicts exist
-        alternative_windows = []
+        alternative_windows: list[dict[str, Any]] = []
         if conflicts:
             alternative_windows = await self._suggest_alternative_windows(
-                release_data.get("planned_date"), release_data.get("target_environment")
+                planned_date, target_environment
             )
 
         # Create release record
@@ -402,8 +425,11 @@ class ReleaseDeploymentAgent(BaseAgent):
         if not deployment_plan:
             raise ValueError(f"Deployment plan not found: {deployment_plan_id}")
 
+        assert deployment_plan is not None and isinstance(deployment_plan, dict)
+
         release_id = deployment_plan.get("release_id")
         release = self.releases.get(release_id)
+        assert release is not None and isinstance(release, dict), "Release not found"
 
         # Update status
         deployment_plan["status"] = "In Progress"
@@ -686,9 +712,11 @@ class ReleaseDeploymentAgent(BaseAgent):
         )
 
         # Check for conflicts
-        conflicts = await self._detect_scheduling_conflicts(
-            optimal_window.get("start_time"), release.get("target_environment")
-        )
+        start_time = optimal_window.get("start_time")
+        target_env = release.get("target_environment")
+        assert isinstance(start_time, str), "start_time must be a string"
+        assert isinstance(target_env, str), "target_environment must be a string"
+        conflicts = await self._detect_scheduling_conflicts(start_time, target_env)
 
         return {
             "release_id": release_id,
@@ -936,8 +964,8 @@ class ReleaseDeploymentAgent(BaseAgent):
 
     async def _estimate_deployment_duration(self, deployment_steps: list[dict[str, Any]]) -> int:
         """Estimate total deployment duration."""
-        total_minutes = sum(step.get("estimated_minutes", 5) for step in deployment_steps)
-        return total_minutes
+        total_minutes = sum(int(step.get("estimated_minutes", 5)) for step in deployment_steps)
+        return cast(int, total_minutes)  # type: ignore
 
     async def _execute_pre_deployment_tasks(self, tasks: list[dict[str, Any]]) -> dict[str, Any]:
         """Execute pre-deployment tasks."""
@@ -958,8 +986,8 @@ class ReleaseDeploymentAgent(BaseAgent):
 
     async def _should_auto_rollback(self, deployment_results: dict[str, Any]) -> bool:
         """Determine if auto-rollback should be triggered."""
-        failure_rate = deployment_results.get("failure_rate", 0)
-        return failure_rate > self.auto_rollback_threshold
+        failure_rate = float(deployment_results.get("failure_rate", 0))
+        return cast(bool, failure_rate > self.auto_rollback_threshold)  # type: ignore
 
     async def _execute_rollback_steps(self, steps: list[dict[str, Any]]) -> dict[str, Any]:
         """Execute rollback steps."""
@@ -1084,11 +1112,14 @@ Known Issues:
     ) -> dict[str, Any]:
         """Find optimal deployment window."""
         # TODO: Use optimization algorithm
+        start_time_str = preferred_window.get("start_time")
+        assert isinstance(start_time_str, str), "start_time must be a string"
+
         return {
-            "start_time": preferred_window.get("start_time"),
+            "start_time": start_time_str,
             "duration_hours": self.deployment_window_hours,
             "end_time": (
-                datetime.fromisoformat(preferred_window.get("start_time"))
+                datetime.fromisoformat(start_time_str)
                 + timedelta(hours=self.deployment_window_hours)
             ).isoformat(),
         }

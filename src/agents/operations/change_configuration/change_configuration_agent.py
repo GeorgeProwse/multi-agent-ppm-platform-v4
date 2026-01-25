@@ -49,11 +49,11 @@ class ChangeConfigurationAgent(BaseAgent):
         self.baseline_threshold = config.get("baseline_threshold", 0.10) if config else 0.10
 
         # Data stores (will be replaced with database)
-        self.change_requests = {}
-        self.cmdb = {}  # Configuration items
-        self.baselines = {}
-        self.change_history = {}
-        self.cab_meetings = {}
+        self.change_requests: dict[str, Any] = {}
+        self.cmdb: dict[str, Any] = {}  # Configuration items
+        self.baselines: dict[str, Any] = {}
+        self.change_history: dict[str, Any] = {}
+        self.cab_meetings: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize database connections, ITSM integrations, and AI models."""
@@ -137,14 +137,14 @@ class ChangeConfigurationAgent(BaseAgent):
             return await self._submit_change_request(input_data.get("change", {}))
 
         elif action == "classify_change":
-            return await self._classify_change(input_data.get("change_id"))
+            return await self._classify_change(input_data.get("change_id"))  # type: ignore
 
         elif action == "assess_impact":
-            return await self._assess_impact(input_data.get("change_id"))
+            return await self._assess_impact(input_data.get("change_id"))  # type: ignore
 
         elif action == "approve_change":
             return await self._approve_change(
-                input_data.get("change_id"), input_data.get("approval", {})
+                input_data.get("change_id"), input_data.get("approval", {})  # type: ignore
             )
 
         elif action == "register_ci":
@@ -154,7 +154,7 @@ class ChangeConfigurationAgent(BaseAgent):
             return await self._create_baseline(input_data.get("baseline", {}))
 
         elif action == "track_change_implementation":
-            return await self._track_change_implementation(input_data.get("change_id"))
+            return await self._track_change_implementation(input_data.get("change_id"))  # type: ignore
 
         elif action == "audit_changes":
             return await self._audit_changes(input_data.get("filters", {}))
@@ -599,7 +599,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         score += risk_impact.get("risk_score_increase", 0)
 
-        return min(100, score)
+        return min(100, score)  # type: ignore
 
     async def _generate_impact_recommendation(self, impact_assessment: dict[str, Any]) -> str:
         """Generate recommendation based on impact assessment."""

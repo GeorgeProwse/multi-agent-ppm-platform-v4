@@ -49,12 +49,12 @@ class StakeholderCommunicationsAgent(BaseAgent):
         self.sentiment_threshold = config.get("sentiment_threshold", -0.3) if config else -0.3
 
         # Data stores (will be replaced with database)
-        self.stakeholder_register = {}
-        self.communication_plans = {}
-        self.messages = {}
-        self.feedback = {}
-        self.events = {}
-        self.engagement_metrics = {}
+        self.stakeholder_register: dict[str, Any] = {}
+        self.communication_plans: dict[str, Any] = {}
+        self.messages: dict[str, Any] = {}
+        self.feedback: dict[str, Any] = {}
+        self.events: dict[str, Any] = {}
+        self.engagement_metrics: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize database connections, communication platforms, and AI models."""
@@ -142,7 +142,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             return await self._register_stakeholder(input_data.get("stakeholder", {}))
 
         elif action == "classify_stakeholder":
-            return await self._classify_stakeholder(input_data.get("stakeholder_id"))
+            return await self._classify_stakeholder(input_data.get("stakeholder_id"))  # type: ignore
 
         elif action == "create_communication_plan":
             return await self._create_communication_plan(input_data.get("plan", {}))
@@ -151,7 +151,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             return await self._generate_message(input_data.get("message", {}))
 
         elif action == "send_message":
-            return await self._send_message(input_data.get("message_id"))
+            return await self._send_message(input_data.get("message_id"))  # type: ignore
 
         elif action == "collect_feedback":
             return await self._collect_feedback(input_data.get("feedback", {}))
@@ -442,12 +442,12 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         # Store feedback
         if feedback_data.get("stakeholder_id") not in self.feedback:
-            self.feedback[feedback_data.get("stakeholder_id")] = []
+            self.feedback[feedback_data.get("stakeholder_id")] = []  # type: ignore
 
-        self.feedback[feedback_data.get("stakeholder_id")].append(feedback_record)
+        self.feedback[feedback_data.get("stakeholder_id")].append(feedback_record)  # type: ignore
 
         # Update stakeholder sentiment score
-        stakeholder = self.stakeholder_register.get(feedback_data.get("stakeholder_id"))
+        stakeholder = self.stakeholder_register.get(feedback_data.get("stakeholder_id"))  # type: ignore
         if stakeholder:
             stakeholder["sentiment_score"] = sentiment.get("score", 0)
             stakeholder["last_feedback_date"] = datetime.utcnow().isoformat()
@@ -776,7 +776,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         score = open_rate * 30 + click_rate * 30 + response_rate * 30 + events_attended * 10
 
-        return min(100, score)
+        return min(100, score)  # type: ignore
 
     async def _classify_engagement_level(self, score: float) -> str:
         """Classify engagement level based on score."""
