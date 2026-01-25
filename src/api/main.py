@@ -5,6 +5,7 @@ This is the main entry point for the PPM platform REST API.
 """
 
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,9 +31,17 @@ app = FastAPI(
 )
 
 # Configure CORS
+allowed_origins_env = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8501,http://localhost:8000"
+)
+allowed_origins = (
+    ["*"]
+    if allowed_origins_env.strip() == "*"
+    else [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Configure for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
