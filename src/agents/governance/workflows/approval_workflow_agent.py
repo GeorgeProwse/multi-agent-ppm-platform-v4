@@ -23,10 +23,10 @@ class ApprovalWorkflowAgent(BaseAgent):
         config: dict[str, Any] | None = None,
     ):
         super().__init__(agent_id, config)
-        self.approval_chains = {}
-        self.delegation_records = {}
+        self.approval_chains: dict[str, Any] = {}
+        self.delegation_records: dict[str, Any] = {}
 
-    async def initialize(self) -> bool:
+    async def initialize(self) -> None:
         """Initialize approval workflow configurations and connections."""
         self.logger.info("Initializing Approval Workflow Agent...")
 
@@ -37,7 +37,6 @@ class ApprovalWorkflowAgent(BaseAgent):
         # TODO: Connect to Microsoft Graph API for user/role lookups
 
         self.logger.info("Approval Workflow Agent initialized successfully")
-        return True
 
     async def _validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate approval request input data."""

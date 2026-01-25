@@ -3,7 +3,7 @@ Agent Orchestrator - Manages agent lifecycle and routing
 """
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 # Core Orchestration
 from src.agents.core.orchestration.intent_router_agent import IntentRouterAgent
@@ -100,14 +100,18 @@ class AgentOrchestrator:
         logger.info("Loading governance agents...")
 
         # Agent 3: Approval Workflow
-        agent = ApprovalWorkflowAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+
+        approval_agent = ApprovalWorkflowAgent()
+
+        await approval_agent.initialize()
+
+        self.agents[approval_agent.agent_id] = approval_agent
 
         # Agent 16: Compliance & Regulatory
-        agent = ComplianceRegulatoryAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+
+        compliance_agent = ComplianceRegulatoryAgent()
+        await compliance_agent.initialize()
+        self.agents[compliance_agent.agent_id] = compliance_agent
 
         logger.info("Governance agents loaded")
 
@@ -116,24 +120,24 @@ class AgentOrchestrator:
         logger.info("Loading portfolio agents...")
 
         # Agent 4: Demand & Intake
-        agent = DemandIntakeAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        demand_agent = DemandIntakeAgent()
+        await demand_agent.initialize()
+        self.agents[demand_agent.agent_id] = demand_agent
 
         # Agent 5: Business Case & Investment Analysis
-        agent = BusinessCaseInvestmentAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        business_case_agent = BusinessCaseInvestmentAgent()
+        await business_case_agent.initialize()
+        self.agents[business_case_agent.agent_id] = business_case_agent
 
         # Agent 6: Portfolio Strategy & Optimization
-        agent = PortfolioStrategyAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        portfolio_strategy_agent = PortfolioStrategyAgent()
+        await portfolio_strategy_agent.initialize()
+        self.agents[portfolio_strategy_agent.agent_id] = portfolio_strategy_agent
 
         # Agent 12: Financial Management
-        agent = FinancialManagementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        financial_agent = FinancialManagementAgent()
+        await financial_agent.initialize()
+        self.agents[financial_agent.agent_id] = financial_agent
 
         logger.info("Portfolio agents loaded")
 
@@ -142,29 +146,29 @@ class AgentOrchestrator:
         logger.info("Loading delivery agents...")
 
         # Agent 7: Program Management
-        agent = ProgramManagementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        program_agent = ProgramManagementAgent()
+        await program_agent.initialize()
+        self.agents[program_agent.agent_id] = program_agent
 
         # Agent 8: Project Definition & Scope
-        agent = ProjectDefinitionAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        project_definition_agent = ProjectDefinitionAgent()
+        await project_definition_agent.initialize()
+        self.agents[project_definition_agent.agent_id] = project_definition_agent
 
         # Agent 9: Project Lifecycle & Governance
-        agent = ProjectLifecycleAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        lifecycle_agent = ProjectLifecycleAgent()
+        await lifecycle_agent.initialize()
+        self.agents[lifecycle_agent.agent_id] = lifecycle_agent
 
         # Agent 10: Schedule & Planning
-        agent = SchedulePlanningAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        schedule_agent = SchedulePlanningAgent()
+        await schedule_agent.initialize()
+        self.agents[schedule_agent.agent_id] = schedule_agent
 
         # Agent 11: Resource & Capacity Management
-        agent = ResourceCapacityAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        resource_agent = ResourceCapacityAgent()
+        await resource_agent.initialize()
+        self.agents[resource_agent.agent_id] = resource_agent
 
         logger.info("Delivery agents loaded")
 
@@ -173,29 +177,29 @@ class AgentOrchestrator:
         logger.info("Loading operations agents...")
 
         # Agent 13: Vendor & Procurement Management
-        agent = VendorProcurementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        vendor_agent = VendorProcurementAgent()
+        await vendor_agent.initialize()
+        self.agents[vendor_agent.agent_id] = vendor_agent
 
         # Agent 14: Quality Management
-        agent = QualityManagementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        quality_agent = QualityManagementAgent()
+        await quality_agent.initialize()
+        self.agents[quality_agent.agent_id] = quality_agent
 
         # Agent 15: Risk Management
-        agent = RiskManagementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        risk_agent = RiskManagementAgent()
+        await risk_agent.initialize()
+        self.agents[risk_agent.agent_id] = risk_agent
 
         # Agent 17: Change & Configuration Management
-        agent = ChangeConfigurationAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        change_agent = ChangeConfigurationAgent()
+        await change_agent.initialize()
+        self.agents[change_agent.agent_id] = change_agent
 
         # Agent 21: Stakeholder & Communications Management
-        agent = StakeholderCommunicationsAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        stakeholder_agent = StakeholderCommunicationsAgent()
+        await stakeholder_agent.initialize()
+        self.agents[stakeholder_agent.agent_id] = stakeholder_agent
 
         logger.info("Operations agents loaded")
 
@@ -204,39 +208,39 @@ class AgentOrchestrator:
         logger.info("Loading platform agents...")
 
         # Agent 18: Release & Deployment
-        agent = ReleaseDeploymentAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        release_agent = ReleaseDeploymentAgent()
+        await release_agent.initialize()
+        self.agents[release_agent.agent_id] = release_agent
 
         # Agent 19: Knowledge & Document Management
-        agent = KnowledgeManagementAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        knowledge_agent = KnowledgeManagementAgent()
+        await knowledge_agent.initialize()
+        self.agents[knowledge_agent.agent_id] = knowledge_agent
 
         # Agent 20: Continuous Improvement & Process Mining
-        agent = ProcessMiningAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        process_mining_agent = ProcessMiningAgent()
+        await process_mining_agent.initialize()
+        self.agents[process_mining_agent.agent_id] = process_mining_agent
 
         # Agent 22: Analytics & Insights
-        agent = AnalyticsInsightsAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        analytics_agent = AnalyticsInsightsAgent()
+        await analytics_agent.initialize()
+        self.agents[analytics_agent.agent_id] = analytics_agent
 
         # Agent 23: Data Synchronization & Consistency
-        agent = DataSyncAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        data_sync_agent = DataSyncAgent()
+        await data_sync_agent.initialize()
+        self.agents[data_sync_agent.agent_id] = data_sync_agent
 
         # Agent 24: Workflow & Process Engine
-        agent = WorkflowEngineAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        workflow_agent = WorkflowEngineAgent()
+        await workflow_agent.initialize()
+        self.agents[workflow_agent.agent_id] = workflow_agent
 
         # Agent 25: System Health & Monitoring
-        agent = SystemHealthAgent()
-        await agent.initialize()
-        self.agents[agent.agent_id] = agent
+        health_agent = SystemHealthAgent()
+        await health_agent.initialize()
+        self.agents[health_agent.agent_id] = health_agent
 
         logger.info("Platform agents loaded")
 
@@ -255,6 +259,9 @@ class AgentOrchestrator:
         """
         if not self.initialized:
             raise RuntimeError("Orchestrator not initialized")
+
+        assert self.intent_router is not None, "Intent router not initialized"
+        assert self.response_orchestrator is not None, "Response orchestrator not initialized"
 
         # Step 1: Route the query
         intent_result = await self.intent_router.execute(
@@ -280,7 +287,7 @@ class AgentOrchestrator:
             }
         )
 
-        return orchestration_result
+        return cast(dict[str, Any], orchestration_result)
 
     def get_agent(self, agent_id: str):
         """Get agent by ID."""

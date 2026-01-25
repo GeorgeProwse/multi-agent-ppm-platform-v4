@@ -9,7 +9,7 @@ Specification: docs_markdown/specs/agents/core/orchestration/Agent 2 Response Or
 """
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 from src.core.base_agent import BaseAgent
 
@@ -26,7 +26,9 @@ class ResponseOrchestrationAgent(BaseAgent):
     - Result caching
     """
 
-    def __init__(self, agent_id: str = "response-orchestration", config: dict[str, Any] = None):
+    def __init__(
+        self, agent_id: str = "response-orchestration", config: dict[str, Any] | None = None
+    ):
         super().__init__(agent_id, config)
         self.max_concurrency = config.get("max_concurrency", 5) if config else 5
         self.agent_timeout = config.get("agent_timeout", 30) if config else 30
@@ -107,7 +109,7 @@ class ResponseOrchestrationAgent(BaseAgent):
 
         Returns list of agent results.
         """
-        results = []
+        results: list[dict[str, Any]] = []
 
         # Execute parallel groups
         for group in execution_plan.get("parallel_groups", []):
@@ -143,7 +145,8 @@ class ResponseOrchestrationAgent(BaseAgent):
                     }
                 )
             else:
-                processed_results.append(result)
+
+                processed_results.append(cast(dict[str, Any], result))
 
         return processed_results
 

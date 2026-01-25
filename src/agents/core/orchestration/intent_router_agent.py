@@ -24,7 +24,7 @@ class IntentRouterAgent(BaseAgent):
     - Agent routing and prioritization
     """
 
-    def __init__(self, agent_id: str = "intent-router", config: dict[str, Any] = None):
+    def __init__(self, agent_id: str = "intent-router", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
         self.supported_intents = [
             "portfolio_query",

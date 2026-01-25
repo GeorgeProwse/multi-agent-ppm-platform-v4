@@ -9,7 +9,7 @@ Specification: docs_markdown/specs/agents/delivery/resource-capacity/Agent 11 Re
 """
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from src.core.base_agent import BaseAgent
 
@@ -48,11 +48,11 @@ class ResourceCapacityAgent(BaseAgent):
         self.utilization_target = config.get("utilization_target", 0.85) if config else 0.85
 
         # Data stores (will be replaced with database connections)
-        self.resource_pool = {}
-        self.capacity_calendar = {}
-        self.allocations = {}
-        self.demand_requests = {}
-        self.utilization_metrics = {}
+        self.resource_pool: dict[str, Any] = {}
+        self.capacity_calendar: dict[str, Any] = {}
+        self.allocations: dict[str, Any] = {}
+        self.demand_requests: dict[str, Any] = {}
+        self.utilization_metrics: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize AI models, database connections, and external integrations."""
@@ -165,9 +165,9 @@ class ResourceCapacityAgent(BaseAgent):
             return await self._request_resource(input_data.get("request", {}))
 
         elif action == "approve_request":
-            return await self._approve_request(
-                input_data.get("request_id"), input_data.get("approval_decision", {})
-            )
+            request_id = input_data.get("request_id")
+            assert isinstance(request_id, str), "request_id must be a string"
+            return await self._approve_request(request_id, input_data.get("approval_decision", {}))
 
         elif action == "search_resources":
             return await self._search_resources(input_data.get("search_criteria", {}))
@@ -190,9 +190,9 @@ class ResourceCapacityAgent(BaseAgent):
             return await self._allocate_resource(input_data.get("allocation", {}))
 
         elif action == "get_availability":
-            return await self._get_availability(
-                input_data.get("resource_id"), input_data.get("date_range", {})
-            )
+            resource_id = input_data.get("resource_id")
+            assert isinstance(resource_id, str), "resource_id must be a string"
+            return await self._get_availability(resource_id, input_data.get("date_range", {}))
 
         elif action == "get_utilization":
             return await self._get_utilization(input_data.get("filters", {}))
@@ -215,6 +215,7 @@ class ResourceCapacityAgent(BaseAgent):
         self.logger.info("Adding resource to pool")
 
         resource_id = resource_data.get("resource_id")
+        assert isinstance(resource_id, str), "resource_id must be a string"
         name = resource_data.get("name")
         role = resource_data.get("role")
         skills = resource_data.get("skills", [])
@@ -273,6 +274,9 @@ class ResourceCapacityAgent(BaseAgent):
         start_date = request_data.get("start_date")
         end_date = request_data.get("end_date")
         effort = request_data.get("effort", 1.0)  # FTE
+
+        assert isinstance(start_date, str), "start_date must be a string"
+        assert isinstance(end_date, str), "end_date must be a string"
 
         # Match skills and find candidates
         candidates = await self._match_skills(required_skills, {"project_id": project_id})
@@ -591,6 +595,10 @@ class ResourceCapacityAgent(BaseAgent):
         end_date = allocation_data.get("end_date")
         allocation_percentage = allocation_data.get("allocation_percentage", 100)
 
+        assert isinstance(resource_id, str), "resource_id must be a string"
+        assert isinstance(start_date, str), "start_date must be a string"
+        assert isinstance(end_date, str), "end_date must be a string"
+
         # Validate allocation
         validation = await self._validate_allocation(
             resource_id, start_date, end_date, allocation_percentage
@@ -644,8 +652,12 @@ class ResourceCapacityAgent(BaseAgent):
         calendar = self.capacity_calendar.get(resource_id, {})
         allocations = self.allocations.get(resource_id, [])
 
-        start_date = datetime.fromisoformat(date_range.get("start_date"))
-        end_date = datetime.fromisoformat(date_range.get("end_date"))
+        start_date_str = date_range.get("start_date")
+        end_date_str = date_range.get("end_date")
+        assert isinstance(start_date_str, str), "start_date must be a string"
+        assert isinstance(end_date_str, str), "end_date must be a string"
+        start_date = datetime.fromisoformat(start_date_str)
+        end_date = datetime.fromisoformat(end_date_str)
 
         # Calculate availability for each day in range
         availability_by_day = []
@@ -865,15 +877,17 @@ class ResourceCapacityAgent(BaseAgent):
         self, capacity: list[dict[str, Any]], demand: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """Identify capacity bottlenecks."""
-        bottlenecks = []
+        bottlenecks: list[dict[str, Any]] = []
         for i, (cap, dem) in enumerate(zip(capacity, demand)):
-            if dem.get("demand", 0) > cap.get("capacity", 0):
+            dem_value = float(dem.get("demand", 0))
+            cap_value = float(cap.get("capacity", 0))
+            if dem_value > cap_value:
                 bottlenecks.append(
                     {
                         "month": i,
-                        "capacity": cap.get("capacity"),
-                        "demand": dem.get("demand"),
-                        "shortfall": dem.get("demand") - cap.get("capacity"),
+                        "capacity": cap_value,
+                        "demand": dem_value,
+                        "shortfall": dem_value - cap_value,
                     }
                 )
         return bottlenecks
@@ -891,7 +905,7 @@ class ResourceCapacityAgent(BaseAgent):
 
     async def _identify_capacity_gaps(self, forecast: dict[str, Any]) -> list[dict[str, Any]]:
         """Identify capacity gaps."""
-        return forecast.get("bottlenecks", [])
+        return forecast.get("bottlenecks", [])  # type: ignore
 
     async def _generate_mitigation_strategies(
         self, gaps: list[dict[str, Any]]
@@ -1016,8 +1030,12 @@ class ResourceCapacityAgent(BaseAgent):
         # Calculate allocated hours
         allocated_hours = 0
         for alloc in allocations:
-            alloc_start = datetime.fromisoformat(alloc.get("start_date"))
-            alloc_end = datetime.fromisoformat(alloc.get("end_date"))
+            alloc_start_str = alloc.get("start_date")
+            alloc_end_str = alloc.get("end_date")
+            if not isinstance(alloc_start_str, str) or not isinstance(alloc_end_str, str):
+                continue
+            alloc_start = datetime.fromisoformat(alloc_start_str)
+            alloc_end = datetime.fromisoformat(alloc_end_str)
 
             if alloc_start <= date <= alloc_end:
                 daily_hours = calendar.get("available_hours_per_day", 8)
@@ -1039,12 +1057,12 @@ class ResourceCapacityAgent(BaseAgent):
         allocations = self.allocations.get(resource_id, [])
 
         total_allocation = sum(
-            alloc.get("allocation_percentage", 0)
+            float(alloc.get("allocation_percentage", 0))
             for alloc in allocations
             if alloc.get("status") == "Active"
         )
 
-        return total_allocation / 100
+        return cast(float, total_allocation / 100)  # type: ignore
 
     async def _get_utilization_status(self, utilization: float) -> str:
         """Get utilization status."""
@@ -1061,10 +1079,20 @@ class ResourceCapacityAgent(BaseAgent):
         self, alloc1: dict[str, Any], alloc2: dict[str, Any]
     ) -> dict[str, Any]:
         """Check if two allocations overlap."""
-        start1 = datetime.fromisoformat(alloc1.get("start_date"))
-        end1 = datetime.fromisoformat(alloc1.get("end_date"))
-        start2 = datetime.fromisoformat(alloc2.get("start_date"))
-        end2 = datetime.fromisoformat(alloc2.get("end_date"))
+        start1_str = alloc1.get("start_date")
+        end1_str = alloc1.get("end_date")
+        start2_str = alloc2.get("start_date")
+        end2_str = alloc2.get("end_date")
+        assert isinstance(start1_str, str) and isinstance(
+            end1_str, str
+        ), "alloc1 dates must be strings"
+        assert isinstance(start2_str, str) and isinstance(
+            end2_str, str
+        ), "alloc2 dates must be strings"
+        start1 = datetime.fromisoformat(start1_str)
+        end1 = datetime.fromisoformat(end1_str)
+        start2 = datetime.fromisoformat(start2_str)
+        end2 = datetime.fromisoformat(end2_str)
 
         # Check for overlap
         has_overlap = not (end1 < start2 or end2 < start1)

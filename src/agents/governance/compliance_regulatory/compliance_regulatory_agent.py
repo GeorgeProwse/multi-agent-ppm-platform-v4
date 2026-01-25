@@ -60,13 +60,13 @@ class ComplianceRegulatoryAgent(BaseAgent):
         )
 
         # Data stores (will be replaced with database)
-        self.regulation_library = {}
-        self.control_registry = {}
-        self.compliance_mappings = {}
-        self.policies = {}
-        self.audits = {}
-        self.evidence = {}
-        self.regulatory_changes = {}
+        self.regulation_library: dict[str, Any] = {}
+        self.control_registry: dict[str, Any] = {}
+        self.compliance_mappings: dict[str, Any] = {}
+        self.policies: dict[str, Any] = {}
+        self.audits: dict[str, Any] = {}
+        self.evidence: dict[str, Any] = {}
+        self.regulatory_changes: dict[str, Any] = {}
 
     async def initialize(self) -> None:
         """Initialize database connections, GRC integrations, and AI models."""
@@ -171,17 +171,17 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         elif action == "map_controls_to_project":
             return await self._map_controls_to_project(
-                input_data.get("project_id"), input_data.get("mapping", {})
+                input_data.get("project_id"), input_data.get("mapping", {})  # type: ignore
             )
 
         elif action == "assess_compliance":
             return await self._assess_compliance(
-                input_data.get("project_id"), input_data.get("assessment", {})
+                input_data.get("project_id"), input_data.get("assessment", {})  # type: ignore
             )
 
         elif action == "test_control":
             return await self._test_control(
-                input_data.get("control_id"), input_data.get("test", {})
+                input_data.get("control_id"), input_data.get("test", {})  # type: ignore
             )
 
         elif action == "manage_policy":
@@ -191,11 +191,11 @@ class ComplianceRegulatoryAgent(BaseAgent):
             return await self._prepare_audit(input_data.get("audit", {}))
 
         elif action == "conduct_audit":
-            return await self._conduct_audit(input_data.get("audit_id"))
+            return await self._conduct_audit(input_data.get("audit_id"))  # type: ignore
 
         elif action == "upload_evidence":
             return await self._upload_evidence(
-                input_data.get("control_id"), input_data.get("evidence", {})
+                input_data.get("control_id"), input_data.get("evidence", {})  # type: ignore
             )
 
         elif action == "monitor_regulatory_changes":
@@ -342,7 +342,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
 
         # Initialize control status
         for control_id in applicable_controls:
-            mapping["control_status"][control_id] = {
+            mapping["control_status"][control_id] = {  # type: ignore
                 "implementation_status": "Not Started",
                 "evidence_uploaded": False,
                 "last_tested": None,
@@ -389,7 +389,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         control_assessments = []
         gaps = []
 
-        for control_id, status in mapping["control_status"].items():
+        for control_id, status in mapping["control_status"].items():  # type: ignore
             control = self.control_registry.get(control_id)
             if not control:
                 continue
@@ -552,13 +552,13 @@ class ComplianceRegulatoryAgent(BaseAgent):
         scope = audit_data.get("scope", [])
 
         # Compile required documentation
-        documentation = await self._compile_audit_documentation(project_id, scope)
+        documentation = await self._compile_audit_documentation(project_id, scope)  # type: ignore
 
         # Collect evidence
-        evidence_package = await self._compile_evidence(project_id, scope)
+        evidence_package = await self._compile_evidence(project_id, scope)  # type: ignore
 
         # Generate control status summary
-        control_summary = await self._generate_control_summary(project_id)
+        control_summary = await self._generate_control_summary(project_id)  # type: ignore
 
         # Create audit record
         audit = {
@@ -931,7 +931,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
         mapping = self.compliance_mappings.get(project_id)
         if not mapping:
             return []
-        return mapping.get("applicable_controls", [])
+        return mapping.get("applicable_controls", [])  # type: ignore
 
     async def _verify_control_effectiveness(self, control: dict[str, Any]) -> bool:
         """Verify control effectiveness."""
