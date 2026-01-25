@@ -83,6 +83,19 @@ REDIS_URL=redis://localhost:6379/0
 
 See [`.env.example`](.env.example) for all configuration options.
 
+### Troubleshooting (Top 3)
+
+1. **`docker: No such file or directory` or Docker daemon not running**
+   - Install Docker Desktop (or Docker Engine + Compose) and ensure the daemon is running.
+   - Re-run: `make docker-up` or `make quick-start`.
+2. **`pytest: error: unrecognized arguments: --cov...`**
+   - You’re missing dev dependencies. Install them with `make install-dev` (or `pip install -e .[dev]`),
+     then re-run `make test`.
+3. **`Address already in use` when starting the API or prototype**
+   - Stop the conflicting process or change ports:
+     - API: `uvicorn src.api.main:app --port 8001`
+     - Prototype: `streamlit run apps/prototype/streamlit_app.py --server.port 8502`
+
 ## 🛠️ Development
 
 ### Install Dependencies
@@ -125,6 +138,11 @@ make run-api
 # Terminal 2: Run Streamlit prototype
 make run-prototype
 ```
+
+### Security Notes (Production Hardening)
+
+- The API CORS policy defaults to local origins for development. Set `ALLOWED_ORIGINS` in `.env` for
+  production deployments (no wildcards). See [`.env.example`](.env.example) for format.
 
 ### Testing
 
