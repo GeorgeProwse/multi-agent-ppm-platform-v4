@@ -6,17 +6,14 @@ This is the main entry point for the PPM platform REST API.
 
 import logging
 import os
+from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from tools.runtime_paths import bootstrap_runtime_paths
-
-bootstrap_runtime_paths()
-
 from api.routes import agents, health
-from orchestrator import AgentOrchestrator
+from api.runtime_bootstrap import bootstrap_runtime_paths
 
 # Configure logging
 logging.basicConfig(
@@ -33,6 +30,15 @@ app = FastAPI(
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
+
+
+def _version_payload() -> dict[str, str]:
+    return {
+        "service": "multi-agent-ppm-api",
+        "version": os.getenv("APP_VERSION", app.version),
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
 
 # Configure CORS
 allowed_origins_env = os.getenv(
@@ -62,6 +68,9 @@ async def startup_event():
     logger.info("Starting Multi-Agent PPM Platform...")
 
     # Initialize orchestrator
+    bootstrap_runtime_paths()
+    from orchestrator import AgentOrchestrator
+
     orchestrator = AgentOrchestrator()
     await orchestrator.initialize()
 
@@ -78,6 +87,22 @@ async def shutdown_event():
         await orchestrator.cleanup()
 
     logger.info("Application shut down successfully")
+
+
+@app.get("/healthz")
+async def healthz():
+    """Lightweight health check for local dev and probes."""
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": os.getenv("APP_VERSION", app.version),
+    }
+
+
+@app.get("/version")
+async def version():
+    """Return API version metadata."""
+    return _version_payload()
 
 
 @app.get("/")
