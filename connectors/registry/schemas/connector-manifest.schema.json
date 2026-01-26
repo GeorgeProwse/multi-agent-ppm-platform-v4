@@ -2,10 +2,50 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Connector Manifest",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
-    "id": {"type": "string"},
+    "id": {"type": "string", "minLength": 3},
     "version": {"type": "string"},
-    "name": {"type": "string"}
+    "name": {"type": "string"},
+    "description": {"type": "string"},
+    "owner": {"type": "string"},
+    "category": {"type": "string"},
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {"type": "string", "enum": ["oauth2", "api_key", "basic", "token"]},
+        "token_url": {"type": "string"},
+        "scopes": {"type": "array", "items": {"type": "string"}},
+        "fields": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["type", "fields"]
+    },
+    "sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modes": {"type": "array", "items": {"type": "string", "enum": ["full", "incremental"]}},
+        "default_schedule": {"type": "string"},
+        "supports_webhooks": {"type": "boolean"},
+        "rate_limit_per_minute": {"type": "integer", "minimum": 1}
+      },
+      "required": ["modes", "default_schedule", "supports_webhooks"]
+    },
+    "mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {"type": "string"},
+          "target": {"type": "string"},
+          "mapping_file": {"type": "string"}
+        },
+        "required": ["source", "target", "mapping_file"]
+      },
+      "minItems": 1
+    }
   },
-  "required": ["id", "version", "name"]
+  "required": ["id", "version", "name", "description", "owner", "category", "auth", "sync", "mappings"]
 }

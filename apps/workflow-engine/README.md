@@ -1,44 +1,35 @@
 # Workflow Engine
 
-Workflow definitions and orchestration metadata used by the prototype and validation tooling.
+Workflow definitions and runtime service for executing workflow instances.
 
 ## Current state
 
 - Workflow definitions live in `apps/workflow-engine/workflows/`.
-- Validation uses `scripts/validate-workflows.py` to ensure schemas and examples are consistent.
-- There is no standalone service process yet; execution is modeled in the prototype UI.
+- Runtime service is implemented in `apps/workflow-engine/src/main.py` with SQLite persistence.
+- Audit events emitted to the audit-log service when workflows start/update.
 
 ## Quickstart
 
-Validate workflow definitions:
+Run the workflow engine:
 
 ```bash
-python scripts/validate-workflows.py
+uvicorn main:app --app-dir apps/workflow-engine/src --reload --port 8082
 ```
 
 ## How to verify
 
 ```bash
-ls apps/workflow-engine/workflows
+curl http://localhost:8082/healthz
 ```
-
-Expected output includes workflow YAML files for intake and delivery flows.
 
 ## Key files
 
+- `apps/workflow-engine/src/main.py`: workflow API service.
+- `apps/workflow-engine/src/storage.py`: workflow persistence.
 - `apps/workflow-engine/workflows/`: workflow definition YAMLs.
-- `apps/web/ppm/workflows/engine.py`: prototype workflow runner.
-- `scripts/validate-workflows.py`: workflow schema validation.
 
-## Example
-
-List the workflow IDs referenced by the prototype:
+## Tests
 
 ```bash
-rg -n "id:" apps/workflow-engine/workflows
+pytest tests/e2e -v
 ```
-
-## Next steps
-
-- Implement a dedicated workflow service under `apps/workflow-engine/src/`.
-- Define persistence for workflow instances in `services/`.

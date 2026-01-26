@@ -2,5 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Program",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "portfolio_id": {"type": "string"},
+    "name": {"type": "string"},
+    "status": {"type": "string", "enum": ["planning", "active", "closed"]},
+    "owner": {"type": "string"},
+    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "portfolio_id",
+    "name",
+    "status",
+    "owner",
+    "classification",
+    "created_at"
+  ]
 }

@@ -2,5 +2,33 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Budget",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "portfolio_id": {"type": "string"},
+    "name": {"type": "string"},
+    "currency": {"type": "string", "enum": ["USD", "EUR", "GBP", "AUD"]},
+    "amount": {"type": "number", "minimum": 0},
+    "fiscal_year": {"type": "integer", "minimum": 2020},
+    "status": {"type": "string", "enum": ["draft", "approved", "committed"]},
+    "owner": {"type": "string"},
+    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "metadata": {"type": "object"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "portfolio_id",
+    "name",
+    "currency",
+    "amount",
+    "fiscal_year",
+    "status",
+    "owner",
+    "classification",
+    "created_at"
+  ]
 }

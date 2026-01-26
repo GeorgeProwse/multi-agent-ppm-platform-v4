@@ -1,6 +1,30 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Work Item",
+  "title": "WorkItem",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "title": {"type": "string"},
+    "type": {"type": "string", "enum": ["task", "milestone", "deliverable"]},
+    "status": {"type": "string", "enum": ["todo", "in_progress", "done", "blocked"]},
+    "assigned_to": {"type": "string"},
+    "due_date": {"type": "string", "format": "date"},
+    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "project_id",
+    "title",
+    "type",
+    "status",
+    "assigned_to",
+    "classification",
+    "created_at"
+  ]
 }

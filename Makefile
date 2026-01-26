@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test lint format codegen check-links check-placeholders dev-up dev-down run-agent run-connector clean run-api run-prototype docker-build docker-up docker-down deploy-dev deploy-prod
+.PHONY: help install install-dev test lint format codegen check-links check-placeholders dev-up dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
 
 # Default target
 .DEFAULT_GOAL := help
@@ -10,7 +10,6 @@ PYTEST := pytest
 BLACK := black
 RUFF := ruff
 DOCKER_COMPOSE := docker-compose
-STREAMLIT := streamlit
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -78,13 +77,13 @@ run-api: ## Run the production API server
 run-api-prod: ## Run the API server in production mode
 	uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4 --app-dir apps/api-gateway/src
 
-run-prototype: ## Run the Streamlit prototype
-	cd apps/web && $(STREAMLIT) run streamlit_app.py
+run-web: ## Run the production web console
+	uvicorn src.main:app --reload --host 0.0.0.0 --port 8501 --app-dir apps/web/src
 
 docker-build: ## Build Docker image
 	docker build -t multi-agent-ppm:latest -f apps/api-gateway/Dockerfile .
 
-docker-build-prototype: ## Build prototype Docker image
+docker-build-web: ## Build web console Docker image
 	docker build -t multi-agent-ppm-web:latest -f apps/web/Dockerfile apps/web
 
 docker-up: ## Start all services with Docker Compose

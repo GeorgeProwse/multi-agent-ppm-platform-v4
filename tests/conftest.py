@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import jwt
 
 
 def _bootstrap_paths() -> None:
@@ -112,3 +113,19 @@ def sample_context():
         "session_id": "test_session",
         "timestamp": "2024-01-01T00:00:00Z",
     }
+
+
+@pytest.fixture
+def auth_headers(monkeypatch):
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "aud": "ppm-platform",
+            "iss": "https://issuer.example.com",
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"}

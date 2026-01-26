@@ -1,1 +1,30 @@
 name: prod
+region: eastus
+endpoints:
+  api_gateway: "https://api.ppm.example.com"
+  identity_access: "https://identity.ppm.example.com"
+  policy_engine: "https://policy.ppm.example.com"
+  audit_log: "https://audit.ppm.example.com"
+  telemetry: "https://telemetry.ppm.example.com"
+  data_sync: "https://sync.ppm.example.com"
+  workflow_engine: "https://workflow.ppm.example.com"
+  orchestration_service: "https://orchestrator.ppm.example.com"
+  ui: "https://app.ppm.example.com"
+vault:
+  uri: "https://ppm-prod-kv.vault.azure.net/"
+  secrets:
+    identity_client_id: "kv://identity-client-id"
+    identity_client_secret: "kv://identity-client-secret"
+    service_bus_connection: "kv://servicebus-connection"
+    storage_account_key: "kv://storage-account-key"
+feature_flags:
+  enable_workflow_engine: true
+  enable_data_sync: true
+  enable_connector_hub: true
+  enable_audit_worm: true
+  enable_otel_exporter: true
+  enable_ui_identity: true
+observability:
+  otel_collector_endpoint: "https://otel.ppm.example.com"
+  azure_monitor_connection: "InstrumentationKey=00000000-0000-0000-0000-000000000000"
+  log_level: "INFO"

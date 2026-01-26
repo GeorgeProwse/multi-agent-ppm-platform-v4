@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/your-org/audit-log
-  tag: "0.1.0"
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 service:
@@ -11,4 +11,6 @@ service:
 
 env:
   LOG_LEVEL: info
-  PORT: "8080"
+  AUDIT_WORM_CONTAINER: "audit-events"
+  AUDIT_WORM_CONNECTION_STRING: ""
+  AUDIT_LOG_ENCRYPTION_KEY: ""

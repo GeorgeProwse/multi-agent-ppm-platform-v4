@@ -10,7 +10,7 @@ User-facing apps and API services that make up the platform runtime.
 - **connector-hub**: registry and sandbox for external connectors.
 - **document-service**: document ingestion, storage, and retrieval workflows.
 - **orchestration-service**: multi-agent coordinator invoked by the API gateway.
-- **web**: Streamlit prototype UI.
+- **web**: production web console with identity-aware access.
 - **workflow-engine**: workflow definitions and orchestration runtime.
 
 ## Quickstart
@@ -19,7 +19,7 @@ Run the core developer-facing apps:
 
 ```bash
 make run-api
-make run-prototype
+make run-web
 ```
 
 Or start everything in Docker:
@@ -43,14 +43,6 @@ Expected response:
 ## Key files
 
 - `apps/api-gateway/src/api/main.py`: API entrypoint.
-- `apps/web/streamlit_app.py`: Streamlit prototype.
+- `apps/web/src/main.py`: web console backend.
 - `apps/orchestration-service/src/orchestrator.py`: agent orchestrator.
 - `apps/workflow-engine/workflows/`: workflow definitions.
-
-## Example
-
-List the API routes module directory:
-
-```bash
-ls apps/api-gateway/src/api/routes
-```

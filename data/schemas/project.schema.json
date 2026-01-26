@@ -2,5 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Project",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "program_id": {"type": "string"},
+    "name": {"type": "string"},
+    "status": {
+      "type": "string",
+      "enum": ["initiated", "planning", "execution", "monitoring", "closed"]
+    },
+    "start_date": {"type": "string", "format": "date"},
+    "end_date": {"type": "string", "format": "date"},
+    "owner": {"type": "string"},
+    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "program_id",
+    "name",
+    "status",
+    "start_date",
+    "owner",
+    "classification",
+    "created_at"
+  ]
 }

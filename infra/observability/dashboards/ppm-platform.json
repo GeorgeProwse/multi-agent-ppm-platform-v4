@@ -1,0 +1,35 @@
+{
+  "title": "PPM Platform Overview",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API Gateway Latency (p95)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"api-gateway\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Workflow Success Rate",
+      "targets": [
+        {
+          "expr": "sum(rate(workflow_completed_total{status=\"success\"}[5m])) / sum(rate(workflow_completed_total[5m]))",
+          "legendFormat": "success_rate"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Audit Log Ingest",
+      "targets": [
+        {
+          "expr": "sum(rate(audit_events_ingested_total[5m]))",
+          "legendFormat": "ingest_rate"
+        }
+      ]
+    }
+  ]
+}

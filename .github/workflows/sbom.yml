@@ -10,13 +10,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          output-file: sbom.spdx.json
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Generate SBOM
+        run: python scripts/generate-sbom.py
+
+      - name: Sign SBOM
+        run: python scripts/sign-artifact.py
+
+      - name: Verify signature
+        run: python scripts/verify-signature.py
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom
-          path: sbom.spdx.json
+          path: dist/sbom.json

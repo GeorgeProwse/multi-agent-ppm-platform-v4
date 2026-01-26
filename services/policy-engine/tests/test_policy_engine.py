@@ -37,3 +37,15 @@ def test_policy_evaluate_allow() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["decision"] == "allow"
+
+
+def test_rbac_evaluate_allow() -> None:
+    payload = {
+        "tenant_id": "tenant-alpha",
+        "roles": ["portfolio_admin"],
+        "permission": "project.read",
+        "classification": "internal",
+    }
+    response = client.post("/rbac/evaluate", json=payload)
+    assert response.status_code == 200
+    assert response.json()["decision"] == "allow"

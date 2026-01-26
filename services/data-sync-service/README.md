@@ -1,7 +1,7 @@
 # Data Sync Service
 
-The data sync service plans connector reconciliation jobs and exposes a minimal HTTP trigger for
-local development. In dev mode it reads YAML rule definitions and returns the planned sync actions.
+The data sync service plans connector reconciliation jobs, enqueues them on Azure Service Bus, and
+tracks job status for downstream workers. In dev mode it can run with an in-memory queue.
 
 ## Contracts
 
@@ -19,6 +19,9 @@ python -m tools.component_runner run --type service --name data-sync-service
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATA_SYNC_RULES_DIR` | `services/data-sync-service/rules` | Directory containing sync rule YAML files |
+| `DATA_SYNC_STATUS_PATH` | `services/data-sync-service/storage/status.json` | Status store for sync jobs |
+| `SERVICE_BUS_CONNECTION_STRING` | unset | Service Bus connection string |
+| `SERVICE_BUS_QUEUE` | `data-sync` | Queue name |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 | `PORT` | `8080` | HTTP port for the service |
 

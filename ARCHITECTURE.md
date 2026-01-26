@@ -272,7 +272,7 @@ Initialize → Validate → Process → Respond → Cleanup
 
 ### Frontend (Prototype)
 
-- **Framework**: Streamlit (prototype)
+- **Framework**: FastAPI-served static web console (production UI)
 - **Planned**: React with TypeScript
 
 ## Security Architecture

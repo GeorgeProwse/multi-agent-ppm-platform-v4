@@ -1,36 +1,47 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Audit Event",
+  "title": "AuditEvent",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "id": {"type": "string"},
+    "id": {"type": "string", "minLength": 8},
     "timestamp": {"type": "string", "format": "date-time"},
+    "tenant_id": {"type": "string", "minLength": 3},
+    "action": {"type": "string", "minLength": 3},
+    "outcome": {"type": "string", "enum": ["success", "failure", "denied"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
     "actor": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "id": {"type": "string"},
-        "type": {"type": "string"},
-        "display_name": {"type": "string"}
+        "type": {"type": "string", "enum": ["user", "service", "system"]},
+        "roles": {"type": "array", "items": {"type": "string"}}
       },
-      "required": ["id", "type"]
+      "required": ["id", "type", "roles"]
     },
-    "action": {"type": "string"},
     "resource": {
       "type": "object",
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "id": {"type": "string"},
         "type": {"type": "string"},
-        "name": {"type": "string"}
+        "attributes": {"type": "object"}
       },
       "required": ["id", "type"]
     },
-    "outcome": {"type": "string", "enum": ["success", "failure", "unknown"]},
-    "metadata": {"type": "object", "additionalProperties": true},
+    "metadata": {"type": "object"},
     "trace_id": {"type": "string"},
     "correlation_id": {"type": "string"}
   },
-  "required": ["id", "timestamp", "actor", "action", "resource", "outcome"]
+  "required": [
+    "id",
+    "timestamp",
+    "tenant_id",
+    "action",
+    "outcome",
+    "classification",
+    "actor",
+    "resource"
+  ]
 }

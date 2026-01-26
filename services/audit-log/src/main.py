@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -11,6 +10,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field
+import yaml
 
 logger = logging.getLogger("audit-log")
 logging.basicConfig(level=logging.INFO)
@@ -18,10 +18,15 @@ logging.basicConfig(level=logging.INFO)
 APP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_PATH = REPO_ROOT / "data" / "schemas" / "audit-event.schema.json"
-DEFAULT_STORAGE_PATH = REPO_ROOT / "services" / "audit-log" / "storage" / "audit-events.jsonl"
+RETENTION_CONFIG_PATH = REPO_ROOT / "config" / "retention" / "policies.yaml"
+CLASSIFICATION_CONFIG_PATH = REPO_ROOT / "config" / "data-classification" / "levels.yaml"
+
+from storage import AuditRetentionPolicy, get_worm_storage
 
 
 def _load_schema() -> dict[str, Any]:
+    import json
+
     return json.loads(SCHEMA_PATH.read_text())
 
 
@@ -32,10 +37,12 @@ def _validator() -> Draft202012Validator:
 class AuditEventIn(BaseModel):
     id: str
     timestamp: datetime
+    tenant_id: str
     actor: dict[str, Any]
     action: str
     resource: dict[str, Any]
     outcome: str
+    classification: str
     metadata: dict[str, Any] | None = None
     trace_id: str | None = None
     correlation_id: str | None = None
@@ -44,10 +51,12 @@ class AuditEventIn(BaseModel):
 class AuditEventOut(BaseModel):
     id: str
     timestamp: datetime
+    tenant_id: str
     actor: dict[str, Any]
     action: str
     resource: dict[str, Any]
     outcome: str
+    classification: str
     metadata: dict[str, Any] | None = None
     trace_id: str | None = None
     correlation_id: str | None = None
@@ -71,16 +80,25 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-def _ensure_storage_path(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.touch()
-
-
 def _serialize_event(event: AuditEventOut) -> dict[str, Any]:
     payload = event.model_dump()
     payload["timestamp"] = event.timestamp.isoformat()
     return payload
+
+
+def _load_retention_policy(classification: str) -> AuditRetentionPolicy:
+    retention_cfg = yaml.safe_load(RETENTION_CONFIG_PATH.read_text())
+    classification_cfg = yaml.safe_load(CLASSIFICATION_CONFIG_PATH.read_text())
+    policy_id = next(
+        (level.get("retention_policy") for level in classification_cfg.get("levels", []) if level["id"] == classification),
+        None,
+    )
+    if not policy_id:
+        raise HTTPException(status_code=400, detail="Retention policy not configured")
+    policy = next((p for p in retention_cfg.get("policies", []) if p["id"] == policy_id), None)
+    if not policy:
+        raise HTTPException(status_code=400, detail="Retention policy not found")
+    return AuditRetentionPolicy(policy_id=policy["id"], duration_days=policy["duration_days"])
 
 
 @app.post("/audit/events", response_model=AuditIngestResponse)
@@ -90,10 +108,12 @@ async def ingest_event(payload: AuditEventIn) -> AuditIngestResponse:
     event = AuditEventOut(
         id=event_id,
         timestamp=timestamp,
+        tenant_id=payload.tenant_id,
         actor=payload.actor,
         action=payload.action,
         resource=payload.resource,
         outcome=payload.outcome,
+        classification=payload.classification,
         metadata=payload.metadata,
         trace_id=payload.trace_id,
         correlation_id=payload.correlation_id,
@@ -105,11 +125,12 @@ async def ingest_event(payload: AuditEventIn) -> AuditIngestResponse:
         formatted = "; ".join(error.message for error in errors)
         raise HTTPException(status_code=422, detail=f"Schema validation failed: {formatted}")
 
-    storage_path = Path(os.getenv("AUDIT_LOG_STORAGE_PATH", str(DEFAULT_STORAGE_PATH)))
-    _ensure_storage_path(storage_path)
-
-    with storage_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(_serialize_event(event)) + "\n")
+    retention_policy = _load_retention_policy(payload.classification)
+    storage = get_worm_storage()
+    try:
+        storage.persist_event(event_id, _serialize_event(event), retention_policy)
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     logger.info("audit_event_ingested", extra={"event_id": event_id})
     return AuditIngestResponse(event=event)
@@ -117,20 +138,12 @@ async def ingest_event(payload: AuditEventIn) -> AuditIngestResponse:
 
 @app.get("/audit/events/{event_id}", response_model=AuditEventOut)
 async def get_event(event_id: str) -> AuditEventOut:
-    storage_path = Path(os.getenv("AUDIT_LOG_STORAGE_PATH", str(DEFAULT_STORAGE_PATH)))
-    if not storage_path.exists():
-        raise HTTPException(status_code=404, detail="No audit events stored")
-
-    with storage_path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            data = json.loads(line)
-            if data.get("id") == event_id:
-                if "timestamp" in data:
-                    data["timestamp"] = datetime.fromisoformat(data["timestamp"])
-                return AuditEventOut(**data)
-
+    storage = get_worm_storage()
+    data = storage.fetch_event(event_id)
+    if data:
+        if "timestamp" in data:
+            data["timestamp"] = datetime.fromisoformat(data["timestamp"])
+        return AuditEventOut(**data)
     raise HTTPException(status_code=404, detail="Audit event not found")
 
 

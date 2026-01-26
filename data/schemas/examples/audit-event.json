@@ -1,0 +1,25 @@
+{
+  "id": "evt-0001",
+  "timestamp": "2024-05-01T10:15:30Z",
+  "tenant_id": "tenant-alpha",
+  "action": "project.created",
+  "outcome": "success",
+  "classification": "internal",
+  "actor": {
+    "id": "user-123",
+    "type": "user",
+    "roles": ["portfolio_admin"]
+  },
+  "resource": {
+    "id": "proj-001",
+    "type": "project",
+    "attributes": {
+      "status": "initiated"
+    }
+  },
+  "metadata": {
+    "ip": "10.10.0.5"
+  },
+  "trace_id": "trace-001",
+  "correlation_id": "corr-001"
+}

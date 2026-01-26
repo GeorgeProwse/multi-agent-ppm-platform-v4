@@ -2,5 +2,29 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Risk",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "title": {"type": "string"},
+    "description": {"type": "string"},
+    "impact": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+    "likelihood": {"type": "string", "enum": ["rare", "unlikely", "possible", "likely"]},
+    "status": {"type": "string", "enum": ["open", "mitigated", "closed"]},
+    "owner": {"type": "string"},
+    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "title",
+    "impact",
+    "likelihood",
+    "status",
+    "owner",
+    "classification",
+    "created_at"
+  ]
 }

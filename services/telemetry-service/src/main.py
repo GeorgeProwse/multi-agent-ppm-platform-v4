@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-import json
 import logging
-import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from otel import PIPELINE
+
 logger = logging.getLogger("telemetry-service")
 logging.basicConfig(level=logging.INFO)
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_STORAGE_PATH = REPO_ROOT / "services" / "telemetry-service" / "pipelines" / "telemetry.jsonl"
 
 
 class HealthResponse(BaseModel):
@@ -45,30 +42,22 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-def _ensure_storage(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.touch()
-
-
 @app.post("/telemetry/ingest", response_model=TelemetryResponse)
 async def ingest(payload: TelemetryEnvelope) -> TelemetryResponse:
     correlation_id = payload.correlation_id or str(uuid4())
     timestamp = payload.timestamp or datetime.now(timezone.utc)
-    record = {
-        "source": payload.source,
-        "type": payload.type,
-        "timestamp": timestamp.isoformat(),
-        "correlation_id": correlation_id,
-        "payload": payload.payload,
-    }
+    tracer = PIPELINE.tracer()
+    with tracer.start_as_current_span("telemetry.ingest") as span:
+        span.set_attribute("telemetry.source", payload.source)
+        span.set_attribute("telemetry.type", payload.type)
+        span.set_attribute("telemetry.correlation_id", correlation_id)
+        span.set_attribute("telemetry.timestamp", timestamp.isoformat())
+        span.set_attribute("telemetry.payload", str(payload.payload))
 
-    storage_path = Path(os.getenv("TELEMETRY_STORAGE_PATH", str(DEFAULT_STORAGE_PATH)))
-    _ensure_storage(storage_path)
-    with storage_path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record) + "\n")
-
-    logger.info("telemetry_ingested", extra={"correlation_id": correlation_id, "type": payload.type})
+    logger.info(
+        "telemetry_ingested",
+        extra={"correlation_id": correlation_id, "type": payload.type},
+    )
     return TelemetryResponse(
         ingested=True,
         correlation_id=correlation_id,

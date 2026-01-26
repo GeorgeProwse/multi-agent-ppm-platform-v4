@@ -1,4 +1,4 @@
-# Streamlit Prototype Dockerfile
+# Production Web Console Dockerfile
 
 FROM python:3.11-slim
 
@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose Streamlit port
+# Expose web port
 EXPOSE 8501
 
-# Run Streamlit
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run web console
+CMD ["uvicorn", "src.main:app", "--host=0.0.0.0", "--port=8501"]

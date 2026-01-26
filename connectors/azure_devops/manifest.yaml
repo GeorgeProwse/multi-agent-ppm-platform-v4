@@ -1,2 +1,22 @@
 id: "azure_devops"
-version: "0.1.0"
+version: "1.0.0"
+name: "Azure DevOps"
+description: "Sync Azure DevOps projects and delivery work items."
+owner: "integration-team"
+category: "devops"
+auth:
+  type: "token"
+  fields:
+    - "pat"
+    - "organization_url"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "0 */6 * * *"
+  supports_webhooks: true
+  rate_limit_per_minute: 500
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"

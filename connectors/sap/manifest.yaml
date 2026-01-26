@@ -1,2 +1,23 @@
 id: "sap"
-version: "0.1.0"
+version: "1.0.0"
+name: "SAP"
+description: "Sync finance and portfolio data from SAP ERP."
+owner: "integration-team"
+category: "erp"
+auth:
+  type: "basic"
+  fields:
+    - "username"
+    - "password"
+    - "instance_url"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "30 */6 * * *"
+  supports_webhooks: false
+  rate_limit_per_minute: 120
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"

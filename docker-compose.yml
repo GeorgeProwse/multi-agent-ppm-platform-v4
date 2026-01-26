@@ -83,7 +83,7 @@ services:
   #     - ppm-network
   #   restart: unless-stopped
 
-  # Streamlit Prototype (for testing/demo)
+  # Production Web Console
   web:
     build:
       context: ./apps/web
@@ -92,7 +92,10 @@ services:
       - "8501:8501"
     volumes:
       - ./apps/web:/app
-      - ./docs:/docs:ro
+    environment:
+      - API_GATEWAY_URL=http://api:8000
+      - IDENTITY_ACCESS_URL=http://identity-access:8080
+      - WORKFLOW_ENGINE_URL=http://workflow-engine:8080
     networks:
       - ppm-network
     restart: unless-stopped

@@ -2,5 +2,27 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Document",
   "type": "object",
-  "properties": {}
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "title": {"type": "string"},
+    "doc_type": {"type": "string", "enum": ["policy", "requirement", "specification", "report"]},
+    "status": {"type": "string", "enum": ["draft", "review", "approved", "archived"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
+    "owner": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "metadata": {"type": "object"}
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "title",
+    "doc_type",
+    "status",
+    "classification",
+    "owner",
+    "created_at"
+  ]
 }

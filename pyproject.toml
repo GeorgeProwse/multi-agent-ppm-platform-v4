@@ -33,6 +33,9 @@ dependencies = [
     "azure-eventhub>=5.11.0",
     "azure-keyvault-secrets>=4.7.0",
     "azure-monitor-opentelemetry>=1.2.0",
+    "opentelemetry-sdk>=1.23.0",
+    "opentelemetry-exporter-otlp>=1.23.0",
+    "cryptography>=42.0.0",
 
     # Database
     "sqlalchemy>=2.0.0",

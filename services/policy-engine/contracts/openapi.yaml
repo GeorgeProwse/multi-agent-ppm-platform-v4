@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Policy Engine Service
-  version: 0.1.0
+  version: 1.0.0
 paths:
   /healthz:
     get:
@@ -29,6 +29,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PolicyEvaluationResponse"
+  /rbac/evaluate:
+    post:
+      summary: Evaluate tenant RBAC decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RBACEvaluationRequest"
+      responses:
+        "200":
+          description: RBAC decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RBACEvaluationResponse"
 components:
   schemas:
     HealthResponse:
@@ -47,6 +63,30 @@ components:
           additionalProperties: true
       required: [bundle]
     PolicyEvaluationResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+        reasons:
+          type: array
+          items:
+            type: string
+      required: [decision, reasons]
+    RBACEvaluationRequest:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        permission:
+          type: string
+        classification:
+          type: string
+      required: [tenant_id, roles, permission]
+    RBACEvaluationResponse:
       type: object
       properties:
         decision:

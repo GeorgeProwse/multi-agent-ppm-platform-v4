@@ -1,0 +1,32 @@
+id: "tenant-template"
+name: "Default Tenant"
+region: "eastus"
+features:
+  workflow_engine: true
+  data_sync: true
+  audit_logging: true
+  telemetry: true
+identity:
+  issuer: "https://login.microsoftonline.com/{tenant_id}/v2.0"
+  audience: "ppm-platform"
+  jwks_url: "https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
+classification_defaults:
+  level: "internal"
+retention_defaults:
+  policy: "internal-1y"
+rbac_defaults:
+  roles:
+    - "tenant_owner"
+    - "portfolio_admin"
+    - "project_manager"
+    - "analyst"
+provisioning:
+  namespaces:
+    - "ppm-platform"
+  resource_groups:
+    - "ppm-{tenant_id}-rg"
+  key_vault:
+    name: "ppm-{tenant_id}-kv"
+    secrets:
+      - "identity-client-id"
+      - "identity-client-secret"
