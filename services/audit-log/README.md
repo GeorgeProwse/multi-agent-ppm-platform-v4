@@ -2,7 +2,7 @@
 
 The audit log service captures and stores audit events for compliance, traceability, and security
 reviews across the platform. It validates incoming events against the canonical audit-event schema
-and persists them to a local JSONL store in dev mode.
+and persists them to an encrypted, append-only WORM store (Azure Blob or local encrypted storage).
 
 ## Contracts
 
@@ -18,7 +18,10 @@ python -m tools.component_runner run --type service --name audit-log
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AUDIT_LOG_STORAGE_PATH` | `services/audit-log/storage/audit-events.jsonl` | JSONL storage file for audit events |
+| `AUDIT_WORM_CONNECTION_STRING` | unset | Azure Blob connection string for WORM storage |
+| `AUDIT_WORM_CONTAINER` | `audit-events` | Azure Blob container name |
+| `AUDIT_WORM_LOCAL_PATH` | `services/audit-log/storage/immutable` | Local encrypted WORM path |
+| `AUDIT_LOG_ENCRYPTION_KEY` | generated | Base64 Fernet key for local encryption |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 | `PORT` | `8080` | HTTP port for the service |
 
@@ -30,10 +33,12 @@ curl -X POST http://localhost:8080/audit/events \
   -d '{
     "id": "evt-001",
     "timestamp": "2025-01-01T00:00:00Z",
-    "actor": {"id": "user-1", "type": "user"},
+    "tenant_id": "tenant-alpha",
+    "actor": {"id": "user-1", "type": "user", "roles": ["auditor"]},
     "action": "portfolio.create",
     "resource": {"id": "port-9", "type": "portfolio"},
-    "outcome": "success"
+    "outcome": "success",
+    "classification": "internal"
   }'
 ```
 

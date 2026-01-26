@@ -1,1 +1,17 @@
-policies: []
+policies:
+  - id: "public-30d"
+    description: "Public data retained for 30 days."
+    duration_days: 30
+    storage_class: "cool"
+  - id: "internal-1y"
+    description: "Internal data retained for 1 year."
+    duration_days: 365
+    storage_class: "cool"
+  - id: "confidential-5y"
+    description: "Confidential data retained for 5 years."
+    duration_days: 1825
+    storage_class: "archive"
+  - id: "restricted-7y"
+    description: "Restricted data retained for 7 years."
+    duration_days: 2555
+    storage_class: "archive"

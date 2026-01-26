@@ -106,6 +106,19 @@ def _detect_uvicorn(root: Path) -> list[str] | None:
             "--app-dir",
             str(src_dir),
         ]
+    main_app = src_dir / "main.py"
+    if main_app.exists():
+        return [
+            "uvicorn",
+            "main:app",
+            "--reload",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8501",
+            "--app-dir",
+            str(src_dir),
+        ]
     return None
 
 
@@ -206,7 +219,7 @@ def _run_component(component: Component, use_docker: bool, dry_run: bool) -> Non
     if run_command is None:
         raise SystemExit(
             "No runnable entrypoint detected. Add one of the following to "
-            f"{root}: package.json scripts, streamlit_app.py, src/**/main.py, "
+            f"{root}: package.json scripts, src/**/main.py, "
             "or src/**/__main__.py. If the component uses Docker, rerun with --docker."
         )
 

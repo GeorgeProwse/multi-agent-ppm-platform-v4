@@ -8,8 +8,11 @@ from typing import Any
 from uuid import uuid4
 
 import yaml
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+from queue import get_queue_client
+from status import get_status_store
 
 logger = logging.getLogger("data-sync-service")
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +47,15 @@ class SyncRunResponse(BaseModel):
     planned_rules: list[str]
 
 
+class SyncStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    created_at: str
+    updated_at: str
+    connector: str | None
+    details: dict[str, Any]
+
+
 app = FastAPI(title="Data Sync Service", version="0.1.0")
 
 
@@ -69,6 +81,19 @@ async def run_sync(request: SyncRunRequest) -> SyncRunResponse:
     rules = _load_rules()
     planned = [rule.id for rule in rules]
     job_id = str(uuid4())
+    status_store = get_status_store()
+    status_store.create(job_id, request.connector, "planned")
+
+    queue_client = get_queue_client()
+    queue_client.send(
+        {
+            "job_id": job_id,
+            "connector": request.connector,
+            "dry_run": request.dry_run,
+            "rules": planned,
+        }
+    )
+    status_store.update(job_id, "queued")
 
     logger.info(
         "sync_run_triggered",
@@ -82,10 +107,19 @@ async def run_sync(request: SyncRunRequest) -> SyncRunResponse:
 
     return SyncRunResponse(
         job_id=job_id,
-        status="planned",
+        status="queued",
         started_at=datetime.now(timezone.utc),
         planned_rules=planned,
     )
+
+
+@app.get("/sync/status/{job_id}", response_model=SyncStatusResponse)
+async def get_sync_status(job_id: str) -> SyncStatusResponse:
+    status_store = get_status_store()
+    job = status_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return SyncStatusResponse(**job.__dict__)
 
 
 if __name__ == "__main__":

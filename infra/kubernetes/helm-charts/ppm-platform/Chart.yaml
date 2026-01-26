@@ -1,0 +1,49 @@
+apiVersion: v2
+name: ppm-platform
+description: Helm umbrella chart to deploy the full Multi-Agent PPM platform
+version: 1.0.0
+appVersion: "1.0.0"
+
+dependencies:
+  - name: api-gateway
+    version: 0.1.0
+    repository: "file://../../../apps/api-gateway/helm"
+  - name: workflow-engine
+    version: 0.1.0
+    repository: "file://../../../apps/workflow-engine/helm"
+  - name: orchestration-service
+    version: 0.1.0
+    repository: "file://../../../apps/orchestration-service/helm"
+  - name: admin-console
+    version: 0.1.0
+    repository: "file://../../../apps/admin-console/helm"
+  - name: connector-hub
+    version: 0.1.0
+    repository: "file://../../../apps/connector-hub/helm"
+  - name: analytics-service
+    version: 0.1.0
+    repository: "file://../../../apps/analytics-service/helm"
+  - name: document-service
+    version: 0.1.0
+    repository: "file://../../../apps/document-service/helm"
+  - name: web
+    version: 0.1.0
+    repository: "file://../../../apps/web/helm"
+  - name: audit-log
+    version: 0.1.0
+    repository: "file://../../../services/audit-log/helm"
+  - name: data-sync-service
+    version: 0.1.0
+    repository: "file://../../../services/data-sync-service/helm"
+  - name: identity-access
+    version: 0.1.0
+    repository: "file://../../../services/identity-access/helm"
+  - name: notification-service
+    version: 0.1.0
+    repository: "file://../../../services/notification-service/helm"
+  - name: policy-engine
+    version: 0.1.0
+    repository: "file://../../../services/policy-engine/helm"
+  - name: telemetry-service
+    version: 0.1.0
+    repository: "file://../../../services/telemetry-service/helm"

@@ -1,0 +1,27 @@
+groups:
+  - name: ppm-platform-slo
+    rules:
+      - alert: ApiGatewayHighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="api-gateway"}[5m])) by (le)) > 0.5
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "API Gateway latency above SLO"
+          description: "p95 latency exceeds 500ms for 10 minutes."
+      - alert: WorkflowFailureRate
+        expr: sum(rate(workflow_completed_total{status="failure"}[5m])) / sum(rate(workflow_completed_total[5m])) > 0.05
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "Workflow failure rate exceeds 5%"
+          description: "Workflow failures above threshold."
+      - alert: AuditIngestStall
+        expr: sum(rate(audit_events_ingested_total[10m])) == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No audit events ingested"
+          description: "Audit log ingestion stalled for 15 minutes."

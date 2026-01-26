@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Data Sync Service
-  version: 0.1.0
+  version: 1.0.0
 paths:
   /healthz:
     get:
@@ -29,6 +29,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncRunResponse"
+  /sync/status/{job_id}:
+    get:
+      summary: Get sync job status
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sync status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncStatusResponse"
 components:
   schemas:
     HealthResponse:
@@ -61,3 +77,20 @@ components:
           items:
             type: string
       required: [job_id, status, started_at, planned_rules]
+    SyncStatusResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        connector:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required: [job_id, status, created_at, updated_at, details]

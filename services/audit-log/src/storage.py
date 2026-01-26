@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import base64
+import json
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+from azure.storage.blob import BlobServiceClient
+from cryptography.fernet import Fernet
+
+
+class WORMStorageError(RuntimeError):
+    pass
+
+
+@dataclass
+class AuditRetentionPolicy:
+    policy_id: str
+    duration_days: int
+
+
+class WORMStorage:
+    def persist_event(self, event_id: str, payload: dict[str, Any], retention: AuditRetentionPolicy) -> None:
+        raise NotImplementedError
+
+    def fetch_event(self, event_id: str) -> dict[str, Any] | None:
+        raise NotImplementedError
+
+
+class LocalEncryptedWORMStorage(WORMStorage):
+    def __init__(self, root: Path, encryption_key: str) -> None:
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.fernet = Fernet(encryption_key.encode("utf-8"))
+
+    def _event_path(self, event_id: str) -> Path:
+        return self.root / f"{event_id}.json.enc"
+
+    def persist_event(self, event_id: str, payload: dict[str, Any], retention: AuditRetentionPolicy) -> None:
+        path = self._event_path(event_id)
+        if path.exists():
+            raise WORMStorageError("Immutable store already contains event")
+
+        payload = {
+            **payload,
+            "retention_policy": retention.policy_id,
+            "retention_until": (datetime.utcnow() + timedelta(days=retention.duration_days)).isoformat(),
+        }
+        encrypted = self.fernet.encrypt(json.dumps(payload).encode("utf-8"))
+        with open(path, "xb") as handle:
+            handle.write(encrypted)
+
+    def fetch_event(self, event_id: str) -> dict[str, Any] | None:
+        path = self._event_path(event_id)
+        if not path.exists():
+            return None
+        decrypted = self.fernet.decrypt(path.read_bytes())
+        return json.loads(decrypted)
+
+
+class AzureBlobWORMStorage(WORMStorage):
+    def __init__(self, connection_string: str, container: str) -> None:
+        self.client = BlobServiceClient.from_connection_string(connection_string)
+        self.container = container
+        self._ensure_container()
+
+    def _ensure_container(self) -> None:
+        container_client = self.client.get_container_client(self.container)
+        if not container_client.exists():
+            container_client.create_container()
+            container_client.set_container_access_policy()
+
+    def persist_event(self, event_id: str, payload: dict[str, Any], retention: AuditRetentionPolicy) -> None:
+        container_client = self.client.get_container_client(self.container)
+        blob_client = container_client.get_blob_client(f"{event_id}.json")
+        if blob_client.exists():
+            raise WORMStorageError("Immutable store already contains event")
+        payload["retention_policy"] = retention.policy_id
+        payload["retention_until"] = (
+            datetime.utcnow() + timedelta(days=retention.duration_days)
+        ).isoformat()
+        blob_client.upload_blob(json.dumps(payload), overwrite=False)
+
+    def fetch_event(self, event_id: str) -> dict[str, Any] | None:
+        blob_client = self.client.get_blob_client(self.container, f"{event_id}.json")
+        if not blob_client.exists():
+            return None
+        data = blob_client.download_blob().readall()
+        return json.loads(data)
+
+
+def get_worm_storage() -> WORMStorage:
+    connection = os.getenv("AUDIT_WORM_CONNECTION_STRING")
+    container = os.getenv("AUDIT_WORM_CONTAINER", "audit-events")
+    encryption_key = os.getenv("AUDIT_LOG_ENCRYPTION_KEY")
+    if connection:
+        return AzureBlobWORMStorage(connection, container)
+    if not encryption_key:
+        encryption_key = base64.urlsafe_b64encode(os.urandom(32)).decode("utf-8")
+    root = Path(os.getenv("AUDIT_WORM_LOCAL_PATH", "services/audit-log/storage/immutable"))
+    return LocalEncryptedWORMStorage(root=root, encryption_key=encryption_key)

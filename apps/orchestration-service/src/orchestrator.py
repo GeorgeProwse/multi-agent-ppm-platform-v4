@@ -3,10 +3,12 @@ Agent Orchestrator - Manages agent lifecycle and routing
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, cast
 
 from tools.runtime_paths import bootstrap_runtime_paths
+from persistence import OrchestrationStateStore, WorkflowState
 
 logger = logging.getLogger(__name__)
 DEFAULT_POLICY_BUNDLE_PATH = (
@@ -27,11 +29,22 @@ class AgentOrchestrator:
         self.intent_router = None
         self.response_orchestrator = None
         self.policy_bundle_path = DEFAULT_POLICY_BUNDLE_PATH
+        self.workflow_states: dict[str, WorkflowState] = {}
+        state_path = Path(
+            os.getenv(
+                "ORCHESTRATION_STATE_PATH",
+                "apps/orchestration-service/storage/orchestration-state.json",
+            )
+        )
+        self.state_store = OrchestrationStateStore(state_path)
 
     async def initialize(self):
         """Initialize all 25 agents."""
         logger.info("Initializing Agent Orchestrator...")
         logger.info("Using policy bundle: %s", self.policy_bundle_path)
+        self.workflow_states = self.state_store.load()
+        if self.workflow_states:
+            logger.info("Loaded %s workflow states for resume", len(self.workflow_states))
 
         # Initialize core orchestration agents (Agents 1-2)
         bootstrap_runtime_paths()
@@ -55,6 +68,18 @@ class AgentOrchestrator:
 
         self.initialized = True
         logger.info(f"Orchestrator initialized with {len(self.agents)} agents")
+
+    def persist_workflow_state(self, run_id: str, status: str, checkpoint: str, payload: dict[str, Any]) -> None:
+        self.workflow_states[run_id] = WorkflowState(
+            run_id=run_id,
+            status=status,
+            last_checkpoint=checkpoint,
+            payload=payload,
+        )
+        self.state_store.save(self.workflow_states)
+
+    def resume_workflows(self) -> list[str]:
+        return list(self.workflow_states.keys())
 
     async def _load_governance_agents(self):
         """Initialize governance agents."""

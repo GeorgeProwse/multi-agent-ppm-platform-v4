@@ -1,8 +1,7 @@
 # Telemetry Service
 
-The telemetry service ingests structured log/metric/trace payloads and writes them to a local
-JSONL store in dev mode. It is designed to align with the observability standards defined in
-`docs/architecture/observability-architecture.md`.
+The telemetry service ingests structured log/metric/trace payloads and emits them to an OpenTelemetry
+pipeline. It supports exporting to Azure Monitor via the OTLP collector.
 
 ## Contracts
 
@@ -18,7 +17,8 @@ python -m tools.component_runner run --type service --name telemetry-service
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `TELEMETRY_STORAGE_PATH` | `services/telemetry-service/pipelines/telemetry.jsonl` | JSONL storage file for ingested telemetry |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | OTLP endpoint (collector) |
+| `AZURE_MONITOR_CONNECTION_STRING` | unset | Azure Monitor connection string |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 | `PORT` | `8080` | HTTP port for the service |
 

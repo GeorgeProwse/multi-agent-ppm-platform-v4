@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime, timezone
 from importlib.util import module_from_spec, spec_from_file_location
@@ -14,6 +13,7 @@ MODULE_PATH = SERVICE_ROOT / "src" / "main.py"
 spec = spec_from_file_location("audit_log_main", MODULE_PATH)
 module = module_from_spec(spec)
 assert spec and spec.loader
+sys.path.insert(0, str(SERVICE_ROOT / "src"))
 sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
@@ -26,24 +26,29 @@ def test_healthz() -> None:
     assert response.json()["service"] == "audit-log"
 
 
-def test_ingest_and_fetch_event() -> None:
+def test_ingest_and_fetch_event(monkeypatch) -> None:
     storage_path = (
         Path(__file__).resolve().parents[3]
         / "services"
         / "audit-log"
         / "storage"
-        / "audit-events.jsonl"
+        / "immutable"
     )
     if storage_path.exists():
-        storage_path.unlink()
+        for path in storage_path.glob("*.enc"):
+            path.unlink()
+    monkeypatch.setenv("AUDIT_LOG_ENCRYPTION_KEY", "Y2hhbmdlLW1lLW5vdC1wcm9kLWsxMjM0NTY3ODkwMTIzNDU2Nzg5MA==")
+    monkeypatch.setenv("AUDIT_WORM_LOCAL_PATH", str(storage_path))
 
     payload = {
         "id": "evt-123",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "actor": {"id": "user-1", "type": "user"},
+        "tenant_id": "tenant-alpha",
+        "actor": {"id": "user-1", "type": "user", "roles": ["auditor"]},
         "action": "project.create",
         "resource": {"id": "proj-9", "type": "project"},
         "outcome": "success",
+        "classification": "internal",
         "metadata": {"ip": "127.0.0.1"},
         "trace_id": "trace-1",
         "correlation_id": "corr-1",
@@ -58,5 +63,5 @@ def test_ingest_and_fetch_event() -> None:
     assert fetch.json()["action"] == "project.create"
 
     assert storage_path.exists()
-    with storage_path.open("r", encoding="utf-8") as handle:
-        assert json.loads(handle.readline())["id"] == "evt-123"
+    encrypted_files = list(storage_path.glob("*.enc"))
+    assert encrypted_files

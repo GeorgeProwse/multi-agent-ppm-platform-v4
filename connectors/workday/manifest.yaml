@@ -1,2 +1,23 @@
 id: "workday"
-version: "0.1.0"
+version: "1.0.0"
+name: "Workday"
+description: "Sync resource capacity and workforce data from Workday."
+owner: "integration-team"
+category: "hr"
+auth:
+  type: "basic"
+  fields:
+    - "username"
+    - "password"
+    - "instance_url"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "0 */12 * * *"
+  supports_webhooks: false
+  rate_limit_per_minute: 120
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"

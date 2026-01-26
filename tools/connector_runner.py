@@ -89,9 +89,16 @@ def _run_connector(connector: Component, use_docker: bool, dry_run: bool) -> Non
         _execute(["docker", "run", "--rm", image_tag], repo_root(), dry_run)
         return
 
-    raise SystemExit(
-        "Connector execution is not yet defined. "
-        f"Add a Dockerfile or implement a Python entrypoint under {connector.path}/src."
+    entrypoint = connector.path / "src" / "main.py"
+    fixture = connector.path / "tests" / "fixtures" / "projects.json"
+    if not entrypoint.exists():
+        raise SystemExit(f"Connector entrypoint missing: {entrypoint}")
+    if not fixture.exists():
+        raise SystemExit(f"Connector fixture missing: {fixture}")
+    _execute(
+        ["python", str(entrypoint), str(fixture), "--tenant", "tenant-demo"],
+        repo_root(),
+        dry_run,
     )
 
 

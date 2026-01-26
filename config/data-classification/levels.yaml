@@ -1,1 +1,34 @@
-levels: []
+levels:
+  - id: "public"
+    description: "Publicly shareable information."
+    retention_policy: "public-30d"
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "analyst"
+      - "auditor"
+      - "integration_service"
+  - id: "internal"
+    description: "Internal business data with limited exposure."
+    retention_policy: "internal-1y"
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "analyst"
+      - "auditor"
+  - id: "confidential"
+    description: "Sensitive business data restricted to leadership."
+    retention_policy: "confidential-5y"
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "auditor"
+  - id: "restricted"
+    description: "Highly sensitive data, limited to executive access."
+    retention_policy: "restricted-7y"
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"

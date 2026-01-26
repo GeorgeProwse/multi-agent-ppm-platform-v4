@@ -24,8 +24,10 @@ spec:
           env:
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
-            - name: PORT
-              value: {{ .Values.env.PORT | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.env.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}
+            - name: AZURE_MONITOR_CONNECTION_STRING
+              value: {{ .Values.env.AZURE_MONITOR_CONNECTION_STRING | quote }}
           readinessProbe:
             httpGet:
               path: /healthz

@@ -1,2 +1,28 @@
 id: "slack"
-version: "0.1.0"
+version: "1.0.0"
+name: "Slack"
+description: "Sync collaboration metadata and notifications from Slack."
+owner: "integration-team"
+category: "collaboration"
+auth:
+  type: "oauth2"
+  token_url: "https://slack.com/api/oauth.v2.access"
+  scopes:
+    - "channels:read"
+    - "users:read"
+  fields:
+    - "client_id"
+    - "client_secret"
+    - "refresh_token"
+    - "workspace_id"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "*/30 * * * *"
+  supports_webhooks: true
+  rate_limit_per_minute: 1000
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"

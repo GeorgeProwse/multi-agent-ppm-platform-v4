@@ -1,2 +1,27 @@
 id: "planview"
-version: "0.1.0"
+version: "1.0.0"
+name: "Planview"
+description: "Sync portfolio and project data from Planview."
+owner: "integration-team"
+category: "ppm"
+auth:
+  type: "oauth2"
+  token_url: "https://api.planview.com/oauth2/token"
+  scopes:
+    - "read"
+  fields:
+    - "client_id"
+    - "client_secret"
+    - "refresh_token"
+    - "instance_url"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "0 2 * * *"
+  supports_webhooks: false
+  rate_limit_per_minute: 200
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"

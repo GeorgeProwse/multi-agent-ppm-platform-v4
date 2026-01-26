@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PPM Platform Console</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>PPM Platform Console</h1>
+        <p>Secure, tenant-aware access to workflows and portfolio services.</p>
+      </header>
+      <section class="card">
+        <h2>Authenticate</h2>
+        <label>
+          Tenant ID
+          <input id="tenant" type="text" placeholder="tenant-alpha" />
+        </label>
+        <label>
+          JWT Token
+          <textarea id="token" rows="3" placeholder="Paste a JWT"></textarea>
+        </label>
+        <button id="validate">Validate with Identity Access</button>
+        <div id="auth-status" class="status"></div>
+      </section>
+
+      <section class="card">
+        <h2>API Gateway Status</h2>
+        <button id="load-status">Load Status</button>
+        <pre id="status-output"></pre>
+      </section>
+
+      <section class="card">
+        <h2>Start Workflow</h2>
+        <label>
+          Workflow ID
+          <input id="workflow-id" type="text" value="intake-triage" />
+        </label>
+        <button id="start-workflow">Start Workflow</button>
+        <pre id="workflow-output"></pre>
+      </section>
+    </div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

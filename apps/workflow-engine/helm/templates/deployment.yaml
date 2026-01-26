@@ -24,11 +24,11 @@ spec:
           env:
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
-            - name: PORT
-              value: {{ .Values.env.PORT | quote }}
+            - name: AUDIT_LOG_URL
+              value: {{ .Values.env.AUDIT_LOG_URL | quote }}
           readinessProbe:
             httpGet:
-              path: /health
+              path: /healthz
               port: {{ .Values.service.port }}
             initialDelaySeconds: 5
             periodSeconds: 10

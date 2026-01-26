@@ -12,11 +12,10 @@ terraform {
   }
 
   backend "azurerm" {
-    # Configure remote state storage
-    # resource_group_name  = "ppm-terraform-rg"
-    # storage_account_name = "ppmtfstate"
-    # container_name       = "tfstate"
-    # key                  = "terraform.tfstate"
+    resource_group_name  = "ppm-prod-tfstate-rg"
+    storage_account_name = "ppmtfstateprod"
+    container_name       = "tfstate"
+    key                  = "ppm-platform/prod/terraform.tfstate"
   }
 }
 
@@ -180,9 +179,77 @@ resource "azurerm_storage_account" "main" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   is_hns_enabled           = true  # Enable Data Lake Gen2
+  allow_blob_public_access = false
 
   tags = {
     Environment = var.environment
+  }
+}
+
+resource "azurerm_storage_container" "audit_events" {
+  name                  = "audit-events"
+  storage_account_name  = azurerm_storage_account.main.name
+  container_access_type = "private"
+}
+
+# Storage lifecycle policies for retention enforcement
+resource "azurerm_storage_management_policy" "retention" {
+  storage_account_id = azurerm_storage_account.main.id
+
+  rule {
+    name    = "public-retention"
+    enabled = true
+    filters {
+      prefix_match = ["public/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = 30
+      }
+    }
+  }
+
+  rule {
+    name    = "internal-retention"
+    enabled = true
+    filters {
+      prefix_match = ["internal/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = 365
+      }
+    }
+  }
+
+  rule {
+    name    = "confidential-retention"
+    enabled = true
+    filters {
+      prefix_match = ["confidential/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = 1825
+      }
+    }
+  }
+
+  rule {
+    name    = "restricted-retention"
+    enabled = true
+    filters {
+      prefix_match = ["restricted/"]
+      blob_types   = ["blockBlob"]
+    }
+    actions {
+      base_blob {
+        delete_after_days_since_modification_greater_than = 2555
+      }
+    }
   }
 }
 
@@ -196,6 +263,14 @@ resource "azurerm_servicebus_namespace" "main" {
   tags = {
     Environment = var.environment
   }
+}
+
+resource "azurerm_servicebus_queue" "data_sync" {
+  name         = "data-sync"
+  namespace_id = azurerm_servicebus_namespace.main.id
+
+  enable_partitioning = true
+  max_delivery_count  = 10
 }
 
 # Outputs

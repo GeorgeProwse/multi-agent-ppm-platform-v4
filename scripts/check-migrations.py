@@ -5,14 +5,14 @@ from pathlib import Path
 
 
 def main() -> int:
-    migrations_dir = Path("data/migrations")
+    migrations_dir = Path("data/migrations/versions")
     if not migrations_dir.exists():
         print("No migrations directory found.")
         return 0
 
     migration_files = [
         path for path in migrations_dir.iterdir()
-        if path.is_file() and path.name != "README.md"
+        if path.is_file()
     ]
 
     if not migration_files:

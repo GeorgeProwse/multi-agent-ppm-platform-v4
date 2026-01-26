@@ -24,8 +24,12 @@ spec:
           env:
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
-            - name: PORT
-              value: {{ .Values.env.PORT | quote }}
+            - name: AUDIT_WORM_CONTAINER
+              value: {{ .Values.env.AUDIT_WORM_CONTAINER | quote }}
+            - name: AUDIT_WORM_CONNECTION_STRING
+              value: {{ .Values.env.AUDIT_WORM_CONNECTION_STRING | quote }}
+            - name: AUDIT_LOG_ENCRYPTION_KEY
+              value: {{ .Values.env.AUDIT_LOG_ENCRYPTION_KEY | quote }}
           readinessProbe:
             httpGet:
               path: /healthz

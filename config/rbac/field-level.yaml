@@ -1,1 +1,44 @@
-field_level: []
+fields:
+  project:
+    budget:
+      allowed_roles:
+        - "tenant_owner"
+        - "portfolio_admin"
+        - "project_manager"
+    risk_rating:
+      allowed_roles:
+        - "tenant_owner"
+        - "portfolio_admin"
+        - "auditor"
+  portfolio:
+    strategic_score:
+      allowed_roles:
+        - "tenant_owner"
+        - "portfolio_admin"
+        - "analyst"
+classification_access:
+  public:
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "analyst"
+      - "auditor"
+      - "integration_service"
+  internal:
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "analyst"
+      - "auditor"
+  confidential:
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"
+      - "project_manager"
+      - "auditor"
+  restricted:
+    allowed_roles:
+      - "tenant_owner"
+      - "portfolio_admin"

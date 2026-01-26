@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Audit Log Service
-  version: 0.1.0
+  version: 1.0.0
 paths:
   /healthz:
     get:
@@ -65,6 +65,8 @@ components:
         timestamp:
           type: string
           format: date-time
+        tenant_id:
+          type: string
         actor:
           type: object
           additionalProperties: true
@@ -75,6 +77,8 @@ components:
           additionalProperties: true
         outcome:
           type: string
+        classification:
+          type: string
         metadata:
           type: object
           additionalProperties: true
@@ -82,7 +86,7 @@ components:
           type: string
         correlation_id:
           type: string
-      required: [id, timestamp, actor, action, resource, outcome]
+      required: [id, timestamp, tenant_id, actor, action, resource, outcome, classification]
     AuditIngestResponse:
       type: object
       properties:

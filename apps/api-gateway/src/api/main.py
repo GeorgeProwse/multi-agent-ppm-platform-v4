@@ -6,7 +6,6 @@ This is the main entry point for the PPM platform REST API.
 
 import logging
 import os
-from datetime import datetime
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -17,17 +16,10 @@ from fastapi.responses import JSONResponse
 
 from api.routes import agents, health
 from api.runtime_bootstrap import bootstrap_runtime_paths
+from api.middleware.security import AuthTenantMiddleware
 REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-from tools.runtime_paths import bootstrap_runtime_paths
-
-bootstrap_runtime_paths()
-
-from orchestrator import AgentOrchestrator
-
-from api.routes import agents, health
 
 # Configure logging
 logging.basicConfig(
@@ -70,6 +62,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AuthTenantMiddleware)
 
 # Global orchestrator instance
 orchestrator = None

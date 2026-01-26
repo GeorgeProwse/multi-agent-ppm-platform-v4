@@ -36,10 +36,10 @@ def mock_orchestrator():
 
 
 @pytest.mark.asyncio
-async def test_root_endpoint(app):
+async def test_root_endpoint(app, auth_headers):
     """Test root endpoint returns API info."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/")
+        response = await client.get("/", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -48,10 +48,10 @@ async def test_root_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_healthz_endpoint(app):
+async def test_healthz_endpoint(app, auth_headers):
     """Test healthz endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/healthz")
+        response = await client.get("/healthz", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -59,10 +59,10 @@ async def test_healthz_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint(app):
+async def test_health_endpoint(app, auth_headers):
     """Test health check endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/v1/health")
+        response = await client.get("/api/v1/health", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -70,10 +70,10 @@ async def test_health_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_version_endpoint(app):
+async def test_version_endpoint(app, auth_headers):
     """Test version endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/version")
+        response = await client.get("/version", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -82,10 +82,10 @@ async def test_version_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_readiness_endpoint(app):
+async def test_readiness_endpoint(app, auth_headers):
     """Test readiness check endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/v1/health/ready")
+        response = await client.get("/api/v1/health/ready", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -94,10 +94,10 @@ async def test_readiness_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_liveness_endpoint(app):
+async def test_liveness_endpoint(app, auth_headers):
     """Test liveness check endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/v1/health/live")
+        response = await client.get("/api/v1/health/live", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -105,11 +105,11 @@ async def test_liveness_endpoint(app):
 
 
 @pytest.mark.asyncio
-async def test_list_agents_endpoint(app, mock_orchestrator):
+async def test_list_agents_endpoint(app, mock_orchestrator, auth_headers):
     """Test listing all agents."""
     with patch("api.main.orchestrator", mock_orchestrator):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.get("/api/v1/agents")
+            response = await client.get("/api/v1/agents", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
@@ -118,7 +118,7 @@ async def test_list_agents_endpoint(app, mock_orchestrator):
 
 
 @pytest.mark.asyncio
-async def test_query_endpoint(app, mock_orchestrator):
+async def test_query_endpoint(app, mock_orchestrator, auth_headers):
     """Test query processing endpoint."""
     with patch("api.main.orchestrator", mock_orchestrator):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -128,6 +128,7 @@ async def test_query_endpoint(app, mock_orchestrator):
                     "query": "Show me the portfolio overview",
                     "context": {"user_id": "test_user"},
                 },
+                headers=auth_headers,
             )
 
     assert response.status_code == 200
@@ -136,20 +137,20 @@ async def test_query_endpoint(app, mock_orchestrator):
 
 
 @pytest.mark.asyncio
-async def test_query_endpoint_validation(app):
+async def test_query_endpoint_validation(app, auth_headers):
     """Test query endpoint validates input."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # Missing query field
-        response = await client.post("/api/v1/query", json={"context": {}})
+        response = await client.post("/api/v1/query", json={"context": {}}, headers=auth_headers)
 
     assert response.status_code == 422  # Validation error
 
 
 @pytest.mark.asyncio
-async def test_status_endpoint(app):
+async def test_status_endpoint(app, auth_headers):
     """Test platform status endpoint."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.get("/api/v1/status")
+        response = await client.get("/api/v1/status", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()

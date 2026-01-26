@@ -1,12 +1,13 @@
 # Policy Engine
 
-The policy engine evaluates policy bundles and returns allow/deny decisions with reasons. It loads
-the default policy bundle in dev mode and can be pointed at other bundles via configuration.
+The policy engine evaluates policy bundles and enforces RBAC decisions for the platform. It loads
+policy bundles from `services/policy-engine/policies/` and exposes an RBAC evaluation endpoint that
+API gateway uses for authorization.
 
-## Contracts
+## Endpoints
 
-- OpenAPI: `services/policy-engine/contracts/openapi.yaml`
-- Policy bundles: `services/policy-engine/policies/`
+- `POST /policies/evaluate`: Validate policy bundles.
+- `POST /rbac/evaluate`: Evaluate tenant RBAC decisions.
 
 ## Run locally
 
@@ -18,23 +19,14 @@ python -m tools.component_runner run --type service --name policy-engine
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `POLICY_BUNDLE_PATH` | `services/policy-engine/policies/bundles/default-policy-bundle.yaml` | Bundle used for evaluation |
-| `LOG_LEVEL` | `info` | Logging verbosity |
-| `PORT` | `8080` | HTTP port for the service |
+| `POLICY_BUNDLE_PATH` | `services/policy-engine/policies/bundles/default-policy-bundle.yaml` | Bundle used for validation |
 
-## Example request
+## Example
 
 ```bash
-curl -X POST http://localhost:8080/policies/evaluate \
+curl -X POST http://localhost:8080/rbac/evaluate \
   -H "Content-Type: application/json" \
-  -d '{
-    "bundle": {
-      "apiVersion": "ppm.policies/v1",
-      "kind": "PolicyBundle",
-      "metadata": {"name": "demo", "version": "1.0.0", "owner": "qa"},
-      "policies": []
-    }
-  }'
+  -d '{"tenant_id":"tenant-alpha","roles":["portfolio_admin"],"permission":"project.read"}'
 ```
 
 ## Tests
