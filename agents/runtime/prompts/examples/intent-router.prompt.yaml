@@ -4,6 +4,8 @@ metadata:
   name: intent-router-v1
   owner: core-orchestration
   version: "1.0.0"
+  agent: intent-router
+  purpose: intent-routing
   description: System and user prompt scaffolding for intent routing.
 prompt:
   system: |
@@ -14,3 +16,10 @@ prompt:
   tools:
     - classify_intent
     - extract_entities
+  redaction:
+    pii: true
+    secrets: true
+    strategy: mask
+    fields:
+      - user.email
+      - user.phone

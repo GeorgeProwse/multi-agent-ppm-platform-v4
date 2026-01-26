@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from data_quality.helpers import apply_rule_set, validate_against_schema
 from data_quality.rules import evaluate_quality_rules
 
 
@@ -63,3 +66,43 @@ def test_schema_and_status_rules() -> None:
 
     rule_ids = {issue.rule_id for issue in report.issues}
     assert "issue_closed" in rule_ids
+
+
+def test_validate_against_schema_with_agent_payload() -> None:
+    record = {
+        "id": "proj-2",
+        "tenant_id": "tenant-a",
+        "program_id": "prog-1",
+        "name": "Upgrade",
+        "status": "planning",
+        "start_date": "2024-06-01",
+        "owner": "pm",
+        "classification": "internal",
+        "created_at": "2024-06-01T12:00:00+00:00",
+    }
+
+    schema_path = Path("data/schemas/project.schema.json")
+    errors = validate_against_schema(schema_path, record)
+    assert errors == []
+
+
+def test_apply_rule_set_with_agent_payload() -> None:
+    payload = {
+        "project": {
+            "id": "proj-3",
+            "name": "Payments",
+            "status": "planning",
+        },
+        "budget": {"total_amount": -5},
+        "risk": {"rating": "critical"},
+        "work_item": {"start_date": "not-a-date"},
+    }
+
+    rules_path = Path("data/quality/rules.yaml")
+    result = apply_rule_set(rules_path, payload)
+    rule_ids = {issue.rule_id for issue in result.issues}
+
+    assert "project-required-fields" not in rule_ids
+    assert "budget-non-negative" in rule_ids
+    assert "risk-rating-enum" in rule_ids
+    assert "work-item-dates" in rule_ids

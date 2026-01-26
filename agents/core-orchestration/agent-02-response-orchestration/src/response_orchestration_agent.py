@@ -9,11 +9,19 @@ Specification: agents/core-orchestration/agent-02-response-orchestration/README.
 """
 
 import asyncio
+import sys
 from typing import Any, cast
 
 import httpx
 
 from agents.runtime import BaseAgent, InMemoryEventBus
+from pathlib import Path
+
+OBSERVABILITY_ROOT = Path(__file__).resolve().parents[5] / "packages" / "observability" / "src"
+if str(OBSERVABILITY_ROOT) not in sys.path:
+    sys.path.insert(0, str(OBSERVABILITY_ROOT))
+
+from observability.tracing import inject_trace_headers  # noqa: E402
 
 
 class ResponseOrchestrationAgent(BaseAgent):
@@ -70,6 +78,8 @@ class ResponseOrchestrationAgent(BaseAgent):
         """
         routing = input_data.get("routing", [])
         parameters = input_data.get("parameters", {})
+        context = input_data.get("context", {})
+        correlation_id = context.get("correlation_id") or input_data.get("correlation_id")
 
         if not routing:
             return {
@@ -137,7 +147,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         """
         tasks = []
         for agent_info in agents[: self.max_concurrency]:
-            task = self._invoke_agent(agent_info, parameters)
+            task = self._invoke_agent(agent_info, parameters, correlation_id)
             tasks.append(task)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -160,7 +170,10 @@ class ResponseOrchestrationAgent(BaseAgent):
         return processed_results
 
     async def _invoke_agent(
-        self, agent_info: dict[str, Any], parameters: dict[str, Any]
+        self,
+        agent_info: dict[str, Any],
+        parameters: dict[str, Any],
+        correlation_id: str | None,
     ) -> dict[str, Any]:
         """
         Invoke a single agent with timeout.
@@ -172,12 +185,19 @@ class ResponseOrchestrationAgent(BaseAgent):
         agent_id = agent_info["agent_id"]
 
         endpoint = agent_info.get("endpoint") or self.agent_endpoints.get(agent_id)
-        payload = {"agent_id": agent_id, "parameters": parameters}
+        payload = {
+            "agent_id": agent_id,
+            "parameters": parameters,
+            "correlation_id": correlation_id,
+        }
 
         try:
             if endpoint:
                 self.logger.info(f"Invoking agent via HTTP: {agent_id} -> {endpoint}")
-                response = await self.http_client.post(endpoint, json=payload)
+                headers = inject_trace_headers({})
+                if correlation_id:
+                    headers["X-Correlation-ID"] = correlation_id
+                response = await self.http_client.post(endpoint, json=payload, headers=headers)
                 response.raise_for_status()
                 data = response.json()
             else:
@@ -185,10 +205,11 @@ class ResponseOrchestrationAgent(BaseAgent):
                 data = {
                     "message": f"Event published for {agent_id}",
                     "parameters": parameters,
+                    "correlation_id": correlation_id,
                 }
                 await self.event_bus.publish(
                     "agent.requested",
-                    {"agent_id": agent_id, "payload": payload},
+                    {"agent_id": agent_id, "payload": payload, "correlation_id": correlation_id},
                 )
 
             result = {"success": True, "agent_id": agent_id, "data": data}

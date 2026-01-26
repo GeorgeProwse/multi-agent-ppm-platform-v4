@@ -1,0 +1,193 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class EventEnvelope(BaseModel):
+    event_name: str = Field(..., description="Event topic name")
+    event_id: str = Field(..., min_length=8)
+    timestamp: datetime
+    tenant_id: str
+    payload: dict
+    correlation_id: str | None = None
+    trace_id: str | None = None
+
+
+class DemandCreatedPayload(BaseModel):
+    demand_id: str
+    source: str
+    title: str
+    submitted_by: str
+    submitted_at: datetime
+
+
+class DemandCreatedEvent(EventEnvelope):
+    event_name: Literal["demand.created"]
+    payload: DemandCreatedPayload
+
+
+class BusinessCaseCreatedPayload(BaseModel):
+    business_case_id: str
+    demand_id: str
+    project_name: str
+    created_at: datetime
+    owner: str
+
+
+class BusinessCaseCreatedEvent(EventEnvelope):
+    event_name: Literal["business_case.created"]
+    payload: BusinessCaseCreatedPayload
+
+
+class PortfolioPrioritizedPayload(BaseModel):
+    portfolio_id: str
+    cycle: str
+    prioritized_at: datetime
+    ranked_projects: list[str]
+
+
+class PortfolioPrioritizedEvent(EventEnvelope):
+    event_name: Literal["portfolio.prioritized"]
+    payload: PortfolioPrioritizedPayload
+
+
+class ProgramCreatedPayload(BaseModel):
+    program_id: str
+    name: str
+    portfolio_id: str
+    created_at: datetime
+    owner: str
+
+
+class ProgramCreatedEvent(EventEnvelope):
+    event_name: Literal["program.created"]
+    payload: ProgramCreatedPayload
+
+
+class CharterCreatedPayload(BaseModel):
+    charter_id: str
+    project_id: str
+    created_at: datetime
+    owner: str
+
+
+class CharterCreatedEvent(EventEnvelope):
+    event_name: Literal["charter.created"]
+    payload: CharterCreatedPayload
+
+
+class WbsCreatedPayload(BaseModel):
+    wbs_id: str
+    project_id: str
+    created_at: datetime
+    baseline_date: datetime | None = None
+
+
+class WbsCreatedEvent(EventEnvelope):
+    event_name: Literal["wbs.created"]
+    payload: WbsCreatedPayload
+
+
+class ProjectTransitionedPayload(BaseModel):
+    project_id: str
+    from_stage: str
+    to_stage: str
+    transitioned_at: datetime
+    actor_id: str
+
+
+class ProjectTransitionedEvent(EventEnvelope):
+    event_name: Literal["project.transitioned"]
+    payload: ProjectTransitionedPayload
+
+
+class ScheduleBaselineLockedPayload(BaseModel):
+    project_id: str
+    schedule_id: str
+    locked_at: datetime
+    baseline_version: str
+
+
+class ScheduleBaselineLockedEvent(EventEnvelope):
+    event_name: Literal["schedule.baseline.locked"]
+    payload: ScheduleBaselineLockedPayload
+
+
+class ScheduleDelayPayload(BaseModel):
+    project_id: str
+    schedule_id: str
+    delay_days: int
+    reason: str
+    detected_at: datetime
+
+
+class ScheduleDelayEvent(EventEnvelope):
+    event_name: Literal["schedule.delay"]
+    payload: ScheduleDelayPayload
+
+
+class ApprovalCreatedPayload(BaseModel):
+    approval_id: str
+    resource_type: str
+    resource_id: str
+    stage: str
+    created_at: datetime
+
+
+class ApprovalCreatedEvent(EventEnvelope):
+    event_name: Literal["approval.created"]
+    payload: ApprovalCreatedPayload
+
+
+class ApprovalDecisionPayload(BaseModel):
+    approval_id: str
+    decision: Literal["approved", "rejected", "deferred"]
+    decided_at: datetime
+    approver_id: str
+    comments: str | None = None
+
+
+class ApprovalDecisionEvent(EventEnvelope):
+    event_name: Literal["approval.decision"]
+    payload: ApprovalDecisionPayload
+
+
+class AuditActor(BaseModel):
+    id: str
+    type: Literal["user", "service", "system"]
+    roles: list[str]
+
+
+class AuditResource(BaseModel):
+    id: str
+    type: str
+    attributes: dict | None = None
+
+
+class AuditEventPayload(BaseModel):
+    id: str
+    timestamp: datetime
+    tenant_id: str
+    action: str
+    outcome: Literal["success", "failure", "denied"]
+    classification: Literal["public", "internal", "confidential", "restricted"]
+    actor: AuditActor
+    resource: AuditResource
+    metadata: dict | None = None
+    trace_id: str | None = None
+    correlation_id: str | None = None
+
+
+class AuditEvent(EventEnvelope):
+    event_name: str
+    payload: AuditEventPayload
+
+    @field_validator("event_name")
+    @classmethod
+    def _validate_audit_event(cls, value: str) -> str:
+        if not value.startswith("audit."):
+            raise ValueError("audit events must start with 'audit.'")
+        return value
