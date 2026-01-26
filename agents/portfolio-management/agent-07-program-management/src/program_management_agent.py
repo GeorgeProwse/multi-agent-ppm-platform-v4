@@ -10,9 +10,14 @@ Specification: agents/portfolio-management/agent-07-program-management/README.md
 """
 
 from datetime import datetime
+from pathlib import Path
+import uuid
 from typing import Any
 
-from agents.runtime import BaseAgent
+from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime.src.state_store import TenantStateStore
+from events import ProgramCreatedEvent, ProgramRoadmapUpdatedEvent
+from observability.tracing import get_trace_id
 
 
 class ProgramManagementAgent(BaseAgent):
@@ -70,11 +75,28 @@ class ProgramManagementAgent(BaseAgent):
             else {"schedule": 0.25, "budget": 0.25, "risk": 0.20, "quality": 0.15, "resource": 0.15}
         )
 
-        # Data stores (will be replaced with database connections)
-        self.programs = {}  # type: ignore
-        self.program_roadmaps = {}  # type: ignore
-        self.dependencies = {}  # type: ignore
+        program_store_path = (
+            Path(config.get("program_store_path", "data/program_store.json"))
+            if config
+            else Path("data/program_store.json")
+        )
+        roadmap_store_path = (
+            Path(config.get("program_roadmap_store_path", "data/program_roadmap_store.json"))
+            if config
+            else Path("data/program_roadmap_store.json")
+        )
+        dependency_store_path = (
+            Path(config.get("program_dependency_store_path", "data/program_dependency_store.json"))
+            if config
+            else Path("data/program_dependency_store.json")
+        )
+        self.program_store = TenantStateStore(program_store_path)
+        self.roadmap_store = TenantStateStore(roadmap_store_path)
+        self.dependency_store = TenantStateStore(dependency_store_path)
         self.synergies = {}  # type: ignore
+        self.event_bus = config.get("event_bus") if config else None
+        if self.event_bus is None:
+            self.event_bus = InMemoryEventBus()
 
     async def initialize(self) -> None:
         """Initialize AI models, database connections, and external integrations."""
@@ -164,40 +186,75 @@ class ProgramManagementAgent(BaseAgent):
             - get_program: Full program details
         """
         action = input_data.get("action", "create_program")
+        context = input_data.get("context", {})
+        correlation_id = (
+            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
+        )
+        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "create_program":
-            return await self._create_program(input_data.get("program", {}))
+            return await self._create_program(
+                input_data.get("program", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "generate_roadmap":
-            return await self._generate_roadmap(input_data.get("program_id"))  # type: ignore
+            return await self._generate_roadmap(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "track_dependencies":
-            return await self._track_dependencies(input_data.get("program_id"))  # type: ignore
+            return await self._track_dependencies(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         elif action == "aggregate_benefits":
-            return await self._aggregate_benefits(input_data.get("program_id"))  # type: ignore
+            return await self._aggregate_benefits(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         elif action == "coordinate_resources":
-            return await self._coordinate_resources(input_data.get("program_id"))  # type: ignore
+            return await self._coordinate_resources(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         elif action == "identify_synergies":
-            return await self._identify_synergies(input_data.get("program_id"))  # type: ignore
+            return await self._identify_synergies(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         elif action == "analyze_change_impact":
             return await self._analyze_change_impact(
-                input_data.get("program_id"), input_data.get("change", {})  # type: ignore
+                input_data.get("program_id"),
+                input_data.get("change", {}),  # type: ignore
+                tenant_id=tenant_id,
             )
 
         elif action == "get_program_health":
-            return await self._get_program_health(input_data.get("program_id"))  # type: ignore
+            return await self._get_program_health(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         elif action == "get_program":
-            return await self._get_program(input_data.get("program_id"))  # type: ignore
+            return await self._get_program(
+                input_data.get("program_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _create_program(self, program_data: dict[str, Any]) -> dict[str, Any]:
+    async def _create_program(
+        self, program_data: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
         """
         Create a new program structure.
 
@@ -226,6 +283,7 @@ class ProgramManagementAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
             "created_by": program_data.get("created_by", "unknown"),
             "status": "Planning",
+            "portfolio_id": program_data.get("portfolio_id", "unknown"),
             "metadata": {
                 "project_count": len(constituent_projects),
                 "dependencies_identified": 0,
@@ -233,13 +291,15 @@ class ProgramManagementAgent(BaseAgent):
             },
         }
 
-        # Store program
-        self.programs[program_id] = program
-
-        # Future work: Store in Cosmos DB
-        # Future work: Publish program.created event to Service Bus
+        self.program_store.upsert(tenant_id, program_id, program)
 
         self.logger.info(f"Created program: {program_id}")
+
+        await self._publish_program_created(
+            program,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
 
         return {
             "program_id": program_id,
@@ -249,7 +309,9 @@ class ProgramManagementAgent(BaseAgent):
             "next_steps": "Generate roadmap and identify dependencies",
         }
 
-    async def _generate_roadmap(self, program_id: str) -> dict[str, Any]:
+    async def _generate_roadmap(
+        self, program_id: str, *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
         """
         Generate integrated program roadmap.
 
@@ -257,7 +319,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Generating roadmap for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -288,15 +350,20 @@ class ProgramManagementAgent(BaseAgent):
             "generated_at": datetime.utcnow().isoformat(),
         }
 
-        # Store roadmap
-        self.program_roadmaps[program_id] = roadmap
+        self.roadmap_store.upsert(tenant_id, program_id, roadmap)
+        self.dependency_store.upsert(
+            tenant_id, program_id, {"program_id": program_id, "dependencies": dependencies}
+        )
 
-        # Future work: Store in database
-        # Future work: Publish program.roadmap.updated event
+        await self._publish_program_roadmap_updated(
+            roadmap,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
 
         return roadmap
 
-    async def _track_dependencies(self, program_id: str) -> dict[str, Any]:
+    async def _track_dependencies(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """
         Track and analyze inter-project dependencies.
 
@@ -304,7 +371,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Tracking dependencies for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -312,6 +379,9 @@ class ProgramManagementAgent(BaseAgent):
 
         # Identify all dependencies
         dependencies = await self._identify_dependencies(constituent_projects)
+        self.dependency_store.upsert(
+            tenant_id, program_id, {"program_id": program_id, "dependencies": dependencies}
+        )
 
         # Analyze dependency graph
         # Future work: Use graph algorithms (Azure Cosmos DB Graph API)
@@ -337,7 +407,7 @@ class ProgramManagementAgent(BaseAgent):
             ),
         }
 
-    async def _aggregate_benefits(self, program_id: str) -> dict[str, Any]:
+    async def _aggregate_benefits(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """
         Aggregate benefits across program projects.
 
@@ -345,7 +415,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Aggregating benefits for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -377,7 +447,7 @@ class ProgramManagementAgent(BaseAgent):
             "realization_timeline": await self._generate_benefit_timeline(project_benefits),
         }
 
-    async def _coordinate_resources(self, program_id: str) -> dict[str, Any]:
+    async def _coordinate_resources(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """
         Coordinate resource allocation across projects.
 
@@ -385,7 +455,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Coordinating resources for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -413,7 +483,7 @@ class ProgramManagementAgent(BaseAgent):
             "shared_resources": await self._identify_shared_resources(resource_allocations),
         }
 
-    async def _identify_synergies(self, program_id: str) -> dict[str, Any]:
+    async def _identify_synergies(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """
         Identify synergy opportunities across projects.
 
@@ -421,7 +491,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Identifying synergies for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -463,7 +533,7 @@ class ProgramManagementAgent(BaseAgent):
         }
 
     async def _analyze_change_impact(
-        self, program_id: str, change: dict[str, Any]
+        self, program_id: str, change: dict[str, Any], *, tenant_id: str
     ) -> dict[str, Any]:
         """
         Analyze impact of changes across the program.
@@ -472,7 +542,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Analyzing change impact for program: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -510,7 +580,7 @@ class ProgramManagementAgent(BaseAgent):
             "recommendation": await self._select_best_mitigation(mitigation_options),
         }
 
-    async def _get_program_health(self, program_id: str) -> dict[str, Any]:
+    async def _get_program_health(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """
         Calculate composite program health score.
 
@@ -518,7 +588,7 @@ class ProgramManagementAgent(BaseAgent):
         """
         self.logger.info(f"Calculating program health for: {program_id}")
 
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
 
@@ -572,9 +642,9 @@ class ProgramManagementAgent(BaseAgent):
             "calculated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_program(self, program_id: str) -> dict[str, Any]:
+    async def _get_program(self, program_id: str, *, tenant_id: str) -> dict[str, Any]:
         """Retrieve a program by ID."""
-        program = self.programs.get(program_id)
+        program = self.program_store.get(tenant_id, program_id)
         if not program:
             raise ValueError(f"Program not found: {program_id}")
         return program  # type: ignore
@@ -585,6 +655,45 @@ class ProgramManagementAgent(BaseAgent):
         """Generate unique program ID."""
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"PROG-{timestamp}"
+
+    async def _publish_program_created(
+        self, program: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        event = ProgramCreatedEvent(
+            event_name="program.created",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "program_id": program.get("program_id", ""),
+                "name": program.get("name", ""),
+                "portfolio_id": program.get("portfolio_id", "unknown"),
+                "created_at": datetime.fromisoformat(program.get("created_at")),
+                "owner": program.get("created_by", "unknown"),
+            },
+        )
+        await self.event_bus.publish("program.created", event.model_dump())
+
+    async def _publish_program_roadmap_updated(
+        self, roadmap: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        event = ProgramRoadmapUpdatedEvent(
+            event_name="program.roadmap.updated",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "program_id": roadmap.get("program_id", ""),
+                "roadmap_id": roadmap.get("program_id", ""),
+                "updated_at": datetime.fromisoformat(roadmap.get("generated_at")),
+                "milestone_count": len(roadmap.get("milestones", [])),
+            },
+        )
+        await self.event_bus.publish("program.roadmap.updated", event.model_dump())
 
     async def _get_project_schedules(self, project_ids: list[str]) -> dict[str, Any]:
         """Query project schedules from Schedule & Planning Agent."""

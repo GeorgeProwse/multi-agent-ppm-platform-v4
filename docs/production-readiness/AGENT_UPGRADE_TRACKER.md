@@ -7,10 +7,10 @@ Tracking required updates for each of the 25 agents based on the cross-agent fou
 | Agent 01 – Intent Router | Done | Loads prompt registry intent routing prompt and uses shared LLM client wrapper, emitting `intent.classified` audit events. |
 | Agent 02 – Response Orchestration | Done | Builds dependency-aware DAG execution with retries/circuit breaker, injects trace headers, and emits orchestration audit events. |
 | Agent 03 – Approval Workflow | Done | Uses role lookup + delegation records with tenant-scoped durable store, emitting approval audit events. |
-| Agent 04 – Demand & Intake | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
-| Agent 05 – Business Case & Investment | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
-| Agent 06 – Portfolio Strategy & Optimization | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
-| Agent 07 – Program Management | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
+| Agent 04 – Demand & Intake | Done | Tenant-scoped durable demand store, schema + rule-set validation, and demand.created event publishing. |
+| Agent 05 – Business Case & Investment | Done | Tenant-scoped business case store, ROI validation, business_case.created + investment.recommendation events, and new tests. |
+| Agent 06 – Portfolio Strategy & Optimization | Done | Portfolio prioritizations persisted, portfolio.prioritized events emitted, and policy guardrails with audit emission on approvals. |
+| Agent 07 – Program Management | Done | Program/roadmap/dependency persistence with program.created + program.roadmap.updated events and new tests. |
 | Agent 08 – Project Definition & Scope | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
 | Agent 09 – Project Lifecycle & Governance | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |
 | Agent 10 – Schedule & Planning | Done | Inherits shared runtime upgrades (IDs, policy checks, audit logging). |

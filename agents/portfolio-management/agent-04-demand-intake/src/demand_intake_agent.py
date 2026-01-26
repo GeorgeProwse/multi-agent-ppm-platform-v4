@@ -10,10 +10,16 @@ Specification: agents/portfolio-management/agent-04-demand-intake/README.md
 
 import math
 import re
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from agents.runtime import BaseAgent
+from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime.src.state_store import TenantStateStore
+from data_quality.helpers import apply_rule_set, validate_against_schema
+from events import DemandCreatedEvent
+from observability.tracing import get_trace_id
 
 
 class DemandIntakeAgent(BaseAgent):
@@ -36,7 +42,42 @@ class DemandIntakeAgent(BaseAgent):
             if config
             else ["title", "description", "business_objective"]
         )
-        self.demands: list[dict[str, Any]] = []
+        store_path = (
+            Path(config.get("demand_store_path", "data/demand_intake_store.json"))
+            if config
+            else Path("data/demand_intake_store.json")
+        )
+        self.demand_store = TenantStateStore(store_path)
+        self.event_bus = config.get("event_bus") if config else None
+        if self.event_bus is None:
+            self.event_bus = InMemoryEventBus()
+        self.demand_schema_path = Path(
+            config.get("demand_schema_path", "data/schemas/demand.schema.json")
+            if config
+            else "data/schemas/demand.schema.json"
+        )
+        self.demand_rule_set = {
+            "rules": [
+                {
+                    "id": "demand-required-fields",
+                    "checks": [
+                        {"field": "demand.title", "type": "required"},
+                        {"field": "demand.description", "type": "required"},
+                        {"field": "demand.business_objective", "type": "required"},
+                    ],
+                },
+                {
+                    "id": "demand-urgency-enum",
+                    "checks": [
+                        {
+                            "field": "demand.urgency",
+                            "type": "enum",
+                            "values": ["Low", "Medium", "High", "Critical"],
+                        }
+                    ],
+                },
+            ]
+        }
         self.stopwords = {
             "the",
             "a",
@@ -69,10 +110,8 @@ class DemandIntakeAgent(BaseAgent):
 
         if action == "submit_request":
             request_data = input_data.get("request", {})
-            for field in self.mandatory_fields:
-                if field not in request_data or not request_data[field]:
-                    self.logger.warning(f"Missing mandatory field: {field}")
-                    return False
+            if not await self._validate_request(request_data):
+                return False
 
         return True
 
@@ -94,17 +133,28 @@ class DemandIntakeAgent(BaseAgent):
             - get_pipeline: Current demand pipeline status
         """
         action = input_data.get("action", "submit_request")
+        context = input_data.get("context", {})
+        correlation_id = (
+            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
+        )
+        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "submit_request":
-            return await self._submit_request(input_data.get("request", {}))
+            return await self._submit_request(
+                input_data.get("request", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
         elif action == "check_duplicates":
-            return await self._check_duplicates(input_data.get("request", {}))
+            return await self._check_duplicates(input_data.get("request", {}), tenant_id=tenant_id)
         elif action == "get_pipeline":
-            return await self._get_pipeline(input_data.get("filters", {}))
+            return await self._get_pipeline(input_data.get("filters", {}), tenant_id=tenant_id)
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _submit_request(self, request_data: dict[str, Any]) -> dict[str, Any]:
+    async def _submit_request(
+        self, request_data: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
         """
         Submit a new demand intake request.
 
@@ -116,7 +166,7 @@ class DemandIntakeAgent(BaseAgent):
         category = await self._categorize_request(request_data)
 
         # Check for duplicates
-        duplicates = await self._find_duplicates(request_data)
+        duplicates = await self._find_duplicates(request_data, tenant_id=tenant_id)
 
         # Generate demand ID
         demand_id = await self._generate_demand_id()
@@ -133,14 +183,19 @@ class DemandIntakeAgent(BaseAgent):
             "created_by": request_data.get("requester", "unknown"),
             "business_unit": request_data.get("business_unit", ""),
             "urgency": request_data.get("urgency", "Medium"),
+            "source": request_data.get("source", "unknown"),
         }
-        self.demands.append(demand_item)
-
-        # Future work: Store in database
+        self.demand_store.upsert(tenant_id, demand_id, demand_item)
         self.logger.info(f"Created demand request: {demand_id}")
 
         # Send confirmation to requester
         # Future work: Integrate with notification system
+
+        await self._publish_demand_created(
+            demand_item,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
 
         return {
             "demand_id": demand_id,
@@ -150,6 +205,28 @@ class DemandIntakeAgent(BaseAgent):
             "similar_requests": duplicates[:5],  # Top 5 most similar
             "next_steps": "Request is in screening queue. You will be notified of status updates.",
         }
+
+    async def _validate_request(self, request_data: dict[str, Any]) -> bool:
+        payload = dict(request_data)
+        payload.setdefault("urgency", "Medium")
+        errors = validate_against_schema(self.demand_schema_path, payload)
+        if errors:
+            for error in errors:
+                self.logger.warning(f"Schema validation error {error.path}: {error.message}")
+            return False
+
+        rule_result = apply_rule_set(self.demand_rule_set, {"demand": payload})
+        if not rule_result.is_valid:
+            for issue in rule_result.issues:
+                self.logger.warning(f"Data quality issue {issue.rule_id}: {issue.message}")
+            return False
+
+        for field in self.mandatory_fields:
+            if field not in request_data or not request_data[field]:
+                self.logger.warning(f"Missing mandatory field: {field}")
+                return False
+
+        return True
 
     async def _categorize_request(self, request_data: dict[str, Any]) -> str:
         """
@@ -172,21 +249,24 @@ class DemandIntakeAgent(BaseAgent):
         else:
             return "idea"
 
-    async def _find_duplicates(self, request_data: dict[str, Any]) -> list[dict[str, Any]]:
+    async def _find_duplicates(
+        self, request_data: dict[str, Any], *, tenant_id: str
+    ) -> list[dict[str, Any]]:
         """
         Find similar existing requests using semantic similarity.
 
         Returns list of similar requests with similarity scores.
         """
-        if not self.demands:
+        demands = self.demand_store.list(tenant_id)
+        if not demands:
             return []
 
         candidate_text = self._combine_text(request_data)
-        corpus = [self._combine_text(item) for item in self.demands]
+        corpus = [self._combine_text(item) for item in demands]
         similarities = self._semantic_similarity(candidate_text, corpus)
 
         results = []
-        for item, score in zip(self.demands, similarities):
+        for item, score in zip(demands, similarities):
             if score >= self.similarity_threshold:
                 results.append(
                     {
@@ -206,20 +286,24 @@ class DemandIntakeAgent(BaseAgent):
         results.sort(key=_similarity_key, reverse=True)
         return results
 
-    async def _check_duplicates(self, request_data: dict[str, Any]) -> dict[str, Any]:
+    async def _check_duplicates(
+        self, request_data: dict[str, Any], *, tenant_id: str
+    ) -> dict[str, Any]:
         """
         Check for duplicate requests without submitting.
 
         Returns list of similar requests.
         """
-        duplicates = await self._find_duplicates(request_data)
+        duplicates = await self._find_duplicates(request_data, tenant_id=tenant_id)
 
         return {
             "duplicates_found": len(duplicates) > 0,
             "similar_requests": duplicates,
         }
 
-    async def _get_pipeline(self, filters: dict[str, Any]) -> dict[str, Any]:
+    async def _get_pipeline(
+        self, filters: dict[str, Any], *, tenant_id: str
+    ) -> dict[str, Any]:
         """
         Get current demand pipeline status.
 
@@ -227,7 +311,7 @@ class DemandIntakeAgent(BaseAgent):
         """
         query = filters.get("query", "")
         status_filter = filters.get("status")
-        items = self.demands
+        items = self.demand_store.list(tenant_id)
 
         if status_filter:
             items = [item for item in items if item.get("status") == status_filter]
@@ -243,7 +327,7 @@ class DemandIntakeAgent(BaseAgent):
 
         by_status: dict[str, int] = {}
         by_category: dict[str, int] = {}
-        for item in self.demands:
+        for item in items:
             by_status[item.get("status", "Unknown")] = by_status.get(
                 item.get("status", "Unknown"), 0
             ) + 1
@@ -252,7 +336,7 @@ class DemandIntakeAgent(BaseAgent):
             ) + 1
 
         return {
-            "total_requests": len(self.demands),
+            "total_requests": len(items),
             "by_status": by_status,
             "by_category": by_category,
             "items": items,
@@ -309,8 +393,27 @@ class DemandIntakeAgent(BaseAgent):
     async def _generate_demand_id(self) -> str:
         """Generate unique demand ID."""
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        # Future work: Add sequence number from database
-        return f"DEM-{timestamp}"
+        return f"DEM-{timestamp}-{uuid.uuid4().hex[:8]}"
+
+    async def _publish_demand_created(
+        self, demand_item: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        event = DemandCreatedEvent(
+            event_name="demand.created",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "demand_id": demand_item.get("demand_id", ""),
+                "source": demand_item.get("source", "unknown"),
+                "title": demand_item.get("title", ""),
+                "submitted_by": demand_item.get("created_by", "unknown"),
+                "submitted_at": datetime.fromisoformat(demand_item.get("created_at")),
+            },
+        )
+        await self.event_bus.publish("demand.created", event.model_dump())
 
     def get_capabilities(self) -> list[str]:
         """Return list of capabilities."""

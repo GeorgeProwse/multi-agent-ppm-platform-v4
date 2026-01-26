@@ -42,6 +42,19 @@ class BusinessCaseCreatedEvent(EventEnvelope):
     payload: BusinessCaseCreatedPayload
 
 
+class InvestmentRecommendationPayload(BaseModel):
+    business_case_id: str
+    recommendation: Literal["approve", "defer", "reject"]
+    confidence_level: float
+    generated_at: datetime
+    owner: str
+
+
+class InvestmentRecommendationEvent(EventEnvelope):
+    event_name: Literal["investment.recommendation"]
+    payload: InvestmentRecommendationPayload
+
+
 class PortfolioPrioritizedPayload(BaseModel):
     portfolio_id: str
     cycle: str
@@ -65,6 +78,18 @@ class ProgramCreatedPayload(BaseModel):
 class ProgramCreatedEvent(EventEnvelope):
     event_name: Literal["program.created"]
     payload: ProgramCreatedPayload
+
+
+class ProgramRoadmapUpdatedPayload(BaseModel):
+    program_id: str
+    roadmap_id: str
+    updated_at: datetime
+    milestone_count: int
+
+
+class ProgramRoadmapUpdatedEvent(EventEnvelope):
+    event_name: Literal["program.roadmap.updated"]
+    payload: ProgramRoadmapUpdatedPayload
 
 
 class CharterCreatedPayload(BaseModel):

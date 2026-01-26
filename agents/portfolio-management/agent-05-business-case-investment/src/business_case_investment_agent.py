@@ -9,9 +9,15 @@ Specification: agents/portfolio-management/agent-05-business-case-investment/REA
 """
 
 from datetime import datetime
+from pathlib import Path
+import uuid
 from typing import Any
 
-from agents.runtime import BaseAgent
+from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime.src.state_store import TenantStateStore
+from data_quality.helpers import apply_rule_set, validate_against_schema
+from events import BusinessCaseCreatedEvent, InvestmentRecommendationEvent
+from observability.tracing import get_trace_id
 
 
 class BusinessCaseInvestmentAgent(BaseAgent):
@@ -39,9 +45,39 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         self.discount_rate = config.get("discount_rate", 0.10) if config else 0.10
         self.comparison_window_years = config.get("comparison_window_years", 3) if config else 3
 
-        # Data stores (will be replaced with database connections)
-        self.business_cases = {}  # type: ignore
+        store_path = (
+            Path(config.get("business_case_store_path", "data/business_case_store.json"))
+            if config
+            else Path("data/business_case_store.json")
+        )
+        self.business_case_store = TenantStateStore(store_path)
         self.financial_models = {}  # type: ignore
+        self.event_bus = config.get("event_bus") if config else None
+        if self.event_bus is None:
+            self.event_bus = InMemoryEventBus()
+        self.roi_schema_path = Path(
+            config.get("roi_schema_path", "data/schemas/roi.schema.json")
+            if config
+            else "data/schemas/roi.schema.json"
+        )
+        self.roi_rule_set = {
+            "rules": [
+                {
+                    "id": "roi-inputs-required",
+                    "checks": [
+                        {"field": "roi.costs.total_cost", "type": "required"},
+                        {"field": "roi.benefits.total_benefits", "type": "required"},
+                    ],
+                },
+                {
+                    "id": "roi-values-non-negative",
+                    "checks": [
+                        {"field": "roi.costs.total_cost", "type": "min", "value": 0},
+                        {"field": "roi.benefits.total_benefits", "type": "min", "value": 0},
+                    ],
+                },
+            ]
+        }
 
     async def initialize(self) -> None:
         """Initialize AI models, database connections, and external integrations."""
@@ -94,6 +130,10 @@ class BusinessCaseInvestmentAgent(BaseAgent):
                     self.logger.warning(f"Missing required field: {field}")
                     return False
 
+        elif action == "calculate_roi":
+            if not await self._validate_roi_inputs(input_data):
+                return False
+
         elif action == "run_scenario_analysis":
             if "business_case_id" not in input_data or "scenarios" not in input_data:
                 self.logger.warning("Missing business_case_id or scenarios")
@@ -125,9 +165,18 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             - get_business_case: Full business case details
         """
         action = input_data.get("action", "generate_business_case")
+        context = input_data.get("context", {})
+        correlation_id = (
+            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
+        )
+        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "generate_business_case":
-            return await self._generate_business_case(input_data.get("request", {}))
+            return await self._generate_business_case(
+                input_data.get("request", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "calculate_roi":
             return await self._calculate_roi(input_data)
@@ -141,15 +190,24 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             return await self._compare_to_historical(input_data.get("request", {}))
 
         elif action == "generate_recommendation":
-            return await self._generate_recommendation(input_data.get("business_case_id"))  # type: ignore
+            return await self._generate_recommendation(
+                input_data.get("business_case_id"),  # type: ignore
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "get_business_case":
-            return await self._get_business_case(input_data.get("business_case_id"))  # type: ignore
+            return await self._get_business_case(
+                input_data.get("business_case_id"),  # type: ignore
+                tenant_id=tenant_id,
+            )
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
-    async def _generate_business_case(self, request_data: dict[str, Any]) -> dict[str, Any]:
+    async def _generate_business_case(
+        self, request_data: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
         """
         Generate a comprehensive business case document.
 
@@ -193,6 +251,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
             "created_by": request_data.get("requester", "unknown"),
             "status": "Draft",
+            "demand_id": request_data.get("demand_id", "unknown"),
             "template": template,
             "document": {
                 "executive_summary": executive_summary,
@@ -211,13 +270,15 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             },
         }
 
-        # Store business case
-        self.business_cases[business_case_id] = business_case
-
-        # Future work: Store in database
-        # Future work: Publish business_case.created event to Service Bus
+        self.business_case_store.upsert(tenant_id, business_case_id, business_case)
 
         self.logger.info(f"Generated business case: {business_case_id}")
+
+        await self._publish_business_case_created(
+            business_case,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
 
         return {
             "business_case_id": business_case_id,
@@ -329,7 +390,9 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "comparison_window_years": self.comparison_window_years,
         }
 
-    async def _generate_recommendation(self, business_case_id: str) -> dict[str, Any]:
+    async def _generate_recommendation(
+        self, business_case_id: str, *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
         """
         Generate investment recommendation with confidence level.
 
@@ -337,7 +400,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         """
         self.logger.info(f"Generating recommendation for business case: {business_case_id}")
 
-        business_case = self.business_cases.get(business_case_id)
+        business_case = self.business_case_store.get(tenant_id, business_case_id)
         if not business_case:
             raise ValueError(f"Business case not found: {business_case_id}")
 
@@ -368,7 +431,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
 
         # Future work: Use Azure OpenAI to generate detailed narrative explanation
 
-        return {
+        recommendation_payload = {
             "business_case_id": business_case_id,
             "recommendation": recommendation,
             "confidence_level": confidence,
@@ -378,14 +441,42 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             "generated_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_business_case(self, business_case_id: str) -> dict[str, Any]:
+        await self._publish_investment_recommendation(
+            business_case,
+            recommendation_payload,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
+
+        return recommendation_payload
+
+    async def _get_business_case(self, business_case_id: str, *, tenant_id: str) -> dict[str, Any]:
         """Retrieve a business case by ID."""
-        business_case = self.business_cases.get(business_case_id)
+        business_case = self.business_case_store.get(tenant_id, business_case_id)
         if not business_case:
             raise ValueError(f"Business case not found: {business_case_id}")
         return business_case  # type: ignore
 
     # Helper methods
+
+    async def _validate_roi_inputs(self, input_data: dict[str, Any]) -> bool:
+        costs = input_data.get("costs", {})
+        benefits = input_data.get("benefits", {})
+        roi_payload = {"roi": {"costs": costs, "benefits": benefits}}
+
+        errors = validate_against_schema(self.roi_schema_path, roi_payload)
+        if errors:
+            for error in errors:
+                self.logger.warning(f"ROI schema error {error.path}: {error.message}")
+            return False
+
+        result = apply_rule_set(self.roi_rule_set, roi_payload)
+        if not result.is_valid:
+            for issue in result.issues:
+                self.logger.warning(f"ROI data quality issue {issue.rule_id}: {issue.message}")
+            return False
+
+        return True
 
     async def _generate_business_case_id(self) -> str:
         """Generate unique business case ID."""
@@ -587,6 +678,51 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         # Based on historical accuracy and metric quality
 
         return 0.75  # Baseline (75% confidence)
+
+    async def _publish_business_case_created(
+        self, business_case: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        event = BusinessCaseCreatedEvent(
+            event_name="business_case.created",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "business_case_id": business_case.get("business_case_id", ""),
+                "demand_id": business_case.get("demand_id", "unknown"),
+                "project_name": business_case.get("title", ""),
+                "created_at": datetime.fromisoformat(business_case.get("created_at")),
+                "owner": business_case.get("created_by", "unknown"),
+            },
+        )
+        await self.event_bus.publish("business_case.created", event.model_dump())
+
+    async def _publish_investment_recommendation(
+        self,
+        business_case: dict[str, Any],
+        recommendation: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+    ) -> None:
+        event = InvestmentRecommendationEvent(
+            event_name="investment.recommendation",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "business_case_id": business_case.get("business_case_id", ""),
+                "recommendation": recommendation.get("recommendation", "defer"),
+                "confidence_level": recommendation.get("confidence_level", 0.0),
+                "generated_at": datetime.fromisoformat(recommendation.get("generated_at")),
+                "owner": business_case.get("created_by", "unknown"),
+            },
+        )
+        await self.event_bus.publish("investment.recommendation", event.model_dump())
 
     async def cleanup(self) -> None:
         """Cleanup resources."""

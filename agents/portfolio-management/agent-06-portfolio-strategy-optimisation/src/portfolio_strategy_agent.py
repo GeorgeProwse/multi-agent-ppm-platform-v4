@@ -9,9 +9,16 @@ Specification: agents/portfolio-management/agent-06-portfolio-strategy-optimisat
 """
 
 from datetime import datetime
+from pathlib import Path
+import uuid
 from typing import Any
 
-from agents.runtime import BaseAgent
+from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime.src.audit import build_audit_event, emit_audit_event
+from agents.runtime.src.policy import evaluate_policy_bundle, load_default_policy_bundle
+from agents.runtime.src.state_store import TenantStateStore
+from events import PortfolioPrioritizedEvent
+from observability.tracing import get_trace_id
 
 
 class PortfolioStrategyAgent(BaseAgent):
@@ -70,11 +77,18 @@ class PortfolioStrategyAgent(BaseAgent):
             config.get("budget_granularity", 1000) if config else 1000
         )
 
-        # Data stores (will be replaced with database)
-        self.portfolio_compositions = {}  # type: ignore
+        store_path = (
+            Path(config.get("portfolio_store_path", "data/portfolio_strategy_store.json"))
+            if config
+            else Path("data/portfolio_strategy_store.json")
+        )
+        self.portfolio_store = TenantStateStore(store_path)
         self.strategic_objectives = []  # type: ignore
         self.alignment_scores = {}  # type: ignore
         self.optimization_scenarios = {}  # type: ignore
+        self.event_bus = config.get("event_bus") if config else None
+        if self.event_bus is None:
+            self.event_bus = InMemoryEventBus()
 
     async def initialize(self) -> None:
         """Initialize optimization models, database connections, and external integrations."""
@@ -149,11 +163,20 @@ class PortfolioStrategyAgent(BaseAgent):
             - compare_scenarios: Side-by-side scenario comparison
         """
         action = input_data.get("action", "prioritize_portfolio")
+        context = input_data.get("context", {})
+        correlation_id = (
+            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
+        )
+        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "prioritize_portfolio":
             return await self._prioritize_portfolio(
                 input_data.get("projects", []),
                 input_data.get("criteria_weights", self.default_weights),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+                portfolio_id=input_data.get("portfolio_id"),
+                cycle=input_data.get("cycle", "ad-hoc"),
             )
 
         elif action == "calculate_alignment_score":
@@ -163,7 +186,10 @@ class PortfolioStrategyAgent(BaseAgent):
 
         elif action == "optimize_portfolio":
             return await self._optimize_portfolio(
-                input_data.get("projects", []), input_data.get("constraints", {})
+                input_data.get("projects", []),
+                input_data.get("constraints", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
             )
 
         elif action == "run_scenario_analysis":
@@ -173,7 +199,10 @@ class PortfolioStrategyAgent(BaseAgent):
             return await self._rebalance_portfolio(input_data.get("portfolio_id"))
 
         elif action == "get_portfolio_status":
-            return await self._get_portfolio_status(input_data.get("portfolio_id"))
+            return await self._get_portfolio_status(
+                input_data.get("portfolio_id"),
+                tenant_id=tenant_id,
+            )
 
         elif action == "compare_scenarios":
             return await self._compare_scenarios(input_data.get("scenario_ids", []))
@@ -182,7 +211,14 @@ class PortfolioStrategyAgent(BaseAgent):
             raise ValueError(f"Unknown action: {action}")
 
     async def _prioritize_portfolio(
-        self, projects: list[dict[str, Any]], criteria_weights: dict[str, float]
+        self,
+        projects: list[dict[str, Any]],
+        criteria_weights: dict[str, float],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+        portfolio_id: str | None = None,
+        cycle: str = "ad-hoc",
     ) -> dict[str, Any]:
         """
         Apply multi-criteria decision analysis to rank portfolio projects.
@@ -192,6 +228,7 @@ class PortfolioStrategyAgent(BaseAgent):
         self.logger.info(f"Prioritizing portfolio with {len(projects)} projects")
 
         ranked_projects = []
+        portfolio_id = portfolio_id or await self._generate_portfolio_id()
 
         for project in projects:
             # Calculate scores for each criterion
@@ -210,6 +247,20 @@ class PortfolioStrategyAgent(BaseAgent):
                 + compliance_score * criteria_weights.get("compliance", 0.10)
             )
 
+            recommendation = (
+                "approve"
+                if overall_score >= 0.7
+                else "defer" if overall_score >= 0.5 else "reject"
+            )
+            policy_outcome = await self._apply_policy_guardrails(
+                project_id=str(project.get("project_id")),
+                recommendation=recommendation,
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
+            if policy_outcome["decision"] == "deny" and recommendation == "approve":
+                recommendation = "defer"
+
             ranked_projects.append(
                 {
                     "project_id": project.get("project_id"),
@@ -222,11 +273,8 @@ class PortfolioStrategyAgent(BaseAgent):
                         "resource_feasibility": resource_score,
                         "compliance": compliance_score,
                     },
-                    "recommendation": (
-                        "approve"
-                        if overall_score >= 0.7
-                        else "defer" if overall_score >= 0.5 else "reject"
-                    ),
+                    "recommendation": recommendation,
+                    "policy_decision": policy_outcome,
                 }
             )
 
@@ -237,10 +285,29 @@ class PortfolioStrategyAgent(BaseAgent):
         for idx, project in enumerate(ranked_projects, start=1):
             project["rank"] = idx
 
-        # Future work: Store portfolio ranking in database
-        # Future work: Publish portfolio.prioritised event
+        portfolio_record = {
+            "portfolio_id": portfolio_id,
+            "cycle": cycle,
+            "ranked_projects": ranked_projects,
+            "criteria_weights": criteria_weights,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+        self.portfolio_store.upsert(tenant_id, portfolio_id, portfolio_record)
+
+        await self._publish_portfolio_prioritized(
+            portfolio_record,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
+        self._emit_audit_event(
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            portfolio_id=portfolio_id,
+            approved_count=len([p for p in ranked_projects if p["recommendation"] == "approve"]),
+        )
 
         return {
+            "portfolio_id": portfolio_id,
             "ranked_projects": ranked_projects,
             "criteria_weights": criteria_weights,
             "total_projects": len(ranked_projects),
@@ -290,7 +357,12 @@ class PortfolioStrategyAgent(BaseAgent):
         }
 
     async def _optimize_portfolio(
-        self, projects: list[dict[str, Any]], constraints: dict[str, Any]
+        self,
+        projects: list[dict[str, Any]],
+        constraints: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
     ) -> dict[str, Any]:
         """
         Run capacity-constrained optimization to maximize portfolio value.
@@ -308,7 +380,14 @@ class PortfolioStrategyAgent(BaseAgent):
         # Future work: Use evolutionary algorithms (NSGA-II, MOGA) for Pareto optimization
         # Future work: Apply constraint satisfaction programming
 
-        prioritization = await self._prioritize_portfolio(projects, self.default_weights)
+        prioritization = await self._prioritize_portfolio(
+            projects,
+            self.default_weights,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            portfolio_id=None,
+            cycle="optimization",
+        )
         ranked_projects = prioritization["ranked_projects"]
 
         scored_projects = []
@@ -476,15 +555,33 @@ class PortfolioStrategyAgent(BaseAgent):
             "rebalanced_at": datetime.utcnow().isoformat(),
         }
 
-    async def _get_portfolio_status(self, portfolio_id: str | None = None) -> dict[str, Any]:
+    async def _get_portfolio_status(
+        self, portfolio_id: str | None = None, *, tenant_id: str
+    ) -> dict[str, Any]:
         """Get current portfolio status and performance metrics."""
         self.logger.info(f"Getting portfolio status: {portfolio_id}")
 
-        # Future work: Query database for portfolio data
+        if portfolio_id:
+            record = self.portfolio_store.get(tenant_id, portfolio_id)
+        else:
+            records = self.portfolio_store.list(tenant_id)
+            record = records[-1] if records else None
+
+        if not record:
+            return {
+                "portfolio_id": portfolio_id,
+                "total_projects": 0,
+                "total_budget": 0,
+                "total_value": 0,
+                "investment_mix": {},
+                "strategic_coverage": {},
+                "resource_utilization": 0,
+                "retrieved_at": datetime.utcnow().isoformat(),
+            }
 
         return {
-            "portfolio_id": portfolio_id,
-            "total_projects": 0,
+            "portfolio_id": record.get("portfolio_id"),
+            "total_projects": len(record.get("ranked_projects", [])),
             "total_budget": 0,
             "total_value": 0,
             "investment_mix": {},
@@ -507,6 +604,85 @@ class PortfolioStrategyAgent(BaseAgent):
         return {"scenarios": scenarios, "comparison": comparison}
 
     # Helper methods
+
+    async def _generate_portfolio_id(self) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        return f"PORT-{timestamp}"
+
+    async def _apply_policy_guardrails(
+        self,
+        *,
+        project_id: str,
+        recommendation: str,
+        tenant_id: str,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        policy_bundle = {
+            "metadata": {
+                "version": self.get_config("policy_version", "1.0.0"),
+                "owner": self.get_config("policy_owner", self.agent_id),
+                "name": project_id,
+            },
+            "decision": recommendation,
+            "project_id": project_id,
+        }
+        decision = evaluate_policy_bundle(policy_bundle, load_default_policy_bundle())
+        outcome = "denied" if decision.decision == "deny" else "success"
+        event = build_audit_event(
+            tenant_id=tenant_id,
+            action="portfolio.policy.checked",
+            outcome=outcome,
+            actor_id=self.agent_id,
+            actor_type="service",
+            actor_roles=[],
+            resource_id=project_id,
+            resource_type="portfolio_project",
+            metadata={"decision": decision.decision, "reasons": decision.reasons},
+            trace_id=get_trace_id(),
+            correlation_id=correlation_id,
+        )
+        emit_audit_event(event)
+        return {"decision": decision.decision, "reasons": decision.reasons}
+
+    async def _publish_portfolio_prioritized(
+        self, portfolio_record: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        event = PortfolioPrioritizedEvent(
+            event_name="portfolio.prioritized",
+            event_id=f"evt-{uuid.uuid4().hex}",
+            timestamp=datetime.utcnow(),
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            trace_id=get_trace_id(),
+            payload={
+                "portfolio_id": portfolio_record.get("portfolio_id", ""),
+                "cycle": portfolio_record.get("cycle", "ad-hoc"),
+                "prioritized_at": datetime.fromisoformat(portfolio_record.get("generated_at")),
+                "ranked_projects": [
+                    str(project.get("project_id"))
+                    for project in portfolio_record.get("ranked_projects", [])
+                ],
+            },
+        )
+        await self.event_bus.publish("portfolio.prioritized", event.model_dump())
+
+    def _emit_audit_event(
+        self, *, tenant_id: str, correlation_id: str, portfolio_id: str, approved_count: int
+    ) -> None:
+        event = build_audit_event(
+            tenant_id=tenant_id,
+            action="portfolio.prioritized",
+            outcome="success",
+            actor_id=self.agent_id,
+            actor_type="service",
+            actor_roles=[],
+            resource_id=portfolio_id,
+            resource_type="portfolio",
+            metadata={"approved_count": approved_count},
+            trace_id=get_trace_id(),
+            correlation_id=correlation_id,
+        )
+        emit_audit_event(event)
 
     async def _score_strategic_alignment(self, project: dict[str, Any]) -> float:
         """Score project strategic alignment (0-1)."""
