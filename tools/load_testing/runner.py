@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+import json
+import statistics
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
+
+
+@dataclass(frozen=True)
+class LoadScenario:
+    name: str
+    request_fn: Callable[[], int]
+    total_requests: int
+    concurrency: int
+
+
+@dataclass(frozen=True)
+class LoadSla:
+    max_avg_latency_s: float
+    max_p95_latency_s: float
+    max_error_rate: float
+
+
+@dataclass(frozen=True)
+class LoadScenarioResult:
+    name: str
+    durations_s: list[float]
+    error_count: int
+
+    @property
+    def average_latency_s(self) -> float:
+        return statistics.mean(self.durations_s) if self.durations_s else 0.0
+
+    @property
+    def p95_latency_s(self) -> float:
+        if not self.durations_s:
+            return 0.0
+        ordered = sorted(self.durations_s)
+        index = max(int(len(ordered) * 0.95) - 1, 0)
+        return ordered[index]
+
+    @property
+    def error_rate(self) -> float:
+        total = len(self.durations_s)
+        return self.error_count / total if total else 0.0
+
+
+def run_load_scenario(scenario: LoadScenario) -> LoadScenarioResult:
+    durations: list[float] = []
+    errors = 0
+
+    def _invoke() -> tuple[float, bool]:
+        start = time.perf_counter()
+        status = scenario.request_fn()
+        duration = time.perf_counter() - start
+        return duration, status >= 400
+
+    with ThreadPoolExecutor(max_workers=scenario.concurrency) as executor:
+        futures = [executor.submit(_invoke) for _ in range(scenario.total_requests)]
+        for future in as_completed(futures):
+            duration, failed = future.result()
+            durations.append(duration)
+            if failed:
+                errors += 1
+
+    return LoadScenarioResult(name=scenario.name, durations_s=durations, error_count=errors)
+
+
+def load_profile(path: Path) -> dict:
+    return json.loads(path.read_text())
+
+
+def assert_sla(result: LoadScenarioResult, sla: LoadSla) -> None:
+    if result.average_latency_s > sla.max_avg_latency_s:
+        raise AssertionError(
+            f"Average latency {result.average_latency_s:.3f}s exceeds SLA "
+            f"{sla.max_avg_latency_s:.3f}s"
+        )
+    if result.p95_latency_s > sla.max_p95_latency_s:
+        raise AssertionError(
+            f"P95 latency {result.p95_latency_s:.3f}s exceeds SLA "
+            f"{sla.max_p95_latency_s:.3f}s"
+        )
+    if result.error_rate > sla.max_error_rate:
+        raise AssertionError(
+            f"Error rate {result.error_rate:.2%} exceeds SLA "
+            f"{sla.max_error_rate:.2%}"
+        )

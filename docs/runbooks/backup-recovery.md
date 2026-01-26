@@ -18,6 +18,13 @@ This runbook describes backup configuration, retention schedules, and recovery p
 | Audit Log | WORM storage with retention policies | Real-time ingestion | Per `config/retention/policies.yaml` | Immutable blob container |
 | Kubernetes manifests | GitOps (repository) | Per release | Git history | GitHub |
 
+## Automated backups
+
+- **Azure Database for PostgreSQL:** automated backups enabled with point-in-time restore and geo-redundant storage.
+- **Redis:** persistence configured with scheduled snapshots.
+- **Audit log:** continuous export to immutable storage with retention policies.
+- **Validation automation:** `tests/test_backup_runbook.py` validates runbook requirements and retention policies.
+
 ## Pre-requisites
 
 - Access to the Azure subscription and resource group.
