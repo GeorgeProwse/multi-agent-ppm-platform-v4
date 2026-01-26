@@ -60,3 +60,28 @@
 | 26 | Monte Carlo simulation + automated risk extraction (deterministic tests with seeded RNG) | Done | `agents/delivery-management/agent-10-schedule-planning/src/schedule_planning_agent.py`, `tests/agents/test_schedule_planning_agent.py`. |
 | 27 | Comprehensive unit tests for all agents | Done | `tests/agents/`. |
 | 75 | Ensure top agents operate with real business logic (prove via tests) | Done | `tests/agents/`, agent implementations above. |
+| 43 | Full integration test suite | Done | `tests/integration/`, `scripts/verify-production-readiness.sh`. |
+| 44 | Expand E2E coverage to 15–20 scenarios | Done | `tests/e2e/test_acceptance_scenarios.py`, `tests/e2e/README.md`. |
+| 45 | Implement load testing framework | Done | `tools/load_testing/runner.py`, `scripts/load-test.py`, `tests/load/sla_targets.json`. |
+| 46 | Verify SLAs under load (define targets; enforce pass/fail) | Done | `tests/load/test_load_sla.py`, `tests/load/sla_targets.json`. |
+| 61 | Complete deployment runbooks | Done | `docs/runbooks/deployment.md`. |
+| 62 | Secret initialization runbook | Done | `docs/runbooks/secret-init.md`. |
+| 63 | Credential acquisition guide | Done | `docs/runbooks/credential-acquisition.md`. |
+| 64 | API documentation coverage | Done | `docs/api/README.md`, `docs/api/orchestration-openapi.yaml`. |
+| 65 | Troubleshooting guide | Done | `docs/runbooks/troubleshooting.md`. |
+| 66 | On-call runbook | Done | `docs/runbooks/oncall.md`. |
+| 67 | Automated backups | Done | `docs/runbooks/backup-recovery.md`, `tests/test_backup_runbook.py`. |
+| 68 | Test DR procedures | Done | `docs/runbooks/disaster-recovery.md`, `tests/test_operational_runbooks.py`. |
+| 69 | Secret rotation procedures | Done | `docs/runbooks/secret-rotation.md`. |
+| 70 | Operational monitoring dashboards | Done | `docs/runbooks/monitoring-dashboards.md`, `infra/observability/dashboards/ppm-slo.json`. |
+| 71 | Full CI gate suite enforced | Done | `.github/workflows/ci.yml`, `scripts/verify-production-readiness.sh`. |
+| 72 | Pytest coverage >= 80% enforced | Done | `.github/workflows/ci.yml`, `scripts/verify-production-readiness.sh`. |
+| 73 | Integration test suite in CI | Done | `tests/integration/`, `.github/workflows/ci.yml`. |
+| 78 | E2E suite enforced in CI | Done | `tests/e2e/`, `.github/workflows/e2e-tests.yml`. |
+| 80 | Load/performance testing gate | Done | `tests/load/`, `.github/workflows/performance-smoke.yml`. |
+| 81 | Vulnerability scanning enforced | Done | `.github/workflows/security-scan.yml`, `.github/workflows/container-scan.yml`. |
+| 82 | Secret scanning enforced | Done | `.github/workflows/secret-scan.yml`. |
+| 83 | SBOM generation enforced | Done | `.github/workflows/sbom.yml`. |
+| 84 | IaC scanning enforced | Done | `.github/workflows/iac-scan.yml`. |
+| 85 | License compliance checks enforced | Done | `.github/workflows/license-compliance.yml`. |
+| 86 | Production readiness verification script | Done | `scripts/verify-production-readiness.sh`. |

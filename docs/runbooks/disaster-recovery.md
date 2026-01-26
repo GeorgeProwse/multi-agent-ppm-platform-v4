@@ -53,3 +53,13 @@ This runbook outlines DR planning, RTO/RPO targets, and recovery steps for the M
 - [ ] Audit log ingestion returns `202` and events are immutable.
 - [ ] Telemetry pipeline exports to Azure Monitor.
 - [ ] Data sync queue has backlog drained.
+
+## DR Testing Procedures
+
+Run a DR drill at least twice per year or after major infrastructure changes.
+
+1. Provision a DR sandbox environment in the secondary region.
+2. Restore the latest backups to the DR environment.
+3. Execute smoke and e2e tests (`pytest tests/e2e`).
+4. Validate SLAs under load (`pytest tests/load`).
+5. Document outcomes, issues, and remediation tasks.
