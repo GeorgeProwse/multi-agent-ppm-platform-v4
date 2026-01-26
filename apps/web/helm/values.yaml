@@ -14,3 +14,28 @@ env:
   API_GATEWAY_URL: "http://api-gateway:8000"
   IDENTITY_ACCESS_URL: "http://identity-access:8080"
   WORKFLOW_ENGINE_URL: "http://workflow-engine:8080"
+
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: ""
