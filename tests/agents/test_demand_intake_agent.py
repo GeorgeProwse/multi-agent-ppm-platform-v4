@@ -3,8 +3,13 @@ from demand_intake_agent import DemandIntakeAgent
 
 
 @pytest.mark.asyncio
-async def test_demand_intake_duplicate_detection_and_search():
-    agent = DemandIntakeAgent(config={"similarity_threshold": 0.2})
+async def test_demand_intake_duplicate_detection_and_search(tmp_path):
+    agent = DemandIntakeAgent(
+        config={
+            "similarity_threshold": 0.2,
+            "demand_store_path": tmp_path / "demand_store.json",
+        }
+    )
     await agent.initialize()
 
     await agent.process(
