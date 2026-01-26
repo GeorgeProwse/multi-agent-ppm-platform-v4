@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import contextmanager
 from typing import cast
 
 from opentelemetry import propagate, trace
@@ -42,6 +43,28 @@ def inject_trace_headers(headers: dict[str, str]) -> dict[str, str]:
     return carrier
 
 
+def get_trace_id() -> str | None:
+    span = trace.get_current_span()
+    if not span:
+        return None
+    trace_id = span.get_span_context().trace_id
+    if not trace_id:
+        return None
+    return f"{trace_id:032x}"
+
+
+@contextmanager
+def start_agent_span(agent_name: str, attributes: dict[str, str] | None = None):
+    tracer = trace.get_tracer(agent_name)
+    with tracer.start_as_current_span(
+        f"agent.execute.{agent_name}", kind=SpanKind.INTERNAL
+    ) as span:
+        if attributes:
+            for key, value in attributes.items():
+                span.set_attribute(key, value)
+        yield span
+
+
 class TraceMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, service_name: str) -> None:
         super().__init__(app)
@@ -65,4 +88,10 @@ class TraceMiddleware(BaseHTTPMiddleware):
             return response
 
 
-__all__ = ["configure_tracing", "TraceMiddleware", "inject_trace_headers"]
+__all__ = [
+    "configure_tracing",
+    "TraceMiddleware",
+    "inject_trace_headers",
+    "get_trace_id",
+    "start_agent_span",
+]

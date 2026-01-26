@@ -5,9 +5,25 @@ This module provides the abstract base class that all agents inherit from.
 """
 
 import logging
+import sys
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+OBSERVABILITY_ROOT = Path(__file__).resolve().parents[3] / "packages" / "observability" / "src"
+if str(OBSERVABILITY_ROOT) not in sys.path:
+    sys.path.insert(0, str(OBSERVABILITY_ROOT))
+
+from observability.tracing import get_trace_id, start_agent_span  # noqa: E402
+
+from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.agent_catalog import get_catalog_id  # noqa: E402
+from agents.runtime.src.policy import (
+    evaluate_policy_bundle,
+    load_default_policy_bundle,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +36,12 @@ class BaseAgent(ABC):
     override lifecycle hooks (initialize, validate, cleanup).
     """
 
-    def __init__(self, agent_id: str, config: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        agent_id: str,
+        config: dict[str, Any] | None = None,
+        catalog_id: str | None = None,
+    ):
         """
         Initialize the agent.
 
@@ -30,6 +51,7 @@ class BaseAgent(ABC):
         """
         self.agent_id = agent_id
         self.config = config or {}
+        self.catalog_id = catalog_id or self.config.get("catalog_id") or get_catalog_id(agent_id)
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.initialized = False
 
@@ -100,51 +122,155 @@ class BaseAgent(ABC):
                 - metadata: Execution metadata (timing, agent_id, etc.)
         """
         start_time = datetime.utcnow()
+        context = input_data.get("context", {})
+        correlation_id = (
+            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
+        )
+        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
+        catalog_id = self.catalog_id or self.agent_id
+
+        policy_bundle = input_data.get(
+            "policy_bundle",
+            {
+                "metadata": {
+                    "version": self.get_config("policy_version", "1.0.0"),
+                    "owner": self.get_config("policy_owner", self.agent_id),
+                    "scope": "agent-execution",
+                }
+            },
+        )
+        policy_decision = evaluate_policy_bundle(
+            policy_bundle, load_default_policy_bundle()
+        )
+        audit_event = build_audit_event(
+            tenant_id=tenant_id,
+            action=f"{catalog_id}.policy.evaluated",
+            outcome="denied" if policy_decision.decision == "deny" else "success",
+            actor_id=self.agent_id,
+            actor_type="service",
+            actor_roles=[],
+            resource_id=policy_bundle.get("metadata", {}).get("name", catalog_id),
+            resource_type="policy_bundle",
+            metadata={"decision": policy_decision.decision, "reasons": policy_decision.reasons},
+            trace_id=get_trace_id(),
+            correlation_id=correlation_id,
+        )
+        emit_audit_event(audit_event)
+
+        self._log_event(
+            action="policy_evaluated",
+            outcome="denied" if policy_decision.decision == "deny" else "success",
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
+
+        if policy_decision.decision == "deny":
+            return {
+                "success": False,
+                "error": "Policy evaluation denied execution",
+                "metadata": {
+                    "agent_id": self.agent_id,
+                    "catalog_id": catalog_id,
+                    "timestamp": start_time.isoformat(),
+                    "correlation_id": correlation_id,
+                    "trace_id": get_trace_id(),
+                    "policy_reasons": policy_decision.reasons,
+                },
+            }
 
         try:
             # Ensure agent is initialized
             if not self.initialized:
                 await self.initialize()
 
-            # Validate input
-            if not await self.validate_input(input_data):
+            with start_agent_span(
+                catalog_id,
+                attributes={
+                    "agent.id": self.agent_id,
+                    "agent.catalog_id": catalog_id,
+                    "tenant.id": tenant_id,
+                    "correlation.id": correlation_id,
+                },
+            ):
+                self._log_event(
+                    action="execution_started",
+                    outcome="success",
+                    tenant_id=tenant_id,
+                    correlation_id=correlation_id,
+                )
+
+                # Validate input
+                if not await self.validate_input(input_data):
+                    self._log_event(
+                        action="validation_failed",
+                        outcome="failure",
+                        tenant_id=tenant_id,
+                        correlation_id=correlation_id,
+                    )
+                    return {
+                        "success": False,
+                        "error": "Input validation failed",
+                        "metadata": {
+                            "agent_id": self.agent_id,
+                            "catalog_id": catalog_id,
+                            "timestamp": start_time.isoformat(),
+                            "correlation_id": correlation_id,
+                            "trace_id": get_trace_id(),
+                        },
+                    }
+
+                # Process the request
+                self._log_event(
+                    action="processing",
+                    outcome="success",
+                    tenant_id=tenant_id,
+                    correlation_id=correlation_id,
+                )
+                result = await self.process(input_data)
+
+                # Calculate execution time
+                execution_time = (datetime.utcnow() - start_time).total_seconds()
+
+                self._log_event(
+                    action="execution_completed",
+                    outcome="success",
+                    tenant_id=tenant_id,
+                    correlation_id=correlation_id,
+                )
+
                 return {
-                    "success": False,
-                    "error": "Input validation failed",
+                    "success": True,
+                    "data": result,
                     "metadata": {
                         "agent_id": self.agent_id,
+                        "catalog_id": catalog_id,
                         "timestamp": start_time.isoformat(),
+                        "execution_time_seconds": execution_time,
+                        "correlation_id": correlation_id,
+                        "trace_id": get_trace_id(),
                     },
                 }
-
-            # Process the request
-            self.logger.info(f"Processing request for agent {self.agent_id}")
-            result = await self.process(input_data)
-
-            # Calculate execution time
-            execution_time = (datetime.utcnow() - start_time).total_seconds()
-
-            return {
-                "success": True,
-                "data": result,
-                "metadata": {
-                    "agent_id": self.agent_id,
-                    "timestamp": start_time.isoformat(),
-                    "execution_time_seconds": execution_time,
-                },
-            }
 
         except Exception as e:
             self.logger.error(f"Error in agent {self.agent_id}: {str(e)}", exc_info=True)
             execution_time = (datetime.utcnow() - start_time).total_seconds()
+            self._log_event(
+                action="execution_failed",
+                outcome="failure",
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
             return {
                 "success": False,
                 "error": str(e),
                 "metadata": {
                     "agent_id": self.agent_id,
+                    "catalog_id": catalog_id,
                     "timestamp": start_time.isoformat(),
                     "execution_time_seconds": execution_time,
+                    "correlation_id": correlation_id,
+                    "trace_id": get_trace_id(),
                 },
             }
 
@@ -171,3 +297,19 @@ class BaseAgent(ABC):
             Configuration value or default
         """
         return self.config.get(key, default)
+
+    def _log_event(
+        self, *, action: str, outcome: str, tenant_id: str, correlation_id: str
+    ) -> None:
+        self.logger.info(
+            "agent_event",
+            extra={
+                "tenant_id": tenant_id,
+                "trace_id": get_trace_id(),
+                "correlation_id": correlation_id,
+                "agent_id": self.agent_id,
+                "catalog_id": self.catalog_id or self.agent_id,
+                "action": action,
+                "outcome": outcome,
+            },
+        )

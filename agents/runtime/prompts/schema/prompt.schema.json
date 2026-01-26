@@ -22,7 +22,9 @@
       "required": [
         "name",
         "owner",
-        "version"
+        "version",
+        "agent",
+        "purpose"
       ],
       "properties": {
         "name": {
@@ -32,6 +34,12 @@
           "type": "string"
         },
         "version": {
+          "type": "string"
+        },
+        "agent": {
+          "type": "string"
+        },
+        "purpose": {
           "type": "string"
         },
         "description": {
@@ -58,6 +66,36 @@
           "items": {
             "type": "string"
           }
+        },
+        "redaction": {
+          "type": "object",
+          "required": [
+            "pii",
+            "secrets"
+          ],
+          "properties": {
+            "pii": {
+              "type": "boolean"
+            },
+            "secrets": {
+              "type": "boolean"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "mask",
+                "drop"
+              ],
+              "default": "mask"
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

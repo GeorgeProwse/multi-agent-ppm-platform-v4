@@ -41,6 +41,9 @@ async def test_agent_execute():
     assert result["data"]["result"] == "processed"
     assert "metadata" in result
     assert result["metadata"]["agent_id"] == "test-agent"
+    assert result["metadata"]["catalog_id"] == "test-agent"
+    assert result["metadata"]["correlation_id"]
+    assert "trace_id" in result["metadata"]
 
 
 @pytest.mark.asyncio
