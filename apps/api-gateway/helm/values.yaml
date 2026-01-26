@@ -23,3 +23,28 @@ keyVault:
   secrets:
     identityJwtSecret: "identity-jwt-secret"
     policyEngineServiceToken: "policy-engine-service-token"
+
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: ""

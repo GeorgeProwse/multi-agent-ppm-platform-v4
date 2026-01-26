@@ -84,6 +84,175 @@ variable "workload_identity_audience" {
   default     = "api://AzureADTokenExchange"
 }
 
+variable "vnet_address_space" {
+  description = "Address space for the virtual network"
+  type        = list(string)
+  default     = ["10.20.0.0/16"]
+}
+
+variable "private_endpoint_subnet_address_prefixes" {
+  description = "Address prefixes for the private endpoint subnet"
+  type        = list(string)
+  default     = ["10.20.1.0/24"]
+}
+
+variable "postgres_sku_name" {
+  description = "PostgreSQL Flexible Server SKU"
+  type        = string
+  default     = "GP_Standard_D4s_v3"
+
+  validation {
+    condition     = length(var.postgres_sku_name) > 0
+    error_message = "postgres_sku_name must be set to a valid PostgreSQL Flexible Server SKU."
+  }
+}
+
+variable "postgres_storage_mb" {
+  description = "PostgreSQL storage size in MB"
+  type        = number
+  default     = 131072
+
+  validation {
+    condition     = var.postgres_storage_mb >= 32768
+    error_message = "postgres_storage_mb must be at least 32768 MB."
+  }
+}
+
+variable "postgres_backup_retention_days" {
+  description = "PostgreSQL backup retention in days"
+  type        = number
+  default     = 35
+
+  validation {
+    condition     = var.postgres_backup_retention_days >= 7 && var.postgres_backup_retention_days <= 35
+    error_message = "postgres_backup_retention_days must be between 7 and 35 days."
+  }
+}
+
+variable "postgres_geo_redundant_backup_enabled" {
+  description = "Enable geo-redundant backups for PostgreSQL"
+  type        = bool
+  default     = true
+}
+
+variable "postgres_ha_mode" {
+  description = "PostgreSQL high availability mode (ZoneRedundant, SameZone, Disabled)"
+  type        = string
+  default     = "ZoneRedundant"
+
+  validation {
+    condition     = contains(["ZoneRedundant", "SameZone", "Disabled"], var.postgres_ha_mode)
+    error_message = "postgres_ha_mode must be one of ZoneRedundant, SameZone, or Disabled."
+  }
+}
+
+variable "postgres_primary_zone" {
+  description = "Primary availability zone for PostgreSQL"
+  type        = string
+  default     = "1"
+}
+
+variable "postgres_standby_zone" {
+  description = "Standby availability zone for PostgreSQL"
+  type        = string
+  default     = "2"
+}
+
+variable "postgres_minimum_tls_version" {
+  description = "Minimum TLS version enforced by PostgreSQL"
+  type        = string
+  default     = "TLS1_2"
+
+  validation {
+    condition     = contains(["TLS1_0", "TLS1_1", "TLS1_2"], var.postgres_minimum_tls_version)
+    error_message = "postgres_minimum_tls_version must be TLS1_0, TLS1_1, or TLS1_2."
+  }
+}
+
+variable "storage_replication_type" {
+  description = "Storage account replication type"
+  type        = string
+  default     = "GRS"
+
+  validation {
+    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS", "GZRS", "RAGZRS"], var.storage_replication_type)
+    error_message = "storage_replication_type must be a valid Azure replication option."
+  }
+}
+
+variable "storage_minimum_tls_version" {
+  description = "Minimum TLS version for storage accounts"
+  type        = string
+  default     = "TLS1_2"
+}
+
+variable "redis_sku_name" {
+  description = "Redis SKU name (Basic, Standard, Premium)"
+  type        = string
+  default     = "Premium"
+
+  validation {
+    condition     = contains(["Basic", "Standard", "Premium"], var.redis_sku_name)
+    error_message = "redis_sku_name must be Basic, Standard, or Premium."
+  }
+}
+
+variable "redis_family" {
+  description = "Redis SKU family (C or P)"
+  type        = string
+  default     = "P"
+
+  validation {
+    condition     = contains(["C", "P"], var.redis_family)
+    error_message = "redis_family must be C or P."
+  }
+}
+
+variable "redis_capacity" {
+  description = "Redis cache capacity"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.redis_capacity >= 0
+    error_message = "redis_capacity must be zero or greater."
+  }
+}
+
+variable "redis_persistence_enabled" {
+  description = "Enable Redis persistence backups"
+  type        = bool
+  default     = true
+}
+
+variable "redis_backup_frequency" {
+  description = "Redis RDB backup frequency in minutes"
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = contains([15, 60], var.redis_backup_frequency)
+    error_message = "redis_backup_frequency must be 15 or 60 minutes."
+  }
+}
+
+variable "redis_backup_max_snapshot_count" {
+  description = "Redis RDB backup max snapshot count"
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.redis_backup_max_snapshot_count >= 1
+    error_message = "redis_backup_max_snapshot_count must be at least 1."
+  }
+}
+
+variable "redis_maxmemory_policy" {
+  description = "Redis maxmemory policy"
+  type        = string
+  default     = "allkeys-lru"
+}
+
 # Resource Group
 resource "azurerm_resource_group" "main" {
   name     = "${var.resource_prefix}-${var.environment}-rg"
@@ -95,6 +264,197 @@ resource "azurerm_resource_group" "main" {
   }
 }
 
+resource "azurerm_virtual_network" "main" {
+  name                = "${var.resource_prefix}-${var.environment}-vnet"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  address_space       = var.vnet_address_space
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "azurerm_subnet" "private_endpoints" {
+  name                 = "${var.resource_prefix}-${var.environment}-pe-subnet"
+  resource_group_name  = azurerm_resource_group.main.name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = var.private_endpoint_subnet_address_prefixes
+
+  private_endpoint_network_policies_enabled = false
+}
+
+resource "azurerm_network_security_group" "private_endpoints" {
+  name                = "${var.resource_prefix}-${var.environment}-pe-nsg"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  security_rule {
+    name                       = "allow-vnet-inbound"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "deny-internet-inbound"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "Internet"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-vnet-outbound"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "deny-internet-outbound"
+    priority                   = 400
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "private_endpoints" {
+  subnet_id                 = azurerm_subnet.private_endpoints.id
+  network_security_group_id = azurerm_network_security_group.private_endpoints.id
+}
+
+resource "azurerm_private_dns_zone" "acr" {
+  name                = "privatelink.azurecr.io"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "postgres" {
+  name                = "privatelink.postgres.database.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "redis" {
+  name                = "privatelink.redis.cache.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "key_vault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "storage_blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "storage_dfs" {
+  name                = "privatelink.dfs.core.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "service_bus" {
+  name                = "privatelink.servicebus.windows.net"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "openai" {
+  name                = "privatelink.openai.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone" "cosmos" {
+  name                = "privatelink.documents.azure.com"
+  resource_group_name = azurerm_resource_group.main.name
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "acr" {
+  name                  = "${var.resource_prefix}-${var.environment}-acr-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.acr.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
+  name                  = "${var.resource_prefix}-${var.environment}-postgres-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.postgres.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "redis" {
+  name                  = "${var.resource_prefix}-${var.environment}-redis-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.redis.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "key_vault" {
+  name                  = "${var.resource_prefix}-${var.environment}-kv-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.key_vault.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "storage_blob" {
+  name                  = "${var.resource_prefix}-${var.environment}-blob-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.storage_blob.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "storage_dfs" {
+  name                  = "${var.resource_prefix}-${var.environment}-dfs-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.storage_dfs.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "service_bus" {
+  name                  = "${var.resource_prefix}-${var.environment}-sb-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.service_bus.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "openai" {
+  name                  = "${var.resource_prefix}-${var.environment}-openai-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.openai.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "cosmos" {
+  name                  = "${var.resource_prefix}-${var.environment}-cosmos-dns-link"
+  resource_group_name   = azurerm_resource_group.main.name
+  private_dns_zone_name = azurerm_private_dns_zone.cosmos.name
+  virtual_network_id    = azurerm_virtual_network.main.id
+}
+
 # Azure Container Registry
 resource "azurerm_container_registry" "acr" {
   name                = "${var.resource_prefix}${var.environment}acr"
@@ -102,6 +462,7 @@ resource "azurerm_container_registry" "acr" {
   location            = azurerm_resource_group.main.location
   sku                 = "Standard"
   admin_enabled       = false
+  public_network_access_enabled = false
 
   tags = {
     Environment = var.environment
@@ -121,19 +482,35 @@ resource "azurerm_postgresql_flexible_server" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
 
-  sku_name   = "B_Standard_B1ms"
-  storage_mb = 32768
+  sku_name   = var.postgres_sku_name
+  storage_mb = var.postgres_storage_mb
   version    = "15"
 
   administrator_login    = "ppmadmin"
   administrator_password = random_password.db_password.result
 
-  backup_retention_days        = 7
-  geo_redundant_backup_enabled = false
+  backup_retention_days        = var.postgres_backup_retention_days
+  geo_redundant_backup_enabled = var.postgres_geo_redundant_backup_enabled
+  public_network_access_enabled = false
+  zone                          = var.postgres_primary_zone
+
+  dynamic "high_availability" {
+    for_each = var.postgres_ha_mode == "Disabled" ? [] : [var.postgres_ha_mode]
+    content {
+      mode                      = high_availability.value
+      standby_availability_zone = var.postgres_standby_zone
+    }
+  }
 
   tags = {
     Environment = var.environment
   }
+}
+
+resource "azurerm_postgresql_flexible_server_configuration" "minimum_tls_version" {
+  name      = "ssl_minimum_tls_version"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  value     = var.postgres_minimum_tls_version
 }
 
 resource "random_password" "db_password" {
@@ -148,6 +525,9 @@ resource "azurerm_cosmosdb_account" "main" {
   location            = azurerm_resource_group.main.location
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
+  public_network_access_enabled = false
+  minimum_tls_version           = "Tls12"
+  is_virtual_network_filter_enabled = true
 
   consistency_policy {
     consistency_level = "Session"
@@ -168,14 +548,20 @@ resource "azurerm_redis_cache" "main" {
   name                = "${var.resource_prefix}-${var.environment}-redis"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  capacity            = 0
-  family              = "C"
-  sku_name            = "Basic"
+  capacity            = var.redis_capacity
+  family              = var.redis_family
+  sku_name            = var.redis_sku_name
 
   enable_non_ssl_port = false
   minimum_tls_version = "1.2"
+  public_network_access_enabled = false
 
   redis_configuration {
+    maxmemory_policy            = var.redis_maxmemory_policy
+    rdb_backup_enabled          = var.redis_persistence_enabled
+    rdb_backup_frequency        = var.redis_backup_frequency
+    rdb_backup_max_snapshot_count = var.redis_backup_max_snapshot_count
+    rdb_storage_connection_string = var.redis_persistence_enabled ? azurerm_storage_account.redis_backup.primary_blob_connection_string : null
   }
 
   tags = {
@@ -190,6 +576,7 @@ resource "azurerm_cognitive_account" "openai" {
   location            = "eastus"  # OpenAI is only available in certain regions
   kind                = "OpenAI"
   sku_name            = "S0"
+  public_network_access_enabled = false
 
   tags = {
     Environment = var.environment
@@ -205,6 +592,12 @@ resource "azurerm_key_vault" "main" {
   sku_name            = "standard"
 
   enable_rbac_authorization = true
+  public_network_access_enabled = false
+
+  network_acls {
+    default_action = "Deny"
+    bypass         = "AzureServices"
+  }
 
   tags = {
     Environment = var.environment
@@ -214,7 +607,7 @@ resource "azurerm_key_vault" "main" {
 data "azurerm_client_config" "current" {}
 
 locals {
-  database_url = "postgresql://${azurerm_postgresql_flexible_server.main.administrator_login}:${random_password.db_password.result}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${var.postgres_database_name}"
+  database_url = "postgresql://${azurerm_postgresql_flexible_server.main.administrator_login}:${random_password.db_password.result}@${azurerm_postgresql_flexible_server.main.fqdn}:5432/${var.postgres_database_name}?sslmode=require"
   redis_url    = "rediss://:${azurerm_redis_cache.main.primary_access_key}@${azurerm_redis_cache.main.hostname}:${azurerm_redis_cache.main.ssl_port}/0"
 }
 
@@ -252,13 +645,48 @@ resource "azurerm_storage_account" "main" {
   resource_group_name      = azurerm_resource_group.main.name
   location                 = azurerm_resource_group.main.location
   account_tier             = "Standard"
-  account_replication_type = "LRS"
+  account_replication_type = var.storage_replication_type
   is_hns_enabled           = true  # Enable Data Lake Gen2
   allow_blob_public_access = false
+  enable_https_traffic_only = true
+  min_tls_version           = var.storage_minimum_tls_version
+  public_network_access_enabled = false
+
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
 
   tags = {
     Environment = var.environment
   }
+}
+
+resource "azurerm_storage_account" "redis_backup" {
+  name                     = "${var.resource_prefix}${var.environment}redisbk"
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = "Standard"
+  account_replication_type = var.storage_replication_type
+  allow_blob_public_access = false
+  enable_https_traffic_only = true
+  min_tls_version           = var.storage_minimum_tls_version
+  public_network_access_enabled = false
+
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+resource "azurerm_storage_container" "redis_backups" {
+  name                  = "redis-backups"
+  storage_account_name  = azurerm_storage_account.redis_backup.name
+  container_access_type = "private"
 }
 
 resource "azurerm_storage_container" "audit_events" {
@@ -334,6 +762,8 @@ resource "azurerm_servicebus_namespace" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   sku                 = "Standard"
+  minimum_tls_version = "1.2"
+  public_network_access_enabled = false
 
   tags = {
     Environment = var.environment
@@ -388,6 +818,196 @@ resource "azurerm_key_vault_secret" "storage_account_key" {
   name         = "storage-account-key"
   value        = azurerm_storage_account.main.primary_access_key
   key_vault_id = azurerm_key_vault.main.id
+}
+
+resource "azurerm_private_endpoint" "acr" {
+  name                = "${var.resource_prefix}-${var.environment}-acr-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-acr-psc"
+    private_connection_resource_id = azurerm_container_registry.acr.id
+    subresource_names              = ["registry"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "acr-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.acr.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "postgres" {
+  name                = "${var.resource_prefix}-${var.environment}-postgres-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-postgres-psc"
+    private_connection_resource_id = azurerm_postgresql_flexible_server.main.id
+    subresource_names              = ["postgresqlServer"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "postgres-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.postgres.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "redis" {
+  name                = "${var.resource_prefix}-${var.environment}-redis-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-redis-psc"
+    private_connection_resource_id = azurerm_redis_cache.main.id
+    subresource_names              = ["redisCache"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "redis-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.redis.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "key_vault" {
+  name                = "${var.resource_prefix}-${var.environment}-kv-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-kv-psc"
+    private_connection_resource_id = azurerm_key_vault.main.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "kv-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.key_vault.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "storage_blob" {
+  name                = "${var.resource_prefix}-${var.environment}-storage-blob-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-storage-blob-psc"
+    private_connection_resource_id = azurerm_storage_account.main.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "storage-blob-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.storage_blob.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "storage_dfs" {
+  name                = "${var.resource_prefix}-${var.environment}-storage-dfs-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-storage-dfs-psc"
+    private_connection_resource_id = azurerm_storage_account.main.id
+    subresource_names              = ["dfs"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "storage-dfs-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.storage_dfs.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "redis_backup_blob" {
+  name                = "${var.resource_prefix}-${var.environment}-redisbk-blob-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-redisbk-blob-psc"
+    private_connection_resource_id = azurerm_storage_account.redis_backup.id
+    subresource_names              = ["blob"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "redisbk-blob-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.storage_blob.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "service_bus" {
+  name                = "${var.resource_prefix}-${var.environment}-sb-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-sb-psc"
+    private_connection_resource_id = azurerm_servicebus_namespace.main.id
+    subresource_names              = ["namespace"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "sb-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.service_bus.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "openai" {
+  name                = "${var.resource_prefix}-${var.environment}-openai-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-openai-psc"
+    private_connection_resource_id = azurerm_cognitive_account.openai.id
+    subresource_names              = ["account"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "openai-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.openai.id]
+  }
+}
+
+resource "azurerm_private_endpoint" "cosmos" {
+  name                = "${var.resource_prefix}-${var.environment}-cosmos-pe"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  subnet_id           = azurerm_subnet.private_endpoints.id
+
+  private_service_connection {
+    name                           = "${var.resource_prefix}-${var.environment}-cosmos-psc"
+    private_connection_resource_id = azurerm_cosmosdb_account.main.id
+    subresource_names              = ["Sql"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "cosmos-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.cosmos.id]
+  }
 }
 
 # Outputs

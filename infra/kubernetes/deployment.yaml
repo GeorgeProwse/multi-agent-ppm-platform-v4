@@ -100,8 +100,6 @@ spec:
             readOnly: true
             volumeAttributes:
               secretProviderClass: ppm-keyvault-secrets
-      imagePullSecrets:
-        - name: acr-secret
 ---
 apiVersion: v1
 kind: Service
