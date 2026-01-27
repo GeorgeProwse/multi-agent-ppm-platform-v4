@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/store';
+import { MethodologyNav } from '@/components/methodology';
 import styles from './LeftPanel.module.css';
 
 interface NavItem {
@@ -9,80 +10,6 @@ interface NavItem {
   path?: string;
   children?: NavItem[];
 }
-
-const methodologyNav: NavItem[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'initiate',
-    label: 'Initiate',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-  },
-  {
-    id: 'plan',
-    label: 'Plan',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-        <path
-          fillRule="evenodd"
-          d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-  },
-  {
-    id: 'execute',
-    label: 'Execute',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-  },
-  {
-    id: 'monitor',
-    label: 'Monitor & Control',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'close',
-    label: 'Close',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-        <path
-          fillRule="evenodd"
-          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-          clipRule="evenodd"
-        />
-      </svg>
-    ),
-  },
-];
 
 const configNav: NavItem[] = [
   {
@@ -123,17 +50,8 @@ const configNav: NavItem[] = [
 
 export function LeftPanel() {
   const location = useLocation();
-  const { leftPanelCollapsed, toggleLeftPanel, currentActivity, setCurrentActivity } =
+  const { leftPanelCollapsed, toggleLeftPanel } =
     useAppStore();
-
-  const handleActivityClick = (item: NavItem) => {
-    if (item.path) return; // Let Link handle navigation
-    setCurrentActivity(
-      currentActivity?.id === item.id
-        ? null
-        : { id: item.id, name: item.label }
-    );
-  };
 
   return (
     <aside
@@ -165,30 +83,15 @@ export function LeftPanel() {
       </div>
 
       <nav className={styles.nav}>
+        {/* Methodology Navigation - Main section */}
         <div className={styles.section}>
           {!leftPanelCollapsed && (
             <h3 className={styles.sectionTitle}>Methodology</h3>
           )}
-          <ul className={styles.navList}>
-            {methodologyNav.map((item) => (
-              <li key={item.id}>
-                <button
-                  className={`${styles.navItem} ${
-                    currentActivity?.id === item.id ? styles.active : ''
-                  }`}
-                  onClick={() => handleActivityClick(item)}
-                  title={leftPanelCollapsed ? item.label : undefined}
-                >
-                  <span className={styles.icon}>{item.icon}</span>
-                  {!leftPanelCollapsed && (
-                    <span className={styles.label}>{item.label}</span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <MethodologyNav collapsed={leftPanelCollapsed} />
         </div>
 
+        {/* Configuration Navigation */}
         <div className={styles.section}>
           {!leftPanelCollapsed && (
             <h3 className={styles.sectionTitle}>Configuration</h3>

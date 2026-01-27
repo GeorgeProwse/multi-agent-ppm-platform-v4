@@ -1,0 +1,284 @@
+/**
+ * MethodologyNav Styles
+ *
+ * Tree navigation with collapsible stages, status icons, and gating visual cues
+ */
+
+.methodologyNav {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Project header */
+.projectHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-neutral-100);
+  background: var(--color-neutral-50);
+}
+
+.projectLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.projectName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.methodologyType {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+/* Stage list */
+.stageList {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2) 0;
+}
+
+/* Stage item container */
+.stageItem {
+  margin-bottom: var(--space-1);
+}
+
+.stageItem.locked {
+  opacity: 0.7;
+}
+
+.stageItem.alwaysAccessible {
+  border-left: 3px solid var(--color-success);
+  margin-left: var(--space-1);
+  padding-left: 0;
+}
+
+/* Stage header button */
+.stageHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-700);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.stageHeader:hover {
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-900);
+}
+
+.stageHeader:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: -2px;
+}
+
+.stageItem.locked .stageHeader {
+  cursor: default;
+  color: var(--color-neutral-400);
+}
+
+.stageItem.locked .stageHeader:hover {
+  background-color: transparent;
+  color: var(--color-neutral-400);
+}
+
+/* Stage expand/collapse icon */
+.stageExpandIcon {
+  flex-shrink: 0;
+  width: 12px;
+  font-size: 10px;
+  color: var(--color-neutral-400);
+  transition: transform var(--transition-fast);
+}
+
+/* Stage name */
+.stageName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stage progress indicator */
+.stageProgress {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-400);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* Activity list */
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 var(--space-6);
+}
+
+/* Activity item */
+.activityItem {
+  margin: var(--space-1) 0;
+}
+
+/* Activity button */
+.activityButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-neutral-600);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.activityButton:hover {
+  background-color: var(--color-neutral-50);
+  color: var(--color-neutral-900);
+}
+
+.activityButton:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: -2px;
+}
+
+.activityButton.selected {
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-700);
+  font-weight: var(--font-weight-medium);
+}
+
+.activityButton.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.activityButton.locked:hover {
+  background-color: transparent;
+  color: var(--color-neutral-500);
+}
+
+.activityButton.alwaysAccessible {
+  opacity: 1;
+  cursor: pointer;
+}
+
+/* Activity name */
+.activityName {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status icon */
+.statusIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.statusIcon.small {
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+}
+
+/* Canvas type icon */
+.canvasTypeIcon {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Locked stage visual indicator */
+.stageItem.locked .stageHeader::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--color-neutral-300);
+}
+
+/* Progress bar under stage header (optional visual) */
+.stageHeader::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: var(--color-primary-500);
+  width: var(--progress, 0%);
+  transition: width var(--transition-normal);
+}
+
+/* Tooltips for collapsed mode */
+[title] {
+  position: relative;
+}
+
+/* Animation for expand/collapse */
+.activityList {
+  animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .stageHeader {
+    padding: var(--space-3);
+  }
+
+  .activityButton {
+    padding: var(--space-3);
+  }
+
+  .activityList {
+    padding-left: var(--space-4);
+  }
+}

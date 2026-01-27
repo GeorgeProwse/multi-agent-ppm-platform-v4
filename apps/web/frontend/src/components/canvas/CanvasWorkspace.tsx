@@ -29,7 +29,6 @@ export function CanvasWorkspace() {
   const {
     tabs,
     activeTabId,
-    artifacts,
     setActiveTab,
     closeTab,
     updateArtifactContent,
