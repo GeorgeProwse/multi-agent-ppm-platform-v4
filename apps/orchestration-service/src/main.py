@@ -22,6 +22,7 @@ from observability.metrics import (  # noqa: E402
 )
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from orchestrator import AgentOrchestrator  # noqa: E402
+from persistence import OptimisticLockError  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
 
 logger = logging.getLogger("orchestration-service")
@@ -88,10 +89,17 @@ async def list_agents() -> list[str]:
 async def run_workflow(request: Request, payload: WorkflowRequest) -> WorkflowResponse:
     tenant_id = request.state.auth.tenant_id
     state_payload = {"tenant_id": tenant_id, "intent": payload.intent, "payload": payload.payload}
-    orchestrator.persist_workflow_state(payload.run_id, "running", "received", state_payload)
+    try:
+        await orchestrator.persist_workflow_state(
+            tenant_id, payload.run_id, "running", "received", state_payload
+        )
+    except OptimisticLockError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     workflows_started.add(1, {"tenant_id": tenant_id, "intent": payload.intent})
     kpi_handles.requests.add(1, {"operation": "run_workflow", "tenant_id": tenant_id})
-    state = orchestrator.workflow_states[payload.run_id]
+    state = orchestrator.get_state(tenant_id, payload.run_id)
+    if not state:
+        raise HTTPException(status_code=500, detail="Workflow state not available")
     return WorkflowResponse(
         run_id=state.run_id,
         status=state.status,
@@ -104,24 +112,23 @@ async def run_workflow(request: Request, payload: WorkflowRequest) -> WorkflowRe
 async def list_workflows(request: Request) -> list[WorkflowResponse]:
     tenant_id = request.state.auth.tenant_id
     responses: list[WorkflowResponse] = []
-    for state in orchestrator.workflow_states.values():
-        if state.payload.get("tenant_id") == tenant_id:
-            responses.append(
-                WorkflowResponse(
-                    run_id=state.run_id,
-                    status=state.status,
-                    last_checkpoint=state.last_checkpoint,
-                    payload=state.payload,
-                )
+    for state in orchestrator.list_states(tenant_id):
+        responses.append(
+            WorkflowResponse(
+                run_id=state.run_id,
+                status=state.status,
+                last_checkpoint=state.last_checkpoint,
+                payload=state.payload,
             )
+        )
     return responses
 
 
 @app.get("/workflows/{run_id}", response_model=WorkflowResponse)
 async def get_workflow(run_id: str, request: Request) -> WorkflowResponse:
     tenant_id = request.state.auth.tenant_id
-    state = orchestrator.workflow_states.get(run_id)
-    if not state or state.payload.get("tenant_id") != tenant_id:
+    state = orchestrator.get_state(tenant_id, run_id)
+    if not state:
         kpi_handles.errors.add(1, {"operation": "get_workflow", "tenant_id": tenant_id})
         raise HTTPException(status_code=404, detail="Workflow not found")
     kpi_handles.requests.add(1, {"operation": "get_workflow", "tenant_id": tenant_id})
@@ -136,12 +143,17 @@ async def get_workflow(run_id: str, request: Request) -> WorkflowResponse:
 @app.post("/workflows/{run_id}/resume", response_model=WorkflowResponse)
 async def resume_workflow(run_id: str, request: Request) -> WorkflowResponse:
     tenant_id = request.state.auth.tenant_id
-    state = orchestrator.workflow_states.get(run_id)
-    if not state or state.payload.get("tenant_id") != tenant_id:
+    state = orchestrator.get_state(tenant_id, run_id)
+    if not state:
         kpi_handles.errors.add(1, {"operation": "resume_workflow", "tenant_id": tenant_id})
         raise HTTPException(status_code=404, detail="Workflow not found")
     state.status = "resumed"
-    orchestrator.persist_workflow_state(run_id, state.status, state.last_checkpoint, state.payload)
+    try:
+        await orchestrator.persist_workflow_state(
+            tenant_id, run_id, state.status, state.last_checkpoint, state.payload
+        )
+    except OptimisticLockError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     workflows_resumed.add(1, {"tenant_id": tenant_id})
     kpi_handles.requests.add(1, {"operation": "resume_workflow", "tenant_id": tenant_id})
     return WorkflowResponse(

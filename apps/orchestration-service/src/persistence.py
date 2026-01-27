@@ -1,45 +1,239 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Protocol
+
+from sqlalchemy import JSON, Column, DateTime, Integer, MetaData, String, Table, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+
+class OptimisticLockError(RuntimeError):
+    pass
 
 
 @dataclass
 class WorkflowState:
     run_id: str
+    tenant_id: str
     status: str
     last_checkpoint: str
     payload: dict[str, Any]
+    version: int = 0
 
 
-class OrchestrationStateStore:
+def make_state_key(tenant_id: str, run_id: str) -> str:
+    return f"{tenant_id}:{run_id}"
+
+
+class OrchestrationStateStore(Protocol):
+    async def load(self, tenant_id: str | None = None) -> dict[str, WorkflowState]:
+        ...
+
+    async def save(self, state: WorkflowState) -> WorkflowState:
+        ...
+
+
+class JsonOrchestrationStateStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if not self.path.exists():
             self.path.write_text(json.dumps({}))
 
-    def load(self) -> dict[str, WorkflowState]:
+    async def load(self, tenant_id: str | None = None) -> dict[str, WorkflowState]:
         raw = json.loads(self.path.read_text())
-        return {
-            run_id: WorkflowState(
-                run_id=run_id,
+        states: dict[str, WorkflowState] = {}
+        for key, data in raw.items():
+            payload = data.get("payload", {})
+            resolved_tenant = data.get("tenant_id") or payload.get("tenant_id") or os.getenv(
+                "AUTH_DEV_TENANT_ID", "default-tenant"
+            )
+            resolved_key = make_state_key(resolved_tenant, data.get("run_id", key))
+            state = WorkflowState(
+                run_id=data.get("run_id", key),
+                tenant_id=resolved_tenant,
                 status=data["status"],
                 last_checkpoint=data["last_checkpoint"],
-                payload=data.get("payload", {}),
+                payload=payload,
+                version=int(data.get("version", 0)),
             )
-            for run_id, data in raw.items()
-        }
+            if tenant_id is None or state.tenant_id == tenant_id:
+                states[resolved_key] = state
+        return states
 
-    def save(self, states: dict[str, WorkflowState]) -> None:
-        payload = {
-            run_id: {
-                "status": state.status,
-                "last_checkpoint": state.last_checkpoint,
-                "payload": state.payload,
-            }
-            for run_id, state in states.items()
+    async def save(self, state: WorkflowState) -> WorkflowState:
+        raw = json.loads(self.path.read_text())
+        key = make_state_key(state.tenant_id, state.run_id)
+        next_version = state.version + 1 if state.version else 1
+        raw[key] = {
+            "run_id": state.run_id,
+            "tenant_id": state.tenant_id,
+            "status": state.status,
+            "last_checkpoint": state.last_checkpoint,
+            "payload": state.payload,
+            "version": next_version,
         }
-        self.path.write_text(json.dumps(payload, indent=2))
+        self.path.write_text(json.dumps(raw, indent=2))
+        return WorkflowState(
+            run_id=state.run_id,
+            tenant_id=state.tenant_id,
+            status=state.status,
+            last_checkpoint=state.last_checkpoint,
+            payload=state.payload,
+            version=next_version,
+        )
+
+
+class DatabaseOrchestrationStateStore:
+    """Postgres-backed store.
+
+    Assumes database-level encryption at rest. Optionally provide envelope encryption
+    hooks to encrypt/decrypt the payload before persistence.
+    """
+    def __init__(
+        self,
+        database_url: str,
+        *,
+        encrypt_payload: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+        decrypt_payload: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+    ) -> None:
+        self.engine = create_async_engine(database_url, pool_pre_ping=True)
+        self.session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
+            self.engine, expire_on_commit=False
+        )
+        self.encrypt_payload = encrypt_payload
+        self.decrypt_payload = decrypt_payload
+
+    async def load(self, tenant_id: str | None = None) -> dict[str, WorkflowState]:
+        async with self.session_factory() as session:
+            statement = select(ORCHESTRATION_STATE_TABLE)
+            if tenant_id:
+                statement = statement.where(ORCHESTRATION_STATE_TABLE.c.tenant_id == tenant_id)
+            result = await session.execute(statement)
+            rows = result.fetchall()
+        states: dict[str, WorkflowState] = {}
+        for row in rows:
+            payload = row.payload or {}
+            if self.decrypt_payload:
+                payload = self.decrypt_payload(payload)
+            state = WorkflowState(
+                run_id=row.run_id,
+                tenant_id=row.tenant_id,
+                status=row.status,
+                last_checkpoint=row.last_checkpoint,
+                payload=payload,
+                version=row.version,
+            )
+            states[make_state_key(state.tenant_id, state.run_id)] = state
+        return states
+
+    async def save(self, state: WorkflowState) -> WorkflowState:
+        payload = state.payload
+        if self.encrypt_payload:
+            payload = self.encrypt_payload(payload)
+        async with self.session_factory() as session:
+            async with session.begin():
+                if state.version == 0:
+                    try:
+                        await session.execute(
+                            ORCHESTRATION_STATE_TABLE.insert().values(
+                                tenant_id=state.tenant_id,
+                                run_id=state.run_id,
+                                status=state.status,
+                                last_checkpoint=state.last_checkpoint,
+                                payload=payload,
+                                version=1,
+                            )
+                        )
+                        next_version = 1
+                    except IntegrityError as exc:
+                        raise OptimisticLockError(
+                            "Orchestration state already exists for this tenant/run."
+                        ) from exc
+                else:
+                    update_stmt = (
+                        ORCHESTRATION_STATE_TABLE.update()
+                        .where(
+                            ORCHESTRATION_STATE_TABLE.c.tenant_id == state.tenant_id,
+                            ORCHESTRATION_STATE_TABLE.c.run_id == state.run_id,
+                            ORCHESTRATION_STATE_TABLE.c.version == state.version,
+                        )
+                        .values(
+                            status=state.status,
+                            last_checkpoint=state.last_checkpoint,
+                            payload=payload,
+                            version=state.version + 1,
+                            updated_at=func.now(),
+                        )
+                    )
+                    result = await session.execute(update_stmt)
+                    if result.rowcount == 0:
+                        raise OptimisticLockError(
+                            "Orchestration state update conflict detected."
+                        )
+                    next_version = state.version + 1
+        return WorkflowState(
+            run_id=state.run_id,
+            tenant_id=state.tenant_id,
+            status=state.status,
+            last_checkpoint=state.last_checkpoint,
+            payload=state.payload,
+            version=next_version,
+        )
+
+
+def build_state_store(state_path: Path) -> OrchestrationStateStore:
+    backend = os.getenv("ORCHESTRATION_STATE_BACKEND", "").lower()
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    database_url = os.getenv("ORCHESTRATION_DATABASE_URL") or os.getenv("DATABASE_URL")
+
+    if backend in {"file", "json"}:
+        return JsonOrchestrationStateStore(state_path)
+
+    if database_url and (backend in {"db", "database", "postgres"} or environment != "development"):
+        return DatabaseOrchestrationStateStore(_to_async_database_url(database_url))
+
+    if database_url and backend == "":
+        return DatabaseOrchestrationStateStore(_to_async_database_url(database_url))
+
+    return JsonOrchestrationStateStore(state_path)
+
+
+def _to_async_database_url(database_url: str) -> str:
+    if database_url.startswith("postgresql+asyncpg://"):
+        return database_url
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    if database_url.startswith("sqlite+aiosqlite://"):
+        return database_url
+    if database_url.startswith("sqlite:///"):
+        return database_url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+    return database_url
+
+
+metadata = MetaData()
+
+ORCHESTRATION_STATE_TABLE = Table(
+    "orchestration_states",
+    metadata,
+    Column("tenant_id", String(64), primary_key=True),
+    Column("run_id", String(64), primary_key=True),
+    Column("status", String(64), nullable=False),
+    Column("last_checkpoint", String(255), nullable=False),
+    Column("payload", JSON, nullable=False),
+    Column("version", Integer, nullable=False, default=1),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+)

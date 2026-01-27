@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Any, cast
 
-from persistence import OrchestrationStateStore, WorkflowState
+from persistence import WorkflowState, build_state_store, make_state_key
 
 from tools.runtime_paths import bootstrap_runtime_paths
 
@@ -38,13 +38,13 @@ class AgentOrchestrator:
                 "apps/orchestration-service/storage/orchestration-state.json",
             )
         )
-        self.state_store = OrchestrationStateStore(state_path)
+        self.state_store = build_state_store(state_path)
 
     async def initialize(self):
         """Initialize all 25 agents."""
         logger.info("Initializing Agent Orchestrator...")
         logger.info("Using policy bundle: %s", self.policy_bundle_path)
-        self.workflow_states = self.state_store.load()
+        self.workflow_states = await self.state_store.load()
         if self.workflow_states:
             logger.info("Loaded %s workflow states for resume", len(self.workflow_states))
 
@@ -74,19 +74,38 @@ class AgentOrchestrator:
         self.initialized = True
         logger.info(f"Orchestrator initialized with {len(self.agents)} agents")
 
-    def persist_workflow_state(
-        self, run_id: str, status: str, checkpoint: str, payload: dict[str, Any]
-    ) -> None:
-        self.workflow_states[run_id] = WorkflowState(
+    async def persist_workflow_state(
+        self, tenant_id: str, run_id: str, status: str, checkpoint: str, payload: dict[str, Any]
+    ) -> WorkflowState:
+        key = make_state_key(tenant_id, run_id)
+        existing_state = self.workflow_states.get(key)
+        version = existing_state.version if existing_state else 0
+        state = WorkflowState(
             run_id=run_id,
+            tenant_id=tenant_id,
             status=status,
             last_checkpoint=checkpoint,
             payload=payload,
+            version=version,
         )
-        self.state_store.save(self.workflow_states)
+        saved_state = await self.state_store.save(state)
+        self.workflow_states[key] = saved_state
+        return saved_state
 
-    def resume_workflows(self) -> list[str]:
-        return list(self.workflow_states.keys())
+    def resume_workflows(self, tenant_id: str) -> list[str]:
+        return [
+            state.run_id
+            for state in self.workflow_states.values()
+            if state.tenant_id == tenant_id
+        ]
+
+    def get_state(self, tenant_id: str, run_id: str) -> WorkflowState | None:
+        return self.workflow_states.get(make_state_key(tenant_id, run_id))
+
+    def list_states(self, tenant_id: str) -> list[WorkflowState]:
+        return [
+            state for state in self.workflow_states.values() if state.tenant_id == tenant_id
+        ]
 
     async def _load_governance_agents(self):
         """Initialize governance agents."""
