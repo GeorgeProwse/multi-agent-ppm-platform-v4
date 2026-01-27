@@ -1,5 +1,6 @@
 export { useAppStore } from './useAppStore';
 export { useCanvasStore, SAMPLE_ARTIFACT_IDS } from './useCanvasStore';
+export { useMethodologyStore } from './methodology';
 export type {
   EntitySelection,
   Activity,
@@ -8,3 +9,11 @@ export type {
   User,
   SessionState,
 } from './types';
+export type {
+  MethodologyStatus,
+  MethodologyType,
+  MethodologyActivity,
+  MethodologyStage,
+  MethodologyMap,
+  ProjectMethodology,
+} from './methodology';

@@ -14,7 +14,7 @@ import type {
   SpreadsheetContent,
   DashboardContent,
 } from '@ppm/canvas-engine';
-import { createArtifact, createEmptyContent } from '@ppm/canvas-engine';
+// createArtifact and createEmptyContent are used via @ppm/canvas-engine exports
 
 export interface CanvasTab {
   id: string;

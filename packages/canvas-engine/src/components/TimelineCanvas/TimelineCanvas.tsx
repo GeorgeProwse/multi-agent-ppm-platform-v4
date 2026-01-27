@@ -33,7 +33,6 @@ interface TimelineBarProps {
 
 function TimelineBar({ item, viewStart, totalDays }: TimelineBarProps) {
   const itemStart = new Date(item.startDate);
-  const itemEnd = new Date(item.endDate);
 
   const startOffset = Math.max(
     0,
