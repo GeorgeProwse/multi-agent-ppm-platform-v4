@@ -1,0 +1,42 @@
+import { Routes, Route } from 'react-router-dom';
+import { AppLayout } from '@/components/layout';
+import { HomePage, WorkspacePage, ConfigPage } from '@/pages';
+
+export function App() {
+  return (
+    <AppLayout>
+      <Routes>
+        {/* Home */}
+        <Route path="/" element={<HomePage />} />
+
+        {/* Entity workspaces */}
+        <Route
+          path="/portfolio/:portfolioId"
+          element={<WorkspacePage type="portfolio" />}
+        />
+        <Route
+          path="/program/:programId"
+          element={<WorkspacePage type="program" />}
+        />
+        <Route
+          path="/project/:projectId"
+          element={<WorkspacePage type="project" />}
+        />
+
+        {/* Configuration pages */}
+        <Route
+          path="/config/agents"
+          element={<ConfigPage type="agents" />}
+        />
+        <Route
+          path="/config/connectors"
+          element={<ConfigPage type="connectors" />}
+        />
+        <Route
+          path="/config/templates"
+          element={<ConfigPage type="templates" />}
+        />
+      </Routes>
+    </AppLayout>
+  );
+}
