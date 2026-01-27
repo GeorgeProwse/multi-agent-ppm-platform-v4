@@ -16,6 +16,7 @@ services:
       - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT}
       - LOG_LEVEL=INFO
       - ENVIRONMENT=development
+      - ORCHESTRATION_STATE_BACKEND=db
       - AUTH_DEV_MODE=${AUTH_DEV_MODE:-true}
       - AUTH_DEV_ROLES=${AUTH_DEV_ROLES:-tenant_owner}
       - AUTH_DEV_TENANT_ID=${AUTH_DEV_TENANT_ID:-dev-tenant}

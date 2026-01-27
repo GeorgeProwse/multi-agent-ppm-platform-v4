@@ -15,6 +15,14 @@ three domain agents, and workflow persistence.
 make dev-up
 ```
 
+## Apply database migrations
+The orchestration service stores workflow state in Postgres. Apply migrations after the database
+container is healthy:
+
+```bash
+DATABASE_URL=postgresql://ppm:ppm_password@localhost:5432/ppm alembic upgrade head
+```
+
 The default dev stack enables an auth stub and mock LLM response for deterministic routing. The
 stack exposes:
 - API gateway: http://localhost:8000
@@ -72,3 +80,7 @@ make dev-down
   file that matches the intent router response schema.
 - Auth stub/dev mode is enabled with `AUTH_DEV_MODE=true` (default in docker-compose for local
   development). In production, disable it and configure JWT validation.
+- The orchestration service reads `ORCHESTRATION_STATE_BACKEND` (set to `db` in docker-compose)
+  and `ORCHESTRATION_DATABASE_URL`/`DATABASE_URL` to select the durable Postgres store. Ensure the
+  database encryption-at-rest features are enabled in your environment and use optional app-level
+  envelope encryption hooks if you integrate them later.

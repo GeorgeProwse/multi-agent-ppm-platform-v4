@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, Date, DateTime, Integer, Numeric, String, Text
+from sqlalchemy import JSON, Column, Date, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -156,3 +156,16 @@ class AuditEvent(Base):
     metadata_payload = Column("metadata", Text, nullable=True)
     trace_id = Column(String(64), nullable=True)
     correlation_id = Column(String(64), nullable=True)
+
+
+class OrchestrationState(Base):
+    __tablename__ = "orchestration_states"
+
+    tenant_id = Column(String(64), primary_key=True)
+    run_id = Column(String(64), primary_key=True)
+    status = Column(String(64), nullable=False)
+    last_checkpoint = Column(String(255), nullable=False)
+    payload = Column(JSON, nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
