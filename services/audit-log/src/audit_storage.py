@@ -13,6 +13,7 @@ from azure.core.exceptions import HttpResponseError, ResourceModifiedError
 from azure.storage.blob import BlobServiceClient
 from cryptography.fernet import Fernet
 
+from security.secrets import resolve_secret
 
 class WORMStorageError(RuntimeError):
     pass
@@ -158,9 +159,9 @@ class AzureBlobWORMStorage(WORMStorage):
 
 
 def get_worm_storage() -> WORMStorage:
-    connection = os.getenv("AUDIT_WORM_CONNECTION_STRING")
+    connection = resolve_secret(os.getenv("AUDIT_WORM_CONNECTION_STRING"))
     container = os.getenv("AUDIT_WORM_CONTAINER", "audit-events")
-    encryption_key = os.getenv("AUDIT_LOG_ENCRYPTION_KEY")
+    encryption_key = resolve_secret(os.getenv("AUDIT_LOG_ENCRYPTION_KEY"))
     if connection:
         return AzureBlobWORMStorage(connection, container)
     if not encryption_key:

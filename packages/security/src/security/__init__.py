@@ -2,5 +2,12 @@
 
 from .auth import AuthContext, AuthTenantMiddleware, authenticate_request
 from .lineage import mask_lineage_payload
+from .secrets import resolve_secret
 
-__all__ = ["AuthContext", "AuthTenantMiddleware", "authenticate_request", "mask_lineage_payload"]
+__all__ = [
+    "AuthContext",
+    "AuthTenantMiddleware",
+    "authenticate_request",
+    "mask_lineage_payload",
+    "resolve_secret",
+]
