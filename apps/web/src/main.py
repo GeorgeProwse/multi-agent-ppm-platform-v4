@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
-import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +23,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from jwt import InvalidTokenError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
@@ -98,6 +99,8 @@ from agent_settings_models import (  # noqa: E402
     AgentProjectEntry,
 )
 from agent_settings_store import AgentSettingsStore  # noqa: E402
+from oidc_client import OIDCClient  # noqa: E402
+from security.secrets import resolve_secret  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = WEB_ROOT / "static"
@@ -114,7 +117,9 @@ AGENT_SETTINGS_PATH = STORAGE_DIR / "agent_settings.json"
 CONNECTOR_REGISTRY_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 
 SESSION_COOKIE = "ppm_session"
-SESSION_STORE: dict[str, dict[str, Any]] = {}
+STATE_COOKIE = "ppm_oidc_state"
+SESSION_SIGNING_ALGORITHM = "HS256"
+OIDC_HTTP_TRANSPORT: httpx.BaseTransport | None = None
 
 app = FastAPI(title="PPM Web Console", version="1.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -526,15 +531,61 @@ def _oidc_required(name: str) -> str:
     return value
 
 
-def _oidc_optional(name: str) -> str | None:
-    return os.getenv(name)
+def _cookie_secure() -> bool:
+    override = os.getenv("SESSION_COOKIE_SECURE")
+    if override is not None:
+        return override.lower() in {"1", "true", "yes"}
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    return environment not in {"dev", "development", "local", "test"}
+
+
+def _session_signing_key() -> str:
+    key = resolve_secret(os.getenv("AUTH_SESSION_SIGNING_KEY"))
+    if key:
+        return key
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+    if environment in {"dev", "development", "local", "test"}:
+        return "dev-session-key"
+    raise HTTPException(status_code=500, detail="Missing AUTH_SESSION_SIGNING_KEY")
+
+
+def _encode_cookie(payload: dict[str, Any], ttl_seconds: int) -> str:
+    now = datetime.now(timezone.utc)
+    claims = payload | {
+        "iat": int(now.timestamp()),
+        "exp": int((now.timestamp()) + ttl_seconds),
+    }
+    return jwt.encode(claims, _session_signing_key(), algorithm=SESSION_SIGNING_ALGORITHM)
+
+
+def _decode_cookie(token: str) -> dict[str, Any] | None:
+    try:
+        return jwt.decode(
+            token,
+            _session_signing_key(),
+            algorithms=[SESSION_SIGNING_ALGORITHM],
+            options={"verify_aud": False, "verify_iss": False},
+        )
+    except InvalidTokenError:
+        return None
+
+
+def _random_token_urlsafe(length_bytes: int) -> str:
+    return base64.urlsafe_b64encode(os.urandom(length_bytes)).rstrip(b"=").decode("utf-8")
+
+
+def _random_token_hex(length_bytes: int) -> str:
+    return os.urandom(length_bytes).hex()
 
 
 def _session_from_request(request: Request) -> dict[str, Any] | None:
     session_id = request.cookies.get(SESSION_COOKIE)
     if not session_id:
         return _dev_session()
-    return SESSION_STORE.get(session_id) or _dev_session()
+    payload = _decode_cookie(session_id)
+    if payload:
+        return payload
+    return _dev_session()
 
 
 def _require_session(request: Request) -> dict[str, Any]:
@@ -646,7 +697,19 @@ def _is_agent_admin(request: Request, session: dict[str, Any]) -> bool:
 
 def _oidc_enabled() -> bool:
     return bool(
-        os.getenv("OIDC_CLIENT_ID") and os.getenv("OIDC_AUTH_URL") and os.getenv("OIDC_TOKEN_URL")
+        os.getenv("OIDC_ISSUER_URL")
+        and os.getenv("OIDC_CLIENT_ID")
+        and os.getenv("OIDC_REDIRECT_URI")
+    )
+
+
+def _legacy_oidc_enabled() -> bool:
+    return bool(
+        os.getenv("OIDC_AUTH_URL")
+        and os.getenv("OIDC_TOKEN_URL")
+        and os.getenv("OIDC_JWKS_URL")
+        and os.getenv("OIDC_CLIENT_ID")
+        and os.getenv("OIDC_REDIRECT_URI")
     )
 
 
@@ -799,15 +862,31 @@ def _slugify(value: str) -> str:
 def _unique_project_id(base: str, existing: set[str]) -> str:
     candidate = base
     while candidate in existing:
-        suffix = secrets.token_hex(2)
+        suffix = _random_token_hex(2)
         candidate = f"{base}-{suffix}"
     return candidate
+
+
+def _oidc_client() -> OIDCClient:
+    issuer_url = _oidc_required("OIDC_ISSUER_URL")
+    client_id = _oidc_required("OIDC_CLIENT_ID")
+    client_secret = resolve_secret(os.getenv("OIDC_CLIENT_SECRET"))
+    redirect_uri = _oidc_required("OIDC_REDIRECT_URI")
+    scope = os.getenv("OIDC_SCOPE", "openid profile email")
+    return OIDCClient(
+        issuer_url=issuer_url,
+        client_id=client_id,
+        client_secret=client_secret,
+        redirect_uri=redirect_uri,
+        scope=scope,
+        transport=OIDC_HTTP_TRANSPORT,
+    )
 
 
 async def _exchange_code_for_token(code: str) -> dict[str, Any]:
     token_url = _oidc_required("OIDC_TOKEN_URL")
     client_id = _oidc_required("OIDC_CLIENT_ID")
-    client_secret = _oidc_optional("OIDC_CLIENT_SECRET")
+    client_secret = resolve_secret(os.getenv("OIDC_CLIENT_SECRET"))
     redirect_uri = _oidc_required("OIDC_REDIRECT_URI")
 
     payload = {
@@ -827,8 +906,8 @@ async def _exchange_code_for_token(code: str) -> dict[str, Any]:
 
 async def _decode_id_token(id_token: str) -> dict[str, Any]:
     jwks_url = _oidc_required("OIDC_JWKS_URL")
-    audience = _oidc_optional("OIDC_AUDIENCE")
-    issuer = _oidc_optional("OIDC_ISSUER")
+    audience = os.getenv("OIDC_AUDIENCE")
+    issuer = os.getenv("OIDC_ISSUER")
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(jwks_url)
@@ -877,56 +956,95 @@ async def session_info(request: Request) -> SessionInfo:
 
 
 @app.get("/login")
-async def login() -> RedirectResponse:
+async def login(request: Request) -> RedirectResponse:
     if not _oidc_enabled():
+        if _legacy_oidc_enabled():
+            auth_url = _oidc_required("OIDC_AUTH_URL")
+            client_id = _oidc_required("OIDC_CLIENT_ID")
+            redirect_uri = _oidc_required("OIDC_REDIRECT_URI")
+            state = _random_token_urlsafe(16)
+            nonce = _random_token_urlsafe(16)
+            project_id = request.query_params.get("project_id")
+            params = {
+                "client_id": client_id,
+                "response_type": "code",
+                "scope": os.getenv("OIDC_SCOPE", "openid profile email"),
+                "redirect_uri": redirect_uri,
+                "state": state,
+                "nonce": nonce,
+            }
+            response = RedirectResponse(url=f"{auth_url}?{urlencode(params)}")
+            response.set_cookie(
+                STATE_COOKIE,
+                _encode_cookie({"state": state, "nonce": nonce, "project_id": project_id}, 600),
+                httponly=True,
+                secure=_cookie_secure(),
+                samesite="lax",
+            )
+            return response
+
+        auth_dev_mode = os.getenv("AUTH_DEV_MODE", "false").lower() in {"1", "true", "yes"}
+        environment = os.getenv("ENVIRONMENT", "development").lower()
+        if auth_dev_mode and environment in {"dev", "development", "local", "test"}:
+            return RedirectResponse(url="/workspace")
         raise HTTPException(status_code=500, detail="OIDC not configured")
 
-    auth_url = _oidc_required("OIDC_AUTH_URL")
-    client_id = _oidc_required("OIDC_CLIENT_ID")
-    redirect_uri = _oidc_required("OIDC_REDIRECT_URI")
-
-    state = secrets.token_urlsafe(16)
-    nonce = secrets.token_urlsafe(16)
-    session_id = secrets.token_urlsafe(24)
-    SESSION_STORE[session_id] = {"state": state, "nonce": nonce}
+    client = _oidc_client()
+    discovery = await client.discover()
+    state = _random_token_urlsafe(16)
+    nonce = _random_token_urlsafe(16)
+    project_id = request.query_params.get("project_id")
 
     params = {
-        "client_id": client_id,
+        "client_id": client.client_id,
         "response_type": "code",
-        "scope": os.getenv("OIDC_SCOPE", "openid profile email"),
-        "redirect_uri": redirect_uri,
+        "scope": client.scope,
+        "redirect_uri": client.redirect_uri,
         "state": state,
         "nonce": nonce,
     }
-    response = RedirectResponse(url=f"{auth_url}?{urlencode(params)}")
+    response = RedirectResponse(url=f"{discovery.authorization_endpoint}?{urlencode(params)}")
     response.set_cookie(
-        SESSION_COOKIE,
-        session_id,
+        STATE_COOKIE,
+        _encode_cookie({"state": state, "nonce": nonce, "project_id": project_id}, 600),
         httponly=True,
-        secure=os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true",
+        secure=_cookie_secure(),
         samesite="lax",
     )
     return response
 
 
-@app.get("/callback")
-async def callback(request: Request) -> RedirectResponse:
+@app.get("/oidc/callback")
+async def oidc_callback(request: Request) -> RedirectResponse:
     code = request.query_params.get("code")
     state = request.query_params.get("state")
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing OIDC callback parameters")
 
-    session = _session_from_request(request)
-    if not session or session.get("state") != state:
+    state_cookie = request.cookies.get(STATE_COOKIE)
+    state_payload = _decode_cookie(state_cookie) if state_cookie else None
+    if not state_payload or state_payload.get("state") != state:
         raise HTTPException(status_code=400, detail="Invalid login state")
 
-    token_response = await _exchange_code_for_token(code)
+    if _oidc_enabled():
+        client = _oidc_client()
+        token_response = await client.exchange_code(code)
+    elif _legacy_oidc_enabled():
+        token_response = await _exchange_code_for_token(code)
+        client = None
+    else:
+        raise HTTPException(status_code=500, detail="OIDC not configured")
+
     id_token = token_response.get("id_token")
     access_token = token_response.get("access_token")
     if not id_token or not access_token:
         raise HTTPException(status_code=401, detail="OIDC token response missing tokens")
 
-    claims = await _decode_id_token(id_token)
+    if client:
+        claims = await client.verify_id_token(id_token, state_payload.get("nonce"))
+    else:
+        claims = await _decode_id_token(id_token)
+
     tenant_claim = os.getenv("OIDC_TENANT_CLAIM", "tenant_id")
     roles_claim = os.getenv("OIDC_ROLES_CLAIM", "roles")
     tenant_id = claims.get(tenant_claim)
@@ -937,28 +1055,53 @@ async def callback(request: Request) -> RedirectResponse:
     if isinstance(roles, str):
         roles = [roles]
 
-    session.update(
-        {
-            "access_token": access_token,
-            "id_token": id_token,
-            "tenant_id": tenant_id,
-            "subject": claims.get("sub"),
-            "roles": roles,
-        }
+    session_payload = {
+        "access_token": access_token,
+        "id_token": id_token,
+        "tenant_id": tenant_id,
+        "subject": claims.get("sub"),
+        "roles": roles,
+    }
+    response = RedirectResponse(
+        url=f"/workspace?project_id={state_payload.get('project_id')}"
+        if state_payload.get("project_id")
+        else "/workspace"
     )
+    response.set_cookie(
+        SESSION_COOKIE,
+        _encode_cookie(session_payload, 8 * 60 * 60),
+        httponly=True,
+        secure=_cookie_secure(),
+        samesite="lax",
+    )
+    response.delete_cookie(STATE_COOKIE)
+    return response
 
-    return RedirectResponse(url="/")
+
+@app.get("/callback")
+async def callback(request: Request) -> RedirectResponse:
+    return await oidc_callback(request)
 
 
 @app.post("/logout")
 async def logout(request: Request) -> RedirectResponse:
-    session_id = request.cookies.get(SESSION_COOKIE)
-    if session_id:
-        SESSION_STORE.pop(session_id, None)
-
-    logout_url = _oidc_optional("OIDC_LOGOUT_URL")
-    response = RedirectResponse(url=logout_url or "/")
+    session = _session_from_request(request) or {}
+    response = RedirectResponse(url="/")
+    discovery = None
+    if _oidc_enabled():
+        client = _oidc_client()
+        discovery = await client.discover()
+    if discovery and discovery.end_session_endpoint and session.get("id_token"):
+        params = {"id_token_hint": session["id_token"]}
+        response = RedirectResponse(
+            url=f"{discovery.end_session_endpoint}?{urlencode(params)}"
+        )
+    elif _legacy_oidc_enabled():
+        logout_url = os.getenv("OIDC_LOGOUT_URL")
+        if logout_url:
+            response = RedirectResponse(url=logout_url)
     response.delete_cookie(SESSION_COOKIE)
+    response.delete_cookie(STATE_COOKIE)
     return response
 
 
@@ -1300,7 +1443,7 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
     tenant_id = _tenant_id_from_request(request, session)
     if not tenant_id:
         raise HTTPException(status_code=401, detail="Tenant not available")
-    correlation_id = f"corr-{secrets.token_hex(8)}"
+    correlation_id = f"corr-{_random_token_hex(8)}"
     context = _assistant_context(tenant_id, payload.project_id, correlation_id)
     headers = build_forward_headers(request, session)
     headers["X-Tenant-ID"] = tenant_id

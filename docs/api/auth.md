@@ -10,6 +10,8 @@ Describe authentication and authorization flows for API consumers.
 - **Tenant headers** (`X-Tenant-ID`) must be present and match the tenant claim in the JWT.
 - **Identity Access service** (`services/identity-access`) can validate tokens via `/auth/validate` when `IDENTITY_ACCESS_URL` is set.
 - **Direct JWT validation** is supported via `IDENTITY_JWKS_URL` (public JWKS) or `IDENTITY_JWT_SECRET` (HMAC).
+- **Web console OIDC** uses `/login` + `/oidc/callback` to establish a tenant-aware session cookie.
+- **SCIM provisioning** requires `Authorization: Bearer <SCIM_SERVICE_TOKEN>` and `X-Tenant-ID` for tenant isolation.
 
 ## Authorization model
 
@@ -34,11 +36,55 @@ Set `AUTH_DEV_MODE=true` and use the following environment variables for determi
   ```bash
   rg -n "auth/validate" services/identity-access/src/main.py
   ```
+- Review SCIM v2 endpoints:
+  ```bash
+  rg -n "scim/v2" services/identity-access/src/main.py
+  ```
 
 ## Implementation status
 
 - **Implemented:** JWT validation, tenant header enforcement, RBAC checks, optional policy engine integration.
-- **Planned:** SAML/OIDC federation brokers and SCIM-based user provisioning.
+- **Implemented:** OIDC login flow for the web console and SCIM v2 provisioning.
+- **Planned:** SAML federation brokers.
+
+## Web console OIDC endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/login` | GET | Redirects to the OIDC authorization endpoint and sets an httpOnly state cookie. |
+| `/oidc/callback` | GET | Exchanges the auth code for tokens, validates the ID token, and issues the session cookie. |
+| `/session` | GET | Returns `{authenticated, subject, tenant_id, roles}` for the current browser session. |
+| `/logout` | POST | Clears the session cookie; redirects to the IdP logout endpoint when available. |
+
+Required configuration (web):
+
+- `OIDC_ISSUER_URL`
+- `OIDC_CLIENT_ID`
+- `OIDC_CLIENT_SECRET` (env/file reference)
+- `OIDC_REDIRECT_URI`
+- `OIDC_TENANT_CLAIM` (default `tenant_id`)
+- `OIDC_ROLES_CLAIM` (default `roles`)
+- `AUTH_SESSION_SIGNING_KEY` (env/file reference)
+
+## SCIM v2 provisioning (identity-access)
+
+Base path: `/scim/v2`
+
+Authentication:
+
+- `Authorization: Bearer <SCIM_SERVICE_TOKEN>` (resolved via env/file reference)
+- `X-Tenant-ID: <tenant-id>`
+
+Endpoints:
+
+- `POST /Users`
+- `GET /Users?filter=userName eq "user@company.com"`
+- `GET /Users/{id}`
+- `PATCH /Users/{id}`
+- `POST /Groups`
+- `GET /Groups`
+- `PATCH /Groups/{id}`
+- `GET /scim/internal/roles/{user_id}` (returns role mappings derived from SCIM groups)
 
 ## Related docs
 

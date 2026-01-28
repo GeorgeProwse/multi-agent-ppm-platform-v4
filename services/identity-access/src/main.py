@@ -3,16 +3,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
 import httpx
 import jwt
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from jwt import InvalidTokenError
 from pydantic import BaseModel
+from sqlite3 import IntegrityError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
@@ -23,8 +27,21 @@ for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
 
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
-from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.auth import authenticate_request  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
+from scim_models import (  # noqa: E402
+    SCIM_CORE_GROUP,
+    SCIM_CORE_USER,
+    SCIM_EXTENSION_ROLES,
+    SCIM_LIST_RESPONSE,
+    PatchRequest,
+    ScimGroup,
+    ScimGroupCreate,
+    ScimListResponse,
+    ScimUser,
+    ScimUserCreate,
+)
+from scim_store import ScimStore  # noqa: E402
 
 logger = logging.getLogger("identity-access")
 logging.basicConfig(level=logging.INFO)
@@ -61,9 +78,10 @@ class JwksCache:
 
 
 JWKS_CACHE = JwksCache()
+SERVICE_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SCIM_DB_PATH = SERVICE_ROOT / "storage" / "scim.db"
 
 app = FastAPI(title="Identity Access Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/auth/validate"})
 configure_tracing("identity-access")
 configure_metrics("identity-access")
 app.add_middleware(TraceMiddleware, service_name="identity-access")
@@ -75,6 +93,22 @@ token_validation_failures = configure_metrics("identity-access").create_counter(
     unit="1",
 )
 
+scim_store = ScimStore(Path(os.getenv("SCIM_DB_PATH", DEFAULT_SCIM_DB_PATH)))
+
+
+@app.middleware("http")
+async def auth_tenant_middleware(request: Request, call_next):
+    if request.url.path in {"/healthz", "/auth/validate"} or request.url.path.startswith(
+        "/scim/"
+    ):
+        return await call_next(request)
+    try:
+        auth_context = await authenticate_request(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    request.state.auth = auth_context
+    return await call_next(request)
+
 
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
@@ -83,6 +117,56 @@ async def healthz() -> HealthResponse:
 
 def _get_env(name: str) -> str | None:
     return resolve_secret(os.getenv(name))
+
+
+def _require_scim_context(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+) -> str:
+    token = _get_env("SCIM_SERVICE_TOKEN")
+    if not token:
+        raise HTTPException(status_code=500, detail="SCIM token not configured")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing SCIM token")
+    candidate = authorization.replace("Bearer ", "", 1).strip()
+    if not secrets.compare_digest(token, candidate):
+        raise HTTPException(status_code=401, detail="Invalid SCIM token")
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Missing tenant header")
+    return tenant_id
+
+
+def _scim_user_payload(user) -> dict[str, Any]:
+    return ScimUser(
+        schemas=[SCIM_CORE_USER, SCIM_EXTENSION_ROLES],
+        id=user.id,
+        userName=user.user_name,
+        displayName=user.display_name,
+        active=user.active,
+        emails=user.emails or None,
+        groups=user.groups or None,
+        **{SCIM_EXTENSION_ROLES: {"roles": user.roles}},
+    ).model_dump(by_alias=True, exclude_none=True)
+
+
+def _scim_group_payload(group) -> dict[str, Any]:
+    return ScimGroup(
+        schemas=[SCIM_CORE_GROUP],
+        id=group.id,
+        displayName=group.display_name,
+        members=group.members or None,
+    ).model_dump(by_alias=True, exclude_none=True)
+
+
+def _parse_user_filter(filter_value: str | None) -> str | None:
+    if not filter_value:
+        return None
+    value = filter_value.strip()
+    if value.startswith("userName eq "):
+        raw = value[len("userName eq ") :].strip().strip('"')
+        if raw:
+            return raw
+    raise HTTPException(status_code=400, detail="Unsupported SCIM filter")
 
 
 @app.post("/auth/validate", response_model=AuthValidateResponse)
@@ -112,6 +196,194 @@ async def validate_token(request: AuthValidateRequest) -> AuthValidateResponse:
         return AuthValidateResponse(active=False)
 
     return AuthValidateResponse(active=True, subject=claims.get("sub"), claims=claims)
+
+
+@app.post("/scim/v2/Users", status_code=201)
+async def scim_create_user(
+    payload: ScimUserCreate, tenant_id: str = Depends(_require_scim_context)
+) -> dict[str, Any]:
+    group_ids = [group.value for group in payload.groups or []]
+    user_id = str(uuid.uuid4())
+    try:
+        user = scim_store.create_user(
+            tenant_id,
+            user_id=user_id,
+            user_name=payload.user_name,
+            display_name=payload.display_name,
+            active=payload.active if payload.active is not None else True,
+            emails=[email.model_dump(by_alias=True) for email in (payload.emails or [])],
+            group_ids=group_ids,
+        )
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="User already exists or group invalid") from exc
+    return _scim_user_payload(user)
+
+
+@app.get("/scim/v2/Users")
+async def scim_list_users(
+    filter: str | None = None, tenant_id: str = Depends(_require_scim_context)
+) -> dict[str, Any]:
+    user_name = _parse_user_filter(filter)
+    users = scim_store.list_users(tenant_id, user_name=user_name)
+    resources = [_scim_user_payload(user) for user in users]
+    return ScimListResponse(
+        schemas=[SCIM_LIST_RESPONSE],
+        totalResults=len(resources),
+        itemsPerPage=len(resources),
+        startIndex=1,
+        Resources=resources,
+    ).model_dump(by_alias=True)
+
+
+@app.get("/scim/v2/Users/{user_id}")
+async def scim_get_user(
+    user_id: str, tenant_id: str = Depends(_require_scim_context)
+) -> dict[str, Any]:
+    try:
+        user = scim_store.get_user(tenant_id, user_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
+    return _scim_user_payload(user)
+
+
+@app.patch("/scim/v2/Users/{user_id}")
+async def scim_patch_user(
+    user_id: str,
+    payload: PatchRequest,
+    tenant_id: str = Depends(_require_scim_context),
+) -> dict[str, Any]:
+    display_name = None
+    active = None
+    emails = None
+    group_ids = None
+    for operation in payload.operations:
+        op = operation.op.lower()
+        path = (operation.path or "").strip()
+        value = operation.value
+        if path in {"displayName", "displayname"} or (
+            not path and isinstance(value, dict) and "displayName" in value
+        ):
+            if op not in {"add", "replace"}:
+                raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+            display_name = value.get("displayName") if isinstance(value, dict) else value
+        elif path in {"active"} or (not path and isinstance(value, dict) and "active" in value):
+            if op not in {"add", "replace"}:
+                raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+            active = value.get("active") if isinstance(value, dict) else value
+        elif path in {"emails"} or (not path and isinstance(value, dict) and "emails" in value):
+            if op not in {"add", "replace"}:
+                raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+            emails = value.get("emails") if isinstance(value, dict) else value
+        elif path in {"groups"} or (not path and isinstance(value, dict) and "groups" in value):
+            if op not in {"add", "replace"}:
+                raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+            groups_value = value.get("groups") if isinstance(value, dict) else value
+            group_ids = [item.get("value") for item in (groups_value or []) if item.get("value")]
+        elif op == "remove" and path == "groups":
+            group_ids = []
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+
+    try:
+        user = scim_store.update_user(
+            tenant_id,
+            user_id,
+            display_name=display_name,
+            active=active,
+            emails=emails,
+            group_ids=group_ids,
+        )
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Invalid group assignment") from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
+    return _scim_user_payload(user)
+
+
+@app.post("/scim/v2/Groups", status_code=201)
+async def scim_create_group(
+    payload: ScimGroupCreate, tenant_id: str = Depends(_require_scim_context)
+) -> dict[str, Any]:
+    group_id = str(uuid.uuid4())
+    members = [member.value for member in payload.members or []]
+    try:
+        group = scim_store.create_group(
+            tenant_id,
+            group_id=group_id,
+            display_name=payload.display_name,
+            members=members,
+        )
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="Group already exists or member invalid") from exc
+    return _scim_group_payload(group)
+
+
+@app.get("/scim/v2/Groups")
+async def scim_list_groups(tenant_id: str = Depends(_require_scim_context)) -> dict[str, Any]:
+    groups = scim_store.list_groups(tenant_id)
+    resources = [_scim_group_payload(group) for group in groups]
+    return ScimListResponse(
+        schemas=[SCIM_LIST_RESPONSE],
+        totalResults=len(resources),
+        itemsPerPage=len(resources),
+        startIndex=1,
+        Resources=resources,
+    ).model_dump(by_alias=True)
+
+
+@app.patch("/scim/v2/Groups/{group_id}")
+async def scim_patch_group(
+    group_id: str,
+    payload: PatchRequest,
+    tenant_id: str = Depends(_require_scim_context),
+) -> dict[str, Any]:
+    add_members: list[str] = []
+    remove_members: list[str] = []
+    for operation in payload.operations:
+        op = operation.op.lower()
+        path = (operation.path or "").strip()
+        value = operation.value
+        if path in {"members"} or (not path and isinstance(value, dict) and "members" in value):
+            members_value = value.get("members") if isinstance(value, dict) else value
+            member_ids = [
+                member.get("value") for member in (members_value or []) if member.get("value")
+            ]
+            if op in {"add", "replace"}:
+                add_members.extend(member_ids)
+            elif op == "remove":
+                remove_members.extend(member_ids)
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+        elif op == "remove" and path == "members":
+            try:
+                existing = scim_store.get_group(tenant_id, group_id)
+            except KeyError as exc:
+                raise HTTPException(status_code=404, detail="Group not found") from exc
+            remove_members = [member["value"] for member in existing.members]
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported SCIM patch operation")
+
+    try:
+        group = scim_store.update_group_members(
+            tenant_id,
+            group_id,
+            add_members=add_members or None,
+            remove_members=remove_members or None,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Group not found") from exc
+    return _scim_group_payload(group)
+
+
+@app.get("/scim/internal/roles/{user_id}")
+async def scim_get_roles(
+    user_id: str, tenant_id: str = Depends(_require_scim_context)
+) -> dict[str, Any]:
+    try:
+        user = scim_store.get_user(tenant_id, user_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
+    return {"user_id": user.id, "roles": user.roles}
 
 
 def _verify_with_jwks(
