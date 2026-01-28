@@ -198,6 +198,40 @@ The workspace shell expects a `project_id` query parameter (for example, `/works
 
 > **Dev auth mode:** Tests and local development can use `AUTH_DEV_MODE=true` with `ENVIRONMENT=dev|test` to bypass OIDC, and `AUTH_DEV_TENANT_ID` to set the tenant used by the workspace state APIs.
 
+## Tree Canvas APIs
+
+Tree canvas data is stored per tenant/project in:
+
+```
+apps/web/storage/trees.json
+```
+
+Endpoints:
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/tree/{project_id}` | List tree nodes for the project. |
+| `POST` | `/api/tree/{project_id}/nodes` | Create a node (folder, document, sheet, milestone, note). |
+| `PATCH` | `/api/tree/{project_id}/nodes/{node_id}` | Update node title, ref, or sort order. |
+| `POST` | `/api/tree/{project_id}/nodes/{node_id}/move` | Move a node to a new parent/sort order. |
+| `DELETE` | `/api/tree/{project_id}/nodes/{node_id}` | Delete a node and its subtree. |
+| `GET` | `/api/tree/{project_id}/export` | Export tree nodes as JSON. |
+
+### Cross-canvas linking
+
+To open a linked artifact from the Tree canvas, call the workspace selection endpoint with `open_ref`:
+
+```json
+POST /api/workspace/{project_id}/select
+{
+  "current_canvas_tab": "document",
+  "current_stage_id": null,
+  "current_activity_id": null,
+  "methodology": null,
+  "open_ref": { "document_id": "doc-123" }
+}
+```
+
 ## Timeline canvas APIs
 
 Timeline milestones are persisted per `(tenant_id, project_id)` in:

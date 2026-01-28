@@ -200,6 +200,195 @@
   cursor: pointer;
 }
 
+.tree-canvas {
+  display: grid;
+  gap: 20px;
+}
+
+.tree-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tree-control-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.tree-control-card h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.tree-control-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.tree-control-card label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  display: grid;
+  gap: 4px;
+}
+
+.tree-control-card input,
+.tree-control-card select,
+.tree-control-card textarea {
+  border-radius: 8px;
+  border: 1px solid #d1d9e6;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.tree-list-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.tree-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tree-list-header h3 {
+  margin: 0;
+}
+
+.tree-list-subtitle {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.tree-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.tree-node {
+  padding-left: calc(var(--tree-depth) * 18px);
+}
+
+.tree-node-row {
+  display: grid;
+  grid-template-columns: 24px 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: #f9fafb;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.tree-toggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+
+.tree-toggle-placeholder {
+  display: inline-block;
+  width: 16px;
+}
+
+.tree-title-group {
+  display: grid;
+  gap: 2px;
+}
+
+.tree-title-link {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  color: #1b4cdb;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tree-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tree-meta {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tree-note {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.tree-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tree-move-row {
+  margin-top: 6px;
+  margin-left: calc(var(--tree-depth) * 18px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.tree-move-row label {
+  font-size: 11px;
+  color: #4b5563;
+  display: grid;
+  gap: 4px;
+}
+
+.tree-move-row select,
+.tree-move-row input {
+  border-radius: 6px;
+  border: 1px solid #d1d9e6;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.tree-status {
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.tree-status.is-error {
+  color: #b91c1c;
+}
+
+.tree-empty {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.timeline-table tr.is-highlighted {
+  background: #eef2ff;
+}
+
 .assistant-empty {
   margin: 0;
   font-size: 12px;
