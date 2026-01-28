@@ -100,6 +100,7 @@ python -m tools.component_runner run --type app --name web
 | `ANALYTICS_SERVICE_URL` | `http://analytics-service:8080` | Analytics service API base URL for the dashboard canvas. |
 | `API_GATEWAY_URL` | `http://api-gateway:8000` | API gateway base URL for assistant orchestration. |
 | `ASSISTANT_TIMEOUT_S` | `20` | Timeout (seconds) for assistant proxy requests. |
+| `CONNECTOR_HUB_URL` | `http://connector-hub:8080` | Connector hub API base URL for the connector gallery. |
 
 ### Document canvas local run
 
@@ -139,6 +140,27 @@ uvicorn src.main:app --host 0.0.0.0 --port 8501 --reload
 ```
 
 Then open `http://localhost:8501/workspace?project_id=demo-1&methodology=hybrid` and select the Dashboard tab.
+
+### Connector gallery local run
+
+To exercise the Connector Gallery in the workspace shell, run connector-hub alongside the web app:
+
+```bash
+cd apps/connector-hub
+uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+In another terminal, run the web app with the connector hub URL configured:
+
+```bash
+cd apps/web
+export CONNECTOR_HUB_URL=http://localhost:8080
+uvicorn src.main:app --host 0.0.0.0 --port 8501 --reload
+```
+
+Then open `http://localhost:8501/workspace?project_id=demo-1&methodology=hybrid` and select **Connectors** in the right panel.
+
+> **Limitations:** The connector gallery only manages instance lifecycle and health status in this PR. Credentials are not stored or submitted through the UI, sync jobs are not executed, and webhook configuration is not included.
 
 ### Full Stack Development
 

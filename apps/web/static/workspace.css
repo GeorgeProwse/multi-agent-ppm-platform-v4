@@ -258,6 +258,284 @@
   background: #f8fafc;
 }
 
+.workspace-connectors {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connectors-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.connectors-header h3 {
+  margin: 0;
+}
+
+.connectors-refresh {
+  border: 1px solid #cbd5f5;
+  background: #eef2ff;
+  color: #1e3a8a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.connectors-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.connectors-panel h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.connectors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.connectors-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.connector-card,
+.connector-instance-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connector-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.connector-card-header h5 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.connector-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.connector-badge {
+  font-size: 11px;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.connector-add {
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.connector-meta {
+  margin: 0;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.connector-credentials {
+  margin: 0;
+  font-size: 11px;
+  color: #374151;
+}
+
+.connector-credentials.is-muted {
+  color: #6b7280;
+}
+
+.connector-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.connector-toggle input {
+  accent-color: #1d4ed8;
+}
+
+.connector-instance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.connector-instance-grid span {
+  display: block;
+}
+
+.connector-instance-grid strong {
+  display: block;
+  color: #111827;
+}
+
+.connector-instance-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.connector-instance-actions label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #4b5563;
+}
+
+.connector-instance-actions select {
+  border: 1px solid #d1d9e6;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.connector-refresh {
+  border: 1px solid #cbd5f5;
+  background: #eef2ff;
+  color: #1e3a8a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.connectors-status {
+  margin: 0;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.connectors-status.is-error {
+  color: #b91c1c;
+}
+
+.connector-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.connector-modal.is-hidden {
+  display: none;
+}
+
+.connector-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: min(420px, 90vw);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+}
+
+.connector-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connector-modal-header h4 {
+  margin: 0;
+}
+
+.connector-modal-close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.connector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.connector-field input,
+.connector-field textarea {
+  border: 1px solid #d1d9e6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #f8fafc;
+}
+
+.connector-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.connector-primary {
+  border: none;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.connector-secondary {
+  border: 1px solid #d1d9e6;
+  background: #ffffff;
+  color: #1f2937;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .templates-body {
   display: grid;
   gap: 12px;
