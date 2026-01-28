@@ -24,6 +24,7 @@ for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.secrets import resolve_secret  # noqa: E402
 
 logger = logging.getLogger("identity-access")
 logging.basicConfig(level=logging.INFO)
@@ -81,7 +82,7 @@ async def healthz() -> HealthResponse:
 
 
 def _get_env(name: str) -> str | None:
-    return os.getenv(name)
+    return resolve_secret(os.getenv(name))
 
 
 @app.post("/auth/validate", response_model=AuthValidateResponse)
