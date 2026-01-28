@@ -1,4 +1,5 @@
 import { AgentGallery } from '@/components/agentConfig';
+import { ConnectorGallery } from '@/components/connectors';
 import styles from './ConfigPage.module.css';
 
 type ConfigType = 'agents' | 'connectors' | 'templates';
@@ -52,6 +53,11 @@ export function ConfigPage({ type }: ConfigPageProps) {
   // Render AgentGallery for agents type
   if (type === 'agents') {
     return <AgentGallery />;
+  }
+
+  // Render ConnectorGallery for connectors type
+  if (type === 'connectors') {
+    return <ConnectorGallery />;
   }
 
   // Placeholder for other config types
