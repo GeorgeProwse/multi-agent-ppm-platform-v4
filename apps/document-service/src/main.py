@@ -27,6 +27,9 @@ from observability.metrics import (  # noqa: E402
 )
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from cryptography.fernet import Fernet  # noqa: E402
+from security.crypto import get_encryption_key  # noqa: E402
+from security.dlp import DLPFinding, ensure_dlp_environment, scan_payload  # noqa: E402
 
 logger = logging.getLogger("document-service")
 logging.basicConfig(level=logging.INFO)
@@ -75,16 +78,26 @@ class DocumentResponse(BaseModel):
 @app.on_event("startup")
 async def startup() -> None:
     global store
+    ensure_dlp_environment()
+    encryption_key = get_encryption_key("DOCUMENT_ENCRYPTION_KEY")
+    if not encryption_key:
+        encryption_key = Fernet.generate_key().decode("utf-8")
+        logger.warning("document_encryption_key_generated", extra={"reason": "missing_key"})
     db_path = Path(os.getenv("DOCUMENT_DB_PATH", "apps/document-service/storage/documents.db"))
-    store = DocumentStore(db_path)
+    store = DocumentStore(db_path, encryption_key=encryption_key)
     logger.info("document_store_ready", extra={"db_path": str(db_path)})
 
 
 def _get_store() -> DocumentStore:
     global store
     if store is None:
+        ensure_dlp_environment()
+        encryption_key = get_encryption_key("DOCUMENT_ENCRYPTION_KEY")
+        if not encryption_key:
+            encryption_key = Fernet.generate_key().decode("utf-8")
+            logger.warning("document_encryption_key_generated", extra={"reason": "missing_key"})
         db_path = Path(os.getenv("DOCUMENT_DB_PATH", "apps/document-service/storage/documents.db"))
-        store = DocumentStore(db_path)
+        store = DocumentStore(db_path, encryption_key=encryption_key)
         logger.info("document_store_initialized", extra={"db_path": str(db_path)})
     return store
 
@@ -108,10 +121,40 @@ def _build_response(record, advisories: list[str]) -> DocumentResponse:
     )
 
 
+def _format_dlp_reasons(findings: list[DLPFinding]) -> list[dict[str, str]]:
+    reasons: list[dict[str, str]] = []
+    for finding in findings:
+        payload = {
+            "type": finding.type,
+            "severity": finding.severity,
+            "field": finding.field,
+        }
+        if finding.excerpt:
+            payload["excerpt"] = finding.excerpt
+        reasons.append(payload)
+    return reasons
+
+
 @app.post("/documents", response_model=DocumentResponse)
 async def create_document(request: Request, payload: DocumentRequest) -> DocumentResponse:
     store = _get_store()
     tenant_id = request.state.auth.tenant_id
+    dlp_payload = {
+        "name": payload.name,
+        "content": payload.content,
+        "metadata": payload.metadata,
+    }
+    dlp_result = scan_payload(dlp_payload, classification=payload.classification)
+    if dlp_result.decision == "deny":
+        kpi_handles.errors.add(1, {"operation": "store_document", "tenant_id": tenant_id})
+        logger.warning(
+            "document_dlp_blocked",
+            extra={"tenant_id": tenant_id, "findings": len(dlp_result.findings)},
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={"reasons": _format_dlp_reasons(dlp_result.findings)},
+        )
     policy_payload = {
         "document": {
             "classification": payload.classification,
@@ -136,7 +179,10 @@ async def create_document(request: Request, payload: DocumentRequest) -> Documen
         {"classification": payload.classification, "tenant_id": tenant_id},
     )
     kpi_handles.requests.add(1, {"operation": "store_document", "tenant_id": tenant_id})
-    return _build_response(record, decision.advisories)
+    advisories = decision.advisories
+    if dlp_result.decision == "allow_with_advisory":
+        advisories = advisories + dlp_result.advisories
+    return _build_response(record, advisories)
 
 
 @app.get("/documents", response_model=list[DocumentResponse])

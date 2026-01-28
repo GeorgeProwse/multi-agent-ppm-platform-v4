@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from security.crypto import decrypt_text, encrypt_text
+
+
+ENCRYPTION_PREFIX = "enc:"
 
 
 @dataclass
@@ -23,8 +29,9 @@ class DocumentRecord:
 
 
 class DocumentStore:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, encryption_key: str) -> None:
         self.db_path = db_path
+        self._encryption_key = encryption_key
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._ensure_schema()
 
@@ -51,6 +58,19 @@ class DocumentStore:
                 """
             )
 
+    def _decrypt_content(self, content: str) -> str:
+        if content.startswith(ENCRYPTION_PREFIX):
+            token = content[len(ENCRYPTION_PREFIX) :]
+            return decrypt_text(token, key=self._encryption_key)
+        environment = os.getenv("ENVIRONMENT", "development").lower()
+        if environment == "production":
+            raise ValueError("unencrypted document content detected in production")
+        return content
+
+    def _encrypt_content(self, content: str) -> str:
+        token = encrypt_text(content, key=self._encryption_key)
+        return f"{ENCRYPTION_PREFIX}{token}"
+
     def _serialize(self, row: sqlite3.Row) -> DocumentRecord:
         return DocumentRecord(
             document_id=row["document_id"],
@@ -58,7 +78,7 @@ class DocumentStore:
             name=row["name"],
             classification=row["classification"],
             retention_days=row["retention_days"],
-            content=row["content"],
+            content=self._decrypt_content(row["content"]),
             created_at=datetime.fromisoformat(row["created_at"]),
             retention_until=datetime.fromisoformat(row["retention_until"]),
             metadata=json.loads(row["metadata"]) if row["metadata"] else {},
@@ -76,6 +96,7 @@ class DocumentStore:
         now = datetime.now(timezone.utc)
         retention_until = now + timedelta(days=retention_days)
         document_id = str(uuid4())
+        encrypted_content = self._encrypt_content(content)
         with self._connect() as conn:
             conn.execute(
                 """
@@ -90,7 +111,7 @@ class DocumentStore:
                     name,
                     classification,
                     retention_days,
-                    content,
+                    encrypted_content,
                     now.isoformat(),
                     retention_until.isoformat(),
                     json.dumps(metadata),

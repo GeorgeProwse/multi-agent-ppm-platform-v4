@@ -1,0 +1,21 @@
+version: 1
+classifications:
+  default:
+    advisory_at_or_above: low
+    deny_at_or_above: high
+  internal:
+    advisory_at_or_above: low
+    deny_at_or_above: high
+  confidential:
+    advisory_at_or_above: low
+    deny_at_or_above: high
+  restricted:
+    advisory_at_or_above: low
+    deny_at_or_above: medium
+finding_enforcement:
+  credit_card: block
+  tfn: block
+  api_key: block
+  bearer_token: block
+  email: advisory
+  phone: advisory

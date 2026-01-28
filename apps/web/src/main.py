@@ -100,6 +100,7 @@ from agent_settings_models import (  # noqa: E402
 )
 from agent_settings_store import AgentSettingsStore  # noqa: E402
 from oidc_client import OIDCClient  # noqa: E402
+from security.prompt_safety import evaluate_prompt  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parents[1]
@@ -1443,13 +1444,26 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
     tenant_id = _tenant_id_from_request(request, session)
     if not tenant_id:
         raise HTTPException(status_code=401, detail="Tenant not available")
+    prompt_result = evaluate_prompt(payload.message)
+    if prompt_result.decision == "deny":
+        logger.warning(
+            "assistant_prompt_blocked",
+            extra={"tenant_id": tenant_id, "reasons": prompt_result.reasons},
+        )
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": "Prompt rejected due to unsafe content.",
+                "reasons": prompt_result.reasons,
+            },
+        )
     correlation_id = f"corr-{_random_token_hex(8)}"
     context = _assistant_context(tenant_id, payload.project_id, correlation_id)
     headers = build_forward_headers(request, session)
     headers["X-Tenant-ID"] = tenant_id
     try:
         response = await _orchestrator_client().send_query(
-            query=payload.message, context=context, headers=headers
+            query=prompt_result.sanitized_text, context=context, headers=headers
         )
     except httpx.TimeoutException:
         return JSONResponse(
@@ -1477,6 +1491,7 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
         response_payload: Any = response.json()
     except ValueError:
         response_payload = response.text
+    warnings = prompt_result.reasons if prompt_result.decision == "allow_with_warning" else []
     return JSONResponse(
         status_code=200,
         content={
@@ -1484,6 +1499,7 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
             "project_id": payload.project_id,
             "correlation_id": correlation_id,
             "response": response_payload,
+            "prompt_safety_warning": warnings,
             "received_at": datetime.now(timezone.utc).isoformat(),
         },
     )
