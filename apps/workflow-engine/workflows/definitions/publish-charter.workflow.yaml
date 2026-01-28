@@ -1,0 +1,42 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Publish Charter
+  version: v1
+  owner: project-definition-agent
+  description: Drafts a charter and routes it for approval before publishing.
+steps:
+  - id: draft_charter
+    type: task
+    next: approval_gate
+    config:
+      action: draft_charter
+  - id: approval_gate
+    type: decision
+    branches:
+      - name: requires_approval
+        condition:
+          field: "$.payload.requires_approval"
+          operator: equals
+          value: true
+        next: request_approval
+    default_next: publish_charter
+  - id: request_approval
+    type: approval
+    next: publish_charter
+    timeout_seconds: 86400
+    config:
+      request_type: phase_gate
+      request_id: "$.payload.charter_id"
+      requester: "$.payload.requester"
+      approvers:
+        - dev-user
+      details:
+        description: "$.payload.description"
+        project_id: "$.payload.project_id"
+  - id: publish_charter
+    type: notification
+    next: null
+    config:
+      channel: system
+      message: Charter published.

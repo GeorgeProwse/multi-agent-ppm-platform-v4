@@ -48,6 +48,30 @@ const configNav: NavItem[] = [
   },
 ];
 
+const workflowNav: NavItem[] = [
+  {
+    id: 'approvals',
+    label: 'My Approvals',
+    path: '/approvals',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7l-4-4H5zm8 1.5L16.5 8H13a1 1 0 01-1-1V4.5zM7 10a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H8a1 1 0 01-1-1z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'workflow-monitoring',
+    label: 'Workflow Monitor',
+    path: '/workflows/monitoring',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M3 3a1 1 0 011-1h3a1 1 0 010 2H5v12h10V4h-2a1 1 0 110-2h3a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" />
+        <path d="M7 7a1 1 0 011-1h1a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H8a1 1 0 01-1-1z" />
+      </svg>
+    ),
+  },
+];
+
 export function LeftPanel() {
   const location = useLocation();
   const { leftPanelCollapsed, toggleLeftPanel } =
@@ -98,6 +122,30 @@ export function LeftPanel() {
           )}
           <ul className={styles.navList}>
             {configNav.map((item) => (
+              <li key={item.id}>
+                <Link
+                  to={item.path!}
+                  className={`${styles.navItem} ${
+                    location.pathname === item.path ? styles.active : ''
+                  }`}
+                  title={leftPanelCollapsed ? item.label : undefined}
+                >
+                  <span className={styles.icon}>{item.icon}</span>
+                  {!leftPanelCollapsed && (
+                    <span className={styles.label}>{item.label}</span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className={styles.section}>
+          {!leftPanelCollapsed && (
+            <h3 className={styles.sectionTitle}>Workflow</h3>
+          )}
+          <ul className={styles.navList}>
+            {workflowNav.map((item) => (
               <li key={item.id}>
                 <Link
                   to={item.path!}
