@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 import httpx
 import jwt
+import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import (
     FileResponse,
@@ -21,7 +22,7 @@ from fastapi.responses import (
     Response,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
@@ -75,6 +76,7 @@ from tree_models import (  # noqa: E402
 )
 from tree_store import TreeStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
+from connector_hub_proxy import ConnectorHubClient  # noqa: E402
 from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
 from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
 from template_models import (  # noqa: E402
@@ -102,6 +104,7 @@ WORKSPACE_STATE_PATH = STORAGE_DIR / "workspace_state.json"
 TIMELINES_PATH = STORAGE_DIR / "timelines.json"
 SPREADSHEETS_PATH = STORAGE_DIR / "spreadsheets.json"
 TREES_PATH = STORAGE_DIR / "trees.json"
+CONNECTOR_REGISTRY_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 
 SESSION_COOKIE = "ppm_session"
 SESSION_STORE: dict[str, dict[str, Any]] = {}
@@ -238,6 +241,21 @@ class TemplateAgentConfig(BaseModel):
 class TemplateConnectorConfig(BaseModel):
     enabled: list[str]
     disabled: list[str]
+
+
+class ConnectorInstanceCreate(BaseModel):
+    connector_type_id: str
+    version: str
+    enabled: bool = True
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ConnectorInstanceUpdate(BaseModel):
+    version: str | None = None
+    enabled: bool | None = None
+    health_status: str | None = Field(
+        default=None, pattern="^(healthy|degraded|unhealthy|unknown)$"
+    )
 
 
 class TemplateTab(BaseModel):
@@ -398,6 +416,10 @@ def _orchestrator_client() -> OrchestratorProxyClient:
     return OrchestratorProxyClient()
 
 
+def _connector_hub_client() -> ConnectorHubClient:
+    return ConnectorHubClient()
+
+
 def _raise_upstream_error(response: httpx.Response) -> None:
     try:
         detail = response.json()
@@ -412,6 +434,76 @@ def _passthrough_response(response: httpx.Response) -> Response:
         status_code=response.status_code,
         media_type=response.headers.get("content-type"),
     )
+
+
+def _format_credentials(connector_id: str, fields: list[str]) -> list[str]:
+    return [f"{connector_id.upper()}_{field.upper()}" for field in fields]
+
+
+def _load_connector_manifest(manifest_path: str) -> dict[str, Any] | None:
+    manifest_file = REPO_ROOT / manifest_path
+    if not manifest_file.exists():
+        return None
+    try:
+        with manifest_file.open("r", encoding="utf-8") as handle:
+            payload = yaml.safe_load(handle)
+    except (OSError, yaml.YAMLError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _enrich_connector_types(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for entry in entries:
+        connector_id = entry.get("id")
+        if not connector_id:
+            continue
+        record = {
+            "id": connector_id,
+            "name": entry.get("name", connector_id),
+            "status": entry.get("status", "unknown"),
+            "certification": entry.get("certification", "unknown"),
+            "manifest_path": entry.get("manifest_path"),
+        }
+        credentials_required: list[str] | None = None
+        manifest_path = entry.get("manifest_path")
+        if manifest_path:
+            manifest = _load_connector_manifest(manifest_path)
+            if manifest:
+                record["default_version"] = manifest.get("version")
+                auth = manifest.get("auth") or {}
+                fields = auth.get("fields")
+                if isinstance(fields, list) and fields:
+                    credentials_required = _format_credentials(connector_id, fields)
+        if not credentials_required:
+            if connector_id == "jira":
+                credentials_required = [
+                    "JIRA_INSTANCE_URL",
+                    "JIRA_EMAIL",
+                    "JIRA_API_TOKEN",
+                ]
+            else:
+                record["credentials_note"] = "See docs for required credentials."
+        if credentials_required:
+            record["credentials_required"] = credentials_required
+        enriched.append(record)
+    return enriched
+
+
+def _load_connector_registry() -> list[dict[str, Any]]:
+    try:
+        with CONNECTOR_REGISTRY_PATH.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except OSError as exc:
+        logger.error(
+            "connector_gallery.registry_read_failed", extra={"error": str(exc)}
+        )
+        return []
+    if not isinstance(payload, list):
+        return []
+    return _enrich_connector_types(payload)
 
 
 @app.get("/healthz", response_model=HealthResponse)
@@ -1890,6 +1982,118 @@ async def create_dashboard_what_if(
     if response.status_code >= 400:
         return _passthrough_response(response)
     return JSONResponse(status_code=response.status_code, content=response.json())
+
+
+@app.get("/api/connector-gallery/types")
+async def list_connector_types(request: Request) -> list[dict[str, Any]]:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    types = _load_connector_registry()
+    logger.info("connector_gallery.types.list", extra={"tenant_id": tenant_id})
+    return types
+
+
+@app.get("/api/connector-gallery/instances")
+async def list_connector_instances(request: Request) -> Response:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    headers = build_forward_headers(request, session)
+    client = _connector_hub_client()
+    try:
+        response = await client.list_connectors(headers=headers)
+    except httpx.RequestError:
+        raise HTTPException(status_code=504, detail="Connector hub unavailable")
+    logger.info("connector_gallery.instances.list", extra={"tenant_id": tenant_id})
+    if response.status_code >= 400:
+        return _passthrough_response(response)
+    return JSONResponse(status_code=response.status_code, content=response.json())
+
+
+@app.post("/api/connector-gallery/instances")
+async def create_connector_instance(
+    payload: ConnectorInstanceCreate, request: Request
+) -> Response:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    headers = build_forward_headers(request, session)
+    metadata = {"connector_type_id": payload.connector_type_id}
+    metadata.update(payload.metadata or {})
+    connector_request = {
+        "name": payload.connector_type_id,
+        "version": payload.version,
+        "enabled": payload.enabled,
+        "metadata": metadata,
+    }
+    client = _connector_hub_client()
+    try:
+        response = await client.create_connector(connector_request, headers=headers)
+    except httpx.RequestError:
+        raise HTTPException(status_code=504, detail="Connector hub unavailable")
+    if response.status_code >= 400:
+        return _passthrough_response(response)
+    body = response.json()
+    logger.info(
+        "connector_gallery.instances.create",
+        extra={
+            "tenant_id": tenant_id,
+            "connector_id": body.get("connector_id"),
+            "connector_type_id": payload.connector_type_id,
+        },
+    )
+    return JSONResponse(status_code=response.status_code, content=body)
+
+
+@app.patch("/api/connector-gallery/instances/{connector_id}")
+async def update_connector_instance(
+    connector_id: str, payload: ConnectorInstanceUpdate, request: Request
+) -> Response:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    headers = build_forward_headers(request, session)
+    update_payload = payload.model_dump(exclude_none=True)
+    client = _connector_hub_client()
+    try:
+        response = await client.update_connector(
+            connector_id, update_payload, headers=headers
+        )
+    except httpx.RequestError:
+        raise HTTPException(status_code=504, detail="Connector hub unavailable")
+    if response.status_code >= 400:
+        return _passthrough_response(response)
+    body = response.json()
+    logger.info(
+        "connector_gallery.instances.update",
+        extra={
+            "tenant_id": tenant_id,
+            "connector_id": connector_id,
+            "connector_type_id": body.get("metadata", {}).get("connector_type_id"),
+        },
+    )
+    return JSONResponse(status_code=response.status_code, content=body)
+
+
+@app.get("/api/connector-gallery/instances/{connector_id}/health")
+async def get_connector_health(connector_id: str, request: Request) -> Response:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    headers = build_forward_headers(request, session)
+    client = _connector_hub_client()
+    try:
+        response = await client.get_connector_health(connector_id, headers=headers)
+    except httpx.RequestError:
+        raise HTTPException(status_code=504, detail="Connector hub unavailable")
+    if response.status_code >= 400:
+        return _passthrough_response(response)
+    body = response.json()
+    logger.info(
+        "connector_gallery.instances.health",
+        extra={
+            "tenant_id": tenant_id,
+            "connector_id": connector_id,
+            "connector_type_id": body.get("metadata", {}).get("connector_type_id"),
+        },
+    )
+    return JSONResponse(status_code=response.status_code, content=body)
 
 
 @app.post("/api/document-canvas/documents")

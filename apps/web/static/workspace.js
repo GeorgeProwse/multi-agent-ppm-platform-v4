@@ -92,6 +92,59 @@ const renderWorkspaceShell = () => {
           </div>
           <p class="templates-status" id="template-status" role="status"></p>
         </section>
+        <section class="workspace-connectors" aria-label="Connector gallery">
+          <div class="connectors-header">
+            <h3>Connectors</h3>
+            <button type="button" class="connectors-refresh" id="connectors-refresh">
+              Refresh
+            </button>
+          </div>
+          <div class="connectors-body">
+            <div class="connectors-panel">
+              <h4>Available connector types</h4>
+              <div class="connectors-list" id="connector-type-list">
+                <p class="connectors-empty">Loading connector types...</p>
+              </div>
+            </div>
+            <div class="connectors-panel">
+              <h4>Your connector instances</h4>
+              <div class="connectors-list" id="connector-instance-list">
+                <p class="connectors-empty">Loading connector instances...</p>
+              </div>
+            </div>
+          </div>
+          <p class="connectors-status" id="connector-status" role="status"></p>
+        </section>
+        <div class="connector-modal is-hidden" id="connector-modal" aria-hidden="true">
+          <div class="connector-modal-card" role="dialog" aria-modal="true">
+            <div class="connector-modal-header">
+              <h4 id="connector-modal-title">Add connector</h4>
+              <button type="button" class="connector-modal-close" id="connector-modal-close">
+                ✕
+              </button>
+            </div>
+            <form id="connector-modal-form">
+              <label class="connector-field">
+                <span>Version</span>
+                <input type="text" id="connector-version" required />
+              </label>
+              <label class="connector-field">
+                <span>Instance URL (optional)</span>
+                <input type="text" id="connector-instance-url" placeholder="https://..." />
+              </label>
+              <label class="connector-field">
+                <span>Notes (optional)</span>
+                <textarea id="connector-notes" rows="3" placeholder="Describe this instance"></textarea>
+              </label>
+              <div class="connector-modal-actions">
+                <button type="submit" class="connector-primary">Create instance</button>
+                <button type="button" class="connector-secondary" id="connector-modal-cancel">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </aside>
     </div>
   `;
@@ -143,6 +196,12 @@ const initWorkspace = () => {
     selected: null,
     filter: "all",
     query: "",
+  };
+  const connectorsState = {
+    types: [],
+    instances: [],
+    selectedType: null,
+    status: "",
   };
 
   const setActiveTab = (targetTab) => {
@@ -781,6 +840,337 @@ const initWorkspace = () => {
     }
     if (Object.keys(openRef).length) {
       await openLinkedArtifact(openRef);
+    }
+  };
+
+  const setConnectorStatus = (message, isError = false) => {
+    const status = document.getElementById("connector-status");
+    if (!status) {
+      return;
+    }
+    status.textContent = message;
+    status.classList.toggle("is-error", isError);
+  };
+
+  const formatTimestamp = (value) => {
+    if (!value) {
+      return "—";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString();
+  };
+
+  const updateInstanceState = (updated) => {
+    connectorsState.instances = connectorsState.instances.map((instance) =>
+      instance.connector_id === updated.connector_id ? updated : instance,
+    );
+  };
+
+  const renderConnectorTypes = () => {
+    const list = document.getElementById("connector-type-list");
+    if (!list) {
+      return;
+    }
+    if (!connectorsState.types.length) {
+      list.innerHTML = "<p class=\"connectors-empty\">No connector types available.</p>";
+      return;
+    }
+    list.innerHTML = connectorsState.types
+      .map((type) => {
+        const credentials = type.credentials_required?.length
+          ? `<p class=\"connector-credentials\"><strong>Credentials required:</strong> ${type.credentials_required
+              .map((item) => escapeHtml(item))
+              .join(", ")}</p>`
+          : `<p class=\"connector-credentials is-muted\">${escapeHtml(
+              type.credentials_note || "See docs for required credentials.",
+            )}</p>`;
+        const defaultVersion = type.default_version
+          ? `<span class=\"connector-badge\">v${escapeHtml(type.default_version)}</span>`
+          : "";
+        return `
+          <div class="connector-card">
+            <div class="connector-card-header">
+              <div>
+                <h5>${escapeHtml(type.name)}</h5>
+                <p class="connector-meta">${escapeHtml(type.status)} • ${escapeHtml(
+          type.certification,
+        )}</p>
+              </div>
+              <div class="connector-card-actions">
+                ${defaultVersion}
+                <button type="button" class="connector-add" data-connector-id="${escapeHtml(
+          type.id,
+        )}">Add</button>
+              </div>
+            </div>
+            ${credentials}
+          </div>
+        `;
+      })
+      .join("");
+
+    list.querySelectorAll(".connector-add").forEach((button) => {
+      button.addEventListener("click", () => {
+        const connectorId = button.dataset.connectorId;
+        if (!connectorId) {
+          return;
+        }
+        const selected = connectorsState.types.find((item) => item.id === connectorId);
+        if (!selected) {
+          return;
+        }
+        openConnectorModal(selected);
+      });
+    });
+  };
+
+  const renderConnectorInstances = () => {
+    const list = document.getElementById("connector-instance-list");
+    if (!list) {
+      return;
+    }
+    if (!connectorsState.instances.length) {
+      list.innerHTML = "<p class=\"connectors-empty\">No connector instances yet.</p>";
+      return;
+    }
+    list.innerHTML = connectorsState.instances
+      .map((instance) => {
+        const metadata = instance.metadata || {};
+        const connectorType = metadata.connector_type_id || instance.name || "unknown";
+        const enabledLabel = instance.enabled ? "Enabled" : "Disabled";
+        return `
+          <div class="connector-instance-card">
+            <div class="connector-card-header">
+              <div>
+                <h5>${escapeHtml(connectorType)}</h5>
+                <p class="connector-meta">ID: ${escapeHtml(instance.connector_id)}</p>
+              </div>
+              <label class="connector-toggle">
+                <input type="checkbox" data-connector-id="${escapeHtml(
+          instance.connector_id,
+        )}" ${instance.enabled ? "checked" : ""} />
+                <span>${enabledLabel}</span>
+              </label>
+            </div>
+            <div class="connector-instance-grid">
+              <div><span>Version</span><strong>${escapeHtml(instance.version)}</strong></div>
+              <div><span>Health</span><strong>${escapeHtml(
+          instance.health_status || "unknown",
+        )}</strong></div>
+              <div><span>Last checked</span><strong>${escapeHtml(
+          formatTimestamp(instance.last_checked),
+        )}</strong></div>
+            </div>
+            <div class="connector-instance-actions">
+              <label>
+                <span>Mark health</span>
+                <select data-health-id="${escapeHtml(instance.connector_id)}">
+                  ${["healthy", "degraded", "unhealthy", "unknown"]
+                    .map(
+                      (status) =>
+                        `<option value="${status}"${
+                          status === (instance.health_status || "unknown") ? " selected" : ""
+                        }>${status}</option>`,
+                    )
+                    .join("")}
+                </select>
+              </label>
+              <button type="button" class="connector-refresh" data-refresh-id="${escapeHtml(
+          instance.connector_id,
+        )}">
+                Refresh health
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    list.querySelectorAll(".connector-toggle input").forEach((input) => {
+      input.addEventListener("change", () => {
+        const connectorId = input.dataset.connectorId;
+        if (!connectorId) {
+          return;
+        }
+        updateConnectorInstance(connectorId, { enabled: input.checked });
+      });
+    });
+
+    list.querySelectorAll("select[data-health-id]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const connectorId = select.dataset.healthId;
+        if (!connectorId) {
+          return;
+        }
+        updateConnectorInstance(connectorId, { health_status: select.value });
+      });
+    });
+
+    list.querySelectorAll(".connector-refresh").forEach((button) => {
+      button.addEventListener("click", () => {
+        const connectorId = button.dataset.refreshId;
+        if (!connectorId) {
+          return;
+        }
+        refreshConnectorHealth(connectorId);
+      });
+    });
+  };
+
+  const loadConnectorTypes = async () => {
+    setConnectorStatus("Loading connectors...");
+    const response = await fetch("/api/connector-gallery/types");
+    if (!response.ok) {
+      setConnectorStatus("Unable to load connector types.", true);
+      return;
+    }
+    const payload = await response.json();
+    connectorsState.types = payload;
+    renderConnectorTypes();
+    setConnectorStatus("Connector types loaded.");
+  };
+
+  const loadConnectorInstances = async () => {
+    const response = await fetch("/api/connector-gallery/instances");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setConnectorStatus(payload?.detail || "Unable to load connector instances.", true);
+      connectorsState.instances = [];
+      renderConnectorInstances();
+      return;
+    }
+    connectorsState.instances = payload;
+    renderConnectorInstances();
+    setConnectorStatus(`Loaded ${connectorsState.instances.length} connector instance(s).`);
+  };
+
+  const updateConnectorInstance = async (connectorId, payload) => {
+    setConnectorStatus("Updating connector...");
+    const response = await fetch(`/api/connector-gallery/instances/${connectorId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setConnectorStatus(result?.detail || "Unable to update connector.", true);
+      return;
+    }
+    updateInstanceState(result);
+    renderConnectorInstances();
+    setConnectorStatus("Connector updated.");
+  };
+
+  const refreshConnectorHealth = async (connectorId) => {
+    setConnectorStatus("Refreshing health status...");
+    const response = await fetch(
+      `/api/connector-gallery/instances/${connectorId}/health`,
+    );
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setConnectorStatus(result?.detail || "Unable to refresh health.", true);
+      return;
+    }
+    updateInstanceState(result);
+    renderConnectorInstances();
+    setConnectorStatus("Health status refreshed.");
+  };
+
+  const openConnectorModal = (type) => {
+    const modal = document.getElementById("connector-modal");
+    const title = document.getElementById("connector-modal-title");
+    const versionInput = document.getElementById("connector-version");
+    const instanceUrlInput = document.getElementById("connector-instance-url");
+    const notesInput = document.getElementById("connector-notes");
+    if (!modal || !title || !versionInput || !instanceUrlInput || !notesInput) {
+      return;
+    }
+    connectorsState.selectedType = type;
+    title.textContent = `Add ${type.name}`;
+    versionInput.value = type.default_version || "1.0.0";
+    instanceUrlInput.value = "";
+    notesInput.value = "";
+    modal.classList.remove("is-hidden");
+    modal.setAttribute("aria-hidden", "false");
+    versionInput.focus();
+  };
+
+  const closeConnectorModal = () => {
+    const modal = document.getElementById("connector-modal");
+    if (!modal) {
+      return;
+    }
+    modal.classList.add("is-hidden");
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  const attachConnectorHandlers = () => {
+    const refreshButton = document.getElementById("connectors-refresh");
+    if (refreshButton) {
+      refreshButton.addEventListener("click", () => {
+        loadConnectorTypes();
+        loadConnectorInstances();
+      });
+    }
+    const modal = document.getElementById("connector-modal");
+    const closeButton = document.getElementById("connector-modal-close");
+    const cancelButton = document.getElementById("connector-modal-cancel");
+    const form = document.getElementById("connector-modal-form");
+    if (closeButton) {
+      closeButton.addEventListener("click", () => closeConnectorModal());
+    }
+    if (cancelButton) {
+      cancelButton.addEventListener("click", () => closeConnectorModal());
+    }
+    if (modal) {
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closeConnectorModal();
+        }
+      });
+    }
+    if (form) {
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!connectorsState.selectedType) {
+          return;
+        }
+        const versionInput = document.getElementById("connector-version");
+        const instanceUrlInput = document.getElementById("connector-instance-url");
+        const notesInput = document.getElementById("connector-notes");
+        if (!versionInput || !instanceUrlInput || !notesInput) {
+          return;
+        }
+        const metadata = {};
+        if (instanceUrlInput.value.trim()) {
+          metadata.instance_url = instanceUrlInput.value.trim();
+        }
+        if (notesInput.value.trim()) {
+          metadata.notes = notesInput.value.trim();
+        }
+        setConnectorStatus("Registering connector instance...");
+        const response = await fetch("/api/connector-gallery/instances", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connector_type_id: connectorsState.selectedType.id,
+            version: versionInput.value.trim() || "1.0.0",
+            enabled: true,
+            metadata,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setConnectorStatus(result?.detail || "Unable to create connector instance.", true);
+          return;
+        }
+        closeConnectorModal();
+        setConnectorStatus("Connector instance created.");
+        await loadConnectorInstances();
+      });
     }
   };
 
@@ -2941,7 +3331,10 @@ const initWorkspace = () => {
   });
 
   attachTemplateHandlers();
+  attachConnectorHandlers();
   loadTemplates();
+  loadConnectorTypes();
+  loadConnectorInstances();
   loadWorkspaceState();
 };
 
