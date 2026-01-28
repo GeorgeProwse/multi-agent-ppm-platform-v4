@@ -4,7 +4,7 @@ Tests for Base Agent functionality
 
 import pytest
 
-from agents.runtime import BaseAgent
+from agents.runtime import AgentResponse, BaseAgent
 
 
 class SampleAgent(BaseAgent):
@@ -35,15 +35,15 @@ async def test_agent_execute():
     agent = SampleAgent(agent_id="test-agent")
 
     result = await agent.execute({"data": "test"})
+    validated = AgentResponse.model_validate(result)
 
-    assert result["success"] is True
-    assert "data" in result
-    assert result["data"]["result"] == "processed"
-    assert "metadata" in result
-    assert result["metadata"]["agent_id"] == "test-agent"
-    assert result["metadata"]["catalog_id"] == "test-agent"
-    assert result["metadata"]["correlation_id"]
-    assert "trace_id" in result["metadata"]
+    assert validated.success is True
+    assert validated.data is not None
+    assert validated.data.model_dump()["result"] == "processed"
+    assert validated.metadata.agent_id == "test-agent"
+    assert validated.metadata.catalog_id == "test-agent"
+    assert validated.metadata.correlation_id
+    assert validated.metadata.trace_id
 
 
 @pytest.mark.asyncio
@@ -61,12 +61,14 @@ async def test_agent_validation():
 
     # Should fail validation
     result = await agent.execute({})
-    assert result["success"] is False
-    assert "validation" in result["error"].lower()
+    validated = AgentResponse.model_validate(result)
+    assert validated.success is False
+    assert "validation" in (validated.error or "").lower()
 
     # Should pass validation
     result = await agent.execute({"required_field": "value"})
-    assert result["success"] is True
+    validated = AgentResponse.model_validate(result)
+    assert validated.success is True
 
 
 @pytest.mark.asyncio
@@ -80,10 +82,11 @@ async def test_agent_error_handling():
     agent = ErrorAgent(agent_id="error-agent")
 
     result = await agent.execute({"data": "test"})
+    validated = AgentResponse.model_validate(result)
 
-    assert result["success"] is False
-    assert "Test error" in result["error"]
-    assert "metadata" in result
+    assert validated.success is False
+    assert "Test error" in (validated.error or "")
+    assert validated.metadata.agent_id == "error-agent"
 
 
 def test_agent_get_capabilities():
@@ -110,3 +113,18 @@ def test_agent_get_config():
     assert agent.get_config("setting1") == "value1"
     assert agent.get_config("setting2") == 42
     assert agent.get_config("nonexistent", "default") == "default"
+
+
+@pytest.mark.asyncio
+async def test_agent_rejects_invalid_payload_type():
+    """Ensure agent responses always validate against the contract."""
+
+    class BadPayloadAgent(BaseAgent):
+        async def process(self, input_data: dict) -> list:
+            return ["not", "a", "dict"]
+
+    agent = BadPayloadAgent(agent_id="bad-payload")
+    result = await agent.execute({"data": "test"})
+    validated = AgentResponse.model_validate(result)
+    assert validated.success is False
+    assert validated.error is not None

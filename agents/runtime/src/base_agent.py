@@ -16,10 +16,17 @@ OBSERVABILITY_ROOT = Path(__file__).resolve().parents[3] / "packages" / "observa
 if str(OBSERVABILITY_ROOT) not in sys.path:
     sys.path.insert(0, str(OBSERVABILITY_ROOT))
 
+from pydantic import BaseModel  # noqa: E402
+
 from observability.tracing import get_trace_id, start_agent_span  # noqa: E402
 
 from agents.runtime.src.agent_catalog import get_catalog_id  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.models import (  # noqa: E402
+    AgentPayload,
+    AgentResponse,
+    AgentResponseMetadata,
+)
 from agents.runtime.src.policy import (  # noqa: E402
     evaluate_policy_bundle,
     load_default_policy_bundle,
@@ -80,7 +87,7 @@ class BaseAgent(ABC):
         return True
 
     @abstractmethod
-    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> Any:
         """
         Process the agent's core logic.
 
@@ -90,7 +97,7 @@ class BaseAgent(ABC):
             input_data: Input data for the agent to process
 
         Returns:
-            Dictionary containing the agent's response
+            Agent response payload as a dictionary or Pydantic model.
 
         Raises:
             ValueError: If input validation fails
@@ -128,6 +135,7 @@ class BaseAgent(ABC):
         )
         tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
         catalog_id = self.catalog_id or self.agent_id
+        trace_id = get_trace_id() or "unknown"
 
         policy_bundle = input_data.get(
             "policy_bundle",
@@ -150,7 +158,7 @@ class BaseAgent(ABC):
             resource_id=policy_bundle.get("metadata", {}).get("name", catalog_id),
             resource_type="policy_bundle",
             metadata={"decision": policy_decision.decision, "reasons": policy_decision.reasons},
-            trace_id=get_trace_id(),
+            trace_id=trace_id,
             correlation_id=correlation_id,
         )
         emit_audit_event(audit_event)
@@ -163,18 +171,19 @@ class BaseAgent(ABC):
         )
 
         if policy_decision.decision == "deny":
-            return {
-                "success": False,
-                "error": "Policy evaluation denied execution",
-                "metadata": {
-                    "agent_id": self.agent_id,
-                    "catalog_id": catalog_id,
-                    "timestamp": start_time.isoformat(),
-                    "correlation_id": correlation_id,
-                    "trace_id": get_trace_id(),
-                    "policy_reasons": policy_decision.reasons,
-                },
-            }
+            response = AgentResponse(
+                success=False,
+                error="Policy evaluation denied execution",
+                metadata=AgentResponseMetadata(
+                    agent_id=self.agent_id,
+                    catalog_id=catalog_id,
+                    timestamp=start_time.isoformat(),
+                    correlation_id=correlation_id,
+                    trace_id=trace_id,
+                    policy_reasons=policy_decision.reasons,
+                ),
+            )
+            return response.model_dump()
 
         try:
             # Ensure agent is initialized
@@ -205,17 +214,18 @@ class BaseAgent(ABC):
                         tenant_id=tenant_id,
                         correlation_id=correlation_id,
                     )
-                    return {
-                        "success": False,
-                        "error": "Input validation failed",
-                        "metadata": {
-                            "agent_id": self.agent_id,
-                            "catalog_id": catalog_id,
-                            "timestamp": start_time.isoformat(),
-                            "correlation_id": correlation_id,
-                            "trace_id": get_trace_id(),
-                        },
-                    }
+                    response = AgentResponse(
+                        success=False,
+                        error="Input validation failed",
+                        metadata=AgentResponseMetadata(
+                            agent_id=self.agent_id,
+                            catalog_id=catalog_id,
+                            timestamp=start_time.isoformat(),
+                            correlation_id=correlation_id,
+                            trace_id=trace_id,
+                        ),
+                    )
+                    return response.model_dump()
 
                 # Process the request
                 self._log_event(
@@ -225,6 +235,7 @@ class BaseAgent(ABC):
                     correlation_id=correlation_id,
                 )
                 result = await self.process(input_data)
+                payload = self._normalize_payload(result)
 
                 # Calculate execution time
                 execution_time = (datetime.utcnow() - start_time).total_seconds()
@@ -236,18 +247,19 @@ class BaseAgent(ABC):
                     correlation_id=correlation_id,
                 )
 
-                return {
-                    "success": True,
-                    "data": result,
-                    "metadata": {
-                        "agent_id": self.agent_id,
-                        "catalog_id": catalog_id,
-                        "timestamp": start_time.isoformat(),
-                        "execution_time_seconds": execution_time,
-                        "correlation_id": correlation_id,
-                        "trace_id": get_trace_id(),
-                    },
-                }
+                response = AgentResponse(
+                    success=True,
+                    data=payload,
+                    metadata=AgentResponseMetadata(
+                        agent_id=self.agent_id,
+                        catalog_id=catalog_id,
+                        timestamp=start_time.isoformat(),
+                        execution_time_seconds=execution_time,
+                        correlation_id=correlation_id,
+                        trace_id=trace_id,
+                    ),
+                )
+                return response.model_dump()
 
         except Exception as e:
             self.logger.error(f"Error in agent {self.agent_id}: {str(e)}", exc_info=True)
@@ -259,18 +271,19 @@ class BaseAgent(ABC):
                 correlation_id=correlation_id,
             )
 
-            return {
-                "success": False,
-                "error": str(e),
-                "metadata": {
-                    "agent_id": self.agent_id,
-                    "catalog_id": catalog_id,
-                    "timestamp": start_time.isoformat(),
-                    "execution_time_seconds": execution_time,
-                    "correlation_id": correlation_id,
-                    "trace_id": get_trace_id(),
-                },
-            }
+            response = AgentResponse(
+                success=False,
+                error=str(e),
+                metadata=AgentResponseMetadata(
+                    agent_id=self.agent_id,
+                    catalog_id=catalog_id,
+                    timestamp=start_time.isoformat(),
+                    execution_time_seconds=execution_time,
+                    correlation_id=correlation_id,
+                    trace_id=trace_id,
+                ),
+            )
+            return response.model_dump()
 
     def get_capabilities(self) -> list[str]:
         """
@@ -301,7 +314,7 @@ class BaseAgent(ABC):
             "agent_event",
             extra={
                 "tenant_id": tenant_id,
-                "trace_id": get_trace_id(),
+                "trace_id": get_trace_id() or "unknown",
                 "correlation_id": correlation_id,
                 "agent_id": self.agent_id,
                 "catalog_id": self.catalog_id or self.agent_id,
@@ -309,3 +322,14 @@ class BaseAgent(ABC):
                 "outcome": outcome,
             },
         )
+
+    def _normalize_payload(self, payload: Any) -> AgentPayload | None:
+        if payload is None:
+            return None
+        if isinstance(payload, AgentPayload):
+            return payload
+        if isinstance(payload, BaseModel):
+            return AgentPayload.model_validate(payload.model_dump())
+        if isinstance(payload, dict):
+            return AgentPayload.model_validate(payload)
+        raise TypeError(f"Unsupported agent payload type: {type(payload).__name__}")

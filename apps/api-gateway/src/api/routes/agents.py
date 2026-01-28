@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from agents.runtime import AgentResponse
+
 router = APIRouter()
 
 
@@ -17,16 +19,7 @@ class QueryRequest(BaseModel):
     context: dict[str, Any] | None = None
 
 
-class QueryResponse(BaseModel):
-    """Response model for agent queries."""
-
-    success: bool
-    data: dict[str, Any] | None = None
-    error: str | None = None
-    metadata: dict[str, Any] | None = None
-
-
-@router.post("/query", response_model=QueryResponse)
+@router.post("/query", response_model=AgentResponse)
 async def process_query(request: QueryRequest):
     """
     Process a natural language query through the agent system.
@@ -43,7 +36,7 @@ async def process_query(request: QueryRequest):
             query=request.query,
             context=request.context,
         )
-        return result
+        return AgentResponse.model_validate(result).model_dump()
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

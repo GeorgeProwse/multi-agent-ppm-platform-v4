@@ -49,11 +49,12 @@ async def test_response_orchestration_dependency_dag():
                 "query": "test",
             }
         )
+        payload = result.model_dump()
 
-    assert result["execution_summary"]["total_agents"] == 2
+    assert payload["execution_summary"]["total_agents"] == 2
     assert invocation_order == ["/financial", "/risk"]
     assert any(event["agent_id"] == "financial-management" for event in events)
-    assert "financial-management" in result["aggregated_response"]
+    assert "financial-management" in payload["aggregated_response"]
 
 
 @pytest.mark.asyncio
@@ -85,9 +86,10 @@ async def test_response_orchestration_retries():
                 "query": "test",
             }
         )
+        payload = result.model_dump()
 
     assert attempts["risk"] == 2
-    assert result["agent_results"][0]["success"] is True
+    assert payload["agent_results"][0]["success"] is True
 
 
 @pytest.mark.asyncio
@@ -116,10 +118,12 @@ async def test_response_orchestration_cache_hits():
         }
         first = await agent.process(payload)
         second = await agent.process(payload)
+        first_payload = first.model_dump()
+        second_payload = second.model_dump()
 
     assert calls["count"] == 1
-    assert first["agent_results"][0]["success"] is True
-    assert second["agent_results"][0]["cached"] is True
+    assert first_payload["agent_results"][0]["success"] is True
+    assert second_payload["agent_results"][0]["cached"] is True
 
 
 @pytest.mark.asyncio
@@ -141,8 +145,9 @@ async def test_response_orchestration_timeout_failure():
         result = await agent.process(
             {"routing": [{"agent_id": "risk-management"}], "parameters": {}, "query": "test"}
         )
+        payload = result.model_dump()
 
-    assert result["agent_results"][0]["success"] is False
+    assert payload["agent_results"][0]["success"] is False
 
 
 @pytest.mark.asyncio

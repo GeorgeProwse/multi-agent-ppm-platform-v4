@@ -148,7 +148,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         self._last_validation_error = None
         return True
 
-    async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
+    async def process(self, input_data: dict[str, Any]) -> OrchestrationResponse:
         """
         Orchestrate multi-agent workflow.
 
@@ -176,11 +176,11 @@ class ResponseOrchestrationAgent(BaseAgent):
         tenant_id = context.get("tenant_id") or request.tenant_id or "unknown"
 
         if not routing:
-            return {
-                "aggregated_response": "No agents to invoke",
-                "agent_results": [],
-                "execution_summary": {"total_agents": 0},
-            }
+            return OrchestrationResponse(
+                aggregated_response="No agents to invoke",
+                agent_results=[],
+                execution_summary={"total_agents": 0},
+            )
 
         # Build dependency graph
         execution_plan = await self._build_execution_plan(routing)
@@ -216,7 +216,7 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "failed": len([r for r in results if not r.get("success")]),
             },
         )
-        return response.model_dump()
+        return response
 
     async def _build_execution_plan(self, routing: list[dict[str, Any]]) -> dict[str, Any]:
         """
