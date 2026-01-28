@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Any, cast
 
+from agents.runtime import AgentResponse
+
 from persistence import WorkflowState, build_state_store, make_state_key
 
 from tools.runtime_paths import bootstrap_runtime_paths
@@ -313,25 +315,28 @@ class AgentOrchestrator:
                 "context": {**(context or {}), "correlation_id": correlation_id},
             }
         )
+        intent_response = AgentResponse.model_validate(intent_result)
 
-        if not intent_result["success"]:
+        if not intent_response.success:
             return {
                 "success": False,
                 "error": "Failed to route query",
-                "details": intent_result,
+                "details": intent_response.model_dump(),
             }
+        intent_payload = intent_response.data.model_dump() if intent_response.data else {}
 
         # Step 2: Orchestrate response
         orchestration_result = await self.response_orchestrator.execute(
             {
-                "routing": intent_result["data"]["routing"],
-                "parameters": intent_result["data"]["parameters"],
+                "routing": intent_payload.get("routing", []),
+                "parameters": intent_payload.get("parameters", {}),
                 "query": query,
                 "context": {**(context or {}), "correlation_id": correlation_id},
             }
         )
 
-        return cast(dict[str, Any], orchestration_result)
+        orchestration_response = AgentResponse.model_validate(orchestration_result)
+        return cast(dict[str, Any], orchestration_response.model_dump())
 
     def get_agent(self, agent_id: str):
         """Get agent by ID."""
