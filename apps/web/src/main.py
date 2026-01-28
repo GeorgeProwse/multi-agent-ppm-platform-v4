@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 import jwt
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -36,6 +37,7 @@ from workspace_state import (  # noqa: E402
     WorkspaceState,
 )
 from workspace_state_store import WorkspaceStateStore  # noqa: E402
+from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = WEB_ROOT / "static"
@@ -58,6 +60,7 @@ app.add_middleware(RequestMetricsMiddleware, service_name="web-ui")
 
 knowledge_store: KnowledgeStore | None = None
 workspace_state_store = WorkspaceStateStore(WORKSPACE_STATE_PATH)
+logger = logging.getLogger("web-ui")
 
 
 class HealthResponse(BaseModel):
@@ -291,6 +294,14 @@ class LessonRecommendationRequest(BaseModel):
     limit: int = 5
 
 
+class DocumentCanvasRequest(BaseModel):
+    name: str
+    content: str
+    classification: str
+    retention_days: int
+    metadata: dict[str, Any] = {}
+
+
 @app.on_event("startup")
 async def startup() -> None:
     global knowledge_store
@@ -302,6 +313,18 @@ def _get_knowledge_store() -> KnowledgeStore:
     if knowledge_store is None:
         knowledge_store = KnowledgeStore(KNOWLEDGE_DB_PATH)
     return knowledge_store
+
+
+def _document_client() -> DocumentServiceClient:
+    return DocumentServiceClient()
+
+
+def _raise_upstream_error(response: httpx.Response) -> None:
+    try:
+        detail = response.json()
+    except ValueError:
+        detail = response.text
+    raise HTTPException(status_code=response.status_code, detail=detail)
 
 
 @app.get("/healthz", response_model=HealthResponse)
@@ -1068,14 +1091,104 @@ async def recommend_lessons(payload: LessonRecommendationRequest) -> list[Lesson
     ]
 
 
+@app.post("/api/document-canvas/documents")
+async def create_document_canvas_document(
+    payload: DocumentCanvasRequest, request: Request
+) -> dict[str, Any]:
+    session = _require_session(request)
+    headers = build_forward_headers(request, session)
+    client = _document_client()
+    response = await client.create_document(payload.model_dump(), headers=headers)
+    if response.status_code == 403:
+        logger.info(
+            "document_canvas.create",
+            extra={
+                "tenant_id": session.get("tenant_id"),
+                "project_id": request.query_params.get("project_id"),
+            },
+        )
+        return JSONResponse(status_code=403, content=response.json())
+    if response.status_code >= 400:
+        _raise_upstream_error(response)
+    body = response.json()
+    logger.info(
+        "document_canvas.create",
+        extra={
+            "tenant_id": session.get("tenant_id"),
+            "project_id": request.query_params.get("project_id"),
+            "document_id": body.get("document_id"),
+        },
+    )
+    return body
+
+
+@app.get("/api/document-canvas/documents")
+async def list_document_canvas_documents(request: Request) -> list[dict[str, Any]]:
+    session = _require_session(request)
+    headers = build_forward_headers(request, session)
+    client = _document_client()
+    response = await client.list_documents(headers=headers)
+    if response.status_code >= 400:
+        _raise_upstream_error(response)
+    body = response.json()
+    logger.info(
+        "document_canvas.list",
+        extra={
+            "tenant_id": session.get("tenant_id"),
+            "project_id": request.query_params.get("project_id"),
+        },
+    )
+    return body
+
+
+@app.get("/api/document-canvas/documents/{document_id}")
+async def get_document_canvas_document(
+    document_id: str, request: Request
+) -> dict[str, Any]:
+    session = _require_session(request)
+    headers = build_forward_headers(request, session)
+    client = _document_client()
+    response = await client.get_document(document_id, headers=headers)
+    if response.status_code >= 400:
+        _raise_upstream_error(response)
+    body = response.json()
+    logger.info(
+        "document_canvas.get",
+        extra={
+            "tenant_id": session.get("tenant_id"),
+            "project_id": request.query_params.get("project_id"),
+            "document_id": document_id,
+        },
+    )
+    return body
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
 @app.get("/workspace")
-async def workspace_shell() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+async def workspace_shell() -> HTMLResponse:
+    html = """
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>PPM Workspace</title>
+        <link rel="stylesheet" href="/static/styles.css" />
+        <link rel="stylesheet" href="/static/workspace.css" />
+      </head>
+      <body>
+        <div class="app">
+          <p>Loading workspace...</p>
+        </div>
+        <script src="/static/workspace.js"></script>
+      </body>
+    </html>
+    """
+    return HTMLResponse(html)
 
 
 if __name__ == "__main__":

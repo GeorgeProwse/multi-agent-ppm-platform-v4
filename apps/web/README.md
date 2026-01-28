@@ -92,6 +92,25 @@ Or use the component runner:
 python -m tools.component_runner run --type app --name web
 ```
 
+### Document canvas local run
+
+To exercise the Document canvas end-to-end, run the document service and point the web app to it:
+
+```bash
+cd apps/document-service
+uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+In another terminal, run the web app with the document service URL configured:
+
+```bash
+cd apps/web
+export DOCUMENT_SERVICE_URL=http://localhost:8080
+uvicorn src.main:app --host 0.0.0.0 --port 8501 --reload
+```
+
+Then open `http://localhost:8501/workspace?project_id=demo-1&methodology=hybrid`.
+
 ### Full Stack Development
 
 For full-stack development, run both servers:
@@ -200,6 +219,7 @@ Runtime configuration is supplied via `.env` and service URLs in the repo config
 Key environment variables:
 - `API_GATEWAY_URL`: URL of the API gateway (default: `http://localhost:8000`)
 - `WORKFLOW_ENGINE_URL`: URL of the workflow engine (default: `http://localhost:8082`)
+- `DOCUMENT_SERVICE_URL`: URL of the document service (default: `http://document-service:8080`)
 - `OIDC_*`: OIDC authentication settings (optional for dev mode)
 
 ## Troubleshooting
