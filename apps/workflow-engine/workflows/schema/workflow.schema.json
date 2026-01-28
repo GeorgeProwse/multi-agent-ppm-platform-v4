@@ -47,8 +47,7 @@
         "type": "object",
         "required": [
           "id",
-          "type",
-          "next"
+          "type"
         ],
         "properties": {
           "id": {
@@ -59,6 +58,7 @@
             "enum": [
               "task",
               "decision",
+              "approval",
               "notification"
             ]
           },
@@ -67,6 +67,76 @@
               "string",
               "null"
             ]
+          },
+          "branches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "condition": {
+                  "type": "object",
+                  "required": [
+                    "field",
+                    "operator"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "operator": {
+                      "type": "string",
+                      "enum": [
+                        "equals",
+                        "not_equals",
+                        "greater_than",
+                        "less_than",
+                        "contains",
+                        "exists"
+                      ]
+                    },
+                    "value": {}
+                  },
+                  "additionalProperties": false
+                },
+                "next": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "default_next": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retry": {
+            "type": "object",
+            "properties": {
+              "max_attempts": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "delay_seconds": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 0
           },
           "config": {
             "type": "object"

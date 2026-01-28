@@ -1,6 +1,12 @@
 import { Routes, Route } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
-import { HomePage, WorkspacePage, ConfigPage } from '@/pages';
+import {
+  HomePage,
+  WorkspacePage,
+  ConfigPage,
+  ApprovalsPage,
+  WorkflowMonitoringPage,
+} from '@/pages';
 
 export function App() {
   return (
@@ -36,6 +42,10 @@ export function App() {
           path="/config/templates"
           element={<ConfigPage type="templates" />}
         />
+
+        {/* Workflow pages */}
+        <Route path="/approvals" element={<ApprovalsPage />} />
+        <Route path="/workflows/monitoring" element={<WorkflowMonitoringPage />} />
       </Routes>
     </AppLayout>
   );
