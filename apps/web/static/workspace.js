@@ -84,12 +84,18 @@ const initWorkspace = () => {
     milestones: [],
     editingId: null,
     exportPayload: null,
+    highlightMilestoneId: null,
   };
   const spreadsheetState = {
     sheets: [],
     selectedSheetId: null,
     sheet: null,
     rows: [],
+  };
+  const treeState = {
+    nodes: [],
+    collapsed: new Set(),
+    highlightMilestoneId: null,
   };
   const dashboardState = {
     errors: {
@@ -279,6 +285,299 @@ const initWorkspace = () => {
       return null;
     }
     return response.json();
+  };
+
+  const getTreeFolders = () =>
+    treeState.nodes.filter((node) => node.type === "folder");
+
+  const buildParentOptions = (selectedId) => {
+    const options = [`<option value=\"\">Root</option>`];
+    getTreeFolders().forEach((node) => {
+      const selected = node.node_id === selectedId ? "selected" : "";
+      options.push(`<option value=\"${node.node_id}\" ${selected}>${node.title}</option>`);
+    });
+    return options.join("");
+  };
+
+  const refreshTreeParentSelects = () => {
+    document.querySelectorAll("[data-tree-parent-select]").forEach((select) => {
+      const selectedValue = select.dataset.selectedParent || select.value || "";
+      select.innerHTML = buildParentOptions(selectedValue);
+      select.value = selectedValue;
+    });
+  };
+
+  const renderTreeList = () => {
+    const list = document.getElementById("tree-list");
+    if (!list) {
+      return;
+    }
+    const childrenByParent = new Map();
+    treeState.nodes.forEach((node) => {
+      const key = node.parent_id || "root";
+      if (!childrenByParent.has(key)) {
+        childrenByParent.set(key, []);
+      }
+      childrenByParent.get(key).push(node);
+    });
+    childrenByParent.forEach((children) => {
+      children.sort((a, b) => {
+        if (a.sort_order !== b.sort_order) {
+          return a.sort_order - b.sort_order;
+        }
+        return a.title.localeCompare(b.title);
+      });
+    });
+
+    const buildRow = (node, depth) => {
+      const hasChildren = childrenByParent.has(node.node_id);
+      const isCollapsed = treeState.collapsed.has(node.node_id);
+      const iconMap = {
+        folder: "📁",
+        document: "📄",
+        sheet: "📊",
+        milestone: "🗓️",
+        note: "📝",
+      };
+      const toggle = node.type === "folder"
+        ? `<button type=\"button\" class=\"tree-toggle\" data-action=\"toggle\" aria-label=\"Toggle\" data-node-id=\"${node.node_id}\">
+            ${hasChildren ? (isCollapsed ? "▶" : "▼") : "•"}
+          </button>`
+        : "<span class=\"tree-toggle-placeholder\"></span>";
+      const noteText = node.type === "note" && node.ref?.text
+        ? `<div class=\"tree-note\">${node.ref.text}</div>`
+        : "";
+      const titleButton = ["document", "sheet", "milestone"].includes(node.type)
+        ? `<button type=\"button\" class=\"tree-title-link\" data-action=\"open\" data-node-id=\"${node.node_id}\">${node.title}</button>`
+        : `<span class=\"tree-title\">${node.title}</span>`;
+      return `
+        <li class=\"tree-node\" data-node-id=\"${node.node_id}\" style=\"--tree-depth: ${depth};\">
+          <div class=\"tree-node-row\">
+            ${toggle}
+            <span class=\"tree-icon\">${iconMap[node.type] || "📦"}</span>
+            <div class=\"tree-title-group\">
+              ${titleButton}
+              <span class=\"tree-meta\">${node.type}</span>
+              ${noteText}
+            </div>
+            <div class=\"tree-actions\">
+              <button type=\"button\" class=\"secondary\" data-action=\"rename\" data-node-id=\"${node.node_id}\">Rename</button>
+              <button type=\"button\" class=\"secondary\" data-action=\"delete\" data-node-id=\"${node.node_id}\">Delete</button>
+            </div>
+          </div>
+          <div class=\"tree-move-row\">\n            <label>\n              Parent\n              <select class=\"tree-move-parent\" data-node-id=\"${node.node_id}\" data-tree-parent-select data-selected-parent=\"${node.parent_id || ""}\">\n                ${buildParentOptions(node.parent_id)}\n              </select>\n            </label>\n            <label>\n              Sort\n              <input type=\"number\" class=\"tree-move-sort\" data-node-id=\"${node.node_id}\" value=\"${node.sort_order}\" />\n            </label>\n            <button type=\"button\" class=\"secondary\" data-action=\"move\" data-node-id=\"${node.node_id}\">Move</button>\n          </div>\n        </li>\n      `;
+    };
+
+    const buildTree = (parentId, depth) => {
+      const key = parentId || "root";
+      const children = childrenByParent.get(key) || [];
+      return children
+        .map((child) => {
+          const rows = [buildRow(child, depth)];
+          const isCollapsed = treeState.collapsed.has(child.node_id);
+          if (child.type === "folder" && !isCollapsed) {
+            rows.push(buildTree(child.node_id, depth + 1));
+          }
+          return rows.join("");
+        })
+        .join("");
+    };
+
+    list.innerHTML = buildTree(null, 0) || "<li class=\"tree-empty\">No tree nodes yet.</li>";
+
+    list.querySelectorAll("[data-action=\"toggle\"]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const nodeId = button.dataset.nodeId;
+        if (!nodeId) {
+          return;
+        }
+        if (treeState.collapsed.has(nodeId)) {
+          treeState.collapsed.delete(nodeId);
+        } else {
+          treeState.collapsed.add(nodeId);
+        }
+        renderTreeList();
+      });
+    });
+
+    list.querySelectorAll("[data-action=\"rename\"]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const nodeId = button.dataset.nodeId;
+        if (!nodeId) {
+          return;
+        }
+        const node = treeState.nodes.find((item) => item.node_id === nodeId);
+        const title = window.prompt("Rename node", node?.title || "");
+        if (!title || !title.trim()) {
+          return;
+        }
+        await updateTreeNode(nodeId, { title: title.trim() });
+      });
+    });
+
+    list.querySelectorAll("[data-action=\"delete\"]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const nodeId = button.dataset.nodeId;
+        if (!nodeId) {
+          return;
+        }
+        const node = treeState.nodes.find((item) => item.node_id === nodeId);
+        const confirmed = window.confirm(`Delete node \"${node?.title || ""}\"?`);
+        if (!confirmed) {
+          return;
+        }
+        await deleteTreeNode(nodeId);
+      });
+    });
+
+    list.querySelectorAll("[data-action=\"move\"]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const nodeId = button.dataset.nodeId;
+        if (!nodeId) {
+          return;
+        }
+        const parentSelect = list.querySelector(
+          `.tree-move-parent[data-node-id=\"${nodeId}\"]`,
+        );
+        const sortInput = list.querySelector(
+          `.tree-move-sort[data-node-id=\"${nodeId}\"]`,
+        );
+        const newParentId = parentSelect ? parentSelect.value || null : null;
+        const newSortOrder = sortInput ? Number(sortInput.value) : 0;
+        await moveTreeNode(nodeId, {
+          new_parent_id: newParentId,
+          new_sort_order: Number.isNaN(newSortOrder) ? 0 : newSortOrder,
+        });
+      });
+    });
+
+    list.querySelectorAll("[data-action=\"open\"]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const nodeId = button.dataset.nodeId;
+        const node = treeState.nodes.find((item) => item.node_id === nodeId);
+        if (!node || !node.ref) {
+          return;
+        }
+        if (node.type === "document" && node.ref.document_id) {
+          await openLinkedArtifact({ document_id: node.ref.document_id });
+        }
+        if (node.type === "sheet" && node.ref.sheet_id) {
+          await openLinkedArtifact({ sheet_id: node.ref.sheet_id });
+        }
+        if (node.type === "milestone" && node.ref.milestone_id) {
+          await openLinkedArtifact({ milestone_id: node.ref.milestone_id });
+        }
+      });
+    });
+  };
+
+  const setTreeStatus = (message, isError = false) => {
+    const element = document.getElementById("tree-status");
+    if (!element) {
+      return;
+    }
+    element.textContent = message;
+    element.classList.toggle("is-error", isError);
+  };
+
+  const loadTreeNodes = async () => {
+    setTreeStatus("Loading tree...");
+    const response = await fetch(`/api/tree/${projectId}`);
+    if (!response.ok) {
+      setTreeStatus("Unable to load tree.", true);
+      return;
+    }
+    const payload = await response.json();
+    treeState.nodes = payload.nodes || [];
+    setTreeStatus(`${treeState.nodes.length} node(s).`);
+    renderTreeList();
+    refreshTreeParentSelects();
+  };
+
+  const createTreeNode = async (payload) => {
+    setTreeStatus("");
+    const response = await fetch(`/api/tree/${projectId}/nodes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTreeStatus(result?.detail || "Unable to create node.", true);
+      return;
+    }
+    setTreeStatus("Node created.");
+    await loadTreeNodes();
+  };
+
+  const updateTreeNode = async (nodeId, payload) => {
+    setTreeStatus("");
+    const response = await fetch(`/api/tree/${projectId}/nodes/${nodeId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTreeStatus(result?.detail || "Unable to update node.", true);
+      return;
+    }
+    setTreeStatus("Node updated.");
+    await loadTreeNodes();
+  };
+
+  const moveTreeNode = async (nodeId, payload) => {
+    setTreeStatus("");
+    const response = await fetch(`/api/tree/${projectId}/nodes/${nodeId}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTreeStatus(result?.detail || "Unable to move node.", true);
+      return;
+    }
+    setTreeStatus("Node moved.");
+    await loadTreeNodes();
+  };
+
+  const deleteTreeNode = async (nodeId) => {
+    setTreeStatus("");
+    const response = await fetch(`/api/tree/${projectId}/nodes/${nodeId}`, {
+      method: "DELETE",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTreeStatus(result?.detail || "Unable to delete node.", true);
+      return;
+    }
+    setTreeStatus(`Deleted ${result.deleted_count || 0} node(s).`);
+    await loadTreeNodes();
+  };
+
+  const openLinkedArtifact = async (openRef) => {
+    if (!workspaceState) {
+      return;
+    }
+    let targetTab = "document";
+    if (openRef.sheet_id) {
+      targetTab = "spreadsheet";
+    } else if (openRef.milestone_id) {
+      targetTab = "timeline";
+    } else if (openRef.document_id) {
+      targetTab = "document";
+    }
+    const response = await postSelection({
+      current_canvas_tab: targetTab,
+      current_stage_id: workspaceState.current_stage_id,
+      current_activity_id: workspaceState.current_activity_id,
+      methodology: workspaceState.methodology,
+      open_ref: openRef,
+    });
+    if (response) {
+      updateWorkspaceUI(response);
+    }
   };
 
   const renderDocumentList = () => {
@@ -551,6 +850,279 @@ const initWorkspace = () => {
     });
 
     loadDocumentList();
+    if (workspaceState?.last_opened_document_id) {
+      loadDocumentDetail(workspaceState.last_opened_document_id);
+    }
+  };
+
+  const renderTreeCanvas = () => {
+    const canvas = document.querySelector(".workspace-canvas");
+    if (!canvas) {
+      return;
+    }
+    canvas.innerHTML = `
+      <div class="tree-canvas">
+        <section class="tree-controls">
+          <div class="tree-control-card">
+            <h3>New Folder</h3>
+            <form id="tree-folder-form">
+              <label>
+                Title
+                <input type="text" id="tree-folder-title" required />
+              </label>
+              <label>
+                Parent
+                <select id="tree-folder-parent" data-tree-parent-select></select>
+              </label>
+              <label>
+                Sort order
+                <input type="number" id="tree-folder-sort" value="0" />
+              </label>
+              <button type="submit">Create folder</button>
+            </form>
+          </div>
+          <div class="tree-control-card">
+            <h3>Link Document</h3>
+            <form id="tree-document-form">
+              <label>
+                Title
+                <input type="text" id="tree-document-title" required />
+              </label>
+              <label>
+                Document ID
+                <input type="text" id="tree-document-id" required />
+              </label>
+              <label>
+                Parent
+                <select id="tree-document-parent" data-tree-parent-select></select>
+              </label>
+              <label>
+                Sort order
+                <input type="number" id="tree-document-sort" value="0" />
+              </label>
+              <button type="submit">Link document</button>
+            </form>
+          </div>
+          <div class="tree-control-card">
+            <h3>Link Sheet</h3>
+            <form id="tree-sheet-form">
+              <label>
+                Title
+                <input type="text" id="tree-sheet-title" required />
+              </label>
+              <label>
+                Sheet ID
+                <input type="text" id="tree-sheet-id" required />
+              </label>
+              <label>
+                Parent
+                <select id="tree-sheet-parent" data-tree-parent-select></select>
+              </label>
+              <label>
+                Sort order
+                <input type="number" id="tree-sheet-sort" value="0" />
+              </label>
+              <button type="submit">Link sheet</button>
+            </form>
+          </div>
+          <div class="tree-control-card">
+            <h3>Link Milestone</h3>
+            <form id="tree-milestone-form">
+              <label>
+                Title
+                <input type="text" id="tree-milestone-title" required />
+              </label>
+              <label>
+                Milestone ID
+                <input type="text" id="tree-milestone-id" required />
+              </label>
+              <label>
+                Parent
+                <select id="tree-milestone-parent" data-tree-parent-select></select>
+              </label>
+              <label>
+                Sort order
+                <input type="number" id="tree-milestone-sort" value="0" />
+              </label>
+              <button type="submit">Link milestone</button>
+            </form>
+          </div>
+          <div class="tree-control-card">
+            <h3>New Note</h3>
+            <form id="tree-note-form">
+              <label>
+                Title
+                <input type="text" id="tree-note-title" required />
+              </label>
+              <label>
+                Note text
+                <textarea id="tree-note-text" rows="3"></textarea>
+              </label>
+              <label>
+                Parent
+                <select id="tree-note-parent" data-tree-parent-select></select>
+              </label>
+              <label>
+                Sort order
+                <input type="number" id="tree-note-sort" value="0" />
+              </label>
+              <button type="submit">Create note</button>
+            </form>
+          </div>
+        </section>
+        <section class="tree-list-panel">
+          <div class="tree-list-header">
+            <div>
+              <h3>Artifact tree</h3>
+              <p class="tree-list-subtitle">Folders and linked items for this project.</p>
+            </div>
+            <button type="button" class="secondary" id="tree-refresh">Refresh</button>
+          </div>
+          <ul id="tree-list" class="tree-list"></ul>
+          <p id="tree-status" class="tree-status" role="status" aria-live="polite"></p>
+        </section>
+      </div>
+    `;
+
+    const attachForm = (formId, buildPayload, onSuccess) => {
+      const form = document.getElementById(formId);
+      if (!form) {
+        return;
+      }
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const payload = buildPayload();
+        if (!payload) {
+          return;
+        }
+        await createTreeNode(payload);
+        if (onSuccess) {
+          onSuccess();
+        }
+      });
+    };
+
+    attachForm(
+      "tree-folder-form",
+      () => {
+        const title = document.getElementById("tree-folder-title").value.trim();
+        if (!title) {
+          setTreeStatus("Folder title is required.", true);
+          return null;
+        }
+        return {
+          type: "folder",
+          title,
+          parent_id: document.getElementById("tree-folder-parent").value || null,
+          sort_order: Number(document.getElementById("tree-folder-sort").value) || 0,
+        };
+      },
+      () => {
+        document.getElementById("tree-folder-title").value = "";
+      },
+    );
+
+    attachForm(
+      "tree-document-form",
+      () => {
+        const title = document.getElementById("tree-document-title").value.trim();
+        const documentId = document.getElementById("tree-document-id").value.trim();
+        if (!title || !documentId) {
+          setTreeStatus("Document title and ID are required.", true);
+          return null;
+        }
+        return {
+          type: "document",
+          title,
+          parent_id: document.getElementById("tree-document-parent").value || null,
+          sort_order: Number(document.getElementById("tree-document-sort").value) || 0,
+          ref: { document_id: documentId },
+        };
+      },
+      () => {
+        document.getElementById("tree-document-title").value = "";
+        document.getElementById("tree-document-id").value = "";
+      },
+    );
+
+    attachForm(
+      "tree-sheet-form",
+      () => {
+        const title = document.getElementById("tree-sheet-title").value.trim();
+        const sheetId = document.getElementById("tree-sheet-id").value.trim();
+        if (!title || !sheetId) {
+          setTreeStatus("Sheet title and ID are required.", true);
+          return null;
+        }
+        return {
+          type: "sheet",
+          title,
+          parent_id: document.getElementById("tree-sheet-parent").value || null,
+          sort_order: Number(document.getElementById("tree-sheet-sort").value) || 0,
+          ref: { sheet_id: sheetId },
+        };
+      },
+      () => {
+        document.getElementById("tree-sheet-title").value = "";
+        document.getElementById("tree-sheet-id").value = "";
+      },
+    );
+
+    attachForm(
+      "tree-milestone-form",
+      () => {
+        const title = document.getElementById("tree-milestone-title").value.trim();
+        const milestoneId = document
+          .getElementById("tree-milestone-id")
+          .value.trim();
+        if (!title || !milestoneId) {
+          setTreeStatus("Milestone title and ID are required.", true);
+          return null;
+        }
+        return {
+          type: "milestone",
+          title,
+          parent_id: document.getElementById("tree-milestone-parent").value || null,
+          sort_order: Number(document.getElementById("tree-milestone-sort").value) || 0,
+          ref: { milestone_id: milestoneId },
+        };
+      },
+      () => {
+        document.getElementById("tree-milestone-title").value = "";
+        document.getElementById("tree-milestone-id").value = "";
+      },
+    );
+
+    attachForm(
+      "tree-note-form",
+      () => {
+        const title = document.getElementById("tree-note-title").value.trim();
+        const text = document.getElementById("tree-note-text").value.trim();
+        if (!title) {
+          setTreeStatus("Note title is required.", true);
+          return null;
+        }
+        return {
+          type: "note",
+          title,
+          parent_id: document.getElementById("tree-note-parent").value || null,
+          sort_order: Number(document.getElementById("tree-note-sort").value) || 0,
+          ref: text ? { text } : null,
+        };
+      },
+      () => {
+        document.getElementById("tree-note-title").value = "";
+        document.getElementById("tree-note-text").value = "";
+      },
+    );
+
+    const refreshButton = document.getElementById("tree-refresh");
+    refreshButton.addEventListener("click", () => {
+      loadTreeNodes();
+    });
+
+    refreshTreeParentSelects();
+    loadTreeNodes();
   };
 
   const setTimelineMessage = (message, isError = false) => {
@@ -579,7 +1151,12 @@ const initWorkspace = () => {
       emptyElement.classList.add("is-hidden");
     }
     timelineState.milestones.forEach((milestone) => {
+      const highlight =
+        timelineState.highlightMilestoneId === milestone.milestone_id
+          ? " is-highlighted"
+          : "";
       const row = document.createElement("tr");
+      row.className = highlight.trim();
       row.innerHTML = `
         <td>${milestone.date}</td>
         <td>${milestone.title}</td>
@@ -741,6 +1318,8 @@ const initWorkspace = () => {
       </div>
     `;
 
+    timelineState.highlightMilestoneId =
+      workspaceState?.last_opened_milestone_id || null;
     const form = document.getElementById("timeline-form");
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -1249,6 +1828,9 @@ const initWorkspace = () => {
       </div>
     `;
 
+    if (workspaceState?.last_opened_sheet_id) {
+      spreadsheetState.selectedSheetId = workspaceState.last_opened_sheet_id;
+    }
     const select = document.getElementById("spreadsheet-sheet-select");
     select.addEventListener("change", async () => {
       spreadsheetState.selectedSheetId = select.value || null;
@@ -1736,6 +2318,8 @@ const initWorkspace = () => {
     if (tabName === "document") {
       renderDocumentCanvas();
       renderDocumentDetail(documentState.selected);
+    } else if (tabName === "tree") {
+      renderTreeCanvas();
     } else if (tabName === "timeline") {
       renderTimelineCanvas();
     } else if (tabName === "spreadsheet") {

@@ -39,6 +39,7 @@ from methodologies import available_methodologies, get_methodology_map  # noqa: 
 from workspace_state import (  # noqa: E402
     ActivityCompletionUpdate,
     CanvasTab,
+    OpenRef,
     WorkspaceSelectionUpdate,
     WorkspaceState,
 )
@@ -62,6 +63,16 @@ from spreadsheet_models import (  # noqa: E402
 )
 from timeline_store import TimelineStore  # noqa: E402
 from spreadsheet_store import SpreadsheetStore  # noqa: E402
+from tree_models import (  # noqa: E402
+    TreeDeleteResult,
+    TreeExportResponse,
+    TreeListResponse,
+    TreeMoveRequest,
+    TreeNode,
+    TreeNodeCreate,
+    TreeNodeUpdate,
+)
+from tree_store import TreeStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
 from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
 
@@ -75,6 +86,7 @@ KNOWLEDGE_DB_PATH = DATA_DIR / "knowledge.db"
 WORKSPACE_STATE_PATH = STORAGE_DIR / "workspace_state.json"
 TIMELINES_PATH = STORAGE_DIR / "timelines.json"
 SPREADSHEETS_PATH = STORAGE_DIR / "spreadsheets.json"
+TREES_PATH = STORAGE_DIR / "trees.json"
 
 SESSION_COOKIE = "ppm_session"
 SESSION_STORE: dict[str, dict[str, Any]] = {}
@@ -90,6 +102,7 @@ knowledge_store: KnowledgeStore | None = None
 workspace_state_store = WorkspaceStateStore(WORKSPACE_STATE_PATH)
 timeline_store = TimelineStore(TIMELINES_PATH)
 spreadsheet_store = SpreadsheetStore(SPREADSHEETS_PATH)
+tree_store = TreeStore(TREES_PATH)
 logger = logging.getLogger("web-ui")
 
 
@@ -187,6 +200,9 @@ class WorkspaceStateResponse(BaseModel):
     current_activity_id: str | None = None
     activity_completion: dict[str, bool]
     current_canvas_tab: CanvasTab
+    last_opened_document_id: str | None = None
+    last_opened_sheet_id: str | None = None
+    last_opened_milestone_id: str | None = None
     updated_at: str
     available_methodologies: list[str]
     methodology_map_summary: MethodologyMapSummary
@@ -552,6 +568,9 @@ def _build_workspace_response(state: WorkspaceState) -> WorkspaceStateResponse:
         current_activity_id=state.current_activity_id,
         activity_completion=state.activity_completion,
         current_canvas_tab=state.current_canvas_tab,
+        last_opened_document_id=state.last_opened_document_id,
+        last_opened_sheet_id=state.last_opened_sheet_id,
+        last_opened_milestone_id=state.last_opened_milestone_id,
         updated_at=state.updated_at,
         available_methodologies=available_methodologies(),
         methodology_map_summary=MethodologyMapSummary(
@@ -804,6 +823,15 @@ async def update_workspace_selection(
         raise HTTPException(status_code=422, detail="project_id mismatch")
     tenant_id = session["tenant_id"]
     updates = payload.model_dump(exclude={"project_id"})
+    open_ref = updates.pop("open_ref", None)
+    if open_ref:
+        open_ref = OpenRef.model_validate(open_ref)
+        if open_ref.document_id:
+            updates["last_opened_document_id"] = open_ref.document_id
+        if open_ref.sheet_id:
+            updates["last_opened_sheet_id"] = open_ref.sheet_id
+        if open_ref.milestone_id:
+            updates["last_opened_milestone_id"] = open_ref.milestone_id
     state = workspace_state_store.update_selection(tenant_id, project_id, updates)
     return _build_workspace_response(state)
 
@@ -818,6 +846,101 @@ async def update_activity_completion(
         tenant_id, project_id, payload.activity_id, payload.completed
     )
     return _build_workspace_response(state)
+
+
+@app.get("/api/tree/{project_id}", response_model=TreeListResponse)
+async def list_tree_nodes(project_id: str, request: Request) -> TreeListResponse:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    nodes = tree_store.list_nodes(tenant_id, project_id)
+    logger.info(
+        "tree.list",
+        extra={"tenant_id": tenant_id, "project_id": project_id},
+    )
+    return TreeListResponse(tenant_id=tenant_id, project_id=project_id, nodes=nodes)
+
+
+@app.post("/api/tree/{project_id}/nodes", response_model=TreeNode)
+async def create_tree_node(
+    project_id: str, payload: TreeNodeCreate, request: Request
+) -> TreeNode:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    try:
+        node = tree_store.create_node(tenant_id, project_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    logger.info(
+        "tree.create",
+        extra={"tenant_id": tenant_id, "project_id": project_id, "node_id": node.node_id},
+    )
+    return node
+
+
+@app.patch("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeNode)
+async def update_tree_node(
+    project_id: str, node_id: str, payload: TreeNodeUpdate, request: Request
+) -> TreeNode:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    try:
+        node = tree_store.update_node(tenant_id, project_id, node_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not node:
+        raise HTTPException(status_code=404, detail="Tree node not found")
+    logger.info(
+        "tree.update",
+        extra={"tenant_id": tenant_id, "project_id": project_id, "node_id": node_id},
+    )
+    return node
+
+
+@app.post("/api/tree/{project_id}/nodes/{node_id}/move", response_model=TreeNode)
+async def move_tree_node(
+    project_id: str, node_id: str, payload: TreeMoveRequest, request: Request
+) -> TreeNode:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    try:
+        node = tree_store.move_node(tenant_id, project_id, node_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if not node:
+        raise HTTPException(status_code=404, detail="Tree node not found")
+    logger.info(
+        "tree.move",
+        extra={"tenant_id": tenant_id, "project_id": project_id, "node_id": node_id},
+    )
+    return node
+
+
+@app.delete("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeDeleteResult)
+async def delete_tree_node(
+    project_id: str, node_id: str, request: Request
+) -> TreeDeleteResult:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    deleted_count = tree_store.delete_node(tenant_id, project_id, node_id)
+    logger.info(
+        "tree.delete",
+        extra={"tenant_id": tenant_id, "project_id": project_id, "node_id": node_id},
+    )
+    return TreeDeleteResult(deleted=deleted_count > 0, deleted_count=deleted_count)
+
+
+@app.get("/api/tree/{project_id}/export", response_model=TreeExportResponse)
+async def export_tree(project_id: str, request: Request) -> TreeExportResponse:
+    session = _require_session(request)
+    tenant_id = session["tenant_id"]
+    nodes = tree_store.list_nodes(tenant_id, project_id)
+    logger.info(
+        "tree.export",
+        extra={"tenant_id": tenant_id, "project_id": project_id},
+    )
+    return TreeExportResponse(
+        tenant_id=tenant_id, project_id=project_id, exported_at=datetime.now(timezone.utc), nodes=nodes
+    )
 
 
 @app.get("/api/timeline/{project_id}", response_model=TimelineResponse)
