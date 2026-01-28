@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+import json
+import logging
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from typing import Any, Callable, Iterable
 
 import httpx
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
+if str(SECURITY_ROOT) not in sys.path:
+    sys.path.insert(0, str(SECURITY_ROOT))
+
+from security.dlp import redact_payload  # noqa: E402
+
+logger = logging.getLogger("connector-http")
 
 
 @dataclass
@@ -106,6 +119,20 @@ def _extract_items(data: dict[str, Any], path: str | list[str]) -> list[dict[str
     return []
 
 
+def _payload_for_log(kwargs: dict[str, Any]) -> Any | None:
+    if "json" in kwargs:
+        return kwargs.get("json")
+    data = kwargs.get("data")
+    if isinstance(data, (dict, list)):
+        return data
+    if isinstance(data, (str, bytes)):
+        try:
+            return json.loads(data)
+        except (TypeError, ValueError):
+            return str(data)
+    return None
+
+
 class HttpClient:
     def __init__(
         self,
@@ -141,6 +168,17 @@ class HttpClient:
         while True:
             self._rate_limiter.wait()
             try:
+                if logger.isEnabledFor(logging.DEBUG):
+                    payload = _payload_for_log(kwargs)
+                    if payload is not None:
+                        logger.debug(
+                            "connector_http_request",
+                            extra={
+                                "method": method,
+                                "url": url,
+                                "payload": redact_payload(payload),
+                            },
+                        )
                 response = self._client.request(method, url, **kwargs)
             except httpx.RequestError as exc:
                 if attempt >= self._retry.max_retries:
@@ -173,13 +211,24 @@ class HttpClient:
                 response_json = None
                 if "application/json" in content_type:
                     try:
-                        response_json = response.json()
+                        response_json = redact_payload(response.json())
                     except ValueError:
                         response_json = None
+                redacted_text = redact_payload(response.text) if response.text else response.text
+                if logger.isEnabledFor(logging.INFO):
+                    logger.info(
+                        "connector_http_error",
+                        extra={
+                            "method": response.request.method,
+                            "url": str(response.request.url),
+                            "status_code": response.status_code,
+                            "response": response_json or redacted_text,
+                        },
+                    )
                 raise HttpClientError(
                     "HTTP response error",
                     status_code=response.status_code,
-                    response_text=response.text,
+                    response_text=redacted_text,
                     response_json=response_json,
                     request_url=str(response.request.url),
                     request_method=response.request.method,
