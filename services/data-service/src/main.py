@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import importlib
+import inspect
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -15,7 +18,7 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -75,6 +78,21 @@ class EntityResponse(BaseModel):
     data: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+
+
+class ConnectorIngestRequest(BaseModel):
+    connector_name: str
+    tenant_id: str
+    fixture_path: str | None = None
+    live: bool = False
+
+
+class ConnectorIngestResponse(BaseModel):
+    connector_name: str
+    tenant_id: str
+    total_records: int
+    schemas: dict[str, int]
+    ingested_at: datetime
 
 
 app = FastAPI(title="Data Service", version="0.1.0")
@@ -199,6 +217,46 @@ async def list_entities(
     return [_entity_response(record) for record in records]
 
 
+@app.post("/ingest/connector", response_model=ConnectorIngestResponse)
+async def ingest_connector(
+    request: ConnectorIngestRequest, store: DataServiceStore = Depends(get_store)
+) -> ConnectorIngestResponse:
+    module = _load_connector_module(request.connector_name)
+    fixture_path = _resolve_fixture_path(request.connector_name, request.fixture_path)
+    if request.live and fixture_path is None:
+        fixture_path = None
+    records = _invoke_connector(
+        module,
+        fixture_path,
+        request.tenant_id,
+        live=request.live,
+    )
+    grouped = _group_records_by_schema(records)
+    schemas: dict[str, int] = {}
+    for schema_name, items in grouped.items():
+        schema_record = await _resolve_schema(schema_name, None, store)
+        for item in items:
+            payload = dict(item)
+            payload["tenant_id"] = request.tenant_id
+            _validate_payload(schema_record, payload)
+            await store.store_entity(
+                entity_id=payload.get("id") or str(uuid4()),
+                tenant_id=request.tenant_id,
+                schema_name=schema_name,
+                schema_version=schema_record.version,
+                payload=payload,
+            )
+        schemas[schema_name] = len(items)
+    total = sum(schemas.values())
+    return ConnectorIngestResponse(
+        connector_name=request.connector_name,
+        tenant_id=request.tenant_id,
+        total_records=total,
+        schemas=schemas,
+        ingested_at=datetime.now(timezone.utc),
+    )
+
+
 def _schema_response(record: SchemaRecord) -> SchemaResponse:
     return SchemaResponse(
         name=record.name,
@@ -238,6 +296,52 @@ async def _resolve_schema(
     if not record:
         raise HTTPException(status_code=404, detail="Schema not found")
     return record
+
+
+def _load_connector_module(connector_name: str):
+    try:
+        return importlib.import_module(f"connectors.{connector_name}.src.main")
+    except ModuleNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Connector not found") from exc
+
+
+def _resolve_fixture_path(connector_name: str, fixture_path: str | None) -> Path | None:
+    if fixture_path:
+        path = Path(fixture_path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Fixture file not found")
+        return path
+    default_fixture = (
+        REPO_ROOT / "connectors" / connector_name / "tests" / "fixtures" / "projects.json"
+    )
+    if default_fixture.exists():
+        return default_fixture
+    return None
+
+
+def _invoke_connector(module, fixture_path: Path | None, tenant_id: str, *, live: bool) -> list[dict[str, Any]]:
+    run_sync = getattr(module, "run_sync", None)
+    if run_sync is None:
+        raise HTTPException(status_code=400, detail="Connector missing run_sync entrypoint")
+    parameters = inspect.signature(run_sync).parameters
+    kwargs: dict[str, Any] = {}
+    if "live" in parameters:
+        kwargs["live"] = live
+    if "include_schema" in parameters:
+        kwargs["include_schema"] = True
+    if fixture_path is None and "live" not in parameters:
+        raise HTTPException(status_code=422, detail="Fixture path is required for this connector")
+    return run_sync(fixture_path, tenant_id, **kwargs)
+
+
+def _group_records_by_schema(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for record in records:
+        schema_name = record.pop("schema_name", None)
+        if not schema_name:
+            continue
+        grouped[schema_name].append(record)
+    return grouped
 
 
 if __name__ == "__main__":

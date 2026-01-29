@@ -22,17 +22,18 @@ def run_sync(
     *,
     live: bool = False,
     connector: ClarityConnector | None = None,
+    include_schema: bool = False,
 ) -> list[dict[str, Any]]:
     runtime = ConnectorRuntime(CONNECTOR_ROOT)
     if fixture_path and not live:
-        return runtime.run_sync(fixture_path, tenant_id)
+        return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
     if connector is None:
         instance_url = resolve_secret(os.getenv("CLARITY_INSTANCE_URL")) or ""
         connector = create_clarity_connector(instance_url=instance_url)
 
     records = _ensure_source(connector.read("projects"), "project")
-    return runtime.apply_mappings(records, tenant_id)
+    return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
 
 
 if __name__ == "__main__":

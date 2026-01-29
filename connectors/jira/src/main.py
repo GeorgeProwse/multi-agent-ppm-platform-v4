@@ -157,17 +157,18 @@ def run_sync(
     live: bool = False,
     client: HttpClient | None = None,
     config: JiraConfig | None = None,
+    include_schema: bool = False,
 ) -> list[dict[str, Any]]:
     runtime = ConnectorRuntime(CONNECTOR_ROOT)
     if fixture_path and not live:
-        return runtime.run_sync(fixture_path, tenant_id)
+        return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
     rate_limit = runtime.manifest.sync.get("rate_limit_per_minute", 60)
     config = config or JiraConfig.from_env(rate_limit)
     client = client or _build_client(config)
     records = _fetch_projects(client)
     records.extend(_fetch_issues(client))
-    return runtime.apply_mappings(records, tenant_id)
+    return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
 
 
 if __name__ == "__main__":

@@ -8,9 +8,11 @@ from connectors.sdk.src.runtime import ConnectorRuntime
 CONNECTOR_ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_sync(fixture_path: Path, tenant_id: str) -> list[dict[str, Any]]:
+def run_sync(
+    fixture_path: Path, tenant_id: str, *, include_schema: bool = False
+) -> list[dict[str, Any]]:
     runtime = ConnectorRuntime(CONNECTOR_ROOT)
-    return runtime.run_sync(fixture_path, tenant_id)
+    return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
 
 if __name__ == "__main__":

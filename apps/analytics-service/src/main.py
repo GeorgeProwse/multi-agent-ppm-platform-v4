@@ -32,6 +32,14 @@ from observability.metrics import (  # noqa: E402
 )
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from health import HealthSnapshotStore  # noqa: E402
+from kpi_engine import (  # noqa: E402
+    AnalyticsDataClient,
+    AnalyticsKpiEngine,
+    KpiSnapshot,
+    apply_what_if_adjustments,
+    generate_narrative,
+)
+from metrics_store import MetricsStore  # noqa: E402
 from scheduler import AnalyticsScheduler  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
 
@@ -50,6 +58,9 @@ run_loop_task: asyncio.Task | None = None
 kpi_handles = build_kpi_handles("analytics-service")
 _last_scheduler_run_ts: float | None = None
 health_snapshot_store: HealthSnapshotStore | None = None
+metrics_store: MetricsStore | None = None
+kpi_engine: AnalyticsKpiEngine | None = None
+data_client: AnalyticsDataClient | None = None
 
 DEFAULT_HEALTH_HISTORY_LIMIT = int(os.getenv("ANALYTICS_HEALTH_HISTORY_LIMIT", "20"))
 DEFAULT_HEALTH_SNAPSHOT_DB = os.getenv(
@@ -60,6 +71,11 @@ DEFAULT_LIFECYCLE_HEALTH_STORE = os.getenv(
     "PROJECT_HEALTH_HISTORY_PATH",
     "data/project_health_history.json",
 )
+DEFAULT_METRICS_DB = os.getenv(
+    "ANALYTICS_METRICS_DB",
+    "apps/analytics-service/storage/metrics.db",
+)
+DEFAULT_DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:8081")
 
 jobs_scheduled = configure_metrics("analytics-service").create_counter(
     name="analytics_jobs_scheduled_total",
@@ -160,6 +176,37 @@ class WhatIfResponse(BaseModel):
     message: str
 
 
+class KpiMetricResponse(BaseModel):
+    name: str
+    value: float | None
+    normalized: float
+
+
+class ProjectKpiResponse(BaseModel):
+    project_id: str
+    metrics: list[KpiMetricResponse]
+    computed_at: str
+
+
+class NarrativeResponse(BaseModel):
+    project_id: str
+    summary: str
+    highlights: list[str]
+    risks: list[str]
+    opportunities: list[str]
+    data_quality_notes: list[str]
+    computed_at: str
+
+
+class WhatIfDetailResponse(BaseModel):
+    project_id: str
+    scenario_id: str
+    status: str
+    baseline: ProjectKpiResponse
+    adjusted: ProjectKpiResponse
+    narrative: NarrativeResponse
+
+
 def _job_to_response(job) -> JobResponse:
     return JobResponse(
         job_id=job.job_id,
@@ -233,28 +280,13 @@ def _load_lifecycle_health(tenant_id: str, project_id: str) -> dict[str, Any] | 
     records = sorted(records, key=lambda item: _parse_timestamp(item.get("monitored_at")))
     return records[-1]
 
-
-def _build_synthetic_health(project_id: str) -> dict[str, Any]:
-    seed = sum(ord(char) for char in project_id)
-    schedule_variance = ((seed % 25) - 12) / 100
-    cost_variance = ((seed // 3 % 20) - 7) / 100
-    risk_score = (seed % 30) / 100
-    quality_score = 0.75 + (seed % 15) / 100
-    resource_utilization = 0.7 + (seed % 25) / 100
-
-    raw_metrics = {
-        "schedule_variance": schedule_variance,
-        "cost_variance": cost_variance,
-        "risk_score": risk_score,
-        "quality_score": quality_score,
-        "resource_utilization": resource_utilization,
-    }
-
-    schedule_health = normalize_metric_value("schedule_variance", schedule_variance)
-    cost_health = normalize_metric_value("cost_variance", cost_variance)
-    risk_health = normalize_metric_value("risk_score", risk_score)
-    quality_health = normalize_metric_value("quality_score", quality_score)
-    resource_health = normalize_metric_value("resource_utilization", resource_utilization)
+def _build_health_from_kpis(snapshot: KpiSnapshot) -> dict[str, Any]:
+    raw_metrics = snapshot.metrics
+    schedule_health = snapshot.normalized.get("schedule_variance", 0.0)
+    cost_health = snapshot.normalized.get("cost_variance", 0.0)
+    risk_health = snapshot.normalized.get("risk_score", 0.0)
+    quality_health = snapshot.normalized.get("quality_score", 0.0)
+    resource_health = snapshot.normalized.get("resource_utilization", 0.0)
 
     weights = {"schedule": 0.25, "cost": 0.25, "risk": 0.2, "quality": 0.15, "resource": 0.15}
     composite_score = (
@@ -277,41 +309,41 @@ def _build_synthetic_health(project_id: str) -> dict[str, Any]:
     warnings = _detect_warnings(raw_metrics)
 
     return {
-        "project_id": project_id,
+        "project_id": snapshot.project_id,
         "composite_score": composite_score,
         "health_status": _determine_health_status(composite_score),
         "metrics": {
             "schedule": {
                 "score": schedule_health,
                 "status": _metric_status(schedule_health),
-                "raw": schedule_variance,
+                "raw": raw_metrics.get("schedule_variance"),
             },
             "cost": {
                 "score": cost_health,
                 "status": _metric_status(cost_health),
-                "raw": cost_variance,
+                "raw": raw_metrics.get("cost_variance"),
             },
             "risk": {
                 "score": risk_health,
                 "status": _metric_status(risk_health),
-                "raw": risk_score,
+                "raw": raw_metrics.get("risk_score"),
             },
             "quality": {
                 "score": quality_health,
                 "status": _metric_status(quality_health),
-                "raw": quality_score,
+                "raw": raw_metrics.get("quality_score"),
             },
             "resource": {
                 "score": resource_health,
                 "status": _metric_status(resource_health),
-                "raw": resource_utilization,
+                "raw": raw_metrics.get("resource_utilization"),
             },
         },
         "raw_metrics": raw_metrics,
         "concerns": concerns,
         "warnings": warnings,
         "recommendations": generate_recommendations(concerns),
-        "monitored_at": datetime.now(timezone.utc).isoformat(),
+        "monitored_at": snapshot.computed_at.isoformat(),
     }
 
 
@@ -361,7 +393,7 @@ async def _run_scheduler_loop() -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
-    global scheduler, run_loop_task, health_snapshot_store
+    global scheduler, run_loop_task, health_snapshot_store, metrics_store, kpi_engine, data_client
     db_path = Path(
         os.getenv("ANALYTICS_SCHEDULER_DB", "apps/analytics-service/storage/scheduler.db")
     )
@@ -371,12 +403,17 @@ async def startup() -> None:
     health_snapshot_store = HealthSnapshotStore(
         Path(DEFAULT_HEALTH_SNAPSHOT_DB), history_limit=DEFAULT_HEALTH_HISTORY_LIMIT
     )
+    metrics_store = MetricsStore(Path(DEFAULT_METRICS_DB))
+    data_client = AnalyticsDataClient(DEFAULT_DATA_SERVICE_URL)
+    kpi_engine = AnalyticsKpiEngine(data_client, metrics_store)
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
     if run_loop_task:
         run_loop_task.cancel()
+    if data_client:
+        await data_client.close()
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -431,10 +468,38 @@ async def run_job(job_id: str, request: Request) -> JobResponse:
 @app.get("/api/projects/{project_id}/health", response_model=ProjectHealthResponse)
 async def get_project_health(project_id: str, request: Request) -> ProjectHealthResponse:
     assert health_snapshot_store is not None
+    assert kpi_engine is not None
     tenant_id = request.state.auth.tenant_id
     lifecycle_data = _load_lifecycle_health(tenant_id, project_id)
     if lifecycle_data is None:
-        lifecycle_data = _build_synthetic_health(project_id)
+        try:
+            snapshot = await kpi_engine.compute_kpis(project_id, tenant_id)
+            lifecycle_data = _build_health_from_kpis(snapshot)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception(
+                "kpi_computation_failed", extra={"project_id": project_id, "error": str(exc)}
+            )
+            lifecycle_data = _build_health_from_kpis(
+                KpiSnapshot(
+                    project_id=project_id,
+                    tenant_id=tenant_id,
+                    computed_at=datetime.now(timezone.utc),
+                    metrics={
+                        "schedule_variance": None,
+                        "cost_variance": None,
+                        "risk_score": None,
+                        "quality_score": None,
+                        "resource_utilization": None,
+                    },
+                    normalized={
+                        "schedule_variance": 0.0,
+                        "cost_variance": 0.0,
+                        "risk_score": 0.0,
+                        "quality_score": 0.0,
+                        "resource_utilization": 0.0,
+                    },
+                )
+            )
     if lifecycle_data.get("project_id") is None:
         lifecycle_data["project_id"] = project_id
     health_snapshot_store.add_snapshot(tenant_id, project_id, lifecycle_data)
@@ -447,24 +512,53 @@ async def get_project_health_trends(
     project_id: str, request: Request
 ) -> HealthTrendResponse:
     assert health_snapshot_store is not None
+    assert metrics_store is not None
+    assert kpi_engine is not None
     tenant_id = request.state.auth.tenant_id
-    snapshots = health_snapshot_store.list_snapshots(tenant_id, project_id)
-    if not snapshots:
-        snapshot = _build_synthetic_health(project_id)
-        snapshots = health_snapshot_store.add_snapshot(tenant_id, project_id, snapshot)
+    snapshots = metrics_store.list_snapshots(tenant_id, project_id, limit=DEFAULT_HEALTH_HISTORY_LIMIT)
     points: list[HealthTrendPoint] = []
     for snapshot in snapshots:
-        metrics = snapshot.get("metrics", {})
         points.append(
             HealthTrendPoint(
-                timestamp=str(snapshot.get("monitored_at", "")),
-                composite_score=float(snapshot.get("composite_score", 0.0)),
+                timestamp=snapshot.captured_at.isoformat(),
+                composite_score=float(
+                    sum(normalize_metric_value(name, value) for name, value in snapshot.metrics.items())
+                    / max(len(snapshot.metrics), 1)
+                ),
                 metrics={
-                    "schedule": float(metrics.get("schedule", {}).get("score", 0.0)),
-                    "cost": float(metrics.get("cost", {}).get("score", 0.0)),
-                    "risk": float(metrics.get("risk", {}).get("score", 0.0)),
-                    "resource": float(metrics.get("resource", {}).get("score", 0.0)),
-                    "quality": float(metrics.get("quality", {}).get("score", 0.0)),
+                    "schedule": normalize_metric_value(
+                        "schedule_variance", snapshot.metrics.get("schedule_variance")
+                    ),
+                    "cost": normalize_metric_value(
+                        "cost_variance", snapshot.metrics.get("cost_variance")
+                    ),
+                    "risk": normalize_metric_value(
+                        "risk_score", snapshot.metrics.get("risk_score")
+                    ),
+                    "resource": normalize_metric_value(
+                        "resource_utilization", snapshot.metrics.get("resource_utilization")
+                    ),
+                    "quality": normalize_metric_value(
+                        "quality_score", snapshot.metrics.get("quality_score")
+                    ),
+                },
+            )
+        )
+    if not points:
+        snapshot = await kpi_engine.compute_kpis(project_id, tenant_id)
+        health_snapshot_store.add_snapshot(tenant_id, project_id, _build_health_from_kpis(snapshot))
+        points.append(
+            HealthTrendPoint(
+                timestamp=snapshot.computed_at.isoformat(),
+                composite_score=float(
+                    sum(snapshot.normalized.values()) / max(len(snapshot.normalized), 1)
+                ),
+                metrics={
+                    "schedule": snapshot.normalized.get("schedule_variance", 0.0),
+                    "cost": snapshot.normalized.get("cost_variance", 0.0),
+                    "risk": snapshot.normalized.get("risk_score", 0.0),
+                    "resource": snapshot.normalized.get("resource_utilization", 0.0),
+                    "quality": snapshot.normalized.get("quality_score", 0.0),
                 },
             )
         )
@@ -496,6 +590,80 @@ async def request_health_what_if(
         scenario_id=scenario_id,
         status="queued",
         message="What-if analysis queued. A detailed response will be available soon.",
+    )
+
+
+@app.get("/api/projects/{project_id}/kpis", response_model=ProjectKpiResponse)
+async def get_project_kpis(project_id: str, request: Request) -> ProjectKpiResponse:
+    assert kpi_engine is not None
+    tenant_id = request.state.auth.tenant_id
+    snapshot = await kpi_engine.compute_kpis(project_id, tenant_id)
+    kpi_handles.requests.add(1, {"operation": "get_project_kpis", "tenant_id": tenant_id})
+    return _snapshot_to_response(snapshot)
+
+
+@app.get("/api/projects/{project_id}/kpis/narrative", response_model=NarrativeResponse)
+async def get_project_kpi_narrative(project_id: str, request: Request) -> NarrativeResponse:
+    assert kpi_engine is not None
+    tenant_id = request.state.auth.tenant_id
+    snapshot = await kpi_engine.compute_kpis(project_id, tenant_id)
+    narrative = generate_narrative(snapshot)
+    kpi_handles.requests.add(1, {"operation": "get_kpi_narrative", "tenant_id": tenant_id})
+    return NarrativeResponse(
+        project_id=project_id,
+        summary=narrative.summary,
+        highlights=narrative.highlights,
+        risks=narrative.risks,
+        opportunities=narrative.opportunities,
+        data_quality_notes=narrative.data_quality_notes,
+        computed_at=snapshot.computed_at.isoformat(),
+    )
+
+
+@app.post(
+    "/api/projects/{project_id}/kpis/what-if", response_model=WhatIfDetailResponse
+)
+async def run_kpi_what_if(
+    project_id: str, request: Request, payload: WhatIfRequest
+) -> WhatIfDetailResponse:
+    assert kpi_engine is not None
+    tenant_id = request.state.auth.tenant_id
+    baseline = await kpi_engine.compute_kpis(project_id, tenant_id)
+    adjusted = apply_what_if_adjustments(baseline, payload.adjustments)
+    narrative = generate_narrative(adjusted)
+    scenario_id = f"whatif-{project_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    kpi_handles.requests.add(1, {"operation": "kpi_what_if", "tenant_id": tenant_id})
+    return WhatIfDetailResponse(
+        project_id=project_id,
+        scenario_id=scenario_id,
+        status="completed",
+        baseline=_snapshot_to_response(baseline),
+        adjusted=_snapshot_to_response(adjusted),
+        narrative=NarrativeResponse(
+            project_id=project_id,
+            summary=narrative.summary,
+            highlights=narrative.highlights,
+            risks=narrative.risks,
+            opportunities=narrative.opportunities,
+            data_quality_notes=narrative.data_quality_notes,
+            computed_at=adjusted.computed_at.isoformat(),
+        ),
+    )
+
+
+def _snapshot_to_response(snapshot: KpiSnapshot) -> ProjectKpiResponse:
+    metrics = [
+        KpiMetricResponse(
+            name=name,
+            value=value,
+            normalized=snapshot.normalized.get(name, 0.0),
+        )
+        for name, value in snapshot.metrics.items()
+    ]
+    return ProjectKpiResponse(
+        project_id=snapshot.project_id,
+        metrics=metrics,
+        computed_at=snapshot.computed_at.isoformat(),
     )
 
 
