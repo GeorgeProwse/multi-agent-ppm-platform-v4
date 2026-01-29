@@ -134,6 +134,38 @@ jobs:
       - name: Build documentation
         run: mkdocs build --strict
 
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6c905123d42df6a6d1282463edb1d95830f705a5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: apps/web/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web/frontend
+        run: |
+          npm ci
+          npm install --no-save @vitest/coverage-v8
+
+      - name: Run frontend tests with coverage
+        working-directory: apps/web/frontend
+        run: |
+          npx vitest run --coverage --coverage.reporter=lcov --coverage.reporter=text
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@3e0b0c4b3f1a3da48b6b0b9a1f401d4d2f1d8d3e
+        with:
+          file: ./apps/web/frontend/coverage/lcov.info
+          flags: frontend
+          name: codecov-frontend
+
   content-scan:
     name: Content Hygiene Scan
     runs-on: ubuntu-latest
