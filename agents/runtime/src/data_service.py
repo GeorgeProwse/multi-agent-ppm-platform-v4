@@ -28,6 +28,34 @@ class DataServiceClient:
         response.raise_for_status()
         return response.json()
 
+    async def list_schemas(self, *, tenant_id: str) -> list[dict[str, Any]]:
+        response = await self.client.get("/schemas", headers=_headers(tenant_id))
+        response.raise_for_status()
+        return response.json()
+
+    async def list_schema_versions(self, schema_name: str, *, tenant_id: str) -> list[dict[str, Any]]:
+        response = await self.client.get(
+            f"/schemas/{schema_name}/versions", headers=_headers(tenant_id)
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get_latest_schema(self, schema_name: str, *, tenant_id: str) -> dict[str, Any]:
+        response = await self.client.get(
+            f"/schemas/{schema_name}/latest", headers=_headers(tenant_id)
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get_schema_version(
+        self, schema_name: str, version: int, *, tenant_id: str
+    ) -> dict[str, Any]:
+        response = await self.client.get(
+            f"/schemas/{schema_name}/versions/{version}", headers=_headers(tenant_id)
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def store_entity(
         self,
         schema_name: str,

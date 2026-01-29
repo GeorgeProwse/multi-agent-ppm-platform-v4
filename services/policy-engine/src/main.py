@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+import httpx
 from fastapi import FastAPI, HTTPException
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import BaseModel, Field
@@ -63,6 +64,26 @@ configure_tracing("policy-engine")
 configure_metrics("policy-engine")
 app.add_middleware(TraceMiddleware, service_name="policy-engine")
 app.add_middleware(RequestMetricsMiddleware, service_name="policy-engine")
+
+
+@app.on_event("startup")
+async def register_policy_schema() -> None:
+    data_service_url = os.getenv("DATA_SERVICE_URL")
+    if not data_service_url:
+        return
+    schema = yaml.safe_load(SCHEMA_PATH.read_text())
+    payload = {"name": "policy-bundle", "schema": schema}
+    tenant_id = os.getenv("DATA_SERVICE_TENANT_ID", "system")
+    try:
+        async with httpx.AsyncClient(base_url=data_service_url.rstrip("/"), timeout=10.0) as client:
+            response = await client.post(
+                "/schemas", json=payload, headers={"X-Tenant-ID": tenant_id}
+            )
+            if response.status_code not in {200, 409}:
+                response.raise_for_status()
+        logger.info("policy_schema_registered", extra={"status_code": response.status_code})
+    except httpx.HTTPError as exc:
+        logger.warning("policy_schema_registration_failed", extra={"error": str(exc)})
 
 
 @app.get("/healthz", response_model=HealthResponse)

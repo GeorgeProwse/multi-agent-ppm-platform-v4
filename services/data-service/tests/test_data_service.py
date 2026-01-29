@@ -4,7 +4,10 @@ import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+
+pytest.importorskip("aiosqlite")
 
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = SERVICE_ROOT / "src" / "main.py"
