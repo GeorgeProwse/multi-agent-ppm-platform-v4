@@ -90,3 +90,41 @@ def test_schema_registration_and_entity_storage(monkeypatch, tmp_path) -> None:
         assert response.status_code == 200
         fetched = response.json()
         assert fetched["data"] == entity_payload
+
+
+def test_connector_ingest(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("DATA_SERVICE_DATABASE_URL", _database_url(tmp_path))
+    monkeypatch.setenv("DATA_SERVICE_LOAD_SEED_SCHEMAS", "true")
+
+    fixture = (
+        Path(__file__).resolve().parents[3]
+        / "connectors"
+        / "jira"
+        / "tests"
+        / "fixtures"
+        / "projects.json"
+    )
+
+    with TestClient(module.app) as client:
+        response = client.post(
+            "/ingest/connector",
+            json={
+                "connector_name": "jira",
+                "tenant_id": "tenant-a",
+                "fixture_path": str(fixture),
+                "live": False,
+            },
+            headers=_auth_headers(monkeypatch),
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["schemas"]["project"] == 1
+
+        response = client.get(
+            "/entities/project",
+            params={"tenant_id": "tenant-a", "limit": 5},
+            headers=_auth_headers(monkeypatch),
+        )
+        assert response.status_code == 200
+        entities = response.json()
+        assert entities[0]["data"]["id"] == "proj-100"

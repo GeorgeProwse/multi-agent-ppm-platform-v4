@@ -127,10 +127,11 @@ def run_sync(
     client: HttpClient | None = None,
     config: PlanviewConfig | None = None,
     token_manager: OAuth2TokenManager | None = None,
+    include_schema: bool = False,
 ) -> list[dict[str, Any]]:
     runtime = ConnectorRuntime(CONNECTOR_ROOT)
     if fixture_path and not live:
-        return runtime.run_sync(fixture_path, tenant_id)
+        return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
     rate_limit = runtime.manifest.sync.get("rate_limit_per_minute", 200)
     config = config or PlanviewConfig.from_env(rate_limit)
@@ -148,7 +149,7 @@ def run_sync(
     else:
         client.set_header("Authorization", f"Bearer {token_manager.get_access_token()}")
     records = _fetch_projects(client, token_manager)
-    return runtime.apply_mappings(records, tenant_id)
+    return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ class MappingSpec:
     source: str
     target: str
     fields: list[dict[str, str]]
+    schema: str | None = None
 
 
 class ConnectorRuntime:
@@ -59,6 +60,7 @@ class ConnectorRuntime:
             source=data["source"],
             target=data["target"],
             fields=data.get("fields", []),
+            schema=data.get("schema") or data.get("target"),
         )
 
     def _apply_mapping(self, record: dict[str, Any], mapping: MappingSpec, tenant_id: str) -> dict[str, Any]:
@@ -70,7 +72,9 @@ class ConnectorRuntime:
                 mapped[target_field] = record.get(source_field)
         return mapped
 
-    def apply_mappings(self, records: list[dict[str, Any]], tenant_id: str) -> list[dict[str, Any]]:
+    def apply_mappings(
+        self, records: list[dict[str, Any]], tenant_id: str, include_schema: bool = False
+    ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         mapping_specs = [
             self._load_mapping(self.connector_root / mapping["mapping_file"])
@@ -80,14 +84,19 @@ class ConnectorRuntime:
             for spec in mapping_specs:
                 if record.get("source") and record.get("source") != spec.source:
                     continue
-                results.append(self._apply_mapping(record, spec, tenant_id))
+                mapped = self._apply_mapping(record, spec, tenant_id)
+                if include_schema:
+                    mapped["schema_name"] = spec.schema or spec.target
+                results.append(mapped)
         return results
 
-    def run_sync(self, fixture_path: Path, tenant_id: str) -> list[dict[str, Any]]:
+    def run_sync(
+        self, fixture_path: Path, tenant_id: str, include_schema: bool = False
+    ) -> list[dict[str, Any]]:
         raw = json.loads(fixture_path.read_text())
         if not isinstance(raw, list):
             raise ValueError("Fixture must be a list of records")
-        return self.apply_mappings(raw, tenant_id)
+        return self.apply_mappings(raw, tenant_id, include_schema=include_schema)
 
     def store_canonical_entities(
         self,

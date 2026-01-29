@@ -118,10 +118,11 @@ def run_sync(
     token_client: HttpClient | None = None,
     transport: Any | None = None,
     config: ServiceNowConfig | None = None,
+    include_schema: bool = False,
 ) -> list[dict[str, Any]]:
     runtime = ConnectorRuntime(CONNECTOR_ROOT)
     if fixture_path and not live:
-        return runtime.run_sync(fixture_path, tenant_id)
+        return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
     rate_limit = runtime.manifest.sync.get("rate_limit_per_minute", 60)
     config = config or ServiceNowConfig.from_env(runtime.manifest.auth, rate_limit)
@@ -136,7 +137,7 @@ def run_sync(
     access_token = token_manager.get_access_token()
     api_client = client or _build_api_client(config, access_token, transport=transport)
     records = _fetch_projects(api_client)
-    return runtime.apply_mappings(records, tenant_id)
+    return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
 
 
 if __name__ == "__main__":
