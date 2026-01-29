@@ -10,7 +10,7 @@
     "category": {"type": "string", "enum": ["software", "services", "consulting", "hardware"]},
     "status": {"type": "string", "enum": ["active", "inactive", "pending"]},
     "owner": {"type": "string"},
-    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
     "created_at": {"type": "string", "format": "date-time"},
     "updated_at": {"type": "string", "format": "date-time"}
   },

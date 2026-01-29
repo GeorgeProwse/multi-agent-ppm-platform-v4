@@ -9,7 +9,7 @@
     "name": {"type": "string"},
     "status": {"type": "string", "enum": ["planning", "active", "archived"]},
     "owner": {"type": "string"},
-    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
     "created_at": {"type": "string", "format": "date-time"},
     "updated_at": {"type": "string", "format": "date-time"}
   },

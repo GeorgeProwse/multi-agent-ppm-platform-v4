@@ -41,3 +41,42 @@ def test_new_schemas_validate() -> None:
     for schema_name in schema_names:
         schema = json.loads((schema_dir / schema_name).read_text())
         Draft202012Validator.check_schema(schema)
+
+
+def test_schema_enum_consistency() -> None:
+    schema_dir = REPO_ROOT / "data" / "schemas"
+    classification_enum = ["public", "internal", "confidential", "restricted"]
+    classification_schemas = [
+        "audit-event.schema.json",
+        "budget.schema.json",
+        "document.schema.json",
+        "issue.schema.json",
+        "portfolio.schema.json",
+        "program.schema.json",
+        "project.schema.json",
+        "risk.schema.json",
+        "vendor.schema.json",
+        "work-item.schema.json",
+    ]
+    status_enums = {
+        "budget.schema.json": ["draft", "approved", "committed"],
+        "document.schema.json": ["draft", "review", "approved", "archived"],
+        "issue.schema.json": ["open", "in_progress", "resolved", "closed"],
+        "portfolio.schema.json": ["planning", "active", "archived"],
+        "program.schema.json": ["planning", "active", "closed"],
+        "project.schema.json": ["initiated", "planning", "execution", "monitoring", "closed"],
+        "resource.schema.json": ["active", "inactive", "on_leave"],
+        "risk.schema.json": ["open", "mitigated", "closed"],
+        "vendor.schema.json": ["active", "inactive", "pending"],
+        "work-item.schema.json": ["todo", "in_progress", "done", "blocked"],
+    }
+
+    for schema_name in classification_schemas:
+        schema = json.loads((schema_dir / schema_name).read_text())
+        properties = schema["properties"]
+        assert properties["classification"]["enum"] == classification_enum
+
+    for schema_name, expected_status in status_enums.items():
+        schema = json.loads((schema_dir / schema_name).read_text())
+        properties = schema["properties"]
+        assert properties["status"]["enum"] == expected_status

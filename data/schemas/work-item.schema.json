@@ -12,7 +12,7 @@
     "status": {"type": "string", "enum": ["todo", "in_progress", "done", "blocked"]},
     "assigned_to": {"type": "string"},
     "due_date": {"type": "string", "format": "date"},
-    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
     "created_at": {"type": "string", "format": "date-time"},
     "updated_at": {"type": "string", "format": "date-time"}
   },
