@@ -5,12 +5,15 @@ Orchestrates human-in-the-loop approval processes across the PPM platform.
 Handles routing, escalation, delegation, and audit trail for governance compliance.
 """
 
+import asyncio
+import os
 import sys
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 from agents.runtime import BaseAgent
 
 DATA_SYNC_ROOT = Path(__file__).resolve().parents[5] / "services" / "data-sync-service" / "src"
@@ -213,7 +216,12 @@ class ApprovalWorkflowAgent(BaseAgent):
         )
 
         # Set escalation timers
-        await self._schedule_escalations(approval_chain)
+        await self._schedule_escalations(
+            tenant_id=tenant_id,
+            approval_chain=approval_chain,
+            approvers=approvers,
+            details=details,
+        )
 
         self._emit_audit_event(
             tenant_id=tenant_id,
@@ -338,8 +346,15 @@ class ApprovalWorkflowAgent(BaseAgent):
         approvers: list[str],
         details: dict[str, Any],
     ) -> bool:
-        """Send approval notifications to approvers via multiple channels."""
+        """Send approval notifications to approvers via a configured webhook."""
+        webhook = os.getenv("NOTIFICATION_WEBHOOK_URL")
+        if not webhook:
+            self.logger.warning(
+                "NOTIFICATION_WEBHOOK_URL not set; approval notifications will not be sent."
+            )
+            return False
         try:
+            payloads: list[dict[str, Any]] = []
             for approver in approvers:
                 # Future work: Use Azure Communication Services or Microsoft Graph
                 # Future work: Send email via Office 365
@@ -358,20 +373,56 @@ class ApprovalWorkflowAgent(BaseAgent):
                 }
                 self.notifications.append(notification)
                 self._persist_notification(tenant_id, approval_chain["id"], notification)
+                payloads.append(
+                    {
+                        "user": approver,
+                        "approval_request_id": approval_chain["request_id"],
+                        "message": f"Approval required for request {approval_chain['request_id']}",
+                        "deadline": approval_chain["deadline"],
+                    }
+                )
 
-                # Future work: Actual send implementation
+            tasks = [self._post_webhook(webhook, payload) for payload in payloads]
+            await asyncio.gather(*tasks)
 
             return True
         except Exception as e:
             self.logger.error(f"Failed to send notifications: {str(e)}")
             return False
 
-    async def _schedule_escalations(self, approval_chain: dict[str, Any]) -> None:
-        """Schedule escalation timers for overdue approvals."""
-        # Future work: Integrate with Azure Functions or Durable Functions for timer triggers
-        # Future work: Set reminder notifications 24h before deadline
-        # Future work: Set escalation trigger at deadline
+    async def _post_webhook(self, url: str, payload: dict[str, Any]) -> None:
+        """Post a JSON payload to the configured webhook."""
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(url, json=payload)
+            except Exception as exc:
+                self.logger.error(f"Failed to send notification to {url}: {exc}")
 
+    async def _schedule_escalations(
+        self,
+        *,
+        tenant_id: str,
+        approval_chain: dict[str, Any],
+        approvers: list[str],
+        details: dict[str, Any],
+    ) -> None:
+        """Schedule escalation notifications based on the configured policy."""
+        escalation_timeout_hours = self.approval_policies.get("escalation_timeout_hours", 48)
+        delay_seconds = int(escalation_timeout_hours * 3600)
+
+        if not approvers:
+            return
+
+        async def escalation_task() -> None:
+            await asyncio.sleep(delay_seconds)
+            await self._send_approval_notifications(
+                tenant_id=tenant_id,
+                approval_chain=approval_chain,
+                approvers=approvers,
+                details=details,
+            )
+
+        asyncio.create_task(escalation_task())
         self.logger.info(f"Escalation scheduled for approval {approval_chain['id']}")
 
     async def _load_approval_policies(self) -> dict[str, Any]:
