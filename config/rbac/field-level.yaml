@@ -28,6 +28,7 @@ fields:
         - "portfolio_admin"
         - "analyst"
 classification_access:
+  # Public data remains accessible to all standard roles and service integrations.
   public:
     allowed_roles:
       - "PMO_ADMIN"

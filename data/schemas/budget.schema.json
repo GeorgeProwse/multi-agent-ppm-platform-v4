@@ -13,7 +13,7 @@
     "fiscal_year": {"type": "integer", "minimum": 2020},
     "status": {"type": "string", "enum": ["draft", "approved", "committed"]},
     "owner": {"type": "string"},
-    "classification": {"type": "string", "enum": ["internal", "confidential", "restricted"]},
+    "classification": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
     "created_at": {"type": "string", "format": "date-time"},
     "updated_at": {"type": "string", "format": "date-time"},
     "metadata": {"type": "object"}
