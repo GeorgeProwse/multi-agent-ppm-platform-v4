@@ -30,7 +30,7 @@ from storage import LineageRecord, LineageStore  # noqa: E402
 logger = logging.getLogger("data-lineage-service")
 logging.basicConfig(level=logging.INFO)
 
-DEFAULT_STORE_PATH = "services/data-lineage-service/storage/lineage.json"
+DEFAULT_STORE_PATH = "services/data-lineage-service/storage/lineage.db"
 DEFAULT_RETENTION_CONFIG = "config/retention/policies.yaml"
 DEFAULT_CLASSIFICATION_CONFIG = "config/data-classification/levels.yaml"
 DEFAULT_RULES_PATH = "data/quality/rules.yaml"
@@ -201,6 +201,13 @@ def _record_to_response(record: LineageRecord) -> LineageEventOut:
     )
 
 
+def _extract_work_item_id(target: dict[str, Any]) -> str | None:
+    entity = (target.get("schema") or target.get("entity") or target.get("object") or "").lower()
+    if entity in {"work-item", "work_item", "workitem", "work items"}:
+        return target.get("record_id") or target.get("id")
+    return None
+
+
 def _mask_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not os.getenv("LINEAGE_MASK_SALT"):
         return payload
@@ -255,6 +262,7 @@ async def ingest_event(
         "metadata": payload.metadata,
         "timestamp": timestamp.isoformat(),
         "retention_until": retention_until,
+        "work_item_id": _extract_work_item_id(payload.target),
     }
 
     masked_payload = _mask_payload(record_payload)
@@ -264,9 +272,14 @@ async def ingest_event(
 
 
 @app.get("/lineage/events", response_model=list[LineageEventOut])
-async def list_events(request: Request, store: LineageStore = Depends(get_store)) -> list[LineageEventOut]:
+async def list_events(
+    request: Request,
+    connector_id: str | None = None,
+    work_item_id: str | None = None,
+    store: LineageStore = Depends(get_store),
+) -> list[LineageEventOut]:
     auth = request.state.auth
-    records = store.list(auth.tenant_id)
+    records = store.list(auth.tenant_id, connector_id=connector_id, work_item_id=work_item_id)
     visible = []
     for record in records:
         try:
