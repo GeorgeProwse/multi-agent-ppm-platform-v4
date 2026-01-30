@@ -19,7 +19,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from api.limiter import limiter
 from api.middleware.security import AuthTenantMiddleware, FieldMaskingMiddleware
-from api.routes import agents, health, agent_config, analytics, connectors, workflows, audit
+from api.routes import agents, health, agent_config, analytics, connectors, workflows, audit, lineage
 from api.runtime_bootstrap import bootstrap_runtime_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -169,6 +169,7 @@ app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(connectors.router, prefix="/api/v1", tags=["connectors"])
 app.include_router(workflows.router, prefix="/api/v1", tags=["workflows"])
 app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
+app.include_router(lineage.router, prefix="/api/v1", tags=["lineage"])
 
 
 # Global exception handler

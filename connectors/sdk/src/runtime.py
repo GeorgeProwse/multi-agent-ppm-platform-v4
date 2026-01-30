@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
+import os
 from pathlib import Path
 from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-from connectors.sdk.src.data_service_client import DataServiceClient
+from connectors.sdk.src.data_service_client import DataLineageClient, DataServiceClient, LineageEventEmitter
 
 
 @dataclass
@@ -73,13 +75,19 @@ class ConnectorRuntime:
         return mapped
 
     def apply_mappings(
-        self, records: list[dict[str, Any]], tenant_id: str, include_schema: bool = False
+        self,
+        records: list[dict[str, Any]],
+        tenant_id: str,
+        include_schema: bool = False,
+        *,
+        emit_lineage: bool = True,
     ) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
         mapping_specs = [
             self._load_mapping(self.connector_root / mapping["mapping_file"])
             for mapping in self.manifest.mappings
         ]
+        emitter = self._get_lineage_emitter(tenant_id) if emit_lineage else None
         for record in records:
             for spec in mapping_specs:
                 if record.get("source") and record.get("source") != spec.source:
@@ -88,15 +96,41 @@ class ConnectorRuntime:
                 if include_schema:
                     mapped["schema_name"] = spec.schema or spec.target
                 results.append(mapped)
+                if emitter:
+                    emitter.emit_event(
+                        source=self._source_entity(record, spec),
+                        target=self._target_entity(mapped, spec),
+                        transformations=self._transformation_steps(spec),
+                        entity_type=spec.schema or spec.target,
+                        entity_payload=mapped,
+                        metadata={
+                            "connector_version": self.manifest.version,
+                            "mapping_source": spec.source,
+                            "mapping_target": spec.target,
+                        },
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+        if emitter:
+            emitter.client.close()
         return results
 
     def run_sync(
-        self, fixture_path: Path, tenant_id: str, include_schema: bool = False
+        self,
+        fixture_path: Path,
+        tenant_id: str,
+        include_schema: bool = False,
+        *,
+        emit_lineage: bool = True,
     ) -> list[dict[str, Any]]:
         raw = json.loads(fixture_path.read_text())
         if not isinstance(raw, list):
             raise ValueError("Fixture must be a list of records")
-        return self.apply_mappings(raw, tenant_id, include_schema=include_schema)
+        return self.apply_mappings(
+            raw,
+            tenant_id,
+            include_schema=include_schema,
+            emit_lineage=emit_lineage,
+        )
 
     def store_canonical_entities(
         self,
@@ -114,3 +148,32 @@ class ConnectorRuntime:
                 )
             )
         return stored
+
+    def _get_lineage_emitter(self, tenant_id: str) -> LineageEventEmitter | None:
+        base_url = os.getenv("DATA_LINEAGE_SERVICE_URL")
+        if not base_url:
+            return None
+        client = DataLineageClient.from_url(base_url, tenant_id)
+        return LineageEventEmitter(self.manifest.id, client=client)
+
+    def _source_entity(self, record: dict[str, Any], spec: MappingSpec) -> dict[str, Any]:
+        return {
+            "system": self.manifest.id,
+            "entity": spec.source,
+            "record_id": record.get("id"),
+        }
+
+    def _target_entity(self, mapped: dict[str, Any], spec: MappingSpec) -> dict[str, Any]:
+        return {
+            "schema": spec.schema or spec.target,
+            "record_id": mapped.get("id"),
+        }
+
+    def _transformation_steps(self, spec: MappingSpec) -> list[str]:
+        steps: list[str] = []
+        for entry in spec.fields:
+            source_field = entry.get("source")
+            target_field = entry.get("target")
+            if source_field and target_field:
+                steps.append(f"map {source_field} -> {target_field}")
+        return steps
