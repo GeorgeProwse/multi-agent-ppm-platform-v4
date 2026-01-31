@@ -339,7 +339,7 @@ jobs:
           DATABASE_URL: postgresql://ppm:ppm_password@localhost:5432/ppm_test
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest tests/load -v --tb=short || true
+          pytest tests/load -v --tb=short
 
       - name: Run performance benchmarks
         env:

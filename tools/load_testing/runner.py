@@ -72,6 +72,26 @@ def run_load_scenario(scenario: LoadScenario) -> LoadScenarioResult:
 
 def load_profile(path: Path) -> dict:
     payload = json.loads(path.read_text())
+    if isinstance(payload, list):
+        if not payload:
+            return {}
+        target_name = os.getenv("LOAD_TARGET")
+        if target_name:
+            for entry in payload:
+                if entry.get("name") == target_name:
+                    payload = entry
+                    break
+            else:
+                payload = payload[0]
+        else:
+            payload = payload[0]
+    elif isinstance(payload, dict) and "targets" in payload:
+        targets = payload.get("targets") or []
+        target_name = os.getenv("LOAD_TARGET")
+        selected = None
+        if target_name:
+            selected = next((entry for entry in targets if entry.get("name") == target_name), None)
+        payload = selected or (targets[0] if targets else {})
     profiles = payload.get("profiles")
     if not profiles:
         return payload
