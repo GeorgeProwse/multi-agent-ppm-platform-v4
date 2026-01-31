@@ -4,6 +4,68 @@ from stakeholder_communications_agent import StakeholderCommunicationsAgent
 
 
 @pytest.mark.asyncio
+async def test_register_stakeholder_syncs_crm_and_triggers_events(tmp_path, monkeypatch):
+    agent = StakeholderCommunicationsAgent(
+        config={
+            "stakeholder_store_path": tmp_path / "stakeholders.json",
+            "crm_base_url": "https://crm.local",
+            "crm_api_key": "crm-token",
+            "crm_profile_endpoint": "/stakeholders/profile",
+            "crm_upsert_endpoint": "/stakeholders",
+        }
+    )
+    await agent.initialize()
+
+    class MockResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def mock_get(*_args, **_kwargs):
+        return MockResponse(
+            200,
+            {
+                "id": "crm-123",
+                "name": "Taylor Blake",
+                "title": "VP",
+                "account": "Contoso",
+                "email": "taylor@example.com",
+            },
+        )
+
+    def mock_post(*_args, **_kwargs):
+        return MockResponse(200, {"status": "ok"})
+
+    events = []
+    workflows = []
+
+    monkeypatch.setattr("stakeholder_communications_agent.requests.get", mock_get)
+    monkeypatch.setattr("stakeholder_communications_agent.requests.post", mock_post)
+    monkeypatch.setattr(agent, "_publish_event", lambda event_type, payload: events.append(event_type))
+    monkeypatch.setattr(agent, "_trigger_workflow", lambda event_type, payload: workflows.append(event_type))
+
+    registration = await agent.process(
+        {
+            "action": "register_stakeholder",
+            "tenant_id": "tenant-crm",
+            "stakeholder": {
+                "name": "Taylor Blake",
+                "email": "taylor@example.com",
+                "role": "Executive Sponsor",
+            },
+        }
+    )
+
+    stored = agent.stakeholder_register[registration["stakeholder_id"]]
+    assert stored["crm_profile"]["crm_id"] == "crm-123"
+    assert "stakeholder.profile.registered" in events
+    assert "stakeholder.profile.registered" in workflows
+
+
+@pytest.mark.asyncio
 async def test_sentiment_analysis_triggers_alert(tmp_path, monkeypatch):
     agent = StakeholderCommunicationsAgent(
         config={"stakeholder_store_path": tmp_path / "stakeholders.json"}
