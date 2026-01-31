@@ -26,7 +26,7 @@ from agents.common.integration_services import (
     NotificationService,
     VectorSearchIndex,
 )
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -64,7 +64,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         self.financial_models = {}  # type: ignore
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.notification_service = NotificationService(self.event_bus)
         self.data_connector = DataConnector(config.get("data_sources") if config else None)
         self.embedding_service = LocalEmbeddingService(

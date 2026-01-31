@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock
 import pytest
 from analytics_insights_agent import AnalyticsInsightsAgent
 
-from agents.runtime import InMemoryEventBus
+from tests.helpers.service_bus import build_test_event_bus
 
 
 @pytest.mark.asyncio
 async def test_analytics_persists_outputs_and_masks_lineage(tmp_path, monkeypatch):
     monkeypatch.setenv("LINEAGE_MASK_SALT", "unit-test-salt")
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
     agent = AnalyticsInsightsAgent(
         config={
             "analytics_output_store_path": tmp_path / "outputs.json",
@@ -50,7 +50,7 @@ async def test_analytics_persists_outputs_and_masks_lineage(tmp_path, monkeypatc
 
 @pytest.mark.asyncio
 async def test_analytics_get_insights_success(tmp_path):
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
     agent = AnalyticsInsightsAgent(
         config={
             "analytics_output_store_path": tmp_path / "outputs.json",
@@ -98,7 +98,7 @@ async def test_analytics_rejects_missing_dashboard(tmp_path):
 
 @pytest.mark.asyncio
 async def test_analytics_health_summary_report(tmp_path):
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
     agent = AnalyticsInsightsAgent(
         config={
             "analytics_output_store_path": tmp_path / "outputs.json",
@@ -149,7 +149,7 @@ async def test_analytics_kpi_threshold_alerts(tmp_path):
     def capture_event(payload: dict) -> None:
         events.append(payload)
 
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
     event_bus.subscribe("analytics.kpi.threshold_breached", capture_event)
     agent = AnalyticsInsightsAgent(
         config={

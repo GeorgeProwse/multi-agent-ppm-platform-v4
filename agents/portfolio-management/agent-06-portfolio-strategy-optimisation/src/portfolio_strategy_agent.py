@@ -20,7 +20,7 @@ from observability.tracing import get_trace_id
 
 from agents.common.connector_integration import DatabaseStorageService
 from agents.common.scenario import ScenarioEngine
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.policy import evaluate_policy_bundle, load_default_policy_bundle
 from agents.runtime.src.state_store import TenantStateStore
@@ -93,7 +93,7 @@ class PortfolioStrategyAgent(BaseAgent):
         self.db_service: DatabaseStorageService | None = None
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
 
     async def initialize(self) -> None:
         """Initialize optimization models, database connections, and external integrations."""

@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -61,7 +61,7 @@ class ProcessMiningAgent(BaseAgent):
         self.workflow_engine_agent = config.get("workflow_engine_agent") if config else None
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
 
     async def initialize(self) -> None:
         """Initialize process mining tools, analytics, and data sources."""

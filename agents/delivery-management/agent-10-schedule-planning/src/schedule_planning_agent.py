@@ -19,7 +19,7 @@ from events import ScheduleBaselineLockedEvent, ScheduleDelayEvent
 from observability.tracing import get_trace_id
 
 from agents.common.scenario import ScenarioEngine
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -74,7 +74,7 @@ class SchedulePlanningAgent(BaseAgent):
         self.task_actuals = {}  # type: ignore
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.change_agent = config.get("change_agent") if config else None
         if self.change_agent is None:
             change_config = config.get("change_agent_config", {}) if config else {}

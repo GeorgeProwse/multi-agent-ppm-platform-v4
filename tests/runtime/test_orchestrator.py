@@ -10,7 +10,7 @@ import pytest
 pytest.importorskip("redis")
 
 from agents.runtime.src.base_agent import BaseAgent
-from agents.runtime.src.event_bus import InMemoryEventBus
+from tests.helpers.service_bus import build_test_event_bus
 from agents.runtime.src.memory_store import InMemoryConversationStore
 from agents.runtime.src.orchestrator import AgentTask, Orchestrator, RetryPolicy
 
@@ -57,7 +57,7 @@ class FlakyAgent(BaseAgent):
 
 @pytest.mark.asyncio
 async def test_orchestrator_runs_dag_in_parallel() -> None:
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
     orchestrator = Orchestrator(event_bus=event_bus, max_parallel_tasks=2)
 
     start_times: dict[str, float] = {}
@@ -102,7 +102,11 @@ async def test_orchestrator_retries_transient_failures() -> None:
         jitter_seconds=0,
         retry_predicate=lambda exc, response: bool(exc) or not response.get("success", False),
     )
-    orchestrator = Orchestrator(retry_policy=retry_policy, max_parallel_tasks=1)
+    orchestrator = Orchestrator(
+        event_bus=build_test_event_bus(),
+        retry_policy=retry_policy,
+        max_parallel_tasks=1,
+    )
     agent = FlakyAgent("flaky")
     tasks = [AgentTask(task_id="flaky-task", agent=agent)]
 
@@ -115,7 +119,10 @@ async def test_orchestrator_retries_transient_failures() -> None:
 @pytest.mark.asyncio
 async def test_orchestrator_persists_memory_across_calls() -> None:
     memory_store = InMemoryConversationStore()
-    orchestrator = Orchestrator(memory_store=memory_store)
+    orchestrator = Orchestrator(
+        event_bus=build_test_event_bus(),
+        memory_store=memory_store,
+    )
     tasks = [AgentTask(task_id="first", agent=SleepAgent("agent-1", 0, "one"))]
 
     await orchestrator.run(tasks, memory_key="conversation-1")

@@ -21,7 +21,7 @@ from observability.tracing import get_trace_id
 from workflow_state_store import WorkflowStateStore, build_workflow_state_store
 from workflow_task_queue import WorkflowTaskQueue, build_task_message, build_task_queue
 
-from agents.runtime import BaseAgent, InMemoryEventBus, ServiceBusEventBus
+from agents.runtime import BaseAgent, get_event_bus, ServiceBusEventBus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 
 
@@ -87,7 +87,7 @@ class WorkflowEngineAgent(BaseAgent):
                     subscription_name=config.get("service_bus_subscription"),
                 )
             else:
-                self.event_bus = InMemoryEventBus()
+                self.event_bus = get_event_bus()
 
     async def initialize(self) -> None:
         """Initialize workflow engine, orchestration services, and integrations."""

@@ -25,7 +25,7 @@ from agents.common.web_search import (
     search_web,
     summarize_snippets,
 )
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 
 OBSERVABILITY_ROOT = Path(__file__).resolve().parents[5] / "packages" / "observability" / "src"
@@ -110,7 +110,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         self.circuit_breaker_threshold = config.get("circuit_breaker_threshold", 3) if config else 3
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.http_client = config.get("http_client") if config else None
         self.agent_registry: dict[str, BaseAgent] = (
             config.get("agent_registry", {}) if config else {}
