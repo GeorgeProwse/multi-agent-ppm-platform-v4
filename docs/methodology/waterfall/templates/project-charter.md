@@ -35,7 +35,10 @@ Executive Sponsor, Project Manager, PMO Lead, Steering Committee, Finance Partne
 - **Project name:**
 - **Business sponsor:**
 - **Project manager:**
+- **Project manager authority level:** (budget approval, staffing, vendor selection limits)
 - **Start date / target end date:**
+- **Summary schedule:** (major milestones and critical path summary)
+- **Summary budget:** (total funding, contingency)
 - **Strategic alignment:** (growth, efficiency, compliance, customer experience)
 
 ## 2. Problem Statement & Opportunity
@@ -49,6 +52,9 @@ List measurable outcomes the project must achieve.
 - **Success criteria:** (acceptance conditions for close-out)
 
 ## 4. Scope
+### Scope Statement
+Provide a clear statement of what the project will deliver.
+
 ### In Scope
 - 
 

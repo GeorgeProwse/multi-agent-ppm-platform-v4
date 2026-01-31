@@ -10,10 +10,17 @@ Change Manager, Project Manager, PMO Lead, Stakeholders.
 - Change requests (`docs/templates/shared/change-request.md`).
 - Impact assessments (`docs/templates/shared/change-impact-assessment.md`).
 
+## Change Classification Guidance
+Classify each change to support impact analysis and approval routing.
+- **Scope:** adds/removes deliverables or requirements.
+- **Schedule:** affects milestone or baseline dates.
+- **Cost:** affects budget, funding, or cost baseline.
+- **Quality:** alters acceptance criteria or quality standards.
+
 ## Change Log Entries
-| Change ID | Date | Description | Impact Summary | Status | Owner | Approval Reference |
-| --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |
+| Change ID | Date | Change Type | Description | Root Cause | Impact Summary | Related Risk ID | Impacted Baselines | Status | Owner | Approval Reference |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |  |  |  |  |
 
 ## Completion Checklist
 - [ ] All approved changes logged with references.

@@ -44,9 +44,9 @@ Describe the outcome the team commits to deliver by the end of the sprint, inclu
 success criteria.
 
 ## Backlog Commitments
-| Story / ID | Description | Estimate (pts) | Owner | Acceptance Criteria | Notes |
-| --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |
+| Story / ID | Description | Estimate (pts) | Owner | Acceptance Criteria | Definition of Done | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |
 
 ## Capacity & Availability
 | Team Member | Availability (days) | Planned Focus | Notes |
@@ -63,6 +63,12 @@ success criteria.
 - Tests passing and quality checks complete.
 - Documentation updated where needed.
 - Stakeholders notified of delivered outcomes.
+
+## Retrospective Carry-Over Actions
+List actions from the prior retrospective that must be addressed in this sprint.
+| Action | Owner | Due Date | Status |
+| --- | --- | --- | --- |
+|  |  |  |  |
 
 ## Sprint Ceremonies
 - **Daily stand-up cadence:**

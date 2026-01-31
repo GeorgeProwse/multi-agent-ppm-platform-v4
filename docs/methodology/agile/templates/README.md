@@ -7,7 +7,9 @@ Provide a registry of agile artefact templates used by delivery and governance w
 | Artefact | Purpose | Used by (agent) | File |
 | --- | --- | --- | --- |
 | Product backlog | Capture epics, stories, and prioritization. | Agent 11 (Agile Delivery) | `backlog.csv` |
+| Risk-adjusted backlog | Prioritize work with risk exposure. | Agent 15 (Risk & Issue Management) | `risk-adjusted-backlog.csv` |
 | Sprint plan | Define sprint commitments and capacity. | Agent 11 (Agile Delivery) | `sprint-plan.md` |
+| Iteration plan | Plan iteration goals and commitments. | Agent 11 (Agile Delivery) | `iteration-plan.md` |
 | Burndown tracking | Track remaining work and progress. | Agent 11 (Agile Delivery) | `burndown.xlsx` |
 | Release plan | Document release scope and readiness. | Agent 14 (Release Management) | `release-plan.md` |
 | Retrospective notes | Capture lessons learned and actions. | Agent 20 (Continuous Improvement) | `retro-notes.md` |

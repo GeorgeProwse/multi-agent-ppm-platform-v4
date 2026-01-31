@@ -4,7 +4,10 @@
       "id": "agile-software-dev",
       "name": "Agile Software Dev",
       "version": "1.1",
-      "available_versions": ["1.0", "1.1"],
+      "available_versions": [
+        "1.0",
+        "1.1"
+      ],
       "summary": "Iterative delivery template for software product teams.",
       "description": "Bootstraps an agile workspace with product vision, backlog planning, sprint execution, and metrics dashboards.",
       "methodology": {
@@ -37,7 +40,9 @@
                 "description": "High-level product timeline",
                 "status": "not_started",
                 "canvasType": "timeline",
-                "prerequisites": ["act-vision"],
+                "prerequisites": [
+                  "act-vision"
+                ],
                 "order": 2
               }
             ]
@@ -47,7 +52,9 @@
             "name": "Product Backlog",
             "description": "Create and prioritize product backlog",
             "status": "not_started",
-            "prerequisites": ["stage-product-vision"],
+            "prerequisites": [
+              "stage-product-vision"
+            ],
             "order": 2,
             "activities": [
               {
@@ -65,7 +72,9 @@
                 "description": "Prioritize and estimate backlog items",
                 "status": "not_started",
                 "canvasType": "spreadsheet",
-                "prerequisites": ["act-user-stories"],
+                "prerequisites": [
+                  "act-user-stories"
+                ],
                 "order": 2
               }
             ]
@@ -75,7 +84,9 @@
             "name": "Sprint Execution",
             "description": "Execute work in sprints",
             "status": "not_started",
-            "prerequisites": ["stage-backlog"],
+            "prerequisites": [
+              "stage-backlog"
+            ],
             "order": 3,
             "activities": [
               {
@@ -132,12 +143,25 @@
         ]
       },
       "agent_config": {
-        "enabled": ["intent-router", "schedule-planning", "agent_015"],
-        "disabled": ["financial-management"]
+        "enabled": [
+          "intent-router",
+          "schedule-planning",
+          "agent_015"
+        ],
+        "disabled": [
+          "financial-management"
+        ]
       },
       "connector_config": {
-        "enabled": ["jira", "slack"],
-        "disabled": ["planview", "sap", "sharepoint"]
+        "enabled": [
+          "jira",
+          "slack"
+        ],
+        "disabled": [
+          "planview",
+          "sap",
+          "sharepoint"
+        ]
       },
       "initial_tabs": [
         {
@@ -163,7 +187,9 @@
       "id": "waterfall-infrastructure",
       "name": "Waterfall Infrastructure",
       "version": "1.0",
-      "available_versions": ["1.0"],
+      "available_versions": [
+        "1.0"
+      ],
       "summary": "Stage-gated infrastructure delivery template.",
       "description": "Creates a sequential, governance-heavy project workspace for infrastructure rollouts with planning baselines and controls.",
       "methodology": {
@@ -196,7 +222,9 @@
                 "description": "Identify and document project stakeholders",
                 "status": "not_started",
                 "canvasType": "spreadsheet",
-                "prerequisites": ["act-charter"],
+                "prerequisites": [
+                  "act-charter"
+                ],
                 "order": 2
               }
             ]
@@ -206,7 +234,9 @@
             "name": "Planning",
             "description": "Develop project management plan and baselines",
             "status": "not_started",
-            "prerequisites": ["stage-initiation"],
+            "prerequisites": [
+              "stage-initiation"
+            ],
             "order": 2,
             "activities": [
               {
@@ -224,7 +254,9 @@
                 "description": "Develop the project timeline and milestones",
                 "status": "not_started",
                 "canvasType": "timeline",
-                "prerequisites": ["act-wbs"],
+                "prerequisites": [
+                  "act-wbs"
+                ],
                 "order": 2
               },
               {
@@ -233,7 +265,9 @@
                 "description": "Estimate costs and create the project budget",
                 "status": "not_started",
                 "canvasType": "spreadsheet",
-                "prerequisites": ["act-wbs"],
+                "prerequisites": [
+                  "act-wbs"
+                ],
                 "order": 3
               }
             ]
@@ -243,7 +277,9 @@
             "name": "Execution",
             "description": "Execute project work and produce deliverables",
             "status": "not_started",
-            "prerequisites": ["stage-planning"],
+            "prerequisites": [
+              "stage-planning"
+            ],
             "order": 3,
             "activities": [
               {
@@ -310,7 +346,9 @@
             "name": "Closure",
             "description": "Formally close the project",
             "status": "not_started",
-            "prerequisites": ["stage-execution"],
+            "prerequisites": [
+              "stage-execution"
+            ],
             "order": 5,
             "activities": [
               {
@@ -328,7 +366,9 @@
                 "description": "Final project report and closure documentation",
                 "status": "not_started",
                 "canvasType": "document",
-                "prerequisites": ["act-lessons"],
+                "prerequisites": [
+                  "act-lessons"
+                ],
                 "order": 2
               }
             ]
@@ -336,12 +376,24 @@
         ]
       },
       "agent_config": {
-        "enabled": ["intent-router", "schedule-planning", "financial-management", "agent_015"],
+        "enabled": [
+          "intent-router",
+          "schedule-planning",
+          "financial-management",
+          "agent_015"
+        ],
         "disabled": []
       },
       "connector_config": {
-        "enabled": ["planview", "sharepoint", "sap"],
-        "disabled": ["jira", "slack"]
+        "enabled": [
+          "planview",
+          "sharepoint",
+          "sap"
+        ],
+        "disabled": [
+          "jira",
+          "slack"
+        ]
       },
       "initial_tabs": [
         {
@@ -362,6 +414,333 @@
           "title": "Infrastructure Delivery Dashboard"
         }
       ]
+    }
+  ],
+  "template_library": [
+    {
+      "id": "issue-log",
+      "title": "Issue Log",
+      "category": "Logs & Registers",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/issue-log.md"
+    },
+    {
+      "id": "assumption-log",
+      "title": "Assumption Log",
+      "category": "Logs & Registers",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/assumption-log.md"
+    },
+    {
+      "id": "lessons-learned-register",
+      "title": "Lessons Learned Register",
+      "category": "Logs & Registers",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/lessons-learned.md"
+    },
+    {
+      "id": "risk-management-plan",
+      "title": "Risk Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/risk-management-plan.md"
+    },
+    {
+      "id": "quality-management-plan",
+      "title": "Quality Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/quality-management-plan.md"
+    },
+    {
+      "id": "procurement-management-plan",
+      "title": "Procurement Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/procurement-management-plan.md"
+    },
+    {
+      "id": "resource-management-plan",
+      "title": "Resource Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/resource-management-plan.md"
+    },
+    {
+      "id": "schedule-management-plan",
+      "title": "Schedule Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/schedule-management-plan.md"
+    },
+    {
+      "id": "scope-management-plan",
+      "title": "Scope Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/scope-management-plan.md"
+    },
+    {
+      "id": "cost-management-plan",
+      "title": "Cost Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/cost-management-plan.md"
+    },
+    {
+      "id": "project-management-plan",
+      "title": "Project Management Plan",
+      "category": "Plans",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/project-management-plan.md"
+    },
+    {
+      "id": "resource-assignment-matrix",
+      "title": "Resource Assignment Matrix",
+      "category": "Matrices",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/resource-assignment-matrix.csv"
+    },
+    {
+      "id": "activity-list",
+      "title": "Activity List",
+      "category": "Schedules",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/activity-list.csv"
+    },
+    {
+      "id": "project-calendar",
+      "title": "Project Calendar",
+      "category": "Schedules",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/project-calendar.csv"
+    },
+    {
+      "id": "status-report",
+      "title": "Status Report",
+      "category": "Reports",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/status-report.md"
+    },
+    {
+      "id": "risk-report",
+      "title": "Risk Report",
+      "category": "Reports",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/risk-report.md"
+    },
+    {
+      "id": "quality-report",
+      "title": "Quality Report",
+      "category": "Reports",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/quality-report.md"
+    },
+    {
+      "id": "risk-breakdown-structure",
+      "title": "Risk Breakdown Structure",
+      "category": "Structures",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/risk-breakdown-structure.yaml"
+    },
+    {
+      "id": "product-breakdown-structure",
+      "title": "Product Breakdown Structure",
+      "category": "Structures",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/product-breakdown-structure.yaml"
+    },
+    {
+      "id": "cost-baseline",
+      "title": "Cost Baseline",
+      "category": "Baselines",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/cost-baseline.xlsx"
+    },
+    {
+      "id": "scope-baseline",
+      "title": "Scope Baseline",
+      "category": "Baselines",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/scope-baseline.md"
+    },
+    {
+      "id": "supplier-risk-assessment",
+      "title": "Supplier Risk Assessment",
+      "category": "Procurement",
+      "methodologies": [
+        "shared"
+      ],
+      "path": "docs/templates/shared/supplier-risk-assessment.md"
+    },
+    {
+      "id": "iteration-plan",
+      "title": "Iteration Plan",
+      "category": "Agile",
+      "methodologies": [
+        "agile",
+        "hybrid"
+      ],
+      "path": "docs/methodology/agile/templates/iteration-plan.md"
+    },
+    {
+      "id": "risk-adjusted-backlog",
+      "title": "Risk-adjusted Backlog",
+      "category": "Agile",
+      "methodologies": [
+        "agile"
+      ],
+      "path": "docs/methodology/agile/templates/risk-adjusted-backlog.csv"
+    },
+    {
+      "id": "waterfall-risk-management-plan",
+      "title": "Risk Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/risk-management-plan.md"
+    },
+    {
+      "id": "waterfall-resource-management-plan",
+      "title": "Resource Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/resource-management-plan.md"
+    },
+    {
+      "id": "waterfall-quality-management-plan",
+      "title": "Quality Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/quality-management-plan.md"
+    },
+    {
+      "id": "waterfall-procurement-management-plan",
+      "title": "Procurement Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/procurement-management-plan.md"
+    },
+    {
+      "id": "waterfall-schedule-management-plan",
+      "title": "Schedule Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/schedule-management-plan.md"
+    },
+    {
+      "id": "waterfall-scope-management-plan",
+      "title": "Scope Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/scope-management-plan.md"
+    },
+    {
+      "id": "waterfall-cost-management-plan",
+      "title": "Cost Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/cost-management-plan.md"
+    },
+    {
+      "id": "waterfall-project-management-plan",
+      "title": "Project Management Plan (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/project-management-plan.md"
+    },
+    {
+      "id": "waterfall-risk-breakdown-structure",
+      "title": "Risk Breakdown Structure (Waterfall)",
+      "category": "Waterfall",
+      "methodologies": [
+        "waterfall"
+      ],
+      "path": "docs/methodology/waterfall/templates/risk-breakdown-structure.yaml"
+    },
+    {
+      "id": "hybrid-resource-plan",
+      "title": "Hybrid Resource Plan",
+      "category": "Hybrid",
+      "methodologies": [
+        "hybrid"
+      ],
+      "path": "docs/methodology/hybrid/templates/hybrid-resource-plan.md"
+    },
+    {
+      "id": "integrated-risk-register-hybrid",
+      "title": "Integrated Risk Register (Hybrid)",
+      "category": "Hybrid",
+      "methodologies": [
+        "hybrid"
+      ],
+      "path": "docs/methodology/hybrid/templates/integrated-risk-register.md"
+    },
+    {
+      "id": "decision-log-hybrid",
+      "title": "Decision Log (Hybrid)",
+      "category": "Hybrid",
+      "methodologies": [
+        "hybrid"
+      ],
+      "path": "docs/methodology/hybrid/templates/decision-log.md"
     }
   ]
 }

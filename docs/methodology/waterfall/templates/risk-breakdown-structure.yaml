@@ -1,0 +1,21 @@
+risk_breakdown_structure:
+  technical:
+    - requirements
+    - design
+    - integration
+    - performance
+  external:
+    - regulatory
+    - vendor
+    - market
+    - environmental
+  organisational:
+    - resource_capacity
+    - funding
+    - stakeholder_alignment
+  project_management:
+    - schedule
+    - cost
+    - scope
+    - quality
+    - communications

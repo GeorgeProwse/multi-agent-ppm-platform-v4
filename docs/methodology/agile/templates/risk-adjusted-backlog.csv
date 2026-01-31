@@ -1,0 +1,2 @@
+Item ID,Title,Description,Business Value,Priority,Probability (1-5),Impact (1-5),Risk Score (P*I),Risk Response,Reorder Suggestion,Definition of Done Checklist
+# Example: RB-001,Automated intake validation,Ensure intake data matches schema,High,High,4,3,12,Mitigate via validation rules,Move to top 5 items,"Tests updated; schema validation passes; PMO sign-off"

@@ -39,15 +39,27 @@ PMO Lead, Project Manager, Finance Partner, Executive Sponsor.
 | Scope |  |  |  |
 | Quality |  |  |  |
 
-## 4. Root Cause Analysis
+## 4. Variance Trend (Recent Periods)
+| Period | Schedule Variance | Cost Variance | Scope Variance | Quality Variance |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
+
+## 5. Quality Metrics & Defect Counts
+| Metric | Target | Actual | Notes |
+| --- | --- | --- | --- |
+| Defect count |  |  |  |
+| Defect leakage |  |  |  |
+| Rework hours |  |  |  |
+
+## 6. Root Cause Analysis
 Describe the primary drivers of variance.
 
-## 5. Corrective Actions
+## 7. Corrective & Preventive Actions
 | Action | Owner | Due Date | Status |
 | --- | --- | --- | --- |
 |  |  |  |  |
 
-## 6. Approvals
+## 8. Approvals
 | Approver | Role | Decision | Date |
 | --- | --- | --- | --- |
 |  |  |  |  |
