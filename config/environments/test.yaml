@@ -1,1 +1,26 @@
 name: test
+databases:
+  primary:
+    connection_string: "${DATABASE_URL}"
+  analytics:
+    connection_string: "${ANALYTICS_DATABASE_URL}"
+service_bus:
+  connection_string: "${SERVICE_BUS_CONNECTION_STRING}"
+  queue: "${SERVICE_BUS_QUEUE}"
+  topic: "${SERVICE_BUS_TOPIC}"
+graph_api:
+  base_url: "${GRAPH_API_BASE_URL}"
+  tenant_id: "${GRAPH_API_TENANT_ID}"
+  client_id: "${GRAPH_API_CLIENT_ID}"
+  client_secret: "${GRAPH_API_CLIENT_SECRET}"
+email:
+  provider: "${EMAIL_PROVIDER}"
+  smtp:
+    host: "${SMTP_HOST}"
+    port: "${SMTP_PORT}"
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    from_address: "${SMTP_FROM_ADDRESS}"
+  sendgrid:
+    api_key: "${SENDGRID_API_KEY}"
+    from_address: "${SENDGRID_FROM_ADDRESS}"

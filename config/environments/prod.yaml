@@ -17,6 +17,20 @@ vault:
     identity_client_secret: "file:/mnt/secrets-store/identity-client-secret"
     service_bus_connection: "file:/mnt/secrets-store/service-bus-connection"
     storage_account_key: "file:/mnt/secrets-store/storage-account-key"
+    database_url: "file:/mnt/secrets-store/database-url"
+    analytics_database_url: "file:/mnt/secrets-store/analytics-database-url"
+    graph_api_tenant_id: "file:/mnt/secrets-store/graph-api-tenant-id"
+    graph_api_client_id: "file:/mnt/secrets-store/graph-api-client-id"
+    graph_api_client_secret: "file:/mnt/secrets-store/graph-api-client-secret"
+    graph_api_base_url: "file:/mnt/secrets-store/graph-api-base-url"
+    email_provider: "file:/mnt/secrets-store/email-provider"
+    smtp_host: "file:/mnt/secrets-store/smtp-host"
+    smtp_port: "file:/mnt/secrets-store/smtp-port"
+    smtp_username: "file:/mnt/secrets-store/smtp-username"
+    smtp_password: "file:/mnt/secrets-store/smtp-password"
+    smtp_from_address: "file:/mnt/secrets-store/smtp-from-address"
+    sendgrid_api_key: "file:/mnt/secrets-store/sendgrid-api-key"
+    sendgrid_from_address: "file:/mnt/secrets-store/sendgrid-from-address"
 feature_flags:
   enable_workflow_engine: true
   enable_data_sync: true
@@ -42,3 +56,28 @@ connectors:
   azure_devops:
     organization_url: "file:/mnt/secrets-store/azure-devops-org-url"
     pat: "file:/mnt/secrets-store/azure-devops-pat"
+databases:
+  primary:
+    connection_string: "file:/mnt/secrets-store/database-url"
+  analytics:
+    connection_string: "file:/mnt/secrets-store/analytics-database-url"
+service_bus:
+  connection_string: "file:/mnt/secrets-store/service-bus-connection"
+  queue: "file:/mnt/secrets-store/service-bus-queue"
+  topic: "file:/mnt/secrets-store/service-bus-topic"
+graph_api:
+  base_url: "file:/mnt/secrets-store/graph-api-base-url"
+  tenant_id: "file:/mnt/secrets-store/graph-api-tenant-id"
+  client_id: "file:/mnt/secrets-store/graph-api-client-id"
+  client_secret: "file:/mnt/secrets-store/graph-api-client-secret"
+email:
+  provider: "file:/mnt/secrets-store/email-provider"
+  smtp:
+    host: "file:/mnt/secrets-store/smtp-host"
+    port: "file:/mnt/secrets-store/smtp-port"
+    username: "file:/mnt/secrets-store/smtp-username"
+    password: "file:/mnt/secrets-store/smtp-password"
+    from_address: "file:/mnt/secrets-store/smtp-from-address"
+  sendgrid:
+    api_key: "file:/mnt/secrets-store/sendgrid-api-key"
+    from_address: "file:/mnt/secrets-store/sendgrid-from-address"
