@@ -26,7 +26,7 @@ from agents.common.connector_integration import (
     DocumentMetadata,
     ProjectManagementService,
 )
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -83,7 +83,7 @@ class ProjectDefinitionAgent(BaseAgent):
         self.stakeholder_registers = {}  # type: ignore
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.approval_agent = config.get("approval_agent") if config else None
         if self.approval_agent is None:
             approval_config = config.get("approval_agent_config", {}) if config else {}

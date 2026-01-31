@@ -2,7 +2,7 @@
 
 from agents.runtime.src.agent_catalog import AGENT_CATALOG, get_catalog_id
 from agents.runtime.src.base_agent import BaseAgent
-from agents.runtime.src.event_bus import EventBus, InMemoryEventBus, ServiceBusEventBus
+from agents.runtime.src.event_bus import EventBus, ServiceBusEventBus, get_event_bus
 from agents.runtime.src.models import (
     AgentContext,
     AgentPayload,
@@ -22,7 +22,7 @@ __all__ = [
     "AgentValidationError",
     "BaseAgent",
     "EventBus",
-    "InMemoryEventBus",
     "ServiceBusEventBus",
+    "get_event_bus",
     "get_catalog_id",
 ]

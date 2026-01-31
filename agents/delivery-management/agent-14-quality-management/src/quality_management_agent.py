@@ -24,7 +24,7 @@ from agents.common.connector_integration import (
     DocumentMetadata,
 )
 from agents.common.integration_services import NaiveBayesTextClassifier
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -103,7 +103,7 @@ class QualityManagementAgent(BaseAgent):
         self.defect_classifier: NaiveBayesTextClassifier | None = None
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
 
     async def initialize(self) -> None:
         """Initialize database connections, test tool integrations, and AI models."""

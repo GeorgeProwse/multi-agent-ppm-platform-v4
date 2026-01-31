@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from agents.runtime.src.base_agent import BaseAgent
-from agents.runtime.src.event_bus import EventBus, InMemoryEventBus
+from agents.runtime.src.event_bus import EventBus, get_event_bus
 from agents.runtime.src.memory_store import ConversationMemoryStore, InMemoryConversationStore
 
 RetryPredicate = Callable[[Exception | None, dict[str, Any] | None], bool]
@@ -58,7 +58,7 @@ class Orchestrator:
         retry_policy: RetryPolicy | None = None,
         max_parallel_tasks: int = 4,
     ) -> None:
-        self._event_bus = event_bus or InMemoryEventBus()
+        self._event_bus = event_bus or get_event_bus()
         self._memory_store = memory_store or InMemoryConversationStore()
         self._retry_policy = retry_policy or RetryPolicy()
         self._max_parallel_tasks = max_parallel_tasks

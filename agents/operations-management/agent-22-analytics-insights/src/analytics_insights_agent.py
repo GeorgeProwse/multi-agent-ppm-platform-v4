@@ -21,7 +21,7 @@ from security.lineage import mask_lineage_payload
 from agents.common.health_recommendations import generate_recommendations, identify_health_concerns
 from agents.common.metrics_catalog import get_metric_value, normalize_metric_value
 from agents.common.scenario import ScenarioEngine
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -286,7 +286,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         self.metric_agents = config.get("metric_agents", {}) if config else {}
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
 
         self.synapse_workspace_name = os.getenv(
             "SYNAPSE_WORKSPACE_NAME", config.get("synapse_workspace_name") if config else ""

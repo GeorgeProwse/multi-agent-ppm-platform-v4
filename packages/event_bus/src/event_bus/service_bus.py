@@ -27,6 +27,7 @@ class ServiceBusEventBus:
         receiver_max_wait_time: int = 2,
         client: Any | None = None,
         message_cls: type[Any] | None = None,
+        local_dispatch: bool = False,
     ) -> None:
         if client is None or message_cls is None:
             from azure.servicebus import ServiceBusMessage
@@ -42,6 +43,7 @@ class ServiceBusEventBus:
         self._client = client
         self._message_cls = message_cls
         self._receiver_max_wait_time = receiver_max_wait_time
+        self._local_dispatch = local_dispatch
         self._subscribers: dict[str, list[EventHandler]] = defaultdict(list)
         self._metrics: dict[str, int] = defaultdict(int)
         self._event_log: deque[EventRecord] = deque(maxlen=event_log_size)
@@ -61,6 +63,10 @@ class ServiceBusEventBus:
             sender = self._client.get_topic_sender(self._topic_name)
             async with sender:
                 await sender.send_messages(message)
+        if self._local_dispatch:
+            handlers = list(self._subscribers.get(topic, []))
+            if handlers:
+                await self._dispatch(handlers, payload)
 
     def get_metrics(self) -> dict[str, int]:
         return dict(self._metrics)

@@ -5,13 +5,13 @@ import httpx
 import pytest
 from response_orchestration_agent import ResponseOrchestrationAgent
 
-from agents.runtime import InMemoryEventBus
+from tests.helpers.service_bus import build_test_event_bus
 
 
 @pytest.mark.asyncio
 async def test_response_orchestration_dependency_dag():
     events = []
-    event_bus = InMemoryEventBus()
+    event_bus = build_test_event_bus()
 
     async def capture_event(payload):
         events.append(payload)

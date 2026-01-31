@@ -42,7 +42,7 @@ from agents.common.web_search import (  # noqa: E402
     search_web,
     summarize_snippets,
 )
-from agents.runtime import BaseAgent, InMemoryEventBus, ServiceBusEventBus  # noqa: E402
+from agents.runtime import BaseAgent, get_event_bus, ServiceBusEventBus  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 from agents.runtime.src.policy import (  # noqa: E402
     evaluate_policy_bundle,
@@ -133,9 +133,9 @@ class ComplianceRegulatoryAgent(BaseAgent):
                         "Service bus event bus unavailable, falling back to in-memory",
                         extra={"error": str(exc)},
                     )
-                    self.event_bus = InMemoryEventBus()
+                    self.event_bus = get_event_bus()
             else:
-                self.event_bus = InMemoryEventBus()
+                self.event_bus = get_event_bus()
 
         self.notification_service = NotificationService(
             config.get("notifications") if config else None

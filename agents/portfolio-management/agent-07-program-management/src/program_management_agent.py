@@ -23,7 +23,7 @@ from llm.client import LLMClient
 from observability.tracing import get_trace_id
 
 from agents.common.connector_integration import DatabaseStorageService
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -103,7 +103,7 @@ class ProgramManagementAgent(BaseAgent):
         self.synergies = {}  # type: ignore
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.db_service: DatabaseStorageService | None = None
         self.schedule_agent = config.get("schedule_agent") if config else None
         self.business_case_agent = config.get("business_case_agent") if config else None

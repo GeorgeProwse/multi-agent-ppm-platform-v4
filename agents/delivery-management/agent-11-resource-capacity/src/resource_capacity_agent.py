@@ -24,7 +24,7 @@ from observability.tracing import get_trace_id
 from agents.common.connector_integration import DatabaseStorageService
 from agents.common.integration_services import ForecastingModel
 from agents.common.scenario import ScenarioEngine
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -417,7 +417,7 @@ class ResourceCapacityAgent(BaseAgent):
         self.utilization_metrics: dict[str, Any] = {}
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.db_service: DatabaseStorageService | None = None
         self.forecasting_model: ForecastingModel | None = None
         self.repository = ResourceCapacityRepository(os.getenv("RESOURCE_CAPACITY_DATABASE_URL"))

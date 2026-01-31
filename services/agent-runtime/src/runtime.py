@@ -31,8 +31,7 @@ from agents.runtime import (  # noqa: E402
     AGENT_CATALOG,
     BaseAgent,
     EventBus,
-    InMemoryEventBus,
-    ServiceBusEventBus,
+    get_event_bus,
 )
 from agents.runtime.src.agent_catalog import get_catalog_entry  # noqa: E402
 
@@ -130,23 +129,7 @@ class AgentRuntime:
         self._event_bus.subscribe("agent.requested", self._handle_agent_request)
 
     def _build_event_bus(self) -> EventBus:
-        backend = os.getenv("EVENT_BUS_BACKEND", "memory").lower()
-        connection_string = os.getenv("SERVICE_BUS_CONNECTION_STRING") or os.getenv(
-            "AZURE_SERVICEBUS_CONNECTION_STRING"
-        )
-        if backend == "servicebus" or connection_string:
-            if not connection_string:
-                return InMemoryEventBus()
-            topic = os.getenv("SERVICE_BUS_QUEUE_NAME") or os.getenv("EVENT_BUS_TOPIC", "ppm-events")
-            subscription = os.getenv("SERVICE_BUS_SUBSCRIPTION_NAME") or os.getenv(
-                "EVENT_BUS_SUBSCRIPTION"
-            )
-            return ServiceBusEventBus(
-                connection_string=connection_string,
-                topic_name=topic,
-                subscription_name=subscription,
-            )
-        return InMemoryEventBus()
+        return get_event_bus()
 
     @property
     def event_bus(self) -> EventBus:

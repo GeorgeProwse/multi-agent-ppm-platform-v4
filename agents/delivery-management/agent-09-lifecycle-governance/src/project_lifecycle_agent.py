@@ -24,7 +24,7 @@ from observability.tracing import get_trace_id
 
 from agents.common.health_recommendations import generate_recommendations, identify_health_concerns
 from agents.common.metrics_catalog import get_metric_value, normalize_metric_value
-from agents.runtime import BaseAgent, InMemoryEventBus
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 
@@ -86,7 +86,7 @@ class ProjectLifecycleAgent(BaseAgent):
         self.gate_evaluations = {}  # type: ignore
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = InMemoryEventBus()
+            self.event_bus = get_event_bus()
         self.approval_agent = config.get("approval_agent") if config else None
         if self.approval_agent is None:
             approval_config = config.get("approval_agent_config", {}) if config else {}
