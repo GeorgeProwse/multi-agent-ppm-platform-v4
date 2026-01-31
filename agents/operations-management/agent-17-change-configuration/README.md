@@ -41,6 +41,8 @@ Agent runtime configuration is centralized in `.env` (see `.env.example`) and sh
 | `AZURE_DEVOPS_TOKEN` | Azure Repos/DevOps REST API access for repos and PR status. |
 | `SERVICE_BUS_CONNECTION_STRING` | Azure Service Bus connection for change events. |
 | `COSMOS_DB_CONNECTION_STRING` | Persist workflow state in Cosmos DB. |
+| `DURABLE_FUNCTIONS_URL` | Azure Durable Functions orchestration endpoint. |
+| `LOGIC_APPS_URL` | Azure Logic Apps orchestration endpoint. |
 | `SHAREPOINT_SITE_URL` | Enable SharePoint connector for change context documents. |
 | `CONFLUENCE_BASE_URL` | Enable Confluence connector (if configured) for KB articles. |
 | `NEO4J_URI` | Neo4j graph database URI for CI dependency storage. |
@@ -54,10 +56,16 @@ Use the agent config to point at workflow orchestration and modeling options:
 ```json
 {
   "workflow_orchestrator": "durable_functions",
+  "workflow_config": {
+    "durable_functions_url": "https://example.azurewebsites.net/api/orchestrate"
+  },
   "impact_model_samples": [
     {"complexity": 2.0, "historical_failure_rate": 0.1, "affected_services": 3, "risk_category": "medium", "success_probability": 0.85}
   ],
-  "event_bus": {"topic_name": "ppm-events"}
+  "event_bus": {"topic_name": "ppm-events"},
+  "cicd_subscriptions": [
+    {"tool": "azure_devops", "endpoint": "https://hooks.example.com/change", "events": ["deployment"]}
+  ]
 }
 ```
 
@@ -82,6 +90,7 @@ Example payload:
     "repo_slug": "org/platform-infra",
     "pull_request_id": "42",
     "iac_files": ["infra/terraform/aks.tf"],
+    "iac_repo_path": "infra",
     "knowledge_query": "AKS scaling runbook"
   }
 }
