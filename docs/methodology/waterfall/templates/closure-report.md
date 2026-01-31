@@ -64,16 +64,27 @@ List any risks/issues that remain open and ownership for follow-up.
 | --- | --- | --- | --- |
 |  |  |  |  |
 
-## 7. Lessons Learned
-Document what worked well and what should change.
+## 7. Lessons Learned Summary
+Document what worked well and what should change. Link to the lessons learned register if used.
 - **Went well:**
 - **Needs improvement:**
 - **Recommendations:**
 
-## 8. Handover & Support
+## 8. Outstanding Items / Defects at Closure
+| Item | Type | Owner | Target Resolution | Notes |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
+
+## 9. Handover & Support
 Describe transition to operations, support plans, and knowledge transfer completed.
 
-## 9. Approvals
+## 10. Deliverable Acceptance Sign-off
+Confirm acceptance of deliverables by key stakeholders.
+| Stakeholder | Role | Acceptance Decision | Date |
+| --- | --- | --- | --- |
+|  |  |  |  |
+
+## 11. Approvals
 | Approver | Role | Signature | Date |
 | --- | --- | --- | --- |
 |  |  |  |  |

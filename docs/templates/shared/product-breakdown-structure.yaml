@@ -1,0 +1,29 @@
+product_breakdown_structure:
+  product: Customer Portal
+  components:
+    - name: Web Application
+      subcomponents:
+        - name: Authentication
+          features:
+            - Single sign-on
+            - Multi-factor authentication
+        - name: Dashboard
+          features:
+            - Portfolio overview
+            - KPI widgets
+    - name: API Services
+      subcomponents:
+        - name: Project Service
+          features:
+            - Project CRUD
+            - Status reporting
+        - name: Risk Service
+          features:
+            - Risk register
+            - Risk scoring
+    - name: Data Layer
+      subcomponents:
+        - name: Data Warehouse
+          features:
+            - Historical reporting
+            - Data quality checks

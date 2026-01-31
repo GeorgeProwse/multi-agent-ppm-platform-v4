@@ -51,22 +51,37 @@ Explain why the selected option is preferred.
 
 Reference the ROI/NPV worksheet (`docs/templates/shared/roi-npv-worksheet.xlsx`).
 
-## 6. Risk & Sensitivity Analysis
+## 6. Key Assumptions
+| Assumption | Rationale | Impact if False | Validation Plan |
+| --- | --- | --- | --- |
+|  |  |  |  |
+
+## 7. Dependencies
+List critical dependencies (technology, vendors, regulatory approvals) and how they affect value.
+
+## 8. Risk & Sensitivity Analysis
 | Risk / Assumption | Impact if true | Mitigation |
 | --- | --- | --- |
 |  |  |  |
 
-## 7. Implementation Approach
+### Sensitivity Analysis
+Document how changes in key variables (volume, price, adoption, cost) affect ROI/NPV.
+
+## 9. Implementation Approach
 Outline the delivery approach, timeline, and major milestones.
 
-## 8. Dependencies & Constraints
-- **Dependencies:**
+## 10. Dependencies & Constraints
+- **Dependencies:** (reference section 7 if needed)
 - **Constraints:**
 
-## 9. Approvals
+## 11. Approvals
 | Approver | Role | Decision | Date |
 | --- | --- | --- | --- |
 |  |  |  |  |
+
+## Business Case Maintenance Guidance
+Revisit the business case at each major gate or when scope, schedule, or cost changes occur.
+Update assumptions, financials, and dependencies to reflect approved changes.
 
 ## Completion Checklist
 - [ ] Strategic alignment documented.

@@ -1083,6 +1083,14 @@
             "Capture AI generation metrics (latency, token usage, user edit acceptance rate) to optimise prompts and models.",
             "Surface errors (failed extractions, schema validation errors) in the System Health & Monitoring dashboard."
           ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Scope baseline (`docs/templates/shared/scope-baseline.md`).",
+            "Scope management plan (`docs/templates/shared/scope-management-plan.md`).",
+            "Product breakdown structure (`docs/templates/shared/product-breakdown-structure.yaml`)."
+          ]
         }
       ],
       "source_file": "agents/delivery-management/agent-08-project-definition-scope/README.md"
@@ -1366,6 +1374,15 @@
             "Monitor prediction accuracy of duration estimates and early warning models; retrain as necessary based on feedback.",
             "Expose metrics (e.g., number of schedules created, average estimation error, number of alerts generated) to the Analytics & System Health Agents."
           ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Schedule management plan (`docs/templates/shared/schedule-management-plan.md`).",
+            "Activity list (`docs/templates/shared/activity-list.csv`).",
+            "Project calendar (`docs/templates/shared/project-calendar.csv`).",
+            "Schedule baseline (`docs/methodology/waterfall/templates/schedule-baseline.xlsx`)."
+          ]
         }
       ],
       "source_file": "agents/delivery-management/agent-10-schedule-planning/README.md"
@@ -1531,6 +1548,14 @@
           "content": [
             "Consider integrating external freelance marketplaces (e.g., Upwork) to source additional capacity for short\u2011term needs.",
             "Provide career development recommendations to resource managers by analysing training needs and high\u2011demand skills."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Resource management plan (`docs/templates/shared/resource-management-plan.md`).",
+            "Resource assignment matrix (`docs/templates/shared/resource-assignment-matrix.csv`).",
+            "Hybrid resource plan (`docs/methodology/hybrid/templates/hybrid-resource-plan.md`)."
           ]
         }
       ],
@@ -1700,6 +1725,14 @@
           "content": [
             "Integrate with predictive procurement or supplier risk assessments to correlate cost drivers with vendor performance.",
             "Enable natural language query of financial data using Azure Cognitive Services to improve user accessibility."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Cost management plan (`docs/templates/shared/cost-management-plan.md`).",
+            "Cost baseline (`docs/templates/shared/cost-baseline.xlsx`).",
+            "Variance report (`docs/templates/shared/variance-report.md`)."
           ]
         }
       ],
@@ -1872,6 +1905,15 @@
             "Integrate sustainability and diversity metrics in vendor scoring to support ESG goals.",
             "Provide chatbots or self\u2011service portals for vendors to check PO status and submit invoices."
           ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Procurement management plan (`docs/templates/shared/procurement-management-plan.md`).",
+            "RFP template (`docs/templates/shared/rfp-template.md`).",
+            "Vendor evaluation scorecard (`docs/templates/shared/vendor-evaluation-scorecard.xlsx`).",
+            "Supplier risk assessment (`docs/templates/shared/supplier-risk-assessment.md`)."
+          ]
         }
       ],
       "source_file": "agents/delivery-management/agent-13-vendor-procurement/README.md"
@@ -2036,6 +2078,14 @@
           "content": [
             "Integrate static code analysis and security scanning tools (e.g., SonarQube) to capture code quality metrics.",
             "Provide AI\u2011powered suggestions for test case generation based on requirements and historical defect patterns."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Quality management plan (`docs/templates/shared/quality-management-plan.md`).",
+            "Quality report (`docs/templates/shared/quality-report.md`).",
+            "QA checklist (`docs/methodology/waterfall/templates/qa-checklist.xlsx`)."
           ]
         }
       ],
@@ -2206,6 +2256,17 @@
           "content": [
             "Integrate with corporate insurance data to assess insurable risks and automate insurance claim processes.",
             "Provide interactive risk workshops using AI assistants that guide stakeholders through risk identification and mitigation planning."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Risk management plan (`docs/templates/shared/risk-management-plan.md`).",
+            "Risk breakdown structure (`docs/templates/shared/risk-breakdown-structure.yaml`).",
+            "Risk report (`docs/templates/shared/risk-report.md`).",
+            "Issue log (`docs/templates/shared/issue-log.md`).",
+            "Risk register (`docs/methodology/waterfall/templates/risk-register.xlsx`).",
+            "Integrated risk register (`docs/methodology/hybrid/templates/integrated-risk-register.md`)."
           ]
         }
       ],
@@ -2540,6 +2601,14 @@
           "content": [
             "Integrate with Infrastructure as Code tools (e.g., Azure Blueprint) to automatically update CMDB entries when infrastructure is deployed or modified.",
             "Provide predictive analytics on CAB workload and lead time, recommending optimal meeting times or automated approvals for low\u2011risk changes."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Change log (`docs/templates/shared/change-log.md`).",
+            "Change request (`docs/templates/shared/change-request.md`).",
+            "Change impact assessment (`docs/templates/shared/change-impact-assessment.md`)."
           ]
         }
       ],
@@ -3211,6 +3280,14 @@
           "content": [
             "Integrate chatbots to provide 24/7 stakeholder support and answer frequently asked questions about project status.",
             "Implement adaptive communication plans that adjust frequency or content based on real\u2011time engagement and sentiment metrics."
+          ]
+        },
+        {
+          "heading": "Templates Used",
+          "content": [
+            "Communications plan (`docs/templates/shared/communications-plan.md`).",
+            "Status report (`docs/templates/shared/status-report.md`).",
+            "Stakeholder register (`docs/templates/shared/stakeholder-register.xlsx`)."
           ]
         }
       ],

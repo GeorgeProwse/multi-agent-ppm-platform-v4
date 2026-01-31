@@ -23,9 +23,9 @@ Communications Lead, Project/Program Manager, Stakeholders.
 - **Objective 2:**
 
 ## 2. Stakeholder Segmentation
-| Segment | Description | Needs | Owner |
-| --- | --- | --- | --- |
-|  |  |  |  |
+| Segment | Description | Engagement Objectives | Information Needs | Owner |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
 
 ## 3. Cadence & Channels
 | Audience | Channel | Frequency | Owner | Notes |
@@ -41,6 +41,16 @@ Communications Lead, Project/Program Manager, Stakeholders.
 | Escalation Trigger | Primary Contact | Backup Contact | Response Time |
 | --- | --- | --- | --- |
 |  |  |  |  |
+
+## 6. Escalation Matrix (Unresolved Communications Issues)
+| Issue Type | Severity | Escalation Level | Time to Escalate | Owner |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
+
+## 7. Communication Calendar
+| Date | Audience | Topic | Channel | Owner |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
 
 ## Completion Checklist
 - [ ] Stakeholder segments aligned with register.
