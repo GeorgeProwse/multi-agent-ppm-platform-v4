@@ -58,7 +58,7 @@ class RedisConversationStore(ConversationMemoryStore):
         ttl_seconds: int | None = None,
         key_prefix: str = "conversation:",
         **kwargs: Any,
-    ) -> "RedisConversationStore":
+    ) -> RedisConversationStore:
         client = redis.from_url(url, **kwargs)
         return cls(client, ttl_seconds=ttl_seconds, key_prefix=key_prefix)
 

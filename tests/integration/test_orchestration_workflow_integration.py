@@ -25,12 +25,8 @@ def _load_module(name: str, path: Path):
 
 @pytest.mark.asyncio
 async def test_orchestration_service_starts_workflow_via_engine() -> None:
-    orchestrator_module = _load_module(
-        "orchestration_service_orchestrator", ORCHESTRATOR_PATH
-    )
-    workflow_module = _load_module(
-        "orchestration_service_workflow_client", WORKFLOW_CLIENT_PATH
-    )
+    orchestrator_module = _load_module("orchestration_service_orchestrator", ORCHESTRATOR_PATH)
+    workflow_module = _load_module("orchestration_service_workflow_client", WORKFLOW_CLIENT_PATH)
     AgentOrchestrator = orchestrator_module.AgentOrchestrator
     WorkflowClient = workflow_module.WorkflowClient
 

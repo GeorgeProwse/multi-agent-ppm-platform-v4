@@ -4,7 +4,6 @@ import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 SERVICE_ROOT = Path(__file__).resolve().parents[2] / "services" / "data-lineage-service"
@@ -48,7 +47,9 @@ def test_lineage_event_ingest_and_quality_summary(monkeypatch, tmp_path) -> None
                 }
             },
         }
-        response = client.post("/lineage/events", json=payload, headers={"X-Tenant-ID": "tenant-qa"})
+        response = client.post(
+            "/lineage/events", json=payload, headers={"X-Tenant-ID": "tenant-qa"}
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["quality"] is not None
@@ -64,9 +65,7 @@ def test_lineage_event_ingest_and_quality_summary(monkeypatch, tmp_path) -> None
         assert len(graph["nodes"]) == 2
         assert len(graph["edges"]) == 1
 
-        quality_response = client.get(
-            "/quality/summary", headers={"X-Tenant-ID": "tenant-qa"}
-        )
+        quality_response = client.get("/quality/summary", headers={"X-Tenant-ID": "tenant-qa"})
         assert quality_response.status_code == 200
         summary = quality_response.json()
         assert summary["total_events"] == 1

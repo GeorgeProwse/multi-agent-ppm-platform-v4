@@ -99,9 +99,7 @@ async def test_agent_client_schema_registry(monkeypatch, tmp_path) -> None:
                 {"id": "entity-42", "name": "Atlas"},
                 tenant_id="tenant-a",
             )
-            fetched = await data_client.get_entity(
-                "agent-demo", stored["id"], tenant_id="tenant-a"
-            )
+            fetched = await data_client.get_entity("agent-demo", stored["id"], tenant_id="tenant-a")
             assert fetched["data"]["id"] == "entity-42"
     finally:
         await module.app.state.store.engine.dispose()

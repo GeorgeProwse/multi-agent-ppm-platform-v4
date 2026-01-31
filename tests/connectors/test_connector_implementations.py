@@ -31,12 +31,12 @@ for path in [SDK_PATH, *connector_src_paths]:
     if path_str not in sys.path:
         sys.path.insert(0, path_str)
 
-from base_connector import ConnectorCategory, ConnectorConfig, ConnectionStatus
-
+import http_client as http_client_module
 from adp_connector import AdpConnector
 from archer_connector import ArcherConnector
 from asana_connector import AsanaConnector
 from azure_devops_connector import AzureDevOpsConnector
+from base_connector import ConnectionStatus, ConnectorCategory, ConnectorConfig
 from clarity_connector import ClarityConnector
 from confluence_connector import ConfluenceConnector
 from google_drive_connector import GoogleDriveConnector
@@ -55,7 +55,6 @@ from slack_connector import SlackConnector
 from teams_connector import TeamsConnector
 from workday_connector import WorkdayConnector
 from zoom_connector import ZoomConnector
-import http_client as http_client_module
 
 
 class DummySpan:
@@ -282,7 +281,11 @@ CONNECTOR_CASES: list[ConnectorCase] = [
         connector_class=SapConnector,
         connector_id="sap",
         category=ConnectorCategory.ERP,
-        env_vars={"SAP_URL": "https://api.example.com", "SAP_USERNAME": "user", "SAP_PASSWORD": "pass"},
+        env_vars={
+            "SAP_URL": "https://api.example.com",
+            "SAP_USERNAME": "user",
+            "SAP_PASSWORD": "pass",
+        },
         resource_type="projects",
         auth_path="/sap/opu/odata/sap/PROJECT_SRV/Projects",
         resource_path="/sap/opu/odata/sap/PROJECT_SRV/Projects",
@@ -539,7 +542,9 @@ def test_connector_write_success(case: ConnectorCase, monkeypatch: pytest.Monkey
 
 
 @pytest.mark.parametrize("case", CONNECTOR_CASES)
-def test_connector_test_connection_success(case: ConnectorCase, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connector_test_connection_success(
+    case: ConnectorCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
     for key, value in case.env_vars.items():
         monkeypatch.setenv(key, value)
 
@@ -575,7 +580,9 @@ def test_connector_test_connection_success(case: ConnectorCase, monkeypatch: pyt
 
 
 @pytest.mark.parametrize("case", CONNECTOR_CASES)
-def test_connector_missing_credentials(case: ConnectorCase, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connector_missing_credentials(
+    case: ConnectorCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
     for key in case.env_vars.keys():
         monkeypatch.delenv(key, raising=False)
 
@@ -596,7 +603,9 @@ def test_connector_missing_credentials(case: ConnectorCase, monkeypatch: pytest.
 
 
 @pytest.mark.parametrize("case", CONNECTOR_CASES)
-def test_connector_read_unsupported_resource(case: ConnectorCase, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connector_read_unsupported_resource(
+    case: ConnectorCase, monkeypatch: pytest.MonkeyPatch
+) -> None:
     for key, value in case.env_vars.items():
         monkeypatch.setenv(key, value)
 

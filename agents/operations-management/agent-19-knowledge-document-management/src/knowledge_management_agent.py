@@ -13,11 +13,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jsonschema import ValidationError
-from jsonschema import validate as jsonschema_validate
-
 from agents.runtime import BaseAgent
 from agents.runtime.src.state_store import TenantStateStore
+from jsonschema import ValidationError
+from jsonschema import validate as jsonschema_validate
 
 
 class KnowledgeManagementAgent(BaseAgent):

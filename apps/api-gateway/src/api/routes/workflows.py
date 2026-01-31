@@ -17,9 +17,9 @@ if str(WORKFLOW_ENGINE_SRC) not in sys.path:
     sys.path.insert(0, str(WORKFLOW_ENGINE_SRC))
 
 from agent_client import get_agent_client  # noqa: E402
+from security.audit_log import build_event, get_audit_log_store
 from workflow_definitions import load_definition, seed_definitions  # noqa: E402
 from workflow_runtime import WorkflowRuntime  # noqa: E402
-from security.audit_log import build_event, get_audit_log_store
 from workflow_storage import WorkflowStore  # noqa: E402
 
 router = APIRouter()
@@ -151,7 +151,9 @@ async def create_definition(request: WorkflowDefinitionCreateRequest) -> Workflo
 
 
 @router.post("/workflows/start", response_model=WorkflowRunResponse)
-async def start_workflow(request: WorkflowStartRequest, http_request: Request) -> WorkflowRunResponse:
+async def start_workflow(
+    request: WorkflowStartRequest, http_request: Request
+) -> WorkflowRunResponse:
     definition = _get_definition(request.workflow_id)
     run_id = str(uuid4())
     instance = store.create(

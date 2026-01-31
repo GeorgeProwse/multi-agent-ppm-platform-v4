@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 
 import pytest
-
 from security.secrets import SecretResolutionError, resolve_secret
 
 

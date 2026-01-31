@@ -14,12 +14,12 @@ for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from leader_election import build_leader_elector  # noqa: E402
 from observability.logging import configure_logging  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from orchestrator import AgentOrchestrator  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
-from leader_election import build_leader_elector  # noqa: E402
 
 logger = logging.getLogger("orchestration-service")
 logging.basicConfig(level=logging.INFO)

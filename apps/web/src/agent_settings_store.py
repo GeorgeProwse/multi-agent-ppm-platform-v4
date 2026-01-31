@@ -146,10 +146,7 @@ class AgentSettingsStore:
         projects = tenant_payload.setdefault("projects", {})
         projects[settings.project_id] = {
             "defaults_version": settings.defaults_version,
-            "agents": {
-                agent_id: entry.model_dump()
-                for agent_id, entry in settings.agents.items()
-            },
+            "agents": {agent_id: entry.model_dump() for agent_id, entry in settings.agents.items()},
         }
         self._write(data)
 

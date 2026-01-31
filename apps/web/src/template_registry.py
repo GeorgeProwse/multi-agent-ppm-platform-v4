@@ -195,11 +195,7 @@ def list_templates(
         results = [item for item in results if item.type == template_type]
     if tag:
         lowered = tag.strip().lower()
-        results = [
-            item
-            for item in results
-            if any(t.lower() == lowered for t in item.tags)
-        ]
+        results = [item for item in results if any(t.lower() == lowered for t in item.tags)]
     if query:
         lowered = query.strip().lower()
         results = [

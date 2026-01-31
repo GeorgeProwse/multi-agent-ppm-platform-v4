@@ -19,16 +19,10 @@ class AnalyticsServiceClient:
         self.timeout = timeout
         self.transport = transport
 
-    async def get_project_health(
-        self, project_id: str, headers: dict[str, str]
-    ) -> httpx.Response:
-        return await self._request(
-            "GET", f"/api/projects/{project_id}/health", headers=headers
-        )
+    async def get_project_health(self, project_id: str, headers: dict[str, str]) -> httpx.Response:
+        return await self._request("GET", f"/api/projects/{project_id}/health", headers=headers)
 
-    async def get_project_trends(
-        self, project_id: str, headers: dict[str, str]
-    ) -> httpx.Response:
+    async def get_project_trends(self, project_id: str, headers: dict[str, str]) -> httpx.Response:
         return await self._request(
             "GET", f"/api/projects/{project_id}/health/trends", headers=headers
         )
@@ -43,12 +37,8 @@ class AnalyticsServiceClient:
             json=payload,
         )
 
-    async def get_project_kpis(
-        self, project_id: str, headers: dict[str, str]
-    ) -> httpx.Response:
-        return await self._request(
-            "GET", f"/api/projects/{project_id}/kpis", headers=headers
-        )
+    async def get_project_kpis(self, project_id: str, headers: dict[str, str]) -> httpx.Response:
+        return await self._request("GET", f"/api/projects/{project_id}/kpis", headers=headers)
 
     async def get_project_narrative(
         self, project_id: str, headers: dict[str, str]

@@ -107,9 +107,7 @@ def test_instantiate_spreadsheet_creates_sheet_and_seed_rows(client, monkeypatch
     payload = response.json()
     assert payload["created_type"] == "spreadsheet"
 
-    detail_response = client.get(
-        f"/api/spreadsheets/demo-1/sheets/{payload['sheet_id']}"
-    )
+    detail_response = client.get(f"/api/spreadsheets/demo-1/sheets/{payload['sheet_id']}")
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["rows"]

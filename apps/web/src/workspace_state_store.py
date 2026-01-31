@@ -82,7 +82,7 @@ class WorkspaceStateStore:
                 handle.write("\n")
             temp_path.replace(self._path)
 
-    def _file_lock(self) -> "FileLock":
+    def _file_lock(self) -> FileLock:
         return FileLock(self._lock_path)
 
 
@@ -91,7 +91,7 @@ class FileLock:
         self._path = path
         self._handle: Any = None
 
-    def __enter__(self) -> "FileLock":
+    def __enter__(self) -> FileLock:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self._path.open("w", encoding="utf-8")
         self._lock()

@@ -12,7 +12,7 @@ class DataServiceClient:
     client: httpx.AsyncClient
 
     @classmethod
-    def from_url(cls, base_url: str, **kwargs: Any) -> "DataServiceClient":
+    def from_url(cls, base_url: str, **kwargs: Any) -> DataServiceClient:
         client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=10.0, **kwargs)
         return cls(base_url=base_url.rstrip("/"), client=client)
 
@@ -22,9 +22,7 @@ class DataServiceClient:
         payload: dict[str, Any] = {"name": name, "schema": schema}
         if version is not None:
             payload["version"] = version
-        response = await self.client.post(
-            "/schemas", json=payload, headers=_headers(tenant_id)
-        )
+        response = await self.client.post("/schemas", json=payload, headers=_headers(tenant_id))
         response.raise_for_status()
         return response.json()
 
@@ -33,7 +31,9 @@ class DataServiceClient:
         response.raise_for_status()
         return response.json()
 
-    async def list_schema_versions(self, schema_name: str, *, tenant_id: str) -> list[dict[str, Any]]:
+    async def list_schema_versions(
+        self, schema_name: str, *, tenant_id: str
+    ) -> list[dict[str, Any]]:
         response = await self.client.get(
             f"/schemas/{schema_name}/versions", headers=_headers(tenant_id)
         )
@@ -79,7 +79,9 @@ class DataServiceClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_entity(self, schema_name: str, entity_id: str, *, tenant_id: str) -> dict[str, Any]:
+    async def get_entity(
+        self, schema_name: str, entity_id: str, *, tenant_id: str
+    ) -> dict[str, Any]:
         response = await self.client.get(
             f"/entities/{schema_name}/{entity_id}", headers=_headers(tenant_id)
         )

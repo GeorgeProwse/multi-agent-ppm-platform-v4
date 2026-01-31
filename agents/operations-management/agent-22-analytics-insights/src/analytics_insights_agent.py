@@ -439,9 +439,7 @@ class AnalyticsInsightsAgent(BaseAgent):
         comparison = scenario_output["comparison"]
         impact = scenario_output.get("recommendation")
 
-        simulations = await self._run_metric_simulations(
-            tenant_id, scenario.get("simulations", [])
-        )
+        simulations = await self._run_metric_simulations(tenant_id, scenario.get("simulations", []))
         simulation_summary = await self._summarize_simulation_results(simulations)
 
         # Store scenario
@@ -717,9 +715,7 @@ class AnalyticsInsightsAgent(BaseAgent):
 
         snapshots = self.health_snapshots.setdefault(tenant_id, [])
         snapshots.append(health_data)
-        record_id = (
-            f"{project_id}-{health_data.get('monitored_at', datetime.utcnow().isoformat())}"
-        )
+        record_id = f"{project_id}-{health_data.get('monitored_at', datetime.utcnow().isoformat())}"
         self.health_snapshot_store.upsert(tenant_id, record_id, health_data.copy())
 
     async def _handle_health_report_generated(self, event: dict[str, Any]) -> None:
@@ -979,7 +975,9 @@ class AnalyticsInsightsAgent(BaseAgent):
         """Make prediction using ML model."""
         if model_type == "health_score":
             project_id = input_data.get("project_id")
-            history = await self._get_health_history(input_data.get("tenant_id", "default"), project_id)
+            history = await self._get_health_history(
+                input_data.get("tenant_id", "default"), project_id
+            )
             if len(history) >= 2:
                 last_two = history[-2:]
                 delta = last_two[-1]["composite_score"] - last_two[0]["composite_score"]

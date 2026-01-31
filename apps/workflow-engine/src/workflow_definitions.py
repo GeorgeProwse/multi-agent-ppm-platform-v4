@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from jsonschema import Draft202012Validator, FormatChecker
-
 from workflow_storage import WorkflowStore
+
+from jsonschema import Draft202012Validator, FormatChecker
 
 
 def load_definition(path: Path, schema_path: Path) -> dict[str, Any]:

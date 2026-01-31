@@ -1,0 +1,15 @@
+{
+  "roi": {
+    "costs": {
+      "total_cost": 250000,
+      "labor_cost": 180000,
+      "infrastructure_cost": 50000,
+      "license_cost": 20000
+    },
+    "benefits": {
+      "total_benefits": 500000,
+      "cost_savings": 300000,
+      "revenue_increase": 200000
+    }
+  }
+}

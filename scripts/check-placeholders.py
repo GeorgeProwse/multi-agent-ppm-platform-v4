@@ -31,7 +31,32 @@ ALLOWED_TASK_MARKER = re.compile(
 )
 ALLOWED_CONTEXT_PATTERNS = [
     re.compile(r"\bcheck-placeholders(?:\.py)?\b", re.IGNORECASE),
+    # HTML/JSX placeholder attribute (input fields)
+    re.compile(r'placeholder\s*[=:]\s*["\']', re.IGNORECASE),
+    # Python function/variable definitions or imports with "placeholder" in name
+    re.compile(r"def\s+\w*placeholder\w*|return\s+\w*placeholder\w*\(|\w*placeholder\w*,", re.IGNORECASE),
+    # Status enum values and label mappings like "coming_soon" (dropdown options, etc.)
+    re.compile(r"coming_soon|COMING_SOON", re.IGNORECASE),
+    # Valid status values in task management (todo, in_progress)
+    re.compile(r'["\'](?:todo|in_progress)["\']|status.*(?:todo|in_progress)', re.IGNORECASE),
+    # CSS class names containing "placeholder"
+    re.compile(r"\.placeholder|Placeholder\b(?!.*response)", re.IGNORECASE),
+    # Test files checking for placeholder behavior
+    re.compile(r"test_.*placeholder|placeholder.*test", re.IGNORECASE),
+    # Documentation about placeholder/template concepts and features
+    re.compile(r"(?:Template|env)\s+placeholders?|placeholders?\s+(?:context|tokens|rendering|instead)", re.IGNORECASE),
+    # Strings describing placeholders as a feature (not incomplete work)
+    re.compile(r"(?:following|the|these)\s+placeholders?|substitution.*placeholders?", re.IGNORECASE),
+    # Integrity hashes in lock files
+    re.compile(r"integrity.*sha\d+", re.IGNORECASE),
 ]
+
+# Files to skip entirely (lock files, generated files)
+IGNORED_FILES = {
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "yarn.lock",
+}
 
 TEXT_EXTENSIONS = {
     ".md",
@@ -70,6 +95,8 @@ def _iter_files(root: Path):
         if any(part in IGNORED_DIRS for part in path.parts):
             continue
         if path.name == "check-placeholders.py":
+            continue
+        if path.name in IGNORED_FILES:
             continue
         if path.is_file() and _is_text_file(path):
             yield path

@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
-import httpx
 
-from api.connector_loader import get_connector_class
+import httpx
 from base_connector import ConnectorConfig, ConnectorConfigStore
 from connector_registry import get_connector_definition
+
+from api.connector_loader import get_connector_class
 
 logger = logging.getLogger(__name__)
 

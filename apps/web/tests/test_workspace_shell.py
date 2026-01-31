@@ -1,12 +1,11 @@
 from pathlib import Path
 
-
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 
 def test_index_links_to_workspace():
     index_html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    assert "href=\"/workspace\"" in index_html
+    assert 'href="/workspace"' in index_html
 
 
 def test_workspace_shell_layout_strings():
@@ -23,7 +22,7 @@ def test_workspace_shell_layout_strings():
         "Select an activity to view guidance.",
     ]:
         assert label in app_js
-    assert "window.location.pathname === \"/workspace\"" in app_js
+    assert 'window.location.pathname === "/workspace"' in app_js
 
 
 def test_workspace_css_present():

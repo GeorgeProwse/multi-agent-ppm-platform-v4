@@ -199,9 +199,8 @@ async def test_project_lifecycle_generates_health_report(tmp_path):
     )
 
     assert report["project_id"] == project_id
-    assert any(
-        topic == "project.health.report.generated" for topic, _ in event_bus.events
-    )
+    assert any(topic == "project.health.report.generated" for topic, _ in event_bus.events)
+
 
 @pytest.mark.asyncio
 async def test_project_lifecycle_validation_rejects_invalid_action(tmp_path):

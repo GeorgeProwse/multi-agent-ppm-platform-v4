@@ -1,5 +1,4 @@
 import pytest
-
 from workflow_engine_agent import WorkflowEngineAgent
 from workflow_state_store import DatabaseWorkflowStateStore
 from workflow_task_queue import InMemoryWorkflowTaskQueue
@@ -35,9 +34,7 @@ async def test_distributed_workflow_executes_across_workers(tmp_path):
             "tenant_id": "tenant-distributed",
             "workflow": {
                 "name": "Distributed Workflow",
-                "tasks": [
-                    {"task_id": "auto-1", "type": "automated", "initial": True}
-                ],
+                "tasks": [{"task_id": "auto-1", "type": "automated", "initial": True}],
             },
         }
     )

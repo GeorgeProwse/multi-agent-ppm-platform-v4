@@ -9,14 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from agents.runtime import AgentResponse
-
 import httpx
-
 from persistence import WorkflowState, build_state_store, make_state_key
-
-from tools.runtime_paths import bootstrap_runtime_paths
 from workflow_client import WorkflowClient
+
+from agents.runtime import AgentResponse
+from tools.runtime_paths import bootstrap_runtime_paths
 
 logger = logging.getLogger(__name__)
 DEFAULT_POLICY_BUNDLE_PATH = (
@@ -142,7 +140,7 @@ class AgentOrchestrator:
                 json={
                     "tenant_id": tenant_id,
                     "roles": roles,
-                    "permission": f\"agent.execute.{agent_id}\",
+                    "permission": f"agent.execute.{agent_id}",
                 },
                 headers={"Authorization": f"Bearer {service_token}", "X-Tenant-ID": tenant_id},
             )
@@ -214,18 +212,14 @@ class AgentOrchestrator:
 
     def resume_workflows(self, tenant_id: str) -> list[str]:
         return [
-            state.run_id
-            for state in self.workflow_states.values()
-            if state.tenant_id == tenant_id
+            state.run_id for state in self.workflow_states.values() if state.tenant_id == tenant_id
         ]
 
     def get_state(self, tenant_id: str, run_id: str) -> WorkflowState | None:
         return self.workflow_states.get(make_state_key(tenant_id, run_id))
 
     def list_states(self, tenant_id: str) -> list[WorkflowState]:
-        return [
-            state for state in self.workflow_states.values() if state.tenant_id == tenant_id
-        ]
+        return [state for state in self.workflow_states.values() if state.tenant_id == tenant_id]
 
     async def _load_governance_agents(self):
         """Initialize governance agents."""

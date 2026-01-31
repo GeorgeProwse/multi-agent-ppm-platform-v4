@@ -38,7 +38,7 @@ class Column(ColumnCreate):
     column_id: str
 
     @classmethod
-    def build(cls, payload: ColumnCreate) -> "Column":
+    def build(cls, payload: ColumnCreate) -> Column:
         return cls(
             column_id=str(uuid4()),
             name=payload.name,
@@ -79,7 +79,7 @@ class Sheet(BaseModel):
     updated_at: datetime
 
     @classmethod
-    def build(cls, tenant_id: str, project_id: str, payload: SheetCreate) -> "Sheet":
+    def build(cls, tenant_id: str, project_id: str, payload: SheetCreate) -> Sheet:
         now = utc_now()
         columns = [Column.build(column) for column in payload.columns]
         return cls(
@@ -114,7 +114,7 @@ class Row(BaseModel):
     updated_at: datetime
 
     @classmethod
-    def build(cls, payload: dict[str, Any]) -> "Row":
+    def build(cls, payload: dict[str, Any]) -> Row:
         now = utc_now()
         return cls(
             row_id=str(uuid4()),

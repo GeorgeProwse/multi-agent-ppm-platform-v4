@@ -274,6 +274,21 @@ export const ACTION_AGENT_MAPPING: Record<string, string> = {
 /**
  * Gets the agent ID associated with an action chip, if any.
  */
+/**
+ * API response type for suggestion endpoint
+ */
+export interface SuggestionApiResponse {
+  id: string;
+  label: string;
+  category: ActionCategory;
+  priority: ActionPriority;
+  icon?: string;
+  action_type: ActionType;
+  payload: ActionPayload;
+  enabled?: boolean;
+  description?: string;
+}
+
 export function getAgentForAction(chipId: string): string | undefined {
   // Check direct mapping first
   if (ACTION_AGENT_MAPPING[chipId]) {

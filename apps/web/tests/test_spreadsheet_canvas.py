@@ -146,9 +146,7 @@ def test_export_csv(client, monkeypatch):
         json={"values": {task_id: "Plan", estimate_id: "1"}},
     )
 
-    response = client.get(
-        f"/api/spreadsheets/demo-1/sheets/{sheet['sheet_id']}/export.csv"
-    )
+    response = client.get(f"/api/spreadsheets/demo-1/sheets/{sheet['sheet_id']}/export.csv")
     assert response.status_code == 200
     lines = response.text.strip().split("\n")
     assert lines[0].strip() == "Task,Estimate"

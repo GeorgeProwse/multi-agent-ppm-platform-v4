@@ -6,5 +6,5 @@ class Resource:
         self.attributes = attributes or {}
 
     @classmethod
-    def create(cls, attributes: dict[str, str]) -> "Resource":
+    def create(cls, attributes: dict[str, str]) -> Resource:
         return cls(attributes=attributes)

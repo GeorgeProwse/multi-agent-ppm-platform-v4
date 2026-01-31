@@ -60,9 +60,7 @@ def test_create_list_update_delete_nodes(client, monkeypatch):
     assert update_response.status_code == 200
     assert update_response.json()["title"] == "Updated Charter"
 
-    delete_response = client.delete(
-        f"/api/tree/demo-1/nodes/{folder['node_id']}"
-    )
+    delete_response = client.delete(f"/api/tree/demo-1/nodes/{folder['node_id']}")
     assert delete_response.status_code == 200
     delete_payload = delete_response.json()
     assert delete_payload["deleted"] is True

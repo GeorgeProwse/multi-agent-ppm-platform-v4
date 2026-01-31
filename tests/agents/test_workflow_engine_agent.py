@@ -1,5 +1,4 @@
 import pytest
-
 from workflow_engine_agent import WorkflowEngineAgent
 from workflow_task_queue import InMemoryWorkflowTaskQueue
 

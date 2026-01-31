@@ -4,6 +4,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+
 from sqlalchemy import create_engine, inspect
 
 
@@ -66,9 +67,7 @@ def test_missing_tables_created(tmp_path) -> None:
         "updated_at",
     }
 
-    agent_config_columns = {
-        column["name"] for column in inspector.get_columns("agent_configs")
-    }
+    agent_config_columns = {column["name"] for column in inspector.get_columns("agent_configs")}
     assert agent_config_columns == {
         "tenant_id",
         "agents",

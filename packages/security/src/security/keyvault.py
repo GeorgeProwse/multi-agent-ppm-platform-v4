@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -27,7 +26,7 @@ class KeyVaultClient:
         credential = DefaultAzureCredential()
         self._client = SecretClient(vault_url=config.vault_url, credential=credential)
 
-    def get_secret(self, name: str) -> Optional[str]:
+    def get_secret(self, name: str) -> str | None:
         secret = self._client.get_secret(name)
         return secret.value if secret else None
 

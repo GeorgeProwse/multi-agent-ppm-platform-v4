@@ -17,18 +17,17 @@ OBSERVABILITY_ROOT = Path(__file__).resolve().parents[3] / "packages" / "observa
 if str(OBSERVABILITY_ROOT) not in sys.path:
     sys.path.insert(0, str(OBSERVABILITY_ROOT))
 
-from pydantic import BaseModel  # noqa: E402
-
 from observability.tracing import get_trace_id, start_agent_span  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 from agents.runtime.src.agent_catalog import get_catalog_id  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.data_service import DataServiceClient  # noqa: E402
 from agents.runtime.src.models import (  # noqa: E402
     AgentPayload,
     AgentResponse,
     AgentResponseMetadata,
 )
-from agents.runtime.src.data_service import DataServiceClient  # noqa: E402
 from agents.runtime.src.policy import (  # noqa: E402
     evaluate_policy_bundle,
     load_default_policy_bundle,

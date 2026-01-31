@@ -76,7 +76,11 @@ def next_required_activity(
 
     if state.current_stage_id:
         stage = next(
-            (item for item in methodology_map.get("stages", []) if item.get("id") == state.current_stage_id),
+            (
+                item
+                for item in methodology_map.get("stages", [])
+                if item.get("id") == state.current_stage_id
+            ),
             None,
         )
         if stage:

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import math
 import random
-from collections import Counter, defaultdict
+from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 
 class LocalEmbeddingService:

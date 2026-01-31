@@ -74,7 +74,9 @@ def test_admin_can_toggle_and_configure(client, monkeypatch):
     assert config_response.json()["config"] == config_payload
 
     refreshed = client.get("/api/agent-gallery/demo-1").json()
-    updated = next(agent for agent in refreshed["agents"] if agent["agent_id"] == target["agent_id"])
+    updated = next(
+        agent for agent in refreshed["agents"] if agent["agent_id"] == target["agent_id"]
+    )
     assert updated["enabled"] is False
     assert updated["config"] == config_payload
 

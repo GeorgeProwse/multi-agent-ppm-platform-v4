@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, date
-from typing import Any, Callable
+from datetime import date, datetime
+from typing import Any
 
 from data_quality.rules import DataQualityIssue, DataQualityReport
 
@@ -134,7 +135,9 @@ def _fix_due_date(payload: dict[str, Any], actions: list[RemediationAction]) -> 
             )
 
 
-def _fix_updated_at(payload: dict[str, Any], actions: list[RemediationAction], rule_id: str) -> None:
+def _fix_updated_at(
+    payload: dict[str, Any], actions: list[RemediationAction], rule_id: str
+) -> None:
     if not payload.get("updated_at"):
         _apply_action(
             payload,
@@ -201,5 +204,7 @@ def remediate_from_issues(
     record: dict[str, Any],
     issues: list[DataQualityIssue],
 ) -> RemediationResult:
-    report = DataQualityReport(record_type=record_type, record_id=record.get("id"), issues=tuple(issues))
+    report = DataQualityReport(
+        record_type=record_type, record_id=record.get("id"), issues=tuple(issues)
+    )
     return remediate_payload(record_type, record, report)

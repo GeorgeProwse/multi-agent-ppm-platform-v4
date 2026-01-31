@@ -79,9 +79,7 @@ def test_api_returns_gating_metadata(client, monkeypatch):
     payload = response.json()
     assert "available_methodologies" in payload
     assert payload["gating"]["current_activity_access"]["allowed"] is False
-    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == [
-        "agile-backlog"
-    ]
+    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == ["agile-backlog"]
     assert payload["gating"]["next_required_activity_id"] == "agile-backlog"
 
 
@@ -118,6 +116,4 @@ def test_tenant_isolation_for_completion_and_gating(client, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["gating"]["current_activity_access"]["allowed"] is False
-    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == [
-        "agile-vision"
-    ]
+    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == ["agile-vision"]

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
-import sys
 
 SERVICE_SRC = Path(__file__).resolve().parents[2] / "apps" / "analytics-service" / "src"
 if str(SERVICE_SRC) not in sys.path:

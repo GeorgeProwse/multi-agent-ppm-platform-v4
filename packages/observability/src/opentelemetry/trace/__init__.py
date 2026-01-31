@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Iterator
+from typing import Any
 
 
 class SpanKind(Enum):
@@ -64,4 +65,11 @@ def get_current_span() -> _Span:
     return _Span()
 
 
-__all__ = ["SpanKind", "Status", "StatusCode", "get_tracer", "get_current_span", "set_tracer_provider"]
+__all__ = [
+    "SpanKind",
+    "Status",
+    "StatusCode",
+    "get_tracer",
+    "get_current_span",
+    "set_tracer_provider",
+]

@@ -36,11 +36,9 @@ class OpenRef(BaseModel):
     milestone_id: str | None = None
 
     @model_validator(mode="after")
-    def _ensure_single_target(self) -> "OpenRef":
+    def _ensure_single_target(self) -> OpenRef:
         provided = [
-            value
-            for value in (self.document_id, self.sheet_id, self.milestone_id)
-            if value
+            value for value in (self.document_id, self.sheet_id, self.milestone_id) if value
         ]
         if not provided:
             raise ValueError("open_ref requires at least one id")

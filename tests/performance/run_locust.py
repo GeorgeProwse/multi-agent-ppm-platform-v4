@@ -12,9 +12,13 @@ DEFAULT_LOCUSTFILE = Path(__file__).with_name("locustfile.py")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Locust performance tests using config values.")
+    parser = argparse.ArgumentParser(
+        description="Run Locust performance tests using config values."
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="Path to config YAML")
-    parser.add_argument("--locustfile", type=Path, default=DEFAULT_LOCUSTFILE, help="Path to locustfile")
+    parser.add_argument(
+        "--locustfile", type=Path, default=DEFAULT_LOCUSTFILE, help="Path to locustfile"
+    )
     parser.add_argument("--csv-prefix", type=str, default="tests/performance/results/perf")
     parser.add_argument("--log-level", type=str, default="INFO")
     return parser.parse_args()

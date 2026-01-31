@@ -125,6 +125,9 @@ ignore = ["E501", "UP017"]  # Line too long (handled by black); UTC alias not in
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Unused imports
+"**/main.py" = ["E402"]  # Module imports after path manipulation
+"**/routes/*.py" = ["E402"]  # Route files with path bootstrapping
+"tests/**/*.py" = ["E402", "N806"]  # Tests with dynamic imports and class loading
 
 [tool.mypy]
 python_version = "3.11"

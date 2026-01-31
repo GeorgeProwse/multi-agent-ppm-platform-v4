@@ -19,18 +19,6 @@ for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-from agents.common.health_recommendations import (  # noqa: E402
-    generate_recommendations,
-    identify_health_concerns,
-)
-from agents.common.metrics_catalog import normalize_metric_value  # noqa: E402
-from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
-from observability.metrics import (  # noqa: E402
-    RequestMetricsMiddleware,
-    build_kpi_handles,
-    configure_metrics,
-)
-from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from health import HealthSnapshotStore  # noqa: E402
 from kpi_engine import (  # noqa: E402
     AnalyticsDataClient,
@@ -40,8 +28,21 @@ from kpi_engine import (  # noqa: E402
     generate_narrative,
 )
 from metrics_store import MetricsStore  # noqa: E402
+from observability.metrics import (  # noqa: E402
+    RequestMetricsMiddleware,
+    build_kpi_handles,
+    configure_metrics,
+)
+from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from scheduler import AnalyticsScheduler  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+
+from agents.common.health_recommendations import (  # noqa: E402
+    generate_recommendations,
+    identify_health_concerns,
+)
+from agents.common.metrics_catalog import normalize_metric_value  # noqa: E402
+from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
 
 logger = logging.getLogger("analytics-service")
 logging.basicConfig(level=logging.INFO)
@@ -280,6 +281,7 @@ def _load_lifecycle_health(tenant_id: str, project_id: str) -> dict[str, Any] | 
     records = sorted(records, key=lambda item: _parse_timestamp(item.get("monitored_at")))
     return records[-1]
 
+
 def _build_health_from_kpis(snapshot: KpiSnapshot) -> dict[str, Any]:
     raw_metrics = snapshot.metrics
     schedule_health = snapshot.normalized.get("schedule_variance", 0.0)
@@ -508,21 +510,24 @@ async def get_project_health(project_id: str, request: Request) -> ProjectHealth
 
 
 @app.get("/api/projects/{project_id}/health/trends", response_model=HealthTrendResponse)
-async def get_project_health_trends(
-    project_id: str, request: Request
-) -> HealthTrendResponse:
+async def get_project_health_trends(project_id: str, request: Request) -> HealthTrendResponse:
     assert health_snapshot_store is not None
     assert metrics_store is not None
     assert kpi_engine is not None
     tenant_id = request.state.auth.tenant_id
-    snapshots = metrics_store.list_snapshots(tenant_id, project_id, limit=DEFAULT_HEALTH_HISTORY_LIMIT)
+    snapshots = metrics_store.list_snapshots(
+        tenant_id, project_id, limit=DEFAULT_HEALTH_HISTORY_LIMIT
+    )
     points: list[HealthTrendPoint] = []
     for snapshot in snapshots:
         points.append(
             HealthTrendPoint(
                 timestamp=snapshot.captured_at.isoformat(),
                 composite_score=float(
-                    sum(normalize_metric_value(name, value) for name, value in snapshot.metrics.items())
+                    sum(
+                        normalize_metric_value(name, value)
+                        for name, value in snapshot.metrics.items()
+                    )
                     / max(len(snapshot.metrics), 1)
                 ),
                 metrics={
@@ -620,9 +625,7 @@ async def get_project_kpi_narrative(project_id: str, request: Request) -> Narrat
     )
 
 
-@app.post(
-    "/api/projects/{project_id}/kpis/what-if", response_model=WhatIfDetailResponse
-)
+@app.post("/api/projects/{project_id}/kpis/what-if", response_model=WhatIfDetailResponse)
 async def run_kpi_what_if(
     project_id: str, request: Request, payload: WhatIfRequest
 ) -> WhatIfDetailResponse:

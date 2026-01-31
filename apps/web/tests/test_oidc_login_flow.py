@@ -64,9 +64,7 @@ def _build_oidc_transport(issuer: str, nonce_holder: dict[str, str]) -> httpx.Mo
                 algorithm="RS256",
                 headers={"kid": "test-key"},
             )
-            return httpx.Response(
-                200, json={"access_token": "access-token", "id_token": id_token}
-            )
+            return httpx.Response(200, json={"access_token": "access-token", "id_token": id_token})
         if request.url.path.endswith("/jwks"):
             return httpx.Response(200, json=jwks)
         return httpx.Response(404, json={"detail": "not found"})
@@ -110,9 +108,7 @@ def test_oidc_login_flow_sets_session_cookie():
     assert state_payload["state"] == state
     assert state_payload["nonce"] == nonce
 
-    callback = client.get(
-        f"/oidc/callback?code=auth-code&state={state}", allow_redirects=False
-    )
+    callback = client.get(f"/oidc/callback?code=auth-code&state={state}", allow_redirects=False)
     assert callback.status_code in {302, 307}
     assert callback.headers["location"] == "/workspace"
 

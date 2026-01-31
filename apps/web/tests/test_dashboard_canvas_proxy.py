@@ -33,9 +33,7 @@ def _set_tenant(monkeypatch, tenant_id: str) -> None:
 
 def _wire_client(monkeypatch, transport: httpx.AsyncBaseTransport) -> None:
     def _client() -> AnalyticsServiceClient:
-        return AnalyticsServiceClient(
-            base_url="http://analytics-service:8080", transport=transport
-        )
+        return AnalyticsServiceClient(base_url="http://analytics-service:8080", transport=transport)
 
     monkeypatch.setattr(main, "_analytics_client", _client)
 
@@ -61,9 +59,7 @@ def test_health_proxy_forwards_headers(client, monkeypatch):
     _wire_client(monkeypatch, transport)
     _set_tenant(monkeypatch, "tenant-a")
 
-    response = client.get(
-        "/api/dashboard/demo-1/health", headers={"X-Dev-User": "tester"}
-    )
+    response = client.get("/api/dashboard/demo-1/health", headers={"X-Dev-User": "tester"})
 
     assert response.status_code == 200
     assert captured["path"] == "/api/projects/demo-1/health"

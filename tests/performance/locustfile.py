@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 from locust import HttpUser, task
-from locust.wait_time import constant_pacing, between
+from locust.wait_time import between, constant_pacing
 
 DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
 
@@ -23,7 +23,7 @@ class Endpoint:
 
 def load_config() -> dict[str, Any]:
     config_path = os.getenv("PERF_CONFIG", DEFAULT_CONFIG_PATH)
-    with open(config_path, "r", encoding="utf-8") as handle:
+    with open(config_path, encoding="utf-8") as handle:
         return yaml.safe_load(handle)
 
 

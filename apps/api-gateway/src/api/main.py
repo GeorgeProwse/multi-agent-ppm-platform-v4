@@ -17,10 +17,19 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from api.leader_election import build_leader_elector
 from api.limiter import limiter
 from api.middleware.security import AuthTenantMiddleware, FieldMaskingMiddleware
-from api.leader_election import build_leader_elector
-from api.routes import agents, health, agent_config, analytics, connectors, workflows, audit, lineage
+from api.routes import (
+    agent_config,
+    agents,
+    analytics,
+    audit,
+    connectors,
+    health,
+    lineage,
+    workflows,
+)
 from api.runtime_bootstrap import bootstrap_runtime_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
