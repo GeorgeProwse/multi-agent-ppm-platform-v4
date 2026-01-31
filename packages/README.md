@@ -12,6 +12,7 @@ Describe shared packages and how they support platform services.
 - `packages/data-quality`: Subdirectory containing data quality assets for this area.
 - `packages/llm`: Subdirectory containing LLM assets for this area.
 - `packages/methodology-engine`: Subdirectory containing methodology engine assets for this area.
+- `packages/workflow`: Workflow dispatchers, Celery tasks, and result aggregation.
 
 ## How it's used
 

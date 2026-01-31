@@ -30,6 +30,10 @@ spec:
               value: {{ .Values.env.OTEL_EXPORTER_OTLP_ENDPOINT | quote }}
             - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
               value: {{ .Values.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT | quote }}
+            - name: WORKFLOW_BROKER_URL
+              value: {{ .Values.env.WORKFLOW_BROKER_URL | quote }}
+            - name: WORKFLOW_RESULT_BACKEND
+              value: {{ .Values.env.WORKFLOW_RESULT_BACKEND | quote }}
           readinessProbe:
             httpGet:
               path: /healthz

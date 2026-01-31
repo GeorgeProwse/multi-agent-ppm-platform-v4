@@ -4,8 +4,16 @@ import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
+import importlib
 import jwt
+import pytest
 from fastapi.testclient import TestClient
+
+WORKFLOW_PACKAGE = Path(__file__).resolve().parents[2] / "packages" / "workflow" / "src"
+if str(WORKFLOW_PACKAGE) not in sys.path:
+    sys.path.insert(0, str(WORKFLOW_PACKAGE))
+
+pytest.importorskip("cryptography")
 
 
 def _load_module():
@@ -32,6 +40,9 @@ class DummyAgentClient:
 def test_workflow_persistence(tmp_path, monkeypatch) -> None:
     db_path = tmp_path / "workflow.db"
     monkeypatch.setenv("WORKFLOW_DB_PATH", str(db_path))
+    monkeypatch.setenv("WORKFLOW_CELERY_EAGER", "true")
+    monkeypatch.setenv("WORKFLOW_BROKER_URL", "memory://")
+    monkeypatch.setenv("WORKFLOW_RESULT_BACKEND", "cache+memory://")
     monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
     monkeypatch.setenv("AGENT_SERVICE_URL", "http://agent.test")
 
@@ -49,7 +60,8 @@ def test_workflow_persistence(tmp_path, monkeypatch) -> None:
     headers = {"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"}
 
     module = _load_module()
-    module.runtime.agent_client = DummyAgentClient()
+    workflow_tasks = importlib.import_module("workflow.tasks")
+    workflow_tasks.AGENT_CLIENT_OVERRIDE = DummyAgentClient()
     client = TestClient(module.app)
 
     response = client.post(
@@ -65,7 +77,7 @@ def test_workflow_persistence(tmp_path, monkeypatch) -> None:
     )
     assert response.status_code == 200
     run_id = response.json()["run_id"]
-    assert module.runtime.agent_client.calls
+    assert workflow_tasks.AGENT_CLIENT_OVERRIDE.calls
 
     fetch = client.get(f"/workflows/{run_id}", headers=headers)
     assert fetch.status_code == 200

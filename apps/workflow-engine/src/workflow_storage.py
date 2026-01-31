@@ -454,6 +454,29 @@ class WorkflowStore:
                 output=json.loads(row[7]),
             )
 
+    def list_step_states(self, run_id: str) -> list[WorkflowStepState]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT run_id, step_id, status, attempts, started_at, completed_at, error, output
+                FROM workflow_step_runs WHERE run_id = ? ORDER BY started_at ASC
+                """,
+                (run_id,),
+            ).fetchall()
+        return [
+            WorkflowStepState(
+                run_id=row[0],
+                step_id=row[1],
+                status=row[2],
+                attempts=row[3],
+                started_at=row[4],
+                completed_at=row[5],
+                error=row[6],
+                output=json.loads(row[7]),
+            )
+            for row in rows
+        ]
+
     def add_event(
         self, run_id: str, status: str, message: str, step_id: str | None = None
     ) -> WorkflowEvent:
