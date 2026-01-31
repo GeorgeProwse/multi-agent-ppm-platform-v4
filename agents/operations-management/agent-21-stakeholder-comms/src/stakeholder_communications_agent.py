@@ -10,11 +10,173 @@ Specification: agents/operations-management/agent-21-stakeholder-comms/README.md
 """
 
 from datetime import datetime, timedelta
+import importlib.util
+import json
+import os
 from pathlib import Path
+import sqlite3
 from typing import Any
+
+import requests
 
 from agents.runtime import BaseAgent
 from agents.runtime.src.state_store import TenantStateStore
+from connectors.sdk.src.secrets import fetch_keyvault_secret, resolve_secret
+
+if importlib.util.find_spec("slack_sdk"):
+    from slack_sdk import WebClient
+else:
+    WebClient = None
+
+if importlib.util.find_spec("azure.communication.email"):
+    from azure.communication.email import EmailClient
+else:
+    EmailClient = None
+
+if importlib.util.find_spec("azure.ai.textanalytics"):
+    from azure.ai.textanalytics import TextAnalyticsClient
+    from azure.core.credentials import AzureKeyCredential
+else:
+    TextAnalyticsClient = None
+    AzureKeyCredential = None
+
+if importlib.util.find_spec("azure.servicebus"):
+    from azure.servicebus import ServiceBusClient, ServiceBusMessage
+else:
+    ServiceBusClient = None
+    ServiceBusMessage = None
+
+if importlib.util.find_spec("sqlalchemy"):
+    from sqlalchemy import JSON, Column, DateTime, MetaData, String, Table, Text, create_engine
+else:
+    create_engine = None
+    Table = None
+    Column = None
+    String = None
+    Text = None
+    DateTime = None
+    MetaData = None
+    JSON = None
+
+if importlib.util.find_spec("connectors.salesforce.src.main"):
+    from connectors.salesforce.src.main import (
+        SalesforceConfig,
+        _build_client,
+        _build_token_manager,
+        _request_with_refresh,
+    )
+else:
+    SalesforceConfig = None
+    _build_client = None
+    _build_token_manager = None
+    _request_with_refresh = None
+
+
+class CommunicationHistoryStore:
+    """Persist communications history to a database backend."""
+
+    def __init__(self, db_url: str) -> None:
+        self.db_url = db_url
+        self._engine = None
+        self._table = None
+        self._sqlite_conn = None
+        if create_engine:
+            self._engine = create_engine(db_url, future=True)
+            metadata = MetaData()
+            metadata_table = Table(
+                "communications_history",
+                metadata,
+                Column("record_id", String, primary_key=True),
+                Column("stakeholder_id", String),
+                Column("channel", String),
+                Column("subject", String),
+                Column("status", String),
+                Column("content", Text),
+                Column("metadata", JSON),
+                Column("created_at", DateTime),
+            )
+            metadata.create_all(self._engine)
+            self._table = metadata_table
+        else:
+            self._sqlite_conn = sqlite3.connect(self._sqlite_path(db_url))
+            self._sqlite_conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS communications_history (
+                    record_id TEXT PRIMARY KEY,
+                    stakeholder_id TEXT,
+                    channel TEXT,
+                    subject TEXT,
+                    status TEXT,
+                    content TEXT,
+                    metadata TEXT,
+                    created_at TEXT
+                )
+                """
+            )
+            self._sqlite_conn.commit()
+
+    def _sqlite_path(self, db_url: str) -> str:
+        if db_url.startswith("sqlite:///"):
+            return db_url.replace("sqlite:///", "")
+        if db_url.startswith("sqlite://"):
+            return db_url.replace("sqlite://", "")
+        return ":memory:"
+
+    def add_record(self, record: dict[str, Any]) -> None:
+        if self._engine and self._table is not None:
+            with self._engine.begin() as conn:
+                conn.execute(self._table.insert().values(**record))
+            return
+        if self._sqlite_conn:
+            self._sqlite_conn.execute(
+                """
+                INSERT OR REPLACE INTO communications_history (
+                    record_id, stakeholder_id, channel, subject, status, content, metadata, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.get("record_id"),
+                    record.get("stakeholder_id"),
+                    record.get("channel"),
+                    record.get("subject"),
+                    record.get("status"),
+                    record.get("content"),
+                    json.dumps(record.get("metadata")),
+                    record.get("created_at"),
+                ),
+            )
+            self._sqlite_conn.commit()
+
+    def close(self) -> None:
+        if self._engine:
+            self._engine.dispose()
+        if self._sqlite_conn:
+            self._sqlite_conn.close()
+
+
+class ServiceBusPublisher:
+    """Publish communication events to Azure Service Bus."""
+
+    def __init__(
+        self, connection_string: str | None, topic_name: str | None, queue_name: str | None
+    ) -> None:
+        self.connection_string = connection_string
+        self.topic_name = topic_name
+        self.queue_name = queue_name
+        self.enabled = bool(connection_string) and ServiceBusClient is not None and ServiceBusMessage
+
+    def publish(self, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if not self.enabled or (not self.topic_name and not self.queue_name):
+            return {"status": "skipped", "reason": "service_bus_unavailable"}
+        body = json.dumps({"event_type": event_type, "payload": payload})
+        with ServiceBusClient.from_connection_string(self.connection_string) as client:
+            if self.topic_name:
+                with client.get_topic_sender(self.topic_name) as sender:
+                    sender.send_messages(ServiceBusMessage(body))
+            else:
+                with client.get_queue_sender(self.queue_name) as sender:
+                    sender.send_messages(ServiceBusMessage(body))
+        return {"status": "published", "event_type": event_type}
 
 
 class StakeholderCommunicationsAgent(BaseAgent):
@@ -65,6 +227,89 @@ class StakeholderCommunicationsAgent(BaseAgent):
         self.events: dict[str, Any] = {}
         self.engagement_metrics: dict[str, Any] = {}
 
+        # Secret + integration configuration
+        self.keyvault_url = resolve_secret(
+            (config or {}).get("keyvault_url") or os.getenv("COMMUNICATIONS_KEYVAULT_URL")
+        )
+        self.exchange_token = self._resolve_token(
+            "EXCHANGE_TOKEN", "EXCHANGE_TOKEN_SECRET_NAME", config
+        )
+        self.teams_token = self._resolve_token("TEAMS_TOKEN", "TEAMS_TOKEN_SECRET_NAME", config)
+        self.slack_token = self._resolve_token(
+            "SLACK_BOT_TOKEN", "SLACK_BOT_TOKEN_SECRET_NAME", config
+        )
+        self.graph_base_url = (config or {}).get(
+            "graph_base_url", os.getenv("GRAPH_BASE_URL", "https://graph.microsoft.com/v1.0")
+        )
+
+        self.acs_connection_string = resolve_secret(
+            (config or {}).get("acs_connection_string")
+            or os.getenv("AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING")
+        )
+        self.sendgrid_api_key = resolve_secret(
+            (config or {}).get("sendgrid_api_key") or os.getenv("SENDGRID_API_KEY")
+        )
+        self.sendgrid_from_email = resolve_secret(
+            (config or {}).get("sendgrid_from_email") or os.getenv("SENDGRID_FROM_EMAIL")
+        )
+
+        self.openai_endpoint = resolve_secret(
+            (config or {}).get("azure_openai_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT")
+        )
+        self.openai_api_key = resolve_secret(
+            (config or {}).get("azure_openai_api_key") or os.getenv("AZURE_OPENAI_API_KEY")
+        )
+        self.openai_deployment = resolve_secret(
+            (config or {}).get("azure_openai_deployment")
+            or os.getenv("AZURE_OPENAI_DEPLOYMENT")
+        )
+        self.openai_api_version = (config or {}).get(
+            "azure_openai_api_version", os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        )
+
+        self.text_analytics_endpoint = resolve_secret(
+            (config or {}).get("text_analytics_endpoint")
+            or os.getenv("AZURE_TEXT_ANALYTICS_ENDPOINT")
+        )
+        self.text_analytics_key = resolve_secret(
+            (config or {}).get("text_analytics_key") or os.getenv("AZURE_TEXT_ANALYTICS_KEY")
+        )
+
+        self.azure_ml_endpoint = resolve_secret(
+            (config or {}).get("azure_ml_endpoint") or os.getenv("AZURE_ML_ENDPOINT")
+        )
+        self.azure_ml_key = resolve_secret(
+            (config or {}).get("azure_ml_key") or os.getenv("AZURE_ML_API_KEY")
+        )
+
+        self.logic_apps_trigger_url = resolve_secret(
+            (config or {}).get("logic_apps_trigger_url")
+            or os.getenv("LOGIC_APPS_TRIGGER_URL")
+            or os.getenv("POWER_AUTOMATE_TRIGGER_URL")
+        )
+
+        self.service_bus_connection_string = resolve_secret(
+            (config or {}).get("service_bus_connection_string")
+            or os.getenv("SERVICE_BUS_CONNECTION_STRING")
+        )
+        self.service_bus_topic = resolve_secret(
+            (config or {}).get("service_bus_topic") or os.getenv("SERVICE_BUS_TOPIC")
+        )
+        self.service_bus_queue = resolve_secret(
+            (config or {}).get("service_bus_queue") or os.getenv("SERVICE_BUS_QUEUE")
+        )
+
+        self.db_url = (config or {}).get(
+            "stakeholder_comms_db_url",
+            os.getenv("STAKEHOLDER_COMMS_DB_URL", "sqlite:///data/stakeholder_comms.db"),
+        )
+        self.history_store = CommunicationHistoryStore(self.db_url)
+        self.service_bus_publisher = ServiceBusPublisher(
+            self.service_bus_connection_string, self.service_bus_topic, self.service_bus_queue
+        )
+
+        self.slack_client = WebClient(token=self.slack_token) if WebClient and self.slack_token else None
+
     async def initialize(self) -> None:
         """Initialize database connections, communication platforms, and AI models."""
         await super().initialize()
@@ -98,6 +343,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "classify_stakeholder",
             "create_communication_plan",
             "generate_message",
+            "edit_message",
             "send_message",
             "collect_feedback",
             "analyze_sentiment",
@@ -165,6 +411,11 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         elif action == "generate_message":
             return await self._generate_message(input_data.get("message", {}))
+
+        elif action == "edit_message":
+            return await self._edit_message(
+                input_data.get("message_id"), input_data.get("message", {})
+            )
 
         elif action == "send_message":
             return await self._send_message(tenant_id, input_data.get("message_id"))  # type: ignore
@@ -337,8 +588,11 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         # Generate content using NLG
         # Future work: Use Azure OpenAI for natural language generation
-        content = await self._generate_message_content(
-            message_data.get("template", ""), message_data.get("data", {})
+        content, generation_metadata = await self._generate_message_content(
+            message_data.get("template", ""),
+            message_data.get("data", {}),
+            message_data.get("prompt_type"),
+            message_data.get("prompt"),
         )
 
         # Personalize for each stakeholder
@@ -357,11 +611,13 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "project_id": message_data.get("project_id"),
             "subject": message_data.get("subject"),
             "content": content,
+            "generation_metadata": generation_metadata,
             "personalized_messages": personalized_messages,
             "channel": message_data.get("channel", "email"),
             "scheduled_send": message_data.get("scheduled_send"),
             "attachments": message_data.get("attachments", []),
             "status": "Draft",
+            "review_required": generation_metadata.get("provider") == "azure_openai",
             "created_at": datetime.utcnow().isoformat(),
         }
 
@@ -377,6 +633,42 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "channel": message["channel"],
             "status": "Draft",
             "preview": content[:200],
+        }
+
+    async def _edit_message(self, message_id: str | None, message_data: dict[str, Any]) -> dict[str, Any]:
+        """Edit a draft message before sending."""
+        if not message_id or message_id not in self.messages:
+            raise ValueError("Message not found for editing")
+        message = self.messages[message_id]
+        if "subject" in message_data:
+            message["subject"] = message_data.get("subject")
+        if "content" in message_data:
+            message["content"] = message_data.get("content")
+        if "template" in message_data or "data" in message_data:
+            content, generation_metadata = await self._generate_message_content(
+                message_data.get("template", message.get("content", "")),
+                message_data.get("data", {}),
+                message_data.get("prompt_type"),
+                message_data.get("prompt"),
+            )
+            message["content"] = content
+            message["generation_metadata"] = generation_metadata
+        personalized_messages = []
+        for personalized in message.get("personalized_messages", []):
+            stakeholder_id = personalized.get("stakeholder_id")
+            stakeholder = self.stakeholder_register.get(stakeholder_id)
+            if stakeholder:
+                personalized_content = await self._personalize_content(message["content"], stakeholder)
+                personalized_messages.append(
+                    {"stakeholder_id": stakeholder_id, "content": personalized_content}
+                )
+        message["personalized_messages"] = personalized_messages
+        message["status"] = "Draft"
+        return {
+            "message_id": message_id,
+            "status": "Draft",
+            "subject": message.get("subject"),
+            "preview": message.get("content", "")[:200],
         }
 
     async def _send_message(self, tenant_id: str, message_id: str) -> dict[str, Any]:
@@ -411,10 +703,9 @@ class StakeholderCommunicationsAgent(BaseAgent):
             # Future work: Integrate with actual communication platforms
             result = await self._send_via_channel(
                 channel,
-                stakeholder.get("email") if channel == "email" else stakeholder.get("phone"),
-                message.get("subject"),
+                stakeholder,
+                message,
                 personalized.get("content"),
-                message.get("attachments", []),
             )
 
             delivery_results.append(
@@ -434,8 +725,27 @@ class StakeholderCommunicationsAgent(BaseAgent):
         message["sent_at"] = datetime.utcnow().isoformat()
         message["delivery_results"] = delivery_results
 
-        # Future work: Store in database
-        # Future work: Publish message.sent event
+        self._record_communication_history(
+            {
+                "stakeholder_id": None,
+                "channel": channel,
+                "subject": message.get("subject"),
+                "status": "sent",
+                "content": message.get("content"),
+                "metadata": {
+                    "message_id": message_id,
+                    "delivery_results": delivery_results,
+                },
+            }
+        )
+        self._publish_event(
+            "stakeholder.message.sent",
+            {"message_id": message_id, "delivery_results": delivery_results},
+        )
+        self._trigger_workflow(
+            "stakeholder.message.sent",
+            {"message_id": message_id, "delivery_results": delivery_results},
+        )
 
         return {
             "message_id": message_id,
@@ -482,14 +792,40 @@ class StakeholderCommunicationsAgent(BaseAgent):
         if stakeholder:
             stakeholder["sentiment_score"] = sentiment.get("score", 0)
             stakeholder["last_feedback_date"] = datetime.utcnow().isoformat()
+            self.stakeholder_store.upsert(
+                feedback_data.get("tenant_id", "default"),
+                stakeholder.get("stakeholder_id"),
+                stakeholder.copy(),
+            )
 
         # Update engagement metrics
         stakeholder_id = feedback_data.get("stakeholder_id")
         if stakeholder_id in self.engagement_metrics:
             self.engagement_metrics[stakeholder_id]["responses_received"] += 1
 
-        # Future work: Store in database
-        # Future work: Trigger alerts if negative sentiment
+        self._record_communication_history(
+            {
+                "stakeholder_id": feedback_data.get("stakeholder_id"),
+                "channel": "feedback",
+                "subject": "Stakeholder feedback",
+                "status": "received",
+                "content": feedback_data.get("comments"),
+                "metadata": {"feedback_id": feedback_id, "sentiment": sentiment},
+            }
+        )
+        self._publish_event(
+            "stakeholder.feedback.received",
+            {
+                "feedback_id": feedback_id,
+                "stakeholder_id": feedback_data.get("stakeholder_id"),
+                "sentiment": sentiment,
+            },
+        )
+
+        if sentiment.get("score", 0) < self.sentiment_threshold:
+            await self._trigger_sentiment_alert(
+                feedback_data.get("stakeholder_id"), sentiment, feedback_record
+            )
 
         return {
             "feedback_id": feedback_id,
@@ -528,11 +864,18 @@ class StakeholderCommunicationsAgent(BaseAgent):
         # Generate event ID
         event_id = await self._generate_event_id()
 
-        # Propose optimal time
-        # Future work: Consider stakeholder time zones and availability
-        optimal_time = await self._propose_optimal_time(
+        meeting_suggestions = await self._suggest_meeting_times(
+            event_data.get("stakeholder_ids", []),
+            event_data.get("duration", 60),
+            event_data.get("time_window"),
+        )
+        optimal_time = meeting_suggestions[0] if meeting_suggestions else await self._propose_optimal_time(
             event_data.get("stakeholder_ids", []), event_data.get("duration", 60)
         )
+
+        agenda = event_data.get("agenda", [])
+        if not agenda and event_data.get("generate_agenda", True):
+            agenda = await self._generate_meeting_agenda(event_data)
 
         # Create event
         event = {
@@ -543,7 +886,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "scheduled_time": event_data.get("scheduled_time", optimal_time),
             "duration_minutes": event_data.get("duration", 60),
             "stakeholder_ids": event_data.get("stakeholder_ids", []),
-            "agenda": event_data.get("agenda", []),
+            "agenda": agenda,
             "location": event_data.get("location", "virtual"),
             "meeting_link": event_data.get("meeting_link"),
             "rsvp_status": {},
@@ -551,12 +894,48 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
         }
 
+        graph_event = None
+        if event_data.get("use_graph", True):
+            graph_event = await self._create_graph_event(event, event_data.get("attachments", []))
+            if graph_event.get("online_meeting_url"):
+                event["meeting_link"] = graph_event.get("online_meeting_url")
+            if graph_event.get("scheduled_time"):
+                event["scheduled_time"] = graph_event.get("scheduled_time")
+            event["graph_event_id"] = graph_event.get("event_id")
+
         # Store event
         self.events[event_id] = event
 
-        # Future work: Store in database
-        # Future work: Send calendar invitations via Microsoft Graph API
-        # Future work: Collect RSVPs
+        self._record_communication_history(
+            {
+                "stakeholder_id": None,
+                "channel": "calendar",
+                "subject": event.get("title"),
+                "status": "scheduled",
+                "content": event.get("description"),
+                "metadata": {
+                    "event_id": event_id,
+                    "meeting_link": event.get("meeting_link"),
+                    "graph_event": graph_event,
+                },
+            }
+        )
+        self._publish_event(
+            "stakeholder.meeting.scheduled",
+            {
+                "event_id": event_id,
+                "scheduled_time": event.get("scheduled_time"),
+                "meeting_link": event.get("meeting_link"),
+            },
+        )
+        self._trigger_workflow(
+            "stakeholder.meeting.scheduled",
+            {
+                "event_id": event_id,
+                "scheduled_time": event.get("scheduled_time"),
+                "meeting_link": event.get("meeting_link"),
+            },
+        )
 
         return {
             "event_id": event_id,
@@ -564,6 +943,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "scheduled_time": event["scheduled_time"],
             "invitees": len(event["stakeholder_ids"]),
             "optimal_time_suggested": optimal_time,
+            "meeting_suggestions": meeting_suggestions,
         }
 
     async def _track_engagement(self, stakeholder_id: str | None) -> dict[str, Any]:
@@ -589,6 +969,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
                 "engagement_score": engagement_score,
                 "metrics": metrics,
                 "engagement_level": await self._classify_engagement_level(engagement_score),
+                "outreach_priority": await self._prioritize_outreach(engagement_score),
             }
         else:
             # Track all stakeholders
@@ -642,6 +1023,67 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
     # Helper methods
 
+    def _resolve_token(
+        self, env_name: str, secret_name_env: str, config: dict[str, Any] | None
+    ) -> str | None:
+        configured = resolve_secret((config or {}).get(env_name.lower()))
+        direct = resolve_secret(os.getenv(env_name))
+        if configured:
+            return configured
+        if direct:
+            return direct
+        secret_name = resolve_secret(os.getenv(secret_name_env))
+        return fetch_keyvault_secret(self.keyvault_url, secret_name)
+
+    def _record_communication_history(self, record: dict[str, Any]) -> None:
+        record["record_id"] = record.get("record_id") or f"COM-{datetime.utcnow().isoformat()}"
+        record["created_at"] = record.get("created_at") or datetime.utcnow().isoformat()
+        self.history_store.add_record(record)
+
+    def _publish_event(self, event_type: str, payload: dict[str, Any]) -> None:
+        self.service_bus_publisher.publish(event_type, payload)
+
+    def _trigger_workflow(self, event_type: str, payload: dict[str, Any]) -> None:
+        if not self.logic_apps_trigger_url:
+            return
+        requests.post(
+            self.logic_apps_trigger_url,
+            json={"event_type": event_type, "payload": payload},
+            timeout=10,
+        )
+
+    async def _graph_request(
+        self, token: str | None, method: str, endpoint: str, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        if not token:
+            return {"status": "skipped", "reason": "missing_token"}
+        url = f"{self.graph_base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        response = requests.request(
+            method,
+            url,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=15,
+        )
+        if response.status_code >= 400:
+            return {"status": "error", "code": response.status_code, "details": response.text}
+        if response.text:
+            try:
+                return response.json()
+            except ValueError:
+                return {"status": "ok", "raw": response.text}
+        return {"status": "ok"}
+
+    def _build_text_analytics_client(self) -> TextAnalyticsClient | None:
+        if not self.text_analytics_endpoint or not self.text_analytics_key:
+            return None
+        if not TextAnalyticsClient or not AzureKeyCredential:
+            return None
+        return TextAnalyticsClient(
+            endpoint=self.text_analytics_endpoint,
+            credential=AzureKeyCredential(self.text_analytics_key),
+        )
+
     async def _generate_stakeholder_id(self) -> str:
         """Generate unique stakeholder ID."""
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
@@ -669,7 +1111,10 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
     async def _enrich_stakeholder_profile(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
         """Enrich stakeholder profile from CRM."""
-        # Future work: Fetch from CRM
+        crm_profile = await self._sync_with_crm(stakeholder_data)
+        if crm_profile:
+            stakeholder_data["crm_profile"] = crm_profile
+            stakeholder_data["crm_synced_at"] = datetime.utcnow().isoformat()
         return stakeholder_data
 
     async def _suggest_classification(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
@@ -683,6 +1128,47 @@ class StakeholderCommunicationsAgent(BaseAgent):
             return {"influence": "medium", "interest": "high", "engagement_level": "medium"}
         else:
             return {"influence": "low", "interest": "medium", "engagement_level": "low"}
+
+    async def _sync_with_crm(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
+        """Synchronize stakeholder profile with CRM connectors (e.g., Salesforce)."""
+        if not SalesforceConfig or not _build_token_manager or not _build_client:
+            return {}
+        email = stakeholder_data.get("email")
+        if not email:
+            return {}
+        try:
+            token_url = os.getenv("SALESFORCE_TOKEN_URL") or ""
+            rate_limit = int(os.getenv("SALESFORCE_RATE_LIMIT_PER_MINUTE", "300"))
+            config = SalesforceConfig.from_env(token_url, rate_limit)
+            token_manager = _build_token_manager(config)
+            client = _build_client(config, token_manager)
+            query = (
+                os.getenv("SALESFORCE_CONTACT_QUERY")
+                or "SELECT Id, Name, Title, Account.Name, Email FROM Contact WHERE Email='{email}'"
+            )
+            endpoint = (
+                os.getenv("SALESFORCE_CONTACT_ENDPOINT")
+                or f"/services/data/v57.0/query/?q={query.format(email=email)}"
+            )
+            response = _request_with_refresh(client, token_manager, "GET", endpoint)
+            payload = response.json() if hasattr(response, "json") else {}
+            records = payload.get("records", []) if isinstance(payload, dict) else []
+            if not records:
+                return {}
+            record = records[0]
+            return {
+                "crm_source": "salesforce",
+                "crm_id": record.get("Id"),
+                "name": record.get("Name"),
+                "title": record.get("Title"),
+                "account": (record.get("Account") or {}).get("Name")
+                if isinstance(record.get("Account"), dict)
+                else record.get("Account.Name"),
+                "email": record.get("Email"),
+            }
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("CRM sync failed: %s", exc)
+            return {}
 
     async def _determine_engagement_strategy(self, influence: str, interest: str) -> dict[str, Any]:
         """Determine engagement strategy based on power-interest matrix."""
@@ -711,10 +1197,24 @@ class StakeholderCommunicationsAgent(BaseAgent):
         else:
             return {"strategy": "monitor", "frequency": "monthly", "channels": ["email"]}
 
-    async def _generate_message_content(self, template: str, data: dict[str, Any]) -> str:
+    async def _generate_message_content(
+        self,
+        template: str,
+        data: dict[str, Any],
+        prompt_type: str | None = None,
+        prompt: str | None = None,
+    ) -> tuple[str, dict[str, Any]]:
         """Generate message content using NLG."""
-        # Future work: Use Azure OpenAI for content generation
-        return template.format(**data) if template else "Sample message content"
+        if self.openai_endpoint and self.openai_api_key and self.openai_deployment:
+            draft = await self._generate_openai_text(
+                template=template, data=data, prompt_type=prompt_type, prompt=prompt
+            )
+            if not draft.get("content") and template:
+                return template.format(**data), {"provider": "template_fallback"}
+            return draft.get("content", ""), draft
+        if template:
+            return template.format(**data), {"provider": "template"}
+        return "Sample message content", {"provider": "fallback"}
 
     async def _has_consent(self, stakeholder: dict[str, Any], channel: str) -> bool:
         """Check consent and opt-out flags for stakeholder."""
@@ -744,16 +1244,68 @@ class StakeholderCommunicationsAgent(BaseAgent):
         return personalized
 
     async def _send_via_channel(
-        self, channel: str, recipient: str, subject: str, content: str, attachments: list[str]
+        self,
+        channel: str,
+        stakeholder: dict[str, Any],
+        message: dict[str, Any],
+        content: str,
     ) -> dict[str, Any]:
         """Send message via communication channel."""
-        # Future work: Integrate with actual platforms
+        subject = message.get("subject", "")
+        attachments = message.get("attachments", [])
+        if channel == "email":
+            return await self._send_email(
+                stakeholder.get("email"),
+                subject,
+                content,
+                attachments,
+                use_graph=message.get("use_graph", True),
+            )
+        if channel == "teams":
+            return await self._send_teams_message(
+                stakeholder.get("teams_id") or stakeholder.get("email"),
+                content,
+            )
+        if channel == "slack":
+            return await self._send_slack_message(
+                stakeholder.get("slack_channel") or stakeholder.get("slack_id"),
+                content,
+            )
         return {"status": "delivered", "sent_at": datetime.utcnow().isoformat()}
 
     async def _analyze_text_sentiment(self, text: str) -> dict[str, Any]:
         """Analyze sentiment of text."""
-        # Future work: Use Azure Cognitive Services
-        # Baseline implementation
+        client = self._build_text_analytics_client()
+        if client:
+            response = client.analyze_sentiment([text])[0]
+            score = response.confidence_scores.positive - response.confidence_scores.negative
+            return {
+                "score": score,
+                "label": response.sentiment,
+                "confidence": max(
+                    response.confidence_scores.positive,
+                    response.confidence_scores.neutral,
+                    response.confidence_scores.negative,
+                ),
+            }
+        if self.text_analytics_endpoint and self.text_analytics_key:
+            payload = {"documents": [{"id": "1", "language": "en", "text": text}]}
+            response = requests.post(
+                f"{self.text_analytics_endpoint.rstrip('/')}/text/analytics/v3.1/sentiment",
+                headers={"Ocp-Apim-Subscription-Key": self.text_analytics_key},
+                json=payload,
+                timeout=10,
+            )
+            if response.status_code < 400:
+                document = response.json().get("documents", [{}])[0]
+                score = document.get("confidenceScores", {}).get("positive", 0) - document.get(
+                    "confidenceScores", {}
+                ).get("negative", 0)
+                return {
+                    "score": score,
+                    "label": document.get("sentiment", "neutral"),
+                    "confidence": max(document.get("confidenceScores", {}).values() or [0]),
+                }
         return {"score": 0.5, "label": "neutral", "confidence": 0.8}  # -1 to 1
 
     async def _calculate_sentiment_trend(
@@ -809,6 +1361,309 @@ class StakeholderCommunicationsAgent(BaseAgent):
         optimal_time = optimal_time.replace(hour=10, minute=0, second=0, microsecond=0)
         return optimal_time.isoformat()
 
+    async def _suggest_meeting_times(
+        self,
+        stakeholder_ids: list[str],
+        duration: int,
+        time_window: dict[str, Any] | None,
+    ) -> list[str]:
+        """Suggest meeting times using Microsoft Graph meeting time suggestions."""
+        attendees = []
+        for stakeholder_id in stakeholder_ids:
+            stakeholder = self.stakeholder_register.get(stakeholder_id) or self._load_stakeholder(
+                "default", stakeholder_id
+            )
+            if stakeholder and stakeholder.get("email"):
+                attendees.append({"emailAddress": {"address": stakeholder.get("email")}})
+        if not attendees or not self.exchange_token:
+            return []
+        start_time = (
+            (time_window or {}).get("start")
+            or (datetime.utcnow() + timedelta(days=1)).replace(hour=9, minute=0).isoformat()
+        )
+        end_time = (
+            (time_window or {}).get("end")
+            or (datetime.utcnow() + timedelta(days=7)).replace(hour=17, minute=0).isoformat()
+        )
+        payload = {
+            "attendees": attendees,
+            "meetingDuration": f"PT{duration}M",
+            "timeConstraint": {
+                "timeslots": [
+                    {
+                        "start": {"dateTime": start_time, "timeZone": "UTC"},
+                        "end": {"dateTime": end_time, "timeZone": "UTC"},
+                    }
+                ]
+            },
+        }
+        response = await self._graph_request(
+            self.exchange_token, "POST", "/me/findMeetingTimes", payload
+        )
+        suggestions = response.get("meetingTimeSuggestions", []) if isinstance(response, dict) else []
+        return [
+            suggestion.get("meetingTimeSlot", {})
+            .get("start", {})
+            .get("dateTime")
+            for suggestion in suggestions
+            if suggestion.get("meetingTimeSlot")
+        ]
+
+    async def _create_graph_event(
+        self, event: dict[str, Any], attachments: list[dict[str, Any]] | list[str]
+    ) -> dict[str, Any]:
+        """Create a calendar event and send invites via Graph API."""
+        if not self.exchange_token:
+            return {"status": "skipped", "reason": "missing_exchange_token"}
+        scheduled_time = event.get("scheduled_time") or datetime.utcnow().isoformat()
+        try:
+            start_dt = datetime.fromisoformat(scheduled_time)
+        except ValueError:
+            start_dt = datetime.utcnow()
+            scheduled_time = start_dt.isoformat()
+        attendees = []
+        for stakeholder_id in event.get("stakeholder_ids", []):
+            stakeholder = self.stakeholder_register.get(stakeholder_id)
+            if stakeholder and stakeholder.get("email"):
+                attendees.append(
+                    {
+                        "emailAddress": {"address": stakeholder.get("email")},
+                        "type": "required",
+                    }
+                )
+        payload = {
+            "subject": event.get("title"),
+            "body": {"contentType": "HTML", "content": event.get("description") or ""},
+            "start": {"dateTime": scheduled_time, "timeZone": "UTC"},
+            "end": {
+                "dateTime": (
+                    start_dt + timedelta(minutes=event.get("duration_minutes", 60))
+                ).isoformat()
+                if scheduled_time
+                else None,
+                "timeZone": "UTC",
+            },
+            "attendees": attendees,
+            "isOnlineMeeting": True,
+            "onlineMeetingProvider": "teamsForBusiness",
+        }
+        if attachments:
+            payload["attachments"] = []
+            for attachment in attachments:
+                if isinstance(attachment, dict):
+                    payload["attachments"].append(attachment)
+                else:
+                    payload["attachments"].append(
+                        {
+                            "@odata.type": "#microsoft.graph.fileAttachment",
+                            "name": Path(attachment).name,
+                            "contentBytes": "",
+                        }
+                    )
+        response = await self._graph_request(self.exchange_token, "POST", "/me/events", payload)
+        return {
+            "status": response.get("status", "ok"),
+            "event_id": response.get("id"),
+            "online_meeting_url": (response.get("onlineMeeting") or {}).get("joinUrl"),
+            "scheduled_time": (response.get("start") or {}).get("dateTime"),
+        }
+
+    async def _send_email(
+        self,
+        recipient: str | None,
+        subject: str,
+        content: str,
+        attachments: list[str] | list[dict[str, Any]],
+        *,
+        use_graph: bool = True,
+    ) -> dict[str, Any]:
+        """Send email via Graph or fallback providers."""
+        if not recipient:
+            return {"status": "failed", "reason": "missing_recipient"}
+        if use_graph and self.exchange_token:
+            message_payload = {
+                "message": {
+                    "subject": subject,
+                    "body": {"contentType": "HTML", "content": content},
+                    "toRecipients": [{"emailAddress": {"address": recipient}}],
+                },
+                "saveToSentItems": True,
+            }
+            if attachments:
+                message_payload["message"]["attachments"] = []
+                for attachment in attachments:
+                    if isinstance(attachment, dict):
+                        message_payload["message"]["attachments"].append(attachment)
+                    else:
+                        message_payload["message"]["attachments"].append(
+                            {
+                                "@odata.type": "#microsoft.graph.fileAttachment",
+                                "name": Path(attachment).name,
+                                "contentBytes": "",
+                            }
+                        )
+            response = await self._graph_request(
+                self.exchange_token, "POST", "/me/sendMail", message_payload
+            )
+            status = "delivered" if response.get("status") != "error" else "failed"
+            return {"status": status, "sent_at": datetime.utcnow().isoformat()}
+        if self.acs_connection_string and EmailClient:
+            client = EmailClient.from_connection_string(self.acs_connection_string)
+            response = client.begin_send(
+                {
+                    "content": {"subject": subject, "plainText": content},
+                    "recipients": {"to": [{"address": recipient}]},
+                    "senderAddress": self.sendgrid_from_email or "noreply@example.com",
+                }
+            )
+            response.result()
+            return {"status": "delivered", "sent_at": datetime.utcnow().isoformat()}
+        if self.sendgrid_api_key:
+            payload = {
+                "personalizations": [{"to": [{"email": recipient}]}],
+                "from": {"email": self.sendgrid_from_email or "noreply@example.com"},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": content}],
+            }
+            response = requests.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={"Authorization": f"Bearer {self.sendgrid_api_key}"},
+                json=payload,
+                timeout=10,
+            )
+            if response.status_code < 400:
+                return {"status": "delivered", "sent_at": datetime.utcnow().isoformat()}
+            return {"status": "failed", "reason": response.text}
+        return {"status": "failed", "reason": "no_email_provider"}
+
+    async def _send_teams_message(self, recipient: str | None, content: str) -> dict[str, Any]:
+        if not self.teams_token:
+            return {"status": "failed", "reason": "missing_teams_configuration"}
+        payload = {"body": {"contentType": "HTML", "content": content}}
+        endpoint = None
+        if recipient and "@" in recipient:
+            endpoint = f"/users/{recipient}/chats"
+        elif recipient:
+            endpoint = f"/chats/{recipient}/messages"
+        if not endpoint:
+            return {"status": "failed", "reason": "missing_recipient"}
+        response = await self._graph_request(self.teams_token, "POST", endpoint, payload)
+        status = "delivered" if response.get("status") != "error" else "failed"
+        return {"status": status, "sent_at": datetime.utcnow().isoformat()}
+
+    async def _send_slack_message(self, channel: str | None, content: str) -> dict[str, Any]:
+        if not channel or not self.slack_client:
+            return {"status": "failed", "reason": "missing_slack_configuration"}
+        response = self.slack_client.chat_postMessage(channel=channel, text=content)
+        return {
+            "status": "delivered" if response.get("ok") else "failed",
+            "sent_at": datetime.utcnow().isoformat(),
+        }
+
+    async def _generate_openai_text(
+        self,
+        template: str,
+        data: dict[str, Any],
+        prompt_type: str | None,
+        prompt: str | None,
+    ) -> dict[str, Any]:
+        """Generate text using Azure OpenAI."""
+        formatted_template = template.format(**data) if template else ""
+        base_prompt = prompt or formatted_template
+        instructions = {
+            "status_summary": "Summarize project status for stakeholders.",
+            "meeting_agenda": "Generate a concise meeting agenda.",
+            "action_items": "Generate clear action items with owners and due dates.",
+            "personalized_update": "Craft a personalized stakeholder update.",
+        }
+        system_prompt = instructions.get(prompt_type or "", "Generate a stakeholder communication.")
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": base_prompt or json.dumps(data)},
+            ],
+            "temperature": 0.4,
+        }
+        url = (
+            f"{self.openai_endpoint.rstrip('/')}/openai/deployments/"
+            f"{self.openai_deployment}/chat/completions"
+        )
+        response = requests.post(
+            url,
+            headers={"api-key": self.openai_api_key},
+            params={"api-version": self.openai_api_version},
+            json=payload,
+            timeout=20,
+        )
+        if response.status_code >= 400:
+            return {"content": base_prompt or "", "provider": "openai_error"}
+        data = response.json()
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return {
+            "content": content,
+            "provider": "azure_openai",
+            "usage": data.get("usage"),
+        }
+
+    async def _generate_meeting_agenda(self, event_data: dict[str, Any]) -> list[str]:
+        if not (self.openai_endpoint and self.openai_api_key and self.openai_deployment):
+            return []
+        draft = await self._generate_openai_text(
+            template=event_data.get("description", ""),
+            data=event_data,
+            prompt_type="meeting_agenda",
+            prompt=event_data.get("agenda_prompt"),
+        )
+        return [line.strip("- ").strip() for line in draft.get("content", "").splitlines() if line]
+
+    async def _generate_action_items(self, context: dict[str, Any]) -> list[str]:
+        if not (self.openai_endpoint and self.openai_api_key and self.openai_deployment):
+            return []
+        draft = await self._generate_openai_text(
+            template=context.get("summary", ""),
+            data=context,
+            prompt_type="action_items",
+            prompt=context.get("action_items_prompt"),
+        )
+        return [line.strip("- ").strip() for line in draft.get("content", "").splitlines() if line]
+
+    async def _score_engagement_with_ml(
+        self, metrics: dict[str, Any], baseline_score: float
+    ) -> float | None:
+        if not self.azure_ml_endpoint or not self.azure_ml_key:
+            return None
+        response = requests.post(
+            self.azure_ml_endpoint,
+            headers={"Authorization": f"Bearer {self.azure_ml_key}"},
+            json={"metrics": metrics, "baseline_score": baseline_score},
+            timeout=10,
+        )
+        if response.status_code >= 400:
+            return None
+        payload = response.json()
+        return payload.get("score")
+
+    async def _prioritize_outreach(self, engagement_score: float) -> str:
+        if engagement_score >= 70:
+            return "low"
+        if engagement_score >= 40:
+            return "medium"
+        return "high"
+
+    async def _trigger_sentiment_alert(
+        self,
+        stakeholder_id: str | None,
+        sentiment: dict[str, Any],
+        feedback_record: dict[str, Any],
+    ) -> None:
+        payload = {
+            "stakeholder_id": stakeholder_id,
+            "sentiment": sentiment,
+            "feedback": feedback_record,
+        }
+        self._publish_event("stakeholder.sentiment.negative", payload)
+        self._trigger_workflow("stakeholder.sentiment.negative", payload)
+
     async def _calculate_engagement_score(self, metrics: dict[str, Any]) -> float:
         """Calculate engagement score from metrics."""
         messages_sent = metrics.get("messages_sent", 0)
@@ -827,6 +1682,9 @@ class StakeholderCommunicationsAgent(BaseAgent):
 
         score = open_rate * 30 + click_rate * 30 + response_rate * 30 + events_attended * 10
 
+        ml_score = await self._score_engagement_with_ml(metrics, score)
+        if ml_score is not None:
+            return min(100, ml_score)
         return min(100, score)  # type: ignore
 
     async def _classify_engagement_level(self, score: float) -> str:
@@ -920,6 +1778,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
         # Future work: Close database connections
         # Future work: Close communication platform connections
         # Future work: Flush any pending messages
+        self.history_store.close()
 
     def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
