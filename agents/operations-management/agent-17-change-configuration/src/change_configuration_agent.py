@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 from urllib import parse, request
 
@@ -40,28 +40,53 @@ class RepositoryReference:
     commit_id: str | None = None
 
 
+@dataclass
+class PullRequestSummary:
+    provider: str
+    repo: str
+    status: str
+    data: list[dict[str, Any]]
+
+
 class RepositoryIntegrationService:
     def __init__(self, logger: Any) -> None:
         self.logger = logger
 
-    def _headers(self, provider: str) -> dict[str, str]:
+    def _headers(self, provider: str, extra: dict[str, str] | None = None) -> dict[str, str]:
         provider = provider.lower()
         if provider == "github":
             token = os.getenv("GITHUB_TOKEN")
             if token:
-                return {"Authorization": f"token {token}"}
+                headers = {"Authorization": f"token {token}"}
+                if extra:
+                    headers.update(extra)
+                return headers
         if provider == "gitlab":
             token = os.getenv("GITLAB_TOKEN")
             if token:
-                return {"PRIVATE-TOKEN": token}
+                headers = {"PRIVATE-TOKEN": token}
+                if extra:
+                    headers.update(extra)
+                return headers
         if provider in {"azure", "azure_repos", "azure_devops"}:
             token = os.getenv("AZURE_DEVOPS_TOKEN")
             if token:
-                return {"Authorization": f"Bearer {token}"}
+                headers = {"Authorization": f"Bearer {token}"}
+                if extra:
+                    headers.update(extra)
+                return headers
         return {}
 
-    def _request(self, method: str, url: str, provider: str) -> dict[str, Any]:
-        headers = self._headers(provider)
+    def _request(
+        self,
+        method: str,
+        url: str,
+        provider: str,
+        *,
+        parse_json: bool = True,
+        extra_headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        headers = self._headers(provider, extra=extra_headers)
         if not headers:
             self.logger.warning("No auth token configured for %s", provider)
             return {"status": "unauthenticated", "url": url}
@@ -69,6 +94,8 @@ class RepositoryIntegrationService:
             req = request.Request(url, method=method, headers=headers)
             with request.urlopen(req, timeout=10) as response:
                 payload = response.read().decode("utf-8")
+                if not parse_json:
+                    return {"status": "ok", "data": payload}
                 return {"status": "ok", "data": json.loads(payload)}
         except (OSError, json.JSONDecodeError) as exc:
             self.logger.warning("Repository request failed: %s", exc)
@@ -104,6 +131,50 @@ class RepositoryIntegrationService:
                 f"https://dev.azure.com/{reference.repo}/_apis/git/pullrequests/"
                 f"{reference.pull_request_id}?api-version=7.1"
             )
+        return self._request("GET", url, provider)
+
+    def list_pull_requests(self, reference: RepositoryReference, state: str = "open") -> PullRequestSummary:
+        provider = reference.provider.lower()
+        if provider == "github":
+            url = f"https://api.github.com/repos/{reference.repo}/pulls?state={state}"
+        elif provider == "gitlab":
+            project_id = parse.quote(reference.repo, safe="")
+            url = f"https://gitlab.com/api/v4/projects/{project_id}/merge_requests?state={state}"
+        else:
+            url = (
+                f"https://dev.azure.com/{reference.repo}/_apis/git/pullrequests"
+                f"?searchCriteria.status={state}&api-version=7.1"
+            )
+        response = self._request("GET", url, provider)
+        data = response.get("data") if response.get("status") == "ok" else []
+        if provider in {"azure", "azure_repos", "azure_devops"} and isinstance(data, dict):
+            data = data.get("value", [])
+        return PullRequestSummary(provider=provider, repo=reference.repo, status=response["status"], data=data)
+
+    def fetch_pull_request_diff(self, reference: RepositoryReference) -> dict[str, Any]:
+        if not reference.pull_request_id:
+            return {"status": "missing_pr"}
+        provider = reference.provider.lower()
+        if provider == "github":
+            url = f"https://api.github.com/repos/{reference.repo}/pulls/{reference.pull_request_id}"
+            return self._request(
+                "GET",
+                url,
+                provider,
+                parse_json=False,
+                extra_headers={"Accept": "application/vnd.github.v3.diff"},
+            )
+        if provider == "gitlab":
+            project_id = parse.quote(reference.repo, safe="")
+            url = (
+                f"https://gitlab.com/api/v4/projects/{project_id}/merge_requests/"
+                f"{reference.pull_request_id}/changes"
+            )
+            return self._request("GET", url, provider)
+        url = (
+            f"https://dev.azure.com/{reference.repo}/_apis/git/pullrequests/"
+            f"{reference.pull_request_id}/changes?api-version=7.1"
+        )
         return self._request("GET", url, provider)
 
     def fetch_commit_diff(self, reference: RepositoryReference) -> dict[str, Any]:
@@ -144,6 +215,14 @@ class IaCChangeParser:
             elif file_path.suffix in {".bicep"}:
                 resources.extend(self._parse_bicep(file_path))
         return resources
+
+    def parse_repository(self, repo_root: Path) -> list[dict[str, Any]]:
+        if not repo_root.exists():
+            return []
+        candidate_files: list[Path] = []
+        for extension in ("*.tf", "*.tfvars", "*.json", "*.bicep"):
+            candidate_files.extend(repo_root.rglob(extension))
+        return self.parse_files(candidate_files)
 
     def _parse_terraform(self, file_path: Path) -> list[dict[str, Any]]:
         resources: list[dict[str, Any]] = []
@@ -231,6 +310,71 @@ class ChangeImpactModel:
         }
         self._risk_map = {"low": 0.2, "medium": 0.5, "high": 0.8, "critical": 1.0}
         self._trained = False
+        self._coefficients: list[float] | None = None
+
+    def _feature_vector(self, features: dict[str, Any]) -> list[float]:
+        complexity = float(features.get("complexity", 1.0))
+        failure_rate = float(features.get("historical_failure_rate", 0.1))
+        affected_services = float(features.get("affected_services", 1))
+        risk_category = str(features.get("risk_category", "medium")).lower()
+        risk_modifier = self._risk_map.get(risk_category, 0.5)
+        return [1.0, complexity, failure_rate, affected_services, risk_modifier]
+
+    def _invert_matrix(self, matrix: list[list[float]]) -> list[list[float]] | None:
+        size = len(matrix)
+        identity = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
+        augmented = [row + identity_row for row, identity_row in zip(matrix, identity)]
+        for i in range(size):
+            pivot = augmented[i][i]
+            if abs(pivot) < 1e-8:
+                for j in range(i + 1, size):
+                    if abs(augmented[j][i]) > 1e-8:
+                        augmented[i], augmented[j] = augmented[j], augmented[i]
+                        pivot = augmented[i][i]
+                        break
+            if abs(pivot) < 1e-8:
+                return None
+            scale = 1.0 / pivot
+            augmented[i] = [value * scale for value in augmented[i]]
+            for j in range(size):
+                if j == i:
+                    continue
+                factor = augmented[j][i]
+                augmented[j] = [
+                    augmented[j][k] - factor * augmented[i][k] for k in range(size * 2)
+                ]
+        return [row[size:] for row in augmented]
+
+    def _fit_linear(self, samples: Sequence[ImpactTrainingSample]) -> None:
+        if len(samples) < 2:
+            return
+        x_rows = [
+            self._feature_vector(
+                {
+                    "complexity": sample.complexity,
+                    "historical_failure_rate": sample.historical_failure_rate,
+                    "affected_services": sample.affected_services,
+                    "risk_category": sample.risk_category,
+                }
+            )
+            for sample in samples
+        ]
+        y_values = [sample.success_probability for sample in samples]
+        features = len(x_rows[0])
+        xtx = [[0.0 for _ in range(features)] for _ in range(features)]
+        xty = [0.0 for _ in range(features)]
+        for row, target in zip(x_rows, y_values):
+            for i in range(features):
+                xty[i] += row[i] * target
+                for j in range(features):
+                    xtx[i][j] += row[i] * row[j]
+        inverse = self._invert_matrix(xtx)
+        if not inverse:
+            return
+        coefficients = [0.0 for _ in range(features)]
+        for i in range(features):
+            coefficients[i] = sum(inverse[i][j] * xty[j] for j in range(features))
+        self._coefficients = coefficients
 
     def train(self, samples: Iterable[ImpactTrainingSample]) -> None:
         samples_list = list(samples)
@@ -240,33 +384,68 @@ class ChangeImpactModel:
             samples_list
         )
         self._weights["failure_rate"] = 0.3 + min(0.2, avg_failure)
+        self._fit_linear(samples_list)
         self._trained = True
 
     def predict(self, features: dict[str, Any]) -> dict[str, Any]:
-        complexity = float(features.get("complexity", 1.0))
-        failure_rate = float(features.get("historical_failure_rate", 0.1))
-        affected_services = float(features.get("affected_services", 1))
+        vector = self._feature_vector(features)
         risk_category = str(features.get("risk_category", "medium")).lower()
-        risk_modifier = self._risk_map.get(risk_category, 0.5)
-
-        score = (
-            complexity * self._weights["complexity"]
-            + failure_rate * self._weights["failure_rate"]
-            + affected_services * self._weights["services"]
-            + risk_modifier * self._weights["risk_modifier"]
-        )
-        success_probability = max(0.05, min(0.95, 1.0 - score / 5))
+        if self._coefficients:
+            raw_success = sum(weight * value for weight, value in zip(self._coefficients, vector))
+            success_probability = max(0.05, min(0.95, raw_success))
+            score = max(0.5, (1.0 - success_probability) * 5)
+        else:
+            complexity = float(features.get("complexity", 1.0))
+            failure_rate = float(features.get("historical_failure_rate", 0.1))
+            affected_services = float(features.get("affected_services", 1))
+            risk_modifier = self._risk_map.get(risk_category, 0.5)
+            score = (
+                complexity * self._weights["complexity"]
+                + failure_rate * self._weights["failure_rate"]
+                + affected_services * self._weights["services"]
+                + risk_modifier * self._weights["risk_modifier"]
+            )
+            success_probability = max(0.05, min(0.95, 1.0 - score / 5))
         return {
             "impact_score": round(score, 2),
             "success_probability": round(success_probability, 2),
             "risk_category": risk_category,
+            "model_trained": self._trained,
         }
 
 
 class ChangeWorkflowOrchestrator:
-    def __init__(self, db_service: DatabaseStorageService, orchestrator: str) -> None:
+    def __init__(
+        self,
+        db_service: DatabaseStorageService,
+        orchestrator: str,
+        config: dict[str, Any] | None = None,
+    ) -> None:
         self.db_service = db_service
         self.orchestrator = orchestrator
+        self.config = config or {}
+
+    def _orchestrator_endpoint(self) -> str | None:
+        if self.orchestrator == "durable_functions":
+            return self.config.get("durable_functions_url") or os.getenv(
+                "DURABLE_FUNCTIONS_URL"
+            )
+        if self.orchestrator == "logic_apps":
+            return self.config.get("logic_apps_url") or os.getenv("LOGIC_APPS_URL")
+        return None
+
+    def _call_orchestrator(self, payload: dict[str, Any]) -> dict[str, Any]:
+        endpoint = self._orchestrator_endpoint()
+        if not endpoint:
+            return {"status": "unconfigured"}
+        try:
+            body = json.dumps(payload).encode("utf-8")
+            req = request.Request(endpoint, data=body, method="POST")
+            req.add_header("Content-Type", "application/json")
+            with request.urlopen(req, timeout=10) as response:
+                return {"status": "submitted", "data": response.read().decode("utf-8")}
+        except OSError as exc:
+            return {"status": "error", "error": str(exc)}
 
     async def create_workflow(self, change_id: str, tenant_id: str) -> dict[str, Any]:
         workflow = {
@@ -280,6 +459,7 @@ class ChangeWorkflowOrchestrator:
             ],
             "created_at": datetime.utcnow().isoformat(),
         }
+        workflow["orchestrator_status"] = self._call_orchestrator(workflow)
         await self.db_service.store("change_workflows", change_id, workflow)
         return workflow
 
@@ -337,9 +517,38 @@ class DependencyGraphService:
                 target_id = rel.get("target_ci_id")
                 if target_id:
                     adjacency[ci_id].append(target_id)
+        if self._driver:
+            self._sync_cmdb_graph(cmdb)
         self._adjacency = adjacency
 
+    def _sync_cmdb_graph(self, cmdb: dict[str, Any]) -> None:
+        if not self._driver:
+            return
+        with self._driver.session() as session:
+            for ci_id, ci in cmdb.items():
+                session.run(
+                    "MERGE (c:CI {ci_id: $ci_id}) "
+                    "SET c.name = $name, c.type = $type, c.status = $status",
+                    ci_id=ci_id,
+                    name=ci.get("name"),
+                    type=ci.get("type"),
+                    status=ci.get("status"),
+                )
+                for rel in ci.get("relationships", []):
+                    target_id = rel.get("target_ci_id")
+                    if not target_id:
+                        continue
+                    session.run(
+                        "MERGE (source:CI {ci_id: $source_id}) "
+                        "MERGE (target:CI {ci_id: $target_id}) "
+                        "MERGE (source)-[:DEPENDS_ON]->(target)",
+                        source_id=ci_id,
+                        target_id=target_id,
+                    )
+
     def get_impacted(self, ci_ids: Iterable[str]) -> list[str]:
+        if self._driver:
+            return self._get_impacted_from_graph(ci_ids)
         visited: set[str] = set()
         queue = list(ci_ids)
         impacted: set[str] = set()
@@ -352,6 +561,20 @@ class DependencyGraphService:
                 impacted.add(neighbor)
                 if neighbor not in visited:
                     queue.append(neighbor)
+        return sorted(impacted)
+
+    def _get_impacted_from_graph(self, ci_ids: Iterable[str]) -> list[str]:
+        if not self._driver:
+            return []
+        impacted: set[str] = set()
+        with self._driver.session() as session:
+            for ci_id in ci_ids:
+                result = session.run(
+                    "MATCH (n:CI {ci_id: $ci_id})-[:DEPENDS_ON*]->(impacted) "
+                    "RETURN impacted.ci_id",
+                    ci_id=ci_id,
+                )
+                impacted.update(record[0] for record in result)
         return sorted(impacted)
 
     def root_cause(self, ci_id: str) -> list[str]:
@@ -462,6 +685,7 @@ class ChangeConfigurationAgent(BaseAgent):
         self.workflow_orchestrator = None
         self.impact_model = None
         self.text_classifier = None
+        self.cicd_subscriptions: list[dict[str, Any]] = []
 
     async def initialize(self) -> None:
         """Initialize database connections, ITSM integrations, and AI models."""
@@ -502,7 +726,10 @@ class ChangeConfigurationAgent(BaseAgent):
         orchestrator = "durable_functions"
         if self.config and self.config.get("workflow_orchestrator"):
             orchestrator = self.config["workflow_orchestrator"]
-        self.workflow_orchestrator = ChangeWorkflowOrchestrator(self.db_service, orchestrator)
+        workflow_config = self.config.get("workflow_config", {}) if self.config else {}
+        self.workflow_orchestrator = ChangeWorkflowOrchestrator(
+            self.db_service, orchestrator, workflow_config
+        )
 
         impact_samples = self.config.get("impact_model_samples", []) if self.config else []
         if not impact_samples:
@@ -541,6 +768,9 @@ class ChangeConfigurationAgent(BaseAgent):
             self.dependency_graph = DependencyGraphService(self.logger, graph_config)
         self.dependency_graph.load_cmdb(self.cmdb)
 
+        cicd_config = self.config.get("cicd_subscriptions", []) if self.config else []
+        self.cicd_subscriptions = await self._subscribe_cicd_webhooks(cicd_config)
+
         self.logger.info("Change & Configuration Management Agent initialized")
 
     async def validate_input(self, input_data: dict[str, Any]) -> bool:
@@ -563,6 +793,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "track_change_implementation",
             "audit_changes",
             "visualize_dependencies",
+            "query_impacted_cis",
             "get_change_dashboard",
             "generate_change_report",
             "get_change_metrics",
@@ -671,6 +902,8 @@ class ChangeConfigurationAgent(BaseAgent):
 
         elif action == "cicd_webhook":
             return await self._handle_cicd_webhook(input_data.get("payload", {}))
+        elif action == "query_impacted_cis":
+            return await self._query_impacted_cis(input_data.get("ci_ids", []))
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -697,6 +930,7 @@ class ChangeConfigurationAgent(BaseAgent):
         # Identify impacted CIs
         impacted_cis = await self._identify_impacted_cis(change_data)
 
+        classification = await self._classify_change_category(change_type, change_data)
         approval_required = await self._requires_approval(change_type, change_data)
         approval_payload = None
         if approval_required:
@@ -725,6 +959,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "title": change_data.get("title"),
             "description": change_data.get("description"),
             "type": change_type,
+            "classification": classification,
             "priority": change_data.get("priority", "medium"),
             "requester": change_data.get("requester"),
             "project_id": change_data.get("project_id"),
@@ -836,6 +1071,7 @@ class ChangeConfigurationAgent(BaseAgent):
 
         # Update change
         change["impact_assessment"] = impact_assessment
+        change["impact_assessment"]["trend_tags"] = await self._build_change_trend_tags(change)
 
         await self.db_service.store("change_requests", change_id, change)
 
@@ -1101,7 +1337,7 @@ class ChangeConfigurationAgent(BaseAgent):
             raise RuntimeError("Impact model is not initialized")
         prediction = self.impact_model.predict(change_data)
         mitigation = await self._recommend_mitigation(prediction)
-        return {"prediction": prediction, "mitigation": mitigation}
+        return {"prediction": prediction, "mitigation": mitigation, "model_trained": prediction["model_trained"]}
 
     async def _rollback_change(self, change_id: str, reason: str) -> dict[str, Any]:
         """Rollback change and publish event."""
@@ -1151,19 +1387,32 @@ class ChangeConfigurationAgent(BaseAgent):
         )
         return {"status": "updated", "change_id": change_id, "deployment_status": deployment_status}
 
+    async def _query_impacted_cis(self, ci_ids: Iterable[str]) -> dict[str, Any]:
+        if not self.dependency_graph:
+            return {"status": "unavailable", "impacted_cis": []}
+        impacted = self.dependency_graph.get_impacted(ci_ids)
+        return {"status": "ok", "impacted_cis": impacted, "count": len(impacted)}
+
     async def _get_change_metrics(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Calculate trending metrics for change management."""
         changes = [c for c in self.change_requests.values() if await self._matches_filters(c, filters)]
         type_counts: dict[str, int] = {}
+        category_counts: dict[str, int] = {}
+        monthly_trends: dict[str, int] = {}
         approval_times: list[float] = []
         success_count = 0
         for change in changes:
             change_type = change.get("type", "unknown")
             type_counts[change_type] = type_counts.get(change_type, 0) + 1
+            category = change.get("classification", {}).get("category", "unclassified")
+            category_counts[category] = category_counts.get(category, 0) + 1
             created_at = change.get("created_at")
+            if created_at:
+                created_dt = datetime.fromisoformat(created_at)
+                month_key = created_dt.strftime("%Y-%m")
+                monthly_trends[month_key] = monthly_trends.get(month_key, 0) + 1
             approved_at = change.get("approval_date")
             if created_at and approved_at:
-                created_dt = datetime.fromisoformat(created_at)
                 approved_dt = datetime.fromisoformat(approved_at)
                 approval_times.append((approved_dt - created_dt).total_seconds() / 3600)
             if change.get("status") == "Implemented":
@@ -1175,8 +1424,10 @@ class ChangeConfigurationAgent(BaseAgent):
         return {
             "total_changes": len(changes),
             "change_type_counts": type_counts,
+            "change_category_counts": category_counts,
             "average_approval_time_hours": round(average_approval_hours, 2),
             "success_rate": round(success_rate, 2),
+            "monthly_trends": dict(sorted(monthly_trends.items())),
         }
 
     # Helper methods
@@ -1220,6 +1471,25 @@ class ChangeConfigurationAgent(BaseAgent):
             impacted = self.dependency_graph.get_impacted(ci_ids)
             ci_ids.update(impacted)
         return sorted(ci_ids)
+
+    async def _classify_change_category(
+        self, change_type: str, change_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        priority = change_data.get("priority", "medium")
+        impacted_count = len(change_data.get("ci_ids", []))
+        risk_category = change_data.get("risk_category", "medium")
+        if change_type == "emergency" or priority in {"critical", "high"}:
+            category = "urgent"
+        elif impacted_count > 5 or risk_category in {"high", "critical"}:
+            category = "major"
+        else:
+            category = "routine"
+        return {
+            "category": category,
+            "priority": priority,
+            "risk_category": risk_category,
+            "impacted_ci_count": impacted_count,
+        }
 
     async def _determine_routing(self, change_type: str) -> str:
         """Determine approval routing based on change type."""
@@ -1299,6 +1569,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "impacted_ci_count": len(impacted_cis),
             "risk_category": prediction["risk_category"],
             "mitigation": mitigation,
+            "model_trained": prediction["model_trained"],
         }
 
     async def _calculate_overall_risk(
@@ -1358,14 +1629,23 @@ class ChangeConfigurationAgent(BaseAgent):
         return {
             "repository": self.repo_service.fetch_repository_data(reference),
             "pull_request": self.repo_service.fetch_pull_request_status(reference),
+            "pull_request_list": self.repo_service.list_pull_requests(reference).__dict__,
+            "pull_request_diff": self.repo_service.fetch_pull_request_diff(reference),
             "commit_diff": self.repo_service.fetch_commit_diff(reference),
         }
 
     async def _analyze_iac_changes(self, change_data: dict[str, Any]) -> dict[str, Any]:
         file_paths = [Path(path) for path in change_data.get("iac_files", [])]
-        if not self.iac_parser or not file_paths:
+        repo_root = (
+            Path(change_data["iac_repo_path"])
+            if change_data.get("iac_repo_path")
+            else None
+        )
+        if not self.iac_parser or (not file_paths and not repo_root):
             return {"resources": [], "status": "no_iac"}
         resources = self.iac_parser.parse_files(file_paths)
+        if repo_root:
+            resources.extend(self.iac_parser.parse_repository(repo_root))
         change_data["impacted_resources"] = resources
         return {"resources": resources, "resource_count": len(resources)}
 
@@ -1378,6 +1658,36 @@ class ChangeConfigurationAgent(BaseAgent):
         documents = await self.document_service.list_documents(limit=25)
         filtered = [doc for doc in documents if query.lower() in str(doc.get("title", "")).lower()]
         return {"documents": filtered, "status": "ok"}
+
+    async def _subscribe_cicd_webhooks(
+        self, subscriptions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not subscriptions:
+            return []
+        stored_subscriptions: list[dict[str, Any]] = []
+        for subscription in subscriptions:
+            subscription_id = subscription.get("id") or f"cicd-{uuid.uuid4()}"
+            payload = {
+                "subscription_id": subscription_id,
+                "tool": subscription.get("tool"),
+                "endpoint": subscription.get("endpoint"),
+                "events": subscription.get("events", ["deployment"]),
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            await self.db_service.store("cicd_subscriptions", subscription_id, payload)
+            stored_subscriptions.append(payload)
+        return stored_subscriptions
+
+    async def _build_change_trend_tags(self, change: dict[str, Any]) -> list[str]:
+        tags = []
+        classification = change.get("classification", {})
+        if classification.get("category"):
+            tags.append(f"category:{classification['category']}")
+        if change.get("priority"):
+            tags.append(f"priority:{change['priority']}")
+        if change.get("type"):
+            tags.append(f"type:{change['type']}")
+        return tags
 
     async def _publish_event(self, topic: str, payload: dict[str, Any]) -> None:
         if not self.event_publisher:
