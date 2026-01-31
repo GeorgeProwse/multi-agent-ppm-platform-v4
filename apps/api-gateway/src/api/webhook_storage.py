@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,7 +38,7 @@ class WebhookEvent:
         headers: dict[str, str],
         result: dict[str, Any] | None = None,
         tenant_id: str | None = None,
-    ) -> "WebhookEvent":
+    ) -> WebhookEvent:
         return cls(
             event_id=str(uuid4()),
             connector_id=connector_id,

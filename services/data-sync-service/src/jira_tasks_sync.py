@@ -160,7 +160,25 @@ class JiraTasksSyncJob:
         )
 
     def write_back(self, payloads: list[dict[str, Any]]) -> dict[str, Any]:
-        return {"status": "not_implemented", "count": len(payloads)}
+        success_count = 0
+        errors: list[str] = []
+        for payload in payloads:
+            external_id = payload.get("external_id")
+            if not external_id:
+                errors.append(f"Missing external_id for task {payload.get('task_id')}")
+                continue
+            fields = {}
+            if "title" in payload:
+                fields["summary"] = payload["title"]
+            if not fields:
+                continue
+            try:
+                self.jira_client.update_issue(external_id, fields)
+                success_count += 1
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"Failed to update {external_id}: {exc}")
+        status = "success" if not errors else ("partial" if success_count else "error")
+        return {"status": status, "count": len(payloads), "updated": success_count, "errors": errors}
 
     def _emit_lineage_event(
         self,

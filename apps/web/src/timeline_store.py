@@ -19,9 +19,7 @@ class TimelineStore:
         milestones = [Milestone.model_validate(item) for item in milestones_raw]
         return sorted(milestones, key=lambda item: (item.date, item.created_at))
 
-    def get_milestone(
-        self, tenant_id: str, project_id: str, milestone_id: str
-    ) -> Milestone | None:
+    def get_milestone(self, tenant_id: str, project_id: str, milestone_id: str) -> Milestone | None:
         payload = self._load()
         milestones_raw = payload.get(tenant_id, {}).get(project_id, [])
         for item in milestones_raw:
@@ -89,7 +87,7 @@ class TimelineStore:
                 handle.write("\n")
             temp_path.replace(self._path)
 
-    def _file_lock(self) -> "FileLock":
+    def _file_lock(self) -> FileLock:
         return FileLock(self._lock_path)
 
 
@@ -98,7 +96,7 @@ class FileLock:
         self._path = path
         self._handle: Any = None
 
-    def __enter__(self) -> "FileLock":
+    def __enter__(self) -> FileLock:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self._path.open("w", encoding="utf-8")
         self._lock()

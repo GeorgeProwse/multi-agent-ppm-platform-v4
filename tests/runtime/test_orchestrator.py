@@ -132,9 +132,7 @@ async def test_service_orchestrator_calls_workflow_client() -> None:
         def __init__(self) -> None:
             self.calls: list[dict] = []
 
-        async def start_workflow(
-            self, payload: dict, headers: dict[str, str]
-        ) -> dict[str, str]:
+        async def start_workflow(self, payload: dict, headers: dict[str, str]) -> dict[str, str]:
             self.calls.append({"payload": payload, "headers": headers})
             return {"run_id": "run-123"}
 

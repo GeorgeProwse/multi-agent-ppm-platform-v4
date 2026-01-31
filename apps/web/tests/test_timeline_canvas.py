@@ -55,8 +55,7 @@ def test_create_list_update_delete_milestone(client, monkeypatch):
     assert updated["status"] == "complete"
     assert updated["title"] == "Kickoff complete"
 
-    delete_response = client.delete(
-        f"/api/timeline/demo-1/milestones/{milestone_id}")
+    delete_response = client.delete(f"/api/timeline/demo-1/milestones/{milestone_id}")
     assert delete_response.status_code == 200
 
     list_response = client.get("/api/timeline/demo-1")

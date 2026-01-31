@@ -34,9 +34,7 @@ class TreeStore:
                 return TreeNode.model_validate(item)
         return None
 
-    def create_node(
-        self, tenant_id: str, project_id: str, payload: TreeNodeCreate
-    ) -> TreeNode:
+    def create_node(self, tenant_id: str, project_id: str, payload: TreeNodeCreate) -> TreeNode:
         payload_data = self._load()
         tenant_bucket = payload_data.setdefault(tenant_id, {})
         project_bucket = tenant_bucket.setdefault(project_id, [])
@@ -83,9 +81,7 @@ class TreeStore:
         payload = self._load()
         tenant_bucket = payload.setdefault(tenant_id, {})
         project_bucket = tenant_bucket.setdefault(project_id, [])
-        node_map = {
-            item.get("node_id"): TreeNode.model_validate(item) for item in project_bucket
-        }
+        node_map = {item.get("node_id"): TreeNode.model_validate(item) for item in project_bucket}
         node = node_map.get(node_id)
         if not node:
             return None
@@ -115,9 +111,7 @@ class TreeStore:
         payload = self._load()
         tenant_bucket = payload.get(tenant_id, {})
         project_bucket = tenant_bucket.get(project_id, [])
-        node_map = {
-            item.get("node_id"): TreeNode.model_validate(item) for item in project_bucket
-        }
+        node_map = {item.get("node_id"): TreeNode.model_validate(item) for item in project_bucket}
         if node_id not in node_map:
             return 0
         to_delete = self._collect_subtree_ids(node_id, node_map)
@@ -128,9 +122,7 @@ class TreeStore:
         self._write(payload)
         return len(to_delete)
 
-    def _collect_subtree_ids(
-        self, root_id: str, node_map: dict[str, TreeNode]
-    ) -> set[str]:
+    def _collect_subtree_ids(self, root_id: str, node_map: dict[str, TreeNode]) -> set[str]:
         to_visit = [root_id]
         collected: set[str] = set()
         children_by_parent: dict[str | None, list[str]] = {}
@@ -172,7 +164,7 @@ class TreeStore:
                 handle.write("\n")
             temp_path.replace(self._path)
 
-    def _file_lock(self) -> "FileLock":
+    def _file_lock(self) -> FileLock:
         return FileLock(self._lock_path)
 
 
@@ -181,7 +173,7 @@ class FileLock:
         self._path = path
         self._handle: Any = None
 
-    def __enter__(self) -> "FileLock":
+    def __enter__(self) -> FileLock:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self._path.open("w", encoding="utf-8")
         self._lock()

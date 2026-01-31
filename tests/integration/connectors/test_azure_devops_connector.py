@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import httpx
 import json
+
+import httpx
 
 from connectors.azure_devops.src.main import AzureDevOpsConfig, run_sync
 from connectors.sdk.src.http_client import HttpClient

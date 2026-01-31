@@ -64,7 +64,7 @@ class Template(BaseModel):
     defaults: DocumentTemplateDefaults | None = None
     payload: DocumentTemplatePayload | SpreadsheetTemplatePayload
 
-    def summary(self) -> "TemplateSummary":
+    def summary(self) -> TemplateSummary:
         return TemplateSummary(
             template_id=self.template_id,
             name=self.name,

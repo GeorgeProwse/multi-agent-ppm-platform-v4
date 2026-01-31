@@ -5,7 +5,6 @@ from typing import Any
 
 from agent_client import AgentClient
 from approval_workflow_agent import ApprovalWorkflowAgent
-
 from circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitBreakerRegistry
 from workflow_storage import WorkflowApproval, WorkflowInstance, WorkflowStore
 
@@ -98,7 +97,9 @@ class WorkflowRuntime:
         definition_record = self.store.get_definition(instance.workflow_id)
         if not definition_record:
             return instance
-        return await self._run_until_pause(instance, definition_record.definition, {"id": approver_id})
+        return await self._run_until_pause(
+            instance, definition_record.definition, {"id": approver_id}
+        )
 
     async def _run_until_pause(
         self, instance: WorkflowInstance, definition: dict[str, Any], actor: dict[str, Any]

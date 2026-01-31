@@ -9,7 +9,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from threading import Event, Thread
-from typing import Any, Deque
+from typing import Any
 from uuid import uuid4
 
 try:
@@ -36,7 +36,7 @@ class InMemoryEventBus:
     def __init__(self, *, event_log_size: int = 200) -> None:
         self._subscribers: dict[str, list[EventHandler]] = defaultdict(list)
         self._metrics: dict[str, int] = defaultdict(int)
-        self._event_log: Deque[EventRecord] = deque(maxlen=event_log_size)
+        self._event_log: deque[EventRecord] = deque(maxlen=event_log_size)
 
     def subscribe(self, topic: str, handler: EventHandler) -> None:
         """Subscribe a handler to a topic."""
@@ -90,7 +90,7 @@ class ServiceBusEventBus:
         self._admin = ServiceBusAdministrationClient.from_connection_string(connection_string)
         self._subscribers: dict[str, list[EventHandler]] = defaultdict(list)
         self._metrics: dict[str, int] = defaultdict(int)
-        self._event_log: Deque[EventRecord] = deque(maxlen=event_log_size)
+        self._event_log: deque[EventRecord] = deque(maxlen=event_log_size)
         self._stop = Event()
         self._listener: Thread | None = None
         self._ensure_topic()

@@ -4,7 +4,6 @@ Audit log API routes.
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
-
 from security.audit_log import get_audit_log_store
 
 router = APIRouter()

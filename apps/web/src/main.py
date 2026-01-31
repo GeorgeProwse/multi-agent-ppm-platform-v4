@@ -20,11 +20,10 @@ from fastapi.responses import (
     JSONResponse,
     RedirectResponse,
     Response,
-    StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 from jwt import InvalidTokenError
+from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
@@ -34,27 +33,27 @@ for root in (OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from agent_registry import load_agent_registry  # noqa: E402
+from agent_settings_models import (  # noqa: E402
+    AgentConfigUpdate,
+    AgentProjectEntry,
+)
+from agent_settings_store import AgentSettingsStore  # noqa: E402
+from analytics_proxy import AnalyticsServiceClient  # noqa: E402
+from connector_hub_proxy import ConnectorHubClient  # noqa: E402
+from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
+from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
+from knowledge_store import KnowledgeStore  # noqa: E402
+from lineage_proxy import LineageServiceClient  # noqa: E402
+from llm.client import LLMClient, LLMProviderError  # noqa: E402
+from methodologies import available_methodologies, get_methodology_map  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
-from knowledge_store import KnowledgeStore  # noqa: E402
+from oidc_client import OIDCClient  # noqa: E402
+from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
 from security.audit_log import build_event, get_audit_log_store  # noqa: E402
-from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
-from methodologies import available_methodologies, get_methodology_map  # noqa: E402
-from workspace_state import (  # noqa: E402
-    ActivityCompletionUpdate,
-    CanvasTab,
-    OpenRef,
-    WorkspaceSelectionUpdate,
-    WorkspaceState,
-)
-from workspace_state_store import WorkspaceStateStore  # noqa: E402
-from timeline_models import (  # noqa: E402
-    Milestone,
-    MilestoneCreate,
-    MilestoneUpdate,
-    TimelineExportResponse,
-    TimelineResponse,
-)
+from security.prompt_safety import evaluate_prompt  # noqa: E402
+from security.secrets import resolve_secret  # noqa: E402
 from spreadsheet_models import (  # noqa: E402
     ColumnCreate,
     DeleteResult,
@@ -66,8 +65,34 @@ from spreadsheet_models import (  # noqa: E402
     SheetCreate,
     SheetDetail,
 )
-from timeline_store import TimelineStore  # noqa: E402
 from spreadsheet_store import SpreadsheetStore  # noqa: E402
+from template_models import (  # noqa: E402
+    Template as DeliverableTemplate,
+)
+from template_models import (
+    TemplateInstantiateRequest,
+    TemplateInstantiateResponse,
+    TemplateType,
+    build_placeholder_context,
+    render_template_value,
+)
+from template_models import (
+    TemplateSummary as DeliverableTemplateSummary,
+)
+from template_registry import (  # noqa: E402
+    get_template as get_deliverable_template,
+)
+from template_registry import (
+    list_templates as list_deliverable_templates,
+)
+from timeline_models import (  # noqa: E402
+    Milestone,
+    MilestoneCreate,
+    MilestoneUpdate,
+    TimelineExportResponse,
+    TimelineResponse,
+)
+from timeline_store import TimelineStore  # noqa: E402
 from tree_models import (  # noqa: E402
     TreeDeleteResult,
     TreeExportResponse,
@@ -78,34 +103,14 @@ from tree_models import (  # noqa: E402
     TreeNodeUpdate,
 )
 from tree_store import TreeStore  # noqa: E402
-from analytics_proxy import AnalyticsServiceClient  # noqa: E402
-from connector_hub_proxy import ConnectorHubClient  # noqa: E402
-from lineage_proxy import LineageServiceClient  # noqa: E402
-from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
-from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
-from template_models import (  # noqa: E402
-    Template as DeliverableTemplate,
-    TemplateInstantiateRequest,
-    TemplateInstantiateResponse,
-    TemplateSummary as DeliverableTemplateSummary,
-    TemplateType,
-    build_placeholder_context,
-    render_template_value,
+from workspace_state import (  # noqa: E402
+    ActivityCompletionUpdate,
+    CanvasTab,
+    OpenRef,
+    WorkspaceSelectionUpdate,
+    WorkspaceState,
 )
-from template_registry import (  # noqa: E402
-    get_template as get_deliverable_template,
-    list_templates as list_deliverable_templates,
-)
-from agent_registry import load_agent_registry  # noqa: E402
-from agent_settings_models import (  # noqa: E402
-    AgentConfigUpdate,
-    AgentProjectEntry,
-)
-from agent_settings_store import AgentSettingsStore  # noqa: E402
-from oidc_client import OIDCClient  # noqa: E402
-from security.prompt_safety import evaluate_prompt  # noqa: E402
-from security.secrets import resolve_secret  # noqa: E402
-from llm.client import LLMClient, LLMProviderError  # noqa: E402
+from workspace_state_store import WorkspaceStateStore  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = WEB_ROOT / "static"
@@ -176,7 +181,6 @@ class WorkflowStartResponse(BaseModel):
     status: str
     created_at: str
     updated_at: str
-
 
 
 class ActivityAccessSummary(BaseModel):
@@ -562,9 +566,7 @@ def _load_connector_registry() -> list[dict[str, Any]]:
         with CONNECTOR_REGISTRY_PATH.open("r", encoding="utf-8") as handle:
             payload = json.load(handle)
     except OSError as exc:
-        logger.error(
-            "connector_gallery.registry_read_failed", extra={"error": str(exc)}
-        )
+        logger.error("connector_gallery.registry_read_failed", extra={"error": str(exc)})
         return []
     if not isinstance(payload, list):
         return []
@@ -969,7 +971,9 @@ def _build_workspace_response(state: WorkspaceState) -> WorkspaceStateResponse:
             StageSummary(
                 id=stage["id"],
                 name=stage["name"],
-                progress=StageProgressSummary(**stage_progress(methodology_map, state, stage["id"])),
+                progress=StageProgressSummary(
+                    **stage_progress(methodology_map, state, stage["id"])
+                ),
                 activities=activities,
             )
         )
@@ -1271,9 +1275,11 @@ async def oidc_callback(request: Request) -> RedirectResponse:
         "roles": roles,
     }
     response = RedirectResponse(
-        url=f"/workspace?project_id={state_payload.get('project_id')}"
-        if state_payload.get("project_id")
-        else "/workspace"
+        url=(
+            f"/workspace?project_id={state_payload.get('project_id')}"
+            if state_payload.get("project_id")
+            else "/workspace"
+        )
     )
     response.set_cookie(
         SESSION_COOKIE,
@@ -1301,9 +1307,7 @@ async def logout(request: Request) -> RedirectResponse:
         discovery = await client.discover()
     if discovery and discovery.end_session_endpoint and session.get("id_token"):
         params = {"id_token_hint": session["id_token"]}
-        response = RedirectResponse(
-            url=f"{discovery.end_session_endpoint}?{urlencode(params)}"
-        )
+        response = RedirectResponse(url=f"{discovery.end_session_endpoint}?{urlencode(params)}")
     elif _legacy_oidc_enabled():
         logout_url = os.getenv("OIDC_LOGOUT_URL")
         if logout_url:
@@ -1430,9 +1434,7 @@ async def instantiate_template(
         if template.defaults is None:
             raise HTTPException(status_code=500, detail="Document template defaults missing")
         classification = context.get("classification") or template.defaults.classification
-        retention_days = int(
-            context.get("retention_days") or template.defaults.retention_days
-        )
+        retention_days = int(context.get("retention_days") or template.defaults.retention_days)
         payload_model = template.payload
         name = render_template_value(payload_model.name_template, context)
         content = render_template_value(payload_model.content_template, context)
@@ -1771,9 +1773,7 @@ async def list_tree_nodes(project_id: str, request: Request) -> TreeListResponse
 
 
 @app.post("/api/tree/{project_id}/nodes", response_model=TreeNode)
-async def create_tree_node(
-    project_id: str, payload: TreeNodeCreate, request: Request
-) -> TreeNode:
+async def create_tree_node(project_id: str, payload: TreeNodeCreate, request: Request) -> TreeNode:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     try:
@@ -1826,9 +1826,7 @@ async def move_tree_node(
 
 
 @app.delete("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeDeleteResult)
-async def delete_tree_node(
-    project_id: str, node_id: str, request: Request
-) -> TreeDeleteResult:
+async def delete_tree_node(project_id: str, node_id: str, request: Request) -> TreeDeleteResult:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     deleted_count = tree_store.delete_node(tenant_id, project_id, node_id)
@@ -1849,7 +1847,10 @@ async def export_tree(project_id: str, request: Request) -> TreeExportResponse:
         extra={"tenant_id": tenant_id, "project_id": project_id},
     )
     return TreeExportResponse(
-        tenant_id=tenant_id, project_id=project_id, exported_at=datetime.now(timezone.utc), nodes=nodes
+        tenant_id=tenant_id,
+        project_id=project_id,
+        exported_at=datetime.now(timezone.utc),
+        nodes=nodes,
     )
 
 
@@ -1896,9 +1897,7 @@ async def update_timeline_milestone(
 ) -> Milestone:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
-    milestone = timeline_store.update_milestone(
-        tenant_id, project_id, milestone_id, payload
-    )
+    milestone = timeline_store.update_milestone(tenant_id, project_id, milestone_id, payload)
     if not milestone:
         raise HTTPException(status_code=404, detail="Milestone not found")
     logger.info(
@@ -1982,12 +1981,8 @@ async def create_spreadsheet_sheet(
     return sheet
 
 
-@app.get(
-    "/api/spreadsheets/{project_id}/sheets/{sheet_id}", response_model=SheetDetail
-)
-async def get_spreadsheet_sheet(
-    project_id: str, sheet_id: str, request: Request
-) -> SheetDetail:
+@app.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}", response_model=SheetDetail)
+async def get_spreadsheet_sheet(project_id: str, sheet_id: str, request: Request) -> SheetDetail:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     detail = spreadsheet_store.get_sheet(tenant_id, project_id, sheet_id)
@@ -2004,9 +1999,7 @@ async def get_spreadsheet_sheet(
     return detail
 
 
-@app.post(
-    "/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows", response_model=Row
-)
+@app.post("/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows", response_model=Row)
 async def add_spreadsheet_row(
     project_id: str, sheet_id: str, payload: RowCreate, request: Request
 ) -> Row:
@@ -2044,9 +2037,7 @@ async def update_spreadsheet_row(
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     try:
-        row = spreadsheet_store.update_row(
-            tenant_id, project_id, sheet_id, row_id, payload
-        )
+        row = spreadsheet_store.update_row(tenant_id, project_id, sheet_id, row_id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not row:
@@ -2088,9 +2079,7 @@ async def delete_spreadsheet_row(
 
 
 @app.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}/export.csv")
-async def export_spreadsheet_csv(
-    project_id: str, sheet_id: str, request: Request
-) -> Response:
+async def export_spreadsheet_csv(project_id: str, sheet_id: str, request: Request) -> Response:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     csv_payload = spreadsheet_store.export_csv(tenant_id, project_id, sheet_id)
@@ -2111,9 +2100,7 @@ async def export_spreadsheet_csv(
     "/api/spreadsheets/{project_id}/sheets/{sheet_id}/import.csv",
     response_model=ImportResult,
 )
-async def import_spreadsheet_csv(
-    project_id: str, sheet_id: str, request: Request
-) -> ImportResult:
+async def import_spreadsheet_csv(project_id: str, sheet_id: str, request: Request) -> ImportResult:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     csv_bytes = await request.body()
@@ -2124,9 +2111,7 @@ async def import_spreadsheet_csv(
     except UnicodeDecodeError as exc:
         raise HTTPException(status_code=422, detail="CSV must be UTF-8") from exc
     try:
-        imported = spreadsheet_store.import_csv(
-            tenant_id, project_id, sheet_id, csv_payload
-        )
+        imported = spreadsheet_store.import_csv(tenant_id, project_id, sheet_id, csv_payload)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if imported is None:
@@ -2364,7 +2349,9 @@ async def create_document_version(
 
 
 @app.get("/api/knowledge/documents", response_model=list[DocumentSummaryResponse])
-async def list_documents(project_id: str, query: str | None = None) -> list[DocumentSummaryResponse]:
+async def list_documents(
+    project_id: str, query: str | None = None
+) -> list[DocumentSummaryResponse]:
     store = _get_knowledge_store()
     records = store.list_documents(project_id=project_id, query=query)
     return [
@@ -2384,7 +2371,9 @@ async def list_documents(project_id: str, query: str | None = None) -> list[Docu
     ]
 
 
-@app.get("/api/knowledge/documents/{document_id}/versions", response_model=list[DocumentVersionResponse])
+@app.get(
+    "/api/knowledge/documents/{document_id}/versions", response_model=list[DocumentVersionResponse]
+)
 async def list_document_versions(document_id: str) -> list[DocumentVersionResponse]:
     store = _get_knowledge_store()
     records = store.list_versions(document_id=document_id)
@@ -2580,9 +2569,7 @@ async def create_dashboard_what_if(
     session = _require_session(request)
     headers = build_forward_headers(request, session)
     client = _analytics_client()
-    response = await client.request_what_if(
-        project_id, payload.model_dump(), headers=headers
-    )
+    response = await client.request_what_if(project_id, payload.model_dump(), headers=headers)
     logger.info(
         "dashboard.whatif.request",
         extra={"tenant_id": session.get("tenant_id"), "project_id": project_id},
@@ -2648,9 +2635,7 @@ async def list_connector_instances(request: Request) -> Response:
 
 
 @app.post("/api/connector-gallery/instances")
-async def create_connector_instance(
-    payload: ConnectorInstanceCreate, request: Request
-) -> Response:
+async def create_connector_instance(payload: ConnectorInstanceCreate, request: Request) -> Response:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
     headers = build_forward_headers(request, session)
@@ -2691,9 +2676,7 @@ async def update_connector_instance(
     update_payload = payload.model_dump(exclude_none=True)
     client = _connector_hub_client()
     try:
-        response = await client.update_connector(
-            connector_id, update_payload, headers=headers
-        )
+        response = await client.update_connector(connector_id, update_payload, headers=headers)
     except httpx.RequestError:
         raise HTTPException(status_code=504, detail="Connector hub unavailable")
     if response.status_code >= 400:
@@ -2785,9 +2768,7 @@ async def list_document_canvas_documents(request: Request) -> list[dict[str, Any
 
 
 @app.get("/api/document-canvas/documents/{document_id}")
-async def get_document_canvas_document(
-    document_id: str, request: Request
-) -> dict[str, Any]:
+async def get_document_canvas_document(document_id: str, request: Request) -> dict[str, Any]:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
     client = _document_client()

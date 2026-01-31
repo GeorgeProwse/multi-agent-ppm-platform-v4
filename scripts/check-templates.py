@@ -64,17 +64,22 @@ def is_empty_yaml(path: Path) -> bool:
 
 def check_templates() -> list[str]:
     errors: list[str] = []
+    lfs_warnings: list[str] = []
     for path in iter_template_files():
         if path.stat().st_size == 0:
             errors.append(f"Template is empty: {path.relative_to(ROOT)}")
             continue
         if is_lfs_pointer(path):
-            errors.append(f"Template is an LFS pointer: {path.relative_to(ROOT)}")
+            # LFS pointers are expected in CI without LFS checkout; warn but don't fail
+            lfs_warnings.append(f"Template is LFS pointer (run 'git lfs pull'): {path.relative_to(ROOT)}")
             continue
         if path.suffix.lower() == ".csv" and is_header_only_csv(path):
             errors.append(f"CSV template has no data rows: {path.relative_to(ROOT)}")
         if path.suffix.lower() in {".yaml", ".yml"} and is_empty_yaml(path):
             errors.append(f"YAML template is empty: {path.relative_to(ROOT)}")
+    # Print LFS warnings but don't fail on them
+    for warning in lfs_warnings:
+        print(f"[LFS] {warning}")
     return errors
 
 

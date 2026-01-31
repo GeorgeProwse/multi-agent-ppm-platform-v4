@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
-
 
 _DEFAULT_MOUNT_PATH = Path("/mnt/secrets-store")
 
@@ -73,7 +71,7 @@ def _resolve_keyvault_reference(value: str) -> str | None:
     return None
 
 
-def resolve_secret(value: Optional[str]) -> Optional[str]:
+def resolve_secret(value: str | None) -> str | None:
     if value is None or value == "":
         return None
 

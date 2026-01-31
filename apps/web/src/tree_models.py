@@ -92,7 +92,7 @@ class TreeNodeCreate(BaseModel):
         return trimmed
 
     @model_validator(mode="after")
-    def _validate_ref(self) -> "TreeNodeCreate":
+    def _validate_ref(self) -> TreeNodeCreate:
         validate_ref_for_type(self.type, self.ref)
         return self
 
@@ -137,7 +137,7 @@ class TreeNode(BaseModel):
     updated_at: datetime
 
     @model_validator(mode="after")
-    def _validate_ref(self) -> "TreeNode":
+    def _validate_ref(self) -> TreeNode:
         validate_ref_for_type(self.type, self.ref)
         return self
 
@@ -147,7 +147,7 @@ class TreeNode(BaseModel):
         tenant_id: str,
         project_id: str,
         payload: TreeNodeCreate,
-    ) -> "TreeNode":
+    ) -> TreeNode:
         now = utc_now()
         return cls(
             node_id=str(uuid4()),

@@ -13,9 +13,7 @@ class ConnectorHubClient:
         timeout: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        self.base_url = base_url or os.getenv(
-            "CONNECTOR_HUB_URL", "http://connector-hub:8080"
-        )
+        self.base_url = base_url or os.getenv("CONNECTOR_HUB_URL", "http://connector-hub:8080")
         self.timeout = timeout
         self.transport = transport
 
@@ -37,9 +35,7 @@ class ConnectorHubClient:
     async def get_connector_health(
         self, connector_id: str, headers: dict[str, str]
     ) -> httpx.Response:
-        return await self._request(
-            "GET", f"/connectors/{connector_id}/health", headers=headers
-        )
+        return await self._request("GET", f"/connectors/{connector_id}/health", headers=headers)
 
     async def _request(
         self,

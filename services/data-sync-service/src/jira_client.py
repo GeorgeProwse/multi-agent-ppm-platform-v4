@@ -21,6 +21,9 @@ class JiraClient:
     def fetch_issues(self, project_key: str | None = None) -> list[JiraIssue]:
         raise NotImplementedError
 
+    def update_issue(self, issue_id: str, fields: dict[str, Any]) -> bool:
+        raise NotImplementedError
+
 
 class MockJiraClient(JiraClient):
     def fetch_issues(self, project_key: str | None = None) -> list[JiraIssue]:
@@ -42,6 +45,10 @@ class MockJiraClient(JiraClient):
                 updated_at=now,
             ),
         ]
+
+    def update_issue(self, issue_id: str, fields: dict[str, Any]) -> bool:
+        # Mock client logs updates without making real API calls
+        return True
 
 
 class JiraRESTClient(JiraClient):
@@ -74,6 +81,16 @@ class JiraRESTClient(JiraClient):
             status=status.get("name", ""),
             updated_at=fields.get("updated", ""),
         )
+
+    def update_issue(self, issue_id: str, fields: dict[str, Any]) -> bool:
+        with httpx.Client(timeout=10.0) as client:
+            response = client.put(
+                f"{self.base_url}/rest/api/3/issue/{issue_id}",
+                json={"fields": fields},
+                auth=self.auth,
+            )
+            response.raise_for_status()
+        return True
 
 
 def get_jira_client() -> JiraClient:

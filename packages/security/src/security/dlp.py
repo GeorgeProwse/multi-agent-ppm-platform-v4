@@ -296,5 +296,8 @@ def scan_payload(
 def ensure_dlp_environment() -> None:
     if not DEFAULT_POLICY_PATH.exists():
         raise FileNotFoundError("DLP policy file missing")
-    if os.getenv("ENVIRONMENT", "development").lower() == "production" and not DEFAULT_POLICY_PATH.exists():
+    if (
+        os.getenv("ENVIRONMENT", "development").lower() == "production"
+        and not DEFAULT_POLICY_PATH.exists()
+    ):
         raise RuntimeError("DLP policy configuration missing in production")

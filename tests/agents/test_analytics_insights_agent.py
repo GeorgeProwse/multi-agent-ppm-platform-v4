@@ -1,9 +1,9 @@
 import json
 
 import pytest
+from analytics_insights_agent import AnalyticsInsightsAgent
 
 from agents.runtime import InMemoryEventBus
-from analytics_insights_agent import AnalyticsInsightsAgent
 
 
 @pytest.mark.asyncio

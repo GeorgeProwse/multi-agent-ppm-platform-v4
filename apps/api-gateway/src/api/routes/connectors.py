@@ -10,10 +10,10 @@ Provides endpoints for connector management:
 
 from __future__ import annotations
 
-import importlib.util
-import json
 import hashlib
 import hmac
+import importlib.util
+import json
 import logging
 import os
 import sys
@@ -39,10 +39,10 @@ for path in [CONNECTOR_SDK_PATH, *connector_src_paths]:
         sys.path.insert(0, str(path))
 
 from base_connector import (
+    ConnectionStatus,
     ConnectorCategory,
     ConnectorConfig,
     ConnectorConfigStore,
-    ConnectionStatus,
     SyncDirection,
     SyncFrequency,
 )
@@ -53,6 +53,7 @@ from connector_registry import (
     get_connectors_by_category,
 )
 from security.audit_log import build_event, get_audit_log_store
+
 from api.webhook_storage import WebhookEvent, WebhookEventStore
 
 logger = logging.getLogger(__name__)
@@ -122,9 +123,7 @@ def _get_webhook_secret(connector_id: str) -> str | None:
     return os.getenv(_webhook_secret_env_var(connector_id))
 
 
-def _validate_webhook_signature(
-    connector_id: str, body: bytes, headers: dict[str, str]
-) -> None:
+def _validate_webhook_signature(connector_id: str, body: bytes, headers: dict[str, str]) -> None:
     secret = _get_webhook_secret(connector_id)
     if not secret:
         raise HTTPException(
@@ -375,7 +374,9 @@ async def list_connectors(category: str | None = None):
             sync_direction=config.sync_direction.value if config else "inbound",
             sync_frequency=config.sync_frequency.value if config else "daily",
             health_status=config.health_status if config else "unknown",
-            last_sync_at=config.last_sync_at.isoformat() if config and config.last_sync_at else None,
+            last_sync_at=(
+                config.last_sync_at.isoformat() if config and config.last_sync_at else None
+            ),
             custom_fields=config.custom_fields if config else {},
         )
         result.append(item)
@@ -556,7 +557,11 @@ async def enable_connector(connector_id: str, http_request: Request):
                 registration_payload["status"] = "registered"
                 if isinstance(registration_response, dict):
                     registration_payload.update(
-                        {key: value for key, value in registration_response.items() if key != "secret"}
+                        {
+                            key: value
+                            for key, value in registration_response.items()
+                            if key != "secret"
+                        }
                     )
             except Exception as exc:  # pragma: no cover - defensive guard
                 registration_payload["status"] = "failed"
@@ -593,7 +598,9 @@ async def disable_connector(connector_id: str, http_request: Request):
     config = store.get(connector_id)
 
     if not config:
-        raise HTTPException(status_code=404, detail=f"Connector configuration not found: {connector_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Connector configuration not found: {connector_id}"
+        )
 
     config.enabled = False
     config.updated_at = datetime.now(timezone.utc)
@@ -784,7 +791,9 @@ async def delete_connector_config(connector_id: str, http_request: Request):
     """
     store = get_config_store()
     if not store.delete(connector_id):
-        raise HTTPException(status_code=404, detail=f"Connector configuration not found: {connector_id}")
+        raise HTTPException(
+            status_code=404, detail=f"Connector configuration not found: {connector_id}"
+        )
 
     auth = http_request.state.auth
     get_audit_log_store().record_event(

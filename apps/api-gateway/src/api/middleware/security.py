@@ -266,7 +266,9 @@ async def _evaluate_rbac(auth: AuthContext, permission: str, classification: str
 
 def _load_abac_config() -> dict[str, Any]:
     repo_root = Path(__file__).resolve().parents[5]
-    policy_path = Path(os.getenv("ABAC_POLICY_PATH", repo_root / "config" / "abac" / "policies.yaml"))
+    policy_path = Path(
+        os.getenv("ABAC_POLICY_PATH", repo_root / "config" / "abac" / "policies.yaml")
+    )
     if not policy_path.exists():
         return {"policies": [], "default_decision": "allow"}
     return _load_yaml(policy_path)
@@ -440,9 +442,11 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
         }
         if request.url.path in exempt_paths:
             return await call_next(request)
-        if request.method == "POST" and request.url.path.startswith(
-            "/api/v1/connectors/"
-        ) and request.url.path.endswith("/webhook"):
+        if (
+            request.method == "POST"
+            and request.url.path.startswith("/api/v1/connectors/")
+            and request.url.path.endswith("/webhook")
+        ):
             return await call_next(request)
 
         auth_dev_mode = os.getenv("AUTH_DEV_MODE", "false").lower() in {"1", "true", "yes"}
@@ -456,8 +460,7 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
                 extra={"environment": environment},
             )
             return JSONResponse(
-                status_code=500,
-                content={"detail": "Authentication system misconfigured"}
+                status_code=500, content={"detail": "Authentication system misconfigured"}
             )
 
         if auth_dev_mode and environment in {"dev", "development", "local", "test"}:
@@ -476,16 +479,14 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
             roles_raw = (
                 ",".join(claims.get("roles", []))
                 if claims and isinstance(claims.get("roles"), list)
-                else claims.get("roles")
-                if claims and isinstance(claims.get("roles"), str)
-                else os.getenv("AUTH_DEV_ROLES", "PMO_ADMIN")
+                else (
+                    claims.get("roles")
+                    if claims and isinstance(claims.get("roles"), str)
+                    else os.getenv("AUTH_DEV_ROLES", "PMO_ADMIN")
+                )
             )
             roles = [role.strip() for role in str(roles_raw).split(",") if role.strip()]
-            subject = (
-                claims.get("sub")
-                if claims
-                else request.headers.get("X-Dev-User", "dev-user")
-            )
+            subject = claims.get("sub") if claims else request.headers.get("X-Dev-User", "dev-user")
             auth_context = AuthContext(
                 tenant_id=tenant_id,
                 subject=subject,
@@ -504,7 +505,9 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
                     try:
                         resource = json.loads(body.decode("utf-8"))
                     except json.JSONDecodeError:
-                        return JSONResponse(status_code=400, content={"detail": "Invalid JSON payload"})
+                        return JSONResponse(
+                            status_code=400, content={"detail": "Invalid JSON payload"}
+                        )
                 await _evaluate_abac(auth_context, permission, resource, request)
             except HTTPException as exc:
                 return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})

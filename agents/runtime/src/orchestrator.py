@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from agents.runtime.src.base_agent import BaseAgent
 from agents.runtime.src.event_bus import InMemoryEventBus
@@ -217,9 +218,7 @@ class Orchestrator:
         delay += random.uniform(0, self._retry_policy.jitter_seconds)
         await asyncio.sleep(delay)
 
-    async def _load_context(
-        self, memory_key: str, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _load_context(self, memory_key: str, context: dict[str, Any]) -> dict[str, Any]:
         persisted = await self._memory_store.load(memory_key)
         merged = {**persisted, **context}
         merged.setdefault("history", [])

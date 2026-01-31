@@ -4,60 +4,47 @@ import os
 from pathlib import Path
 from typing import Any, Protocol
 
+from agents.runtime.src.state_store import TenantStateStore
 from sqlalchemy import JSON, Column, DateTime, MetaData, String, Table, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from agents.runtime.src.state_store import TenantStateStore
 
 class WorkflowStateStore(Protocol):
-    async def initialize(self) -> None:
-        ...
+    async def initialize(self) -> None: ...
 
-    async def get_definition(self, tenant_id: str, workflow_id: str) -> dict[str, Any] | None:
-        ...
+    async def get_definition(self, tenant_id: str, workflow_id: str) -> dict[str, Any] | None: ...
 
     async def save_definition(
         self, tenant_id: str, workflow_id: str, definition: dict[str, Any]
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    async def get_instance(self, tenant_id: str, instance_id: str) -> dict[str, Any] | None:
-        ...
+    async def get_instance(self, tenant_id: str, instance_id: str) -> dict[str, Any] | None: ...
 
     async def save_instance(
         self, tenant_id: str, instance_id: str, instance: dict[str, Any]
-    ) -> None:
-        ...
+    ) -> None: ...
 
-    async def list_instances(self, tenant_id: str) -> list[dict[str, Any]]:
-        ...
+    async def list_instances(self, tenant_id: str) -> list[dict[str, Any]]: ...
 
-    async def get_task(self, tenant_id: str, task_id: str) -> dict[str, Any] | None:
-        ...
+    async def get_task(self, tenant_id: str, task_id: str) -> dict[str, Any] | None: ...
 
-    async def save_task(self, tenant_id: str, task_id: str, task: dict[str, Any]) -> None:
-        ...
+    async def save_task(self, tenant_id: str, task_id: str, task: dict[str, Any]) -> None: ...
 
     async def list_tasks(
         self, tenant_id: str, *, assignee: str | None = None, status: str | None = None
-    ) -> list[dict[str, Any]]:
-        ...
+    ) -> list[dict[str, Any]]: ...
 
     async def save_subscription(
         self, tenant_id: str, subscription_id: str, subscription: dict[str, Any]
-    ) -> None:
-        ...
+    ) -> None: ...
 
     async def list_subscriptions(
         self, tenant_id: str, event_type: str | None = None
-    ) -> list[dict[str, Any]]:
-        ...
+    ) -> list[dict[str, Any]]: ...
 
-    async def save_event(self, tenant_id: str, event_id: str, event: dict[str, Any]) -> None:
-        ...
+    async def save_event(self, tenant_id: str, event_id: str, event: dict[str, Any]) -> None: ...
 
-    async def list_events(self, tenant_id: str) -> list[dict[str, Any]]:
-        ...
+    async def list_events(self, tenant_id: str) -> list[dict[str, Any]]: ...
 
 
 class JsonWorkflowStateStore:
@@ -505,9 +492,7 @@ class DatabaseWorkflowStateStore:
 def build_workflow_state_store(config: dict[str, Any] | None = None) -> WorkflowStateStore:
     config = config or {}
     backend = (
-        config.get("workflow_state_backend")
-        or os.getenv("WORKFLOW_STATE_BACKEND", "")
-        or ""
+        config.get("workflow_state_backend") or os.getenv("WORKFLOW_STATE_BACKEND", "") or ""
     ).lower()
     database_url = (
         config.get("workflow_database_url")
@@ -518,12 +503,8 @@ def build_workflow_state_store(config: dict[str, Any] | None = None) -> Workflow
         return DatabaseWorkflowStateStore(_to_async_database_url(database_url))
     if backend in {"db", "database", "postgres", "postgresql"} and not database_url:
         raise ValueError("workflow_database_url is required for database backend")
-    definition_path = Path(
-        config.get("workflow_definition_store_path", "data/workflows.json")
-    )
-    instance_path = Path(
-        config.get("workflow_instance_store_path", "data/workflow_instances.json")
-    )
+    definition_path = Path(config.get("workflow_definition_store_path", "data/workflows.json"))
+    instance_path = Path(config.get("workflow_instance_store_path", "data/workflow_instances.json"))
     task_path = Path(config.get("workflow_task_store_path", "data/workflow_tasks.json"))
     event_path = Path(config.get("workflow_event_store_path", "data/workflow_events.json"))
     subscription_path = Path(

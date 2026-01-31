@@ -15,6 +15,7 @@ from jwt import InvalidTokenError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from security.iam import map_groups_to_roles
+
 logger = logging.getLogger("security-auth")
 
 
@@ -119,9 +120,7 @@ async def _validate_jwt(token: str, config: AuthConfig) -> dict[str, Any]:
         issuer = config.issuer
         if not jwks_url and (config.oidc_discovery_url or issuer):
             discovery_url = config.oidc_discovery_url or (
-                f"{issuer.rstrip('/')}/.well-known/openid-configuration"
-                if issuer
-                else None
+                f"{issuer.rstrip('/')}/.well-known/openid-configuration" if issuer else None
             )
             if discovery_url:
                 oidc_config = await _load_oidc_config(discovery_url)
@@ -204,10 +203,7 @@ async def authenticate_request(request: Request, config: AuthConfig | None = Non
             "AUTH_DEV_MODE enabled in production - rejecting request",
             extra={"environment": environment},
         )
-        raise HTTPException(
-            status_code=500,
-            detail="Authentication system misconfigured"
-        )
+        raise HTTPException(status_code=500, detail="Authentication system misconfigured")
 
     if auth_dev_mode and environment in {"dev", "development", "local", "test"}:
         auth_header = request.headers.get("Authorization", "")
@@ -225,16 +221,14 @@ async def authenticate_request(request: Request, config: AuthConfig | None = Non
         roles_raw = (
             ",".join(claims.get("roles", []))
             if claims and isinstance(claims.get("roles"), list)
-            else claims.get("roles")
-            if claims and isinstance(claims.get("roles"), str)
-            else os.getenv("AUTH_DEV_ROLES", "PMO_ADMIN")
+            else (
+                claims.get("roles")
+                if claims and isinstance(claims.get("roles"), str)
+                else os.getenv("AUTH_DEV_ROLES", "PMO_ADMIN")
+            )
         )
         roles = [role.strip() for role in str(roles_raw).split(",") if role.strip()]
-        subject = (
-            claims.get("sub")
-            if claims
-            else request.headers.get("X-Dev-User", "dev-user")
-        )
+        subject = claims.get("sub") if claims else request.headers.get("X-Dev-User", "dev-user")
         return AuthContext(
             tenant_id=tenant_id,
             subject=subject,

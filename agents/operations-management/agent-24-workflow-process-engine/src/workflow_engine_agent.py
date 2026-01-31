@@ -8,17 +8,16 @@ workflow execution, state management, and human task coordination.
 Specification: agents/operations-management/agent-24-workflow-process-engine/README.md
 """
 
-from datetime import datetime
 import os
+from datetime import datetime
 from typing import Any
 
 from observability.tracing import get_trace_id
+from workflow_state_store import WorkflowStateStore, build_workflow_state_store
+from workflow_task_queue import WorkflowTaskQueue, build_task_message, build_task_queue
 
 from agents.runtime import BaseAgent, InMemoryEventBus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
-
-from workflow_state_store import WorkflowStateStore, build_workflow_state_store
-from workflow_task_queue import WorkflowTaskQueue, build_task_message, build_task_queue
 
 
 class WorkflowEngineAgent(BaseAgent):
@@ -204,9 +203,7 @@ class WorkflowEngineAgent(BaseAgent):
             return await self._retry_failed_task(tenant_id, input_data.get("task_id"))  # type: ignore
 
         elif action == "get_workflow_instances":
-            return await self._get_workflow_instances(
-                tenant_id, input_data.get("filters", {})
-            )
+            return await self._get_workflow_instances(tenant_id, input_data.get("filters", {}))
 
         elif action == "get_task_inbox":
             return await self._get_task_inbox(tenant_id, input_data.get("user_id"))  # type: ignore
@@ -582,7 +579,11 @@ class WorkflowEngineAgent(BaseAgent):
                     if not workflow:
                         continue
                     task = next(
-                        (item for item in workflow.get("tasks", []) if item.get("task_id") == task_id),
+                        (
+                            item
+                            for item in workflow.get("tasks", [])
+                            if item.get("task_id") == task_id
+                        ),
                         None,
                     )
                     if not task:
@@ -804,7 +805,9 @@ class WorkflowEngineAgent(BaseAgent):
                 "task_id": trigger.get("task_id"),
             }
             self.event_subscriptions[subscription_id] = subscription
-            await self.state_store.save_subscription(tenant_id, subscription_id, subscription.copy())
+            await self.state_store.save_subscription(
+                tenant_id, subscription_id, subscription.copy()
+            )
 
     async def _emit_workflow_event(
         self, tenant_id: str, event_type: str, payload: dict[str, Any]

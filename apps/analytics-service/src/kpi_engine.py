@@ -7,9 +7,9 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 import httpx
+from metrics_store import MetricsStore
 
 from agents.common.metrics_catalog import normalize_metric_value
-from metrics_store import MetricsStore
 
 logger = logging.getLogger("analytics-service.kpi")
 
@@ -46,7 +46,9 @@ class AnalyticsDataClient:
 
 
 class AnalyticsKpiEngine:
-    def __init__(self, data_client: AnalyticsDataClient, metrics_store: MetricsStore | None) -> None:
+    def __init__(
+        self, data_client: AnalyticsDataClient, metrics_store: MetricsStore | None
+    ) -> None:
         self._data_client = data_client
         self._metrics_store = metrics_store
 
@@ -64,10 +66,7 @@ class AnalyticsKpiEngine:
             risks=risks,
             resources=resources,
         )
-        normalized = {
-            name: normalize_metric_value(name, value)
-            for name, value in metrics.items()
-        }
+        normalized = {name: normalize_metric_value(name, value) for name, value in metrics.items()}
         snapshot = KpiSnapshot(
             project_id=project_id,
             tenant_id=tenant_id,
@@ -100,12 +99,8 @@ def compute_kpis_from_entities(
     project_work_items = [
         item for item in work_items if _matches_project(item.get("data"), project_id)
     ]
-    project_budgets = [
-        item for item in budgets if _matches_project(item.get("data"), project_id)
-    ]
-    project_risks = [
-        item for item in risks if _matches_project(item.get("data"), project_id)
-    ]
+    project_budgets = [item for item in budgets if _matches_project(item.get("data"), project_id)]
+    project_risks = [item for item in risks if _matches_project(item.get("data"), project_id)]
     project_resources = [
         item for item in resources if _matches_project(item.get("data"), project_id)
     ]
@@ -155,9 +150,7 @@ def generate_narrative(snapshot: KpiSnapshot) -> NarrativeReport:
     )
 
 
-def apply_what_if_adjustments(
-    snapshot: KpiSnapshot, adjustments: dict[str, Any]
-) -> KpiSnapshot:
+def apply_what_if_adjustments(snapshot: KpiSnapshot, adjustments: dict[str, Any]) -> KpiSnapshot:
     adjusted_metrics = dict(snapshot.metrics)
     for metric_name, raw_adjustment in adjustments.items():
         if metric_name not in adjusted_metrics:
@@ -171,8 +164,7 @@ def apply_what_if_adjustments(
         else:
             adjusted_metrics[metric_name] = current + value
     normalized = {
-        name: normalize_metric_value(name, value)
-        for name, value in adjusted_metrics.items()
+        name: normalize_metric_value(name, value) for name, value in adjusted_metrics.items()
     }
     return KpiSnapshot(
         project_id=snapshot.project_id,
@@ -349,6 +341,4 @@ def _build_summary(snapshot: KpiSnapshot) -> str:
         status = "stable"
     else:
         status = "at risk"
-    return (
-        f"Overall project health is {status} with an average KPI score of {average:.2f}."
-    )
+    return f"Overall project health is {status} with an average KPI score of {average:.2f}."

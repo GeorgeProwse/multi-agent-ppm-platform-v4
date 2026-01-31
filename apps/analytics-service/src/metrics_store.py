@@ -24,22 +24,18 @@ class MetricsStore:
 
     def _initialize(self) -> None:
         with sqlite3.connect(self.path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS kpi_metrics (
                     tenant_id TEXT NOT NULL,
                     project_id TEXT NOT NULL,
                     captured_at TEXT NOT NULL,
                     metrics_json TEXT NOT NULL
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_kpi_metrics
                 ON kpi_metrics (tenant_id, project_id, captured_at)
-                """
-            )
+                """)
             conn.commit()
 
     def add_snapshot(
@@ -65,9 +61,7 @@ class MetricsStore:
             metrics=metrics,
         )
 
-    def list_snapshots(
-        self, tenant_id: str, project_id: str, limit: int = 50
-    ) -> list[KpiSnapshot]:
+    def list_snapshots(self, tenant_id: str, project_id: str, limit: int = 50) -> list[KpiSnapshot]:
         with sqlite3.connect(self.path) as conn:
             rows = conn.execute(
                 """

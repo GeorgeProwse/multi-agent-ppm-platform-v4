@@ -136,7 +136,9 @@ class LeaderElector:
         data = json.dumps(payload).encode("utf-8") if payload else None
         request = urllib.request.Request(url, data=data, method=method, headers=self._headers())
         try:
-            with urllib.request.urlopen(request, context=self._ssl_context(), timeout=5) as response:
+            with urllib.request.urlopen(
+                request, context=self._ssl_context(), timeout=5
+            ) as response:
                 if response.status == 204:
                     return None
                 body = response.read().decode("utf-8")

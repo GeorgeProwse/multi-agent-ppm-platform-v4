@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
+
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy import JSON, Column, DateTime, Integer, MetaData, String, Table, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
@@ -30,11 +32,9 @@ def make_state_key(tenant_id: str, run_id: str) -> str:
 
 
 class OrchestrationStateStore(Protocol):
-    async def load(self, tenant_id: str | None = None) -> dict[str, WorkflowState]:
-        ...
+    async def load(self, tenant_id: str | None = None) -> dict[str, WorkflowState]: ...
 
-    async def save(self, state: WorkflowState) -> WorkflowState:
-        ...
+    async def save(self, state: WorkflowState) -> WorkflowState: ...
 
 
 class JsonOrchestrationStateStore:
@@ -49,8 +49,10 @@ class JsonOrchestrationStateStore:
         states: dict[str, WorkflowState] = {}
         for key, data in raw.items():
             payload = data.get("payload", {})
-            resolved_tenant = data.get("tenant_id") or payload.get("tenant_id") or os.getenv(
-                "AUTH_DEV_TENANT_ID", "default-tenant"
+            resolved_tenant = (
+                data.get("tenant_id")
+                or payload.get("tenant_id")
+                or os.getenv("AUTH_DEV_TENANT_ID", "default-tenant")
             )
             resolved_key = make_state_key(resolved_tenant, data.get("run_id", key))
             state = WorkflowState(
@@ -94,6 +96,7 @@ class DatabaseOrchestrationStateStore:
     Assumes database-level encryption at rest. Optionally provide envelope encryption
     hooks to encrypt/decrypt the payload before persistence.
     """
+
     def __init__(
         self,
         database_url: str,
@@ -172,9 +175,7 @@ class DatabaseOrchestrationStateStore:
                     )
                     result = await session.execute(update_stmt)
                     if result.rowcount == 0:
-                        raise OptimisticLockError(
-                            "Orchestration state update conflict detected."
-                        )
+                        raise OptimisticLockError("Orchestration state update conflict detected.")
                     next_version = state.version + 1
         return WorkflowState(
             run_id=state.run_id,

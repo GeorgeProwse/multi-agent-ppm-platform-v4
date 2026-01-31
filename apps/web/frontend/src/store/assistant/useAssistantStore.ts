@@ -14,6 +14,7 @@ import type {
   AssistantContext,
   AssistantMessage,
   PrerequisiteInfo,
+  SuggestionApiResponse,
   SuggestionTrigger,
 } from './types';
 import type { MethodologyActivity, MethodologyStage } from '../methodology/types';
@@ -206,7 +207,7 @@ export const useAssistantStore = create<AssistantStoreState>((set, get) => ({
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-            chips = data.suggestions.map((suggestion: any) => ({
+            chips = data.suggestions.map((suggestion: SuggestionApiResponse) => ({
               id: suggestion.id,
               label: suggestion.label,
               category: suggestion.category,
@@ -298,7 +299,7 @@ function generateActivitySuggestions(
 
   // Activity-specific suggestions based on activity ID
   switch (activity.id) {
-    case 'act-budget':
+    case 'act-budget': {
       // Budget Planning - suggest generating template based on WBS
       const wbsActivity = allActivities.find((a) => a.id === 'act-wbs');
       if (wbsActivity?.status === 'complete') {
@@ -334,8 +335,9 @@ function generateActivitySuggestions(
         description: 'Create a new budget from scratch',
       });
       break;
+    }
 
-    case 'act-schedule':
+    case 'act-schedule': {
       // Schedule - suggest generating from WBS
       const wbsForSchedule = allActivities.find((a) => a.id === 'act-wbs');
       if (wbsForSchedule?.status === 'complete') {
@@ -357,8 +359,9 @@ function generateActivitySuggestions(
         });
       }
       break;
+    }
 
-    case 'act-wbs':
+    case 'act-wbs': {
       // WBS - suggest reviewing charter first
       const charterActivity = allActivities.find((a) => a.id === 'act-charter');
       if (charterActivity?.status === 'complete') {
@@ -392,6 +395,7 @@ function generateActivitySuggestions(
         description: 'Start building the Work Breakdown Structure',
       });
       break;
+    }
 
     case 'act-risk-plan':
       // Risk Management Plan

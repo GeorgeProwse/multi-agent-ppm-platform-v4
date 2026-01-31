@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib
 
-
 _CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = {
     "jira": ("jira_connector", "JiraConnector"),
     "planview": ("planview_connector", "PlanviewConnector"),

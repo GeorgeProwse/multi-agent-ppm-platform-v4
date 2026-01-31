@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Iterable
+from typing import Any
 
 Sampler = Callable[[int], Awaitable[float] | float]
-ScenarioBuilder = Callable[[dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]]
+ScenarioBuilder = Callable[
+    [dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]
+]
 MetricsBuilder = Callable[[dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]]
-ComparisonBuilder = Callable[[dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]]
+ComparisonBuilder = Callable[
+    [dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]
+]
 RecommendationBuilder = Callable[[dict[str, Any]], Awaitable[str] | str]
 
 
@@ -134,7 +139,9 @@ class ScenarioEngine:
         *,
         scenarios: list[dict[str, Any]],
         scenario_runner: Callable[[dict[str, Any]], Awaitable[dict[str, Any]] | dict[str, Any]],
-        comparison_builder: Callable[[list[dict[str, Any]]], Awaitable[dict[str, Any]] | dict[str, Any]],
+        comparison_builder: Callable[
+            [list[dict[str, Any]]], Awaitable[dict[str, Any]] | dict[str, Any]
+        ],
     ) -> dict[str, Any]:
         """Run a batch of scenarios and compare the outcomes."""
         results: list[dict[str, Any]] = []

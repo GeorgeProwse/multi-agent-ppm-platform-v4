@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 
 # Add services to path
@@ -29,6 +29,7 @@ router = APIRouter()
 # Pydantic models for API
 class AgentParameterModel(BaseModel):
     """API model for agent parameter."""
+
     name: str
     display_name: str
     description: str
@@ -43,6 +44,7 @@ class AgentParameterModel(BaseModel):
 
 class AgentConfigModel(BaseModel):
     """API model for agent configuration."""
+
     catalog_id: str
     agent_id: str
     display_name: str
@@ -57,12 +59,14 @@ class AgentConfigModel(BaseModel):
 
 class AgentConfigUpdateModel(BaseModel):
     """API model for updating agent configuration."""
+
     enabled: bool | None = None
     parameters: list[dict[str, Any]] | None = None
 
 
 class ProjectAgentConfigModel(BaseModel):
     """API model for project-specific agent configuration."""
+
     project_id: str
     agent_id: str
     enabled: bool = True
@@ -73,12 +77,14 @@ class ProjectAgentConfigModel(BaseModel):
 
 class ProjectAgentConfigUpdateModel(BaseModel):
     """API model for updating project agent configuration."""
+
     enabled: bool
     parameter_overrides: dict[str, Any] | None = None
 
 
 class DevUserModel(BaseModel):
     """API model for development user profile."""
+
     user_id: str
     name: str
     email: str
@@ -97,12 +103,12 @@ def check_user_permission(user_id: str, roles: list[str]) -> None:
     store = get_agent_config_store()
     if store.can_user_configure_agents(user_id):
         return
-    if any(role in {"PMO_ADMIN", "PM", "tenant_owner", "portfolio_admin", "project_manager"} for role in roles):
+    if any(
+        role in {"PMO_ADMIN", "PM", "tenant_owner", "portfolio_admin", "project_manager"}
+        for role in roles
+    ):
         return
-    raise HTTPException(
-        status_code=403,
-        detail="User does not have permission to configure agents"
-    )
+    raise HTTPException(status_code=403, detail="User does not have permission to configure agents")
 
 
 # Agent Configuration Endpoints
@@ -137,10 +143,7 @@ async def list_agent_configs(
 async def list_agent_categories():
     """List all available agent categories."""
     return {
-        "categories": [
-            {"value": cat.value, "label": cat.name.title()}
-            for cat in AgentCategory
-        ]
+        "categories": [{"value": cat.value, "label": cat.name.title()} for cat in AgentCategory]
     }
 
 
@@ -215,7 +218,9 @@ async def list_project_agent_configs(project_id: str):
     return [ProjectAgentConfigModel(**c.to_dict()) for c in configs]
 
 
-@router.get("/projects/{project_id}/agents/config/{agent_id}", response_model=ProjectAgentConfigModel | None)
+@router.get(
+    "/projects/{project_id}/agents/config/{agent_id}", response_model=ProjectAgentConfigModel | None
+)
 async def get_project_agent_config(project_id: str, agent_id: str):
     """Get project-specific configuration for an agent."""
     store = get_agent_config_store()
@@ -227,7 +232,9 @@ async def get_project_agent_config(project_id: str, agent_id: str):
     return ProjectAgentConfigModel(**config.to_dict())
 
 
-@router.put("/projects/{project_id}/agents/config/{agent_id}", response_model=ProjectAgentConfigModel)
+@router.put(
+    "/projects/{project_id}/agents/config/{agent_id}", response_model=ProjectAgentConfigModel
+)
 async def set_project_agent_config(
     project_id: str,
     agent_id: str,
@@ -284,7 +291,7 @@ async def get_enabled_agents_for_project(project_id: str):
                 "catalog_id": a.catalog_id,
                 "agent_id": a.agent_id,
                 "display_name": a.display_name,
-                "category": a.category.value if hasattr(a.category, 'value') else a.category,
+                "category": a.category.value if hasattr(a.category, "value") else a.category,
             }
             for a in agents
         ],

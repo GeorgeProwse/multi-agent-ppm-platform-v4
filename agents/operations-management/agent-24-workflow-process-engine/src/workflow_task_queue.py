@@ -17,17 +17,13 @@ class WorkflowTaskMessage:
 
 
 class WorkflowTaskQueue(Protocol):
-    async def publish_task(self, message: WorkflowTaskMessage) -> None:
-        ...
+    async def publish_task(self, message: WorkflowTaskMessage) -> None: ...
 
-    async def reserve_task(self) -> WorkflowTaskMessage | None:
-        ...
+    async def reserve_task(self) -> WorkflowTaskMessage | None: ...
 
-    async def ack_task(self, message_id: str) -> None:
-        ...
+    async def ack_task(self, message_id: str) -> None: ...
 
-    async def fail_task(self, message_id: str, reason: str | None = None) -> None:
-        ...
+    async def fail_task(self, message_id: str, reason: str | None = None) -> None: ...
 
 
 class InMemoryWorkflowTaskQueue:
@@ -133,7 +129,12 @@ def build_task_queue(config: dict[str, Any] | None = None) -> WorkflowTaskQueue:
 
 
 def build_task_message(
-    *, tenant_id: str, instance_id: str, task_id: str, task_type: str | None, payload: dict[str, Any]
+    *,
+    tenant_id: str,
+    instance_id: str,
+    task_id: str,
+    task_type: str | None,
+    payload: dict[str, Any],
 ) -> WorkflowTaskMessage:
     return WorkflowTaskMessage(
         message_id=str(uuid.uuid4()),

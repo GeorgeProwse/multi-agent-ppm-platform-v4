@@ -99,7 +99,7 @@ class Milestone(MilestoneBase):
     updated_at: datetime
 
     @classmethod
-    def build(cls, tenant_id: str, project_id: str, payload: MilestoneCreate) -> "Milestone":
+    def build(cls, tenant_id: str, project_id: str, payload: MilestoneCreate) -> Milestone:
         now = utc_now()
         return cls(
             milestone_id=str(uuid4()),

@@ -6,7 +6,9 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create a markdown summary from Locust CSV output.")
+    parser = argparse.ArgumentParser(
+        description="Create a markdown summary from Locust CSV output."
+    )
     parser.add_argument("--csv-prefix", required=True, help="CSV prefix used by Locust")
     parser.add_argument("--output", required=True, help="Markdown output path")
     return parser.parse_args()

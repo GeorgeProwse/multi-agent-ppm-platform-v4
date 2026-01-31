@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from approval_workflow_agent import ApprovalWorkflowAgent
-from events import ProjectHealthReportGeneratedEvent, ProjectHealthUpdatedEvent, ProjectTransitionedEvent
+from events import (
+    ProjectHealthReportGeneratedEvent,
+    ProjectHealthUpdatedEvent,
+    ProjectTransitionedEvent,
+)
 from observability.tracing import get_trace_id
 
 from agents.common.health_recommendations import generate_recommendations, identify_health_concerns
@@ -770,10 +774,12 @@ class ProjectLifecycleAgent(BaseAgent):
             "status": project.get("status"),
             "health_status": health_data.get("health_status", "Unknown"),
             "composite_score": health_data.get("composite_score", 0),
-            "phase_start_date": lifecycle_state.get("phase_start_date") if lifecycle_state else None,
-            "transitions_count": len(lifecycle_state.get("transitions", []))
-            if lifecycle_state
-            else 0,
+            "phase_start_date": (
+                lifecycle_state.get("phase_start_date") if lifecycle_state else None
+            ),
+            "transitions_count": (
+                len(lifecycle_state.get("transitions", [])) if lifecycle_state else 0
+            ),
         }
 
         # Generate trend data
@@ -1099,11 +1105,21 @@ class ProjectLifecycleAgent(BaseAgent):
                 return "declining"
             return "stable"
 
-        schedule_values = [record.get("metrics", {}).get("schedule", {}).get("score", 0) for record in history]
-        cost_values = [record.get("metrics", {}).get("cost", {}).get("score", 0) for record in history]
-        risk_values = [record.get("metrics", {}).get("risk", {}).get("score", 0) for record in history]
-        quality_values = [record.get("metrics", {}).get("quality", {}).get("score", 0) for record in history]
-        resource_values = [record.get("metrics", {}).get("resource", {}).get("score", 0) for record in history]
+        schedule_values = [
+            record.get("metrics", {}).get("schedule", {}).get("score", 0) for record in history
+        ]
+        cost_values = [
+            record.get("metrics", {}).get("cost", {}).get("score", 0) for record in history
+        ]
+        risk_values = [
+            record.get("metrics", {}).get("risk", {}).get("score", 0) for record in history
+        ]
+        quality_values = [
+            record.get("metrics", {}).get("quality", {}).get("score", 0) for record in history
+        ]
+        resource_values = [
+            record.get("metrics", {}).get("resource", {}).get("score", 0) for record in history
+        ]
 
         return {
             "schedule_trend": _trend(schedule_values),

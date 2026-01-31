@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from spreadsheet_models import (
-    Column,
     Row,
     RowCreate,
     RowUpdate,
@@ -31,9 +30,7 @@ class SpreadsheetStore:
         sheets_raw = project_bucket.get("sheets", [])
         return [Sheet.model_validate(item) for item in sheets_raw]
 
-    def create_sheet(
-        self, tenant_id: str, project_id: str, payload: SheetCreate
-    ) -> Sheet:
+    def create_sheet(self, tenant_id: str, project_id: str, payload: SheetCreate) -> Sheet:
         store = self._load()
         tenant_bucket = store.setdefault(tenant_id, {})
         project_bucket = tenant_bucket.setdefault(project_id, {})
@@ -46,9 +43,7 @@ class SpreadsheetStore:
         self._write(store)
         return sheet
 
-    def get_sheet(
-        self, tenant_id: str, project_id: str, sheet_id: str
-    ) -> SheetDetail | None:
+    def get_sheet(self, tenant_id: str, project_id: str, sheet_id: str) -> SheetDetail | None:
         store = self._load()
         project_bucket = store.get(tenant_id, {}).get(project_id, {})
         sheet_raw = self._find_sheet(project_bucket.get("sheets", []), sheet_id)
@@ -105,22 +100,16 @@ class SpreadsheetStore:
             if row_raw.get("row_id") != row_id:
                 continue
             row = Row.model_validate(row_raw)
-            normalized = validate_row_values(
-                sheet.columns, payload.values, require_all=False
-            )
+            normalized = validate_row_values(sheet.columns, payload.values, require_all=False)
             updated_values = {**row.values, **normalized}
-            updated_row = row.model_copy(
-                update={"values": updated_values, "updated_at": utc_now()}
-            )
+            updated_row = row.model_copy(update={"values": updated_values, "updated_at": utc_now()})
             rows_bucket[index] = updated_row.model_dump(mode="json")
             self._touch_sheet(sheet_raw)
             self._write(store)
             return updated_row
         return None
 
-    def delete_row(
-        self, tenant_id: str, project_id: str, sheet_id: str, row_id: str
-    ) -> bool:
+    def delete_row(self, tenant_id: str, project_id: str, sheet_id: str, row_id: str) -> bool:
         store = self._load()
         project_bucket = store.get(tenant_id, {}).get(project_id)
         if not project_bucket:
@@ -133,9 +122,7 @@ class SpreadsheetStore:
                 return True
         return False
 
-    def export_csv(
-        self, tenant_id: str, project_id: str, sheet_id: str
-    ) -> str | None:
+    def export_csv(self, tenant_id: str, project_id: str, sheet_id: str) -> str | None:
         detail = self.get_sheet(tenant_id, project_id, sheet_id)
         if not detail:
             return None
@@ -171,9 +158,7 @@ class SpreadsheetStore:
         reader = csv.DictReader(StringIO(csv_payload))
         if not reader.fieldnames:
             raise ValueError("CSV header row is required")
-        unknown_headers = [
-            header for header in reader.fieldnames if header not in columns_by_name
-        ]
+        unknown_headers = [header for header in reader.fieldnames if header not in columns_by_name]
         if unknown_headers:
             raise ValueError("CSV contains unknown columns")
         missing_required = [
@@ -234,7 +219,7 @@ class SpreadsheetStore:
                 handle.write("\n")
             temp_path.replace(self._path)
 
-    def _file_lock(self) -> "FileLock":
+    def _file_lock(self) -> FileLock:
         return FileLock(self._lock_path)
 
 
@@ -243,7 +228,7 @@ class FileLock:
         self._path = path
         self._handle: Any = None
 
-    def __enter__(self) -> "FileLock":
+    def __enter__(self) -> FileLock:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._handle = self._path.open("w", encoding="utf-8")
         self._lock()

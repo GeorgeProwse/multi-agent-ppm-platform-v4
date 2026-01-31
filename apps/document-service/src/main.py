@@ -18,6 +18,7 @@ for root in (DOCUMENT_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from cryptography.fernet import Fernet  # noqa: E402
 from document_policy import evaluate_document_policy  # noqa: E402
 from document_storage import DocumentStore  # noqa: E402
 from observability.metrics import (  # noqa: E402
@@ -27,7 +28,6 @@ from observability.metrics import (  # noqa: E402
 )
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
-from cryptography.fernet import Fernet  # noqa: E402
 from security.crypto import get_encryption_key  # noqa: E402
 from security.dlp import DLPFinding, ensure_dlp_environment, scan_payload  # noqa: E402
 

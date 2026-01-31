@@ -65,8 +65,7 @@ class KnowledgeStore:
 
     def _ensure_schema(self) -> None:
         with self._connect() as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     document_id TEXT PRIMARY KEY,
                     document_key TEXT NOT NULL UNIQUE,
@@ -77,10 +76,8 @@ class KnowledgeStore:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS document_versions (
                     version_id TEXT PRIMARY KEY,
                     document_id TEXT NOT NULL,
@@ -90,10 +87,8 @@ class KnowledgeStore:
                     created_at TEXT NOT NULL,
                     metadata TEXT NOT NULL
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS lessons (
                     lesson_id TEXT PRIMARY KEY,
                     project_id TEXT NOT NULL,
@@ -106,17 +101,14 @@ class KnowledgeStore:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
-                """
-            )
+                """)
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_documents_project ON documents(project_id)"
             )
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_versions_document ON document_versions(document_id)"
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_lessons_project ON lessons(project_id)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_lessons_project ON lessons(project_id)")
 
     def _serialize_document_summary(self, row: sqlite3.Row) -> DocumentSummaryRecord:
         return DocumentSummaryRecord(
@@ -254,7 +246,9 @@ class KnowledgeStore:
             metadata=metadata,
         )
 
-    def list_documents(self, project_id: str, query: str | None = None) -> list[DocumentSummaryRecord]:
+    def list_documents(
+        self, project_id: str, query: str | None = None
+    ) -> list[DocumentSummaryRecord]:
         search_clause = ""
         params: list[Any] = [project_id]
         if query:

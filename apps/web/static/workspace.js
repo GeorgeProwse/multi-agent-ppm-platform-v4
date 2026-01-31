@@ -1037,8 +1037,21 @@ const initWorkspace = () => {
     });
 
     list.querySelectorAll(".agent-sample").forEach((button) => {
-      button.addEventListener("click", () => {
-        setAgentStatus("Sample outputs not implemented in this PR.");
+      button.addEventListener("click", async () => {
+        const agentId = button.closest(".agent-card")?.dataset?.agentId;
+        if (!agentId) return;
+        setAgentStatus("Loading sample outputs...");
+        try {
+          const response = await fetch(`/api/agent-samples/${agentId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setAgentStatus(`Sample outputs: ${JSON.stringify(data.samples || []).slice(0, 100)}...`);
+          } else {
+            setAgentStatus("Sample outputs require agent activation.");
+          }
+        } catch {
+          setAgentStatus("Sample outputs require agent activation.");
+        }
       });
     });
   };

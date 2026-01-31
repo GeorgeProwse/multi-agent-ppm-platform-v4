@@ -1,0 +1,9 @@
+{
+  "title": "Enterprise Data Platform Modernization",
+  "description": "Modernize the enterprise data platform to improve analytics capabilities and reduce operational costs.",
+  "business_objective": "Enable real-time analytics and reduce data processing time by 50%",
+  "requester": "data-team@example.com",
+  "business_unit": "Data & Analytics",
+  "urgency": "High",
+  "source": "strategic_initiative"
+}

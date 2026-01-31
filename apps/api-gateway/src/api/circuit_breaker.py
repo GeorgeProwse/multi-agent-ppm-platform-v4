@@ -28,7 +28,7 @@ class CircuitBreaker:
         self._states: dict[str, CircuitState] = {}
 
     @classmethod
-    def from_env(cls) -> "CircuitBreaker":
+    def from_env(cls) -> CircuitBreaker:
         failure_threshold = int(os.getenv("CONNECTOR_CIRCUIT_FAILURE_THRESHOLD", "3"))
         recovery_timeout = int(os.getenv("CONNECTOR_CIRCUIT_RECOVERY_SECONDS", "60"))
         half_open_successes = int(os.getenv("CONNECTOR_CIRCUIT_HALF_OPEN_SUCCESSES", "1"))

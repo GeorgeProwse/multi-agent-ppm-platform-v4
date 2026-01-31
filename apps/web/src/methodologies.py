@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 METHODOLOGY_MAPS: dict[str, dict[str, Any]] = {
     "agile": {
         "id": "agile",

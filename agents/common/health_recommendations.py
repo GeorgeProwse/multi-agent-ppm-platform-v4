@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 
 def identify_health_concerns(metrics: dict[str, float]) -> list[str]:
     """Identify health concerns from normalized metric scores."""
