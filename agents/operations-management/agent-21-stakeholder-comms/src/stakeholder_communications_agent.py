@@ -288,6 +288,23 @@ class StakeholderCommunicationsAgent(BaseAgent):
             or os.getenv("POWER_AUTOMATE_TRIGGER_URL")
         )
 
+        self.crm_base_url = resolve_secret(
+            (config or {}).get("crm_base_url") or os.getenv("CRM_BASE_URL")
+        )
+        self.crm_api_key = resolve_secret(
+            (config or {}).get("crm_api_key") or os.getenv("CRM_API_KEY")
+        )
+        self.crm_profile_endpoint = (config or {}).get(
+            "crm_profile_endpoint", os.getenv("CRM_PROFILE_ENDPOINT", "/api/stakeholders/profile")
+        )
+        self.crm_upsert_endpoint = (config or {}).get(
+            "crm_upsert_endpoint", os.getenv("CRM_UPSERT_ENDPOINT", "/api/stakeholders")
+        )
+        self.crm_timeout_seconds = int(
+            (config or {}).get("crm_timeout_seconds")
+            or os.getenv("CRM_TIMEOUT_SECONDS", "10")
+        )
+
         self.service_bus_connection_string = resolve_secret(
             (config or {}).get("service_bus_connection_string")
             or os.getenv("SERVICE_BUS_CONNECTION_STRING")
@@ -497,8 +514,21 @@ class StakeholderCommunicationsAgent(BaseAgent):
             "events_attended": 0,
         }
 
-        # Future work: Store in database
-        # Future work: Sync with CRM
+        crm_sync = await self._upsert_crm_profile(stakeholder)
+        if crm_sync:
+            stakeholder["crm_upserted_at"] = datetime.utcnow().isoformat()
+            stakeholder["crm_upsert_status"] = crm_sync
+            self.stakeholder_register[stakeholder_id] = stakeholder
+            self.stakeholder_store.upsert(tenant_id, stakeholder_id, stakeholder.copy())
+
+        self._publish_event(
+            "stakeholder.profile.registered",
+            {"stakeholder_id": stakeholder_id, "crm_sync": crm_sync},
+        )
+        self._trigger_workflow(
+            "stakeholder.profile.registered",
+            {"stakeholder_id": stakeholder_id, "crm_sync": crm_sync},
+        )
 
         return {
             "stakeholder_id": stakeholder_id,
@@ -1132,7 +1162,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
     async def _sync_with_crm(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
         """Synchronize stakeholder profile with CRM connectors (e.g., Salesforce)."""
         if not SalesforceConfig or not _build_token_manager or not _build_client:
-            return {}
+            return await self._sync_with_crm_rest(stakeholder_data)
         email = stakeholder_data.get("email")
         if not email:
             return {}
@@ -1168,7 +1198,69 @@ class StakeholderCommunicationsAgent(BaseAgent):
             }
         except Exception as exc:  # noqa: BLE001
             self.logger.warning("CRM sync failed: %s", exc)
+            return await self._sync_with_crm_rest(stakeholder_data)
+
+    async def _sync_with_crm_rest(self, stakeholder_data: dict[str, Any]) -> dict[str, Any]:
+        if not (self.crm_base_url and self.crm_api_key):
             return {}
+        email = stakeholder_data.get("email")
+        if not email:
+            return {}
+        url = f"{self.crm_base_url.rstrip('/')}/{self.crm_profile_endpoint.lstrip('/')}"
+        try:
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {self.crm_api_key}"},
+                params={"email": email},
+                timeout=self.crm_timeout_seconds,
+            )
+            if response.status_code >= 400:
+                return {}
+            payload = response.json()
+            if not payload:
+                return {}
+            return {
+                "crm_source": payload.get("source", "rest"),
+                "crm_id": payload.get("id") or payload.get("crm_id"),
+                "name": payload.get("name"),
+                "title": payload.get("title"),
+                "account": payload.get("account"),
+                "email": payload.get("email") or email,
+                "raw": payload,
+            }
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("CRM REST sync failed: %s", exc)
+            return {}
+
+    async def _upsert_crm_profile(self, stakeholder: dict[str, Any]) -> dict[str, Any] | None:
+        if not (self.crm_base_url and self.crm_api_key):
+            return None
+        url = f"{self.crm_base_url.rstrip('/')}/{self.crm_upsert_endpoint.lstrip('/')}"
+        payload = {
+            "stakeholder_id": stakeholder.get("stakeholder_id"),
+            "name": stakeholder.get("name"),
+            "email": stakeholder.get("email"),
+            "role": stakeholder.get("role"),
+            "organization": stakeholder.get("organization"),
+            "influence": stakeholder.get("influence"),
+            "interest": stakeholder.get("interest"),
+            "engagement_level": stakeholder.get("engagement_level"),
+            "engagement_score": stakeholder.get("engagement_score"),
+            "sentiment_score": stakeholder.get("sentiment_score"),
+        }
+        try:
+            response = requests.post(
+                url,
+                headers={"Authorization": f"Bearer {self.crm_api_key}"},
+                json=payload,
+                timeout=self.crm_timeout_seconds,
+            )
+            if response.status_code >= 400:
+                return {"status": "error", "code": response.status_code}
+            return {"status": "ok"}
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("CRM upsert failed: %s", exc)
+            return {"status": "error", "reason": str(exc)}
 
     async def _determine_engagement_strategy(self, influence: str, interest: str) -> dict[str, Any]:
         """Determine engagement strategy based on power-interest matrix."""
