@@ -22,6 +22,12 @@ from web_search import search_web
 
 from agents.runtime import BaseAgent, InMemoryEventBus
 from agents.runtime.src.state_store import TenantStateStore
+from agents.common.connector_integration import (
+    DatabaseStorageService,
+    DocumentManagementService,
+    DocumentMetadata,
+    ProjectManagementService,
+)
 
 
 class ProjectDefinitionAgent(BaseAgent):
@@ -82,6 +88,9 @@ class ProjectDefinitionAgent(BaseAgent):
         if self.approval_agent is None:
             approval_config = config.get("approval_agent_config", {}) if config else {}
             self.approval_agent = ApprovalWorkflowAgent(config=approval_config)
+        self.db_service = None
+        self.document_service = None
+        self.project_service = None
 
     async def initialize(self) -> None:
         """Initialize AI models, database connections, and external integrations."""
@@ -90,9 +99,15 @@ class ProjectDefinitionAgent(BaseAgent):
 
         # Future work: Initialize Azure OpenAI Service for charter and WBS generation
         # Future work: Initialize Azure Form Recognizer for requirements extraction from documents
-        # Future work: Connect to Azure Cosmos DB for hierarchical data storage (charter, WBS, requirements)
-        # Future work: Connect to Azure Blob Storage for document storage
-        # Future work: Initialize Jira/Azure DevOps integration for user stories and epics
+        self.db_service = self.config.get("db_service") or DatabaseStorageService(
+            self.config.get("db_service_config", {})
+        )
+        self.document_service = self.config.get(
+            "document_service"
+        ) or DocumentManagementService(self.config.get("document_service_config", {}))
+        self.project_service = self.config.get("project_service") or ProjectManagementService(
+            self.config.get("project_service_config", {})
+        )
         # Future work: Connect to IBM DOORS/Jama for requirements management
         # Future work: Initialize SharePoint/Confluence integration for document management
         # Future work: Set up Azure Service Bus/Event Grid for event publishing
@@ -343,8 +358,22 @@ class ProjectDefinitionAgent(BaseAgent):
             correlation_id=correlation_id,
         )
 
-        # Future work: Store in Azure Cosmos DB
-        # Future work: Store document in Azure Blob Storage
+        await self.db_service.store(
+            "project_charters",
+            charter_id,
+            {"tenant_id": tenant_id, "charter": charter},
+        )
+        charter_content = await self._generate_charter_content(charter)
+        await self.document_service.publish_document(
+            charter_content,
+            DocumentMetadata(
+                title=f"{title} Project Charter",
+                description=charter_data.get("description", ""),
+                tags=["project-charter", project_type or "general"],
+                owner=charter.get("created_by", "unknown"),
+            ),
+            folder_path="Project Charters",
+        )
         # Future work: Publish charter.created event to Service Bus
 
         self.logger.info(f"Generated charter for project: {project_id}")
@@ -422,7 +451,11 @@ class ProjectDefinitionAgent(BaseAgent):
 
         await self._publish_wbs_created(wbs, tenant_id=tenant_id, correlation_id=correlation_id)
 
-        # Future work: Store in Azure Cosmos DB (hierarchical format)
+        await self.db_service.store(
+            "project_wbs",
+            wbs_id,
+            {"tenant_id": tenant_id, "wbs": wbs},
+        )
         # Future work: Publish wbs.created event
 
         return {
@@ -577,8 +610,19 @@ class ProjectDefinitionAgent(BaseAgent):
         # Store requirements
         self.requirements[project_id] = requirements_repo
 
-        # Future work: Store in Azure Cosmos DB
-        # Future work: Sync with Jira/Azure DevOps
+        await self.db_service.store(
+            "project_requirements",
+            project_id,
+            {"tenant_id": "unknown", "requirements": requirements_repo},
+        )
+        await self.project_service.sync_project(
+            {
+                "project_id": project_id,
+                "requirements_count": requirements_repo.get("total_count", 0),
+                "requirements": requirements_repo.get("requirements", []),
+                "updated_at": requirements_repo.get("updated_at"),
+            }
+        )
         # Future work: Publish requirements.updated event
 
         return requirements_repo
@@ -987,8 +1031,16 @@ class ProjectDefinitionAgent(BaseAgent):
         similar_projects: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """Generate hierarchical WBS structure."""
-        # Future work: Use Azure OpenAI to generate WBS
-        # Baseline structure
+        objectives = charter.get("document", {}).get("objectives", []) or charter.get(
+            "objectives", []
+        )
+        scope_overview = scope_statement or charter.get("document", {}).get("scope_overview", {})
+        wbs_from_objectives = await self._generate_wbs_from_objectives(
+            objectives, scope_overview, similar_projects
+        )
+        if wbs_from_objectives:
+            return wbs_from_objectives
+
         return {
             "1.0": {
                 "name": "Project Management",
@@ -996,14 +1048,7 @@ class ProjectDefinitionAgent(BaseAgent):
                     "1.1": {"name": "Project Planning", "children": {}},
                     "1.2": {"name": "Project Monitoring", "children": {}},
                 },
-            },
-            "2.0": {
-                "name": "Requirements",
-                "children": {
-                    "2.1": {"name": "Requirements Gathering", "children": {}},
-                    "2.2": {"name": "Requirements Analysis", "children": {}},
-                },
-            },
+            }
         }
 
     async def _add_work_package_details(self, wbs_structure: dict[str, Any]) -> dict[str, Any]:
@@ -1020,8 +1065,165 @@ class ProjectDefinitionAgent(BaseAgent):
         self, project_id: str, requirements: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """Extract requirements from various sources."""
-        # Future work: Use Azure Form Recognizer for document extraction
-        return requirements
+        extracted: list[dict[str, Any]] = []
+        keyword_patterns = [
+            r"\\bshall\\b",
+            r"\\bmust\\b",
+            r"\\bshould\\b",
+            r"\\bis required to\\b",
+            r"\\bneeds to\\b",
+        ]
+        keyword_regex = re.compile("|".join(keyword_patterns), re.IGNORECASE)
+
+        for req in requirements:
+            if "text" in req or "description" in req:
+                extracted.append(
+                    {
+                        "id": req.get("id") or f"REQ-{uuid.uuid4().hex[:6]}",
+                        "text": req.get("text") or req.get("description", ""),
+                        "source": req.get("source", "manual"),
+                        "category": req.get("category"),
+                    }
+                )
+            source_text = req.get("source_text") or req.get("document") or req.get("notes", "")
+            if source_text:
+                sentences = re.split(r"(?<=[.!?])\\s+", str(source_text))
+                for sentence in sentences:
+                    if keyword_regex.search(sentence):
+                        extracted.append(
+                            {
+                                "id": f"REQ-{uuid.uuid4().hex[:6]}",
+                                "text": sentence.strip(),
+                                "source": req.get("source", "keyword_parse"),
+                            }
+                        )
+
+        if not extracted and requirements:
+            for req in requirements:
+                if "text" in req or "description" in req:
+                    extracted.append(req)
+
+        return extracted
+
+    async def _generate_charter_content(self, charter: dict[str, Any]) -> str:
+        """Generate formatted charter content from template strings."""
+        document = charter.get("document", {})
+        title = charter.get("title", "Project Charter")
+        project_id = charter.get("project_id", "unknown")
+        created_at = charter.get("created_at", "")
+
+        def format_list(items: list[Any]) -> str:
+            if not items:
+                return "None"
+            return "\\n".join(f"- {item}" for item in items)
+
+        scope = document.get("scope_overview", {})
+        stakeholders = document.get("stakeholders", [])
+        stakeholder_lines: list[str] = []
+        for stakeholder in stakeholders:
+            name = stakeholder.get("name") if isinstance(stakeholder, dict) else str(stakeholder)
+            role = ""
+            if isinstance(stakeholder, dict):
+                role = stakeholder.get("role", "")
+            stakeholder_lines.append(f"{name}{f' ({role})' if role else ''}")
+
+        governance = document.get("governance_structure", {})
+        governance_text = (
+            f"Sponsor: {governance.get('sponsor', 'Unassigned')}\\n"
+            f"Project Manager: {governance.get('project_manager', 'Unassigned')}\\n"
+            f"Steering Committee: {', '.join(governance.get('steering_committee', [])) or 'None'}\\n"
+            f"Reporting Frequency: {governance.get('reporting_frequency', 'weekly')}"
+        )
+
+        return (
+            f"Project Charter\\n"
+            f"Title: {title}\\n"
+            f"Project ID: {project_id}\\n"
+            f"Created At: {created_at}\\n"
+            f"Status: {charter.get('status', 'Draft')}\\n"
+            f"Methodology: {charter.get('methodology', 'hybrid')}\\n\\n"
+            f"Executive Summary\\n{document.get('executive_summary', '')}\\n\\n"
+            f"Objectives\\n{format_list(document.get('objectives', []))}\\n\\n"
+            f"Scope Overview\\n"
+            f"In Scope\\n{format_list(scope.get('in_scope', []))}\\n\\n"
+            f"Out of Scope\\n{format_list(scope.get('out_of_scope', []))}\\n\\n"
+            f"Deliverables\\n{format_list(scope.get('deliverables', []))}\\n\\n"
+            f"High-Level Requirements\\n"
+            f"{format_list(document.get('high_level_requirements', []))}\\n\\n"
+            f"Stakeholders\\n{format_list(stakeholder_lines)}\\n\\n"
+            f"Governance Structure\\n{governance_text}\\n\\n"
+            f"Success Criteria\\n{format_list(document.get('success_criteria', []))}\\n\\n"
+            f"Assumptions\\n{format_list(document.get('assumptions', []))}\\n\\n"
+            f"Constraints\\n{format_list(document.get('constraints', []))}\\n"
+        )
+
+    async def _generate_wbs_from_objectives(
+        self,
+        objectives: list[str],
+        scope_overview: dict[str, Any],
+        similar_projects: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Generate a WBS by decomposing objectives into phases and work packages."""
+        if not objectives and not scope_overview.get("deliverables"):
+            return {}
+
+        wbs: dict[str, Any] = {
+            "1.0": {
+                "name": "Project Management",
+                "children": {
+                    "1.1": {"name": "Initiation & Planning", "children": {}},
+                    "1.2": {"name": "Monitoring & Control", "children": {}},
+                    "1.3": {"name": "Closure", "children": {}},
+                },
+            }
+        }
+
+        deliverables = scope_overview.get("deliverables", [])
+
+        def objective_work_packages(objective: str) -> list[str]:
+            base_packages = [
+                "Discovery & Analysis",
+                "Design & Build",
+                "Validation & Acceptance",
+                "Deployment & Handover",
+            ]
+            lowered = objective.lower()
+            if "migrate" in lowered or "migration" in lowered:
+                return [
+                    "Migration Planning",
+                    "Data & System Migration",
+                    "Migration Validation",
+                    "Go-Live Support",
+                ]
+            if "implement" in lowered or "build" in lowered or "develop" in lowered:
+                return [
+                    "Solution Design",
+                    "Implementation",
+                    "Testing",
+                    "Release",
+                ]
+            return base_packages
+
+        index_offset = 2
+        for idx, objective in enumerate(objectives or ["Deliver scoped outcomes"]):
+            root_code = f"{idx + index_offset}.0"
+            children: dict[str, Any] = {}
+            packages = objective_work_packages(objective)
+            for pkg_index, package in enumerate(packages, start=1):
+                child_code = f"{idx + index_offset}.{pkg_index}"
+                children[child_code] = {"name": package, "children": {}}
+            if deliverables:
+                for deliverable_index, deliverable in enumerate(deliverables, start=len(children) + 1):
+                    child_code = f"{idx + index_offset}.{deliverable_index}"
+                    children[child_code] = {"name": f"Deliver {deliverable}", "children": {}}
+            if similar_projects:
+                children[f"{idx + index_offset}.{len(children) + 1}"] = {
+                    "name": "Leverage Similar Project Assets",
+                    "children": {},
+                }
+            wbs[root_code] = {"name": objective, "children": children}
+
+        return wbs
 
     async def _categorize_requirements(
         self, requirements: list[dict[str, Any]]
