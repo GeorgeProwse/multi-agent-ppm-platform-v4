@@ -11,16 +11,19 @@ class EventCollector:
         self.events.append((topic, payload))
 
 
+def build_agent_config(tmp_path, **overrides):
+    return {
+        "event_bus": EventCollector(),
+        "resource_store_path": tmp_path / "resources.json",
+        "allocation_store_path": tmp_path / "allocations.json",
+        **overrides,
+    }
+
+
 @pytest.mark.asyncio
 async def test_resource_allocation_persistence_and_events(tmp_path):
     event_bus = EventCollector()
-    agent = ResourceCapacityAgent(
-        config={
-            "event_bus": event_bus,
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
-    )
+    agent = ResourceCapacityAgent(config=build_agent_config(tmp_path, event_bus=event_bus))
     await agent.initialize()
 
     add_response = await agent.process(
@@ -59,12 +62,7 @@ async def test_resource_allocation_persistence_and_events(tmp_path):
 
 @pytest.mark.asyncio
 async def test_resource_capacity_resource_pool(tmp_path):
-    agent = ResourceCapacityAgent(
-        config={
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
-    )
+    agent = ResourceCapacityAgent(config=build_agent_config(tmp_path))
     await agent.initialize()
 
     response = await agent.process({"action": "get_resource_pool", "tenant_id": "tenant-a"})
@@ -74,12 +72,7 @@ async def test_resource_capacity_resource_pool(tmp_path):
 
 @pytest.mark.asyncio
 async def test_resource_capacity_validation_rejects_invalid_action(tmp_path):
-    agent = ResourceCapacityAgent(
-        config={
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
-    )
+    agent = ResourceCapacityAgent(config=build_agent_config(tmp_path))
     await agent.initialize()
 
     valid = await agent.validate_input({"action": "invalid"})
@@ -89,12 +82,7 @@ async def test_resource_capacity_validation_rejects_invalid_action(tmp_path):
 
 @pytest.mark.asyncio
 async def test_resource_capacity_validation_rejects_missing_fields(tmp_path):
-    agent = ResourceCapacityAgent(
-        config={
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
-    )
+    agent = ResourceCapacityAgent(config=build_agent_config(tmp_path))
     await agent.initialize()
 
     valid = await agent.validate_input(
@@ -107,11 +95,7 @@ async def test_resource_capacity_validation_rejects_missing_fields(tmp_path):
 @pytest.mark.asyncio
 async def test_resource_capacity_skill_matching(tmp_path):
     agent = ResourceCapacityAgent(
-        config={
-            "skill_matching_threshold": 0.0,
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
+        config=build_agent_config(tmp_path, skill_matching_threshold=0.0)
     )
     await agent.initialize()
 
@@ -152,11 +136,7 @@ async def test_resource_capacity_skill_matching(tmp_path):
 @pytest.mark.asyncio
 async def test_resource_capacity_forecasting(tmp_path):
     agent = ResourceCapacityAgent(
-        config={
-            "forecast_horizon_months": 3,
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
+        config=build_agent_config(tmp_path, forecast_horizon_months=3)
     )
     await agent.initialize()
 
@@ -195,12 +175,7 @@ async def test_resource_capacity_forecasting(tmp_path):
 
 @pytest.mark.asyncio
 async def test_resource_capacity_conflict_detection(tmp_path):
-    agent = ResourceCapacityAgent(
-        config={
-            "resource_store_path": tmp_path / "resources.json",
-            "allocation_store_path": tmp_path / "allocations.json",
-        }
-    )
+    agent = ResourceCapacityAgent(config=build_agent_config(tmp_path))
     await agent.initialize()
 
     await agent.process(
@@ -241,3 +216,56 @@ async def test_resource_capacity_conflict_detection(tmp_path):
     conflicts = await agent.process({"action": "identify_conflicts", "filters": {}})
 
     assert conflicts["total_conflicts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_resource_capacity_enforces_allocation_constraints(tmp_path):
+    agent = ResourceCapacityAgent(
+        config=build_agent_config(
+            tmp_path,
+            max_concurrent_allocations=1,
+            enforce_allocation_constraints=True,
+        )
+    )
+    await agent.initialize()
+
+    await agent.process(
+        {
+            "action": "add_resource",
+            "tenant_id": "tenant-a",
+            "resource": {
+                "resource_id": "res-constraint",
+                "name": "Jamie",
+                "role": "Engineer",
+                "skills": ["python"],
+                "location": "Remote",
+            },
+        }
+    )
+
+    agent.allocations["res-constraint"] = [
+        {
+            "allocation_id": "alloc-1",
+            "resource_id": "res-constraint",
+            "project_id": "proj-1",
+            "start_date": "2024-01-01",
+            "end_date": "2024-02-01",
+            "allocation_percentage": 50,
+            "status": "Active",
+        }
+    ]
+
+    with pytest.raises(ValueError, match="Allocation exceeds maximum concurrent allocation"):
+        await agent.process(
+            {
+                "action": "allocate_resource",
+                "tenant_id": "tenant-a",
+                "allocation": {
+                    "resource_id": "res-constraint",
+                    "project_id": "proj-2",
+                    "start_date": "2024-01-15",
+                    "end_date": "2024-02-15",
+                    "allocation_percentage": 25,
+                },
+            }
+        )

@@ -254,7 +254,7 @@ class AzureSearchClient:
         response.raise_for_status()
 
     def query_documents(
-        self, query_vector: list[float], top_k: int = 5
+        self, query_vector: list[float], query_text: str, top_k: int = 5
     ) -> list[dict[str, Any]]:
         if not self.is_configured():
             return []
@@ -265,6 +265,7 @@ class AzureSearchClient:
             headers={"api-key": cast(str, self.api_key), "Content-Type": "application/json"},
             params={"api-version": "2023-07-01-Preview"},
             json={
+                "search": query_text,
                 "vectorQueries": [
                     {"vector": query_vector, "fields": "embedding", "k": top_k}
                 ],
@@ -277,9 +278,24 @@ class AzureSearchClient:
 
 
 class TimeSeriesForecaster:
-    def train(self, series: list[float]) -> dict[str, float]:
+    def __init__(self, *, automl_endpoint: str | None = None, automl_api_key: str | None = None) -> None:
+        self.automl_endpoint = automl_endpoint
+        self.automl_api_key = automl_api_key
+
+    def forecast(self, series: list[float], periods: int) -> list[float]:
+        if not series:
+            return [0.0 for _ in range(periods)]
+        automl_forecast = self._forecast_with_automl(series, periods)
+        if automl_forecast is not None:
+            return automl_forecast
+        prophet_forecast = self._forecast_with_prophet(series, periods)
+        if prophet_forecast is not None:
+            return prophet_forecast
+        return self._linear_forecast(series, periods)
+
+    def _linear_forecast(self, series: list[float], periods: int) -> list[float]:
         if len(series) < 2:
-            return {"slope": 0.0, "intercept": series[0] if series else 0.0}
+            return [series[0] for _ in range(periods)]
         x_values = list(range(len(series)))
         x_mean = sum(x_values) / len(x_values)
         y_mean = sum(series) / len(series)
@@ -287,12 +303,53 @@ class TimeSeriesForecaster:
         denominator = sum((x - x_mean) ** 2 for x in x_values) or 1.0
         slope = numerator / denominator
         intercept = y_mean - slope * x_mean
-        return {"slope": slope, "intercept": intercept}
-
-    def forecast(self, model: dict[str, float], periods: int, start: int) -> list[float]:
-        slope = model.get("slope", 0.0)
-        intercept = model.get("intercept", 0.0)
+        start = len(series)
         return [slope * (start + i) + intercept for i in range(periods)]
+
+    def _forecast_with_prophet(self, series: list[float], periods: int) -> list[float] | None:
+        try:
+            from prophet import Prophet
+            import pandas as pd
+        except Exception:
+            return None
+        if len(series) < 2:
+            return None
+        start_date = datetime.utcnow().date()
+        history = [
+            {"ds": start_date + timedelta(days=index), "y": value}
+            for index, value in enumerate(series)
+        ]
+        df = pd.DataFrame(history)
+        model = Prophet()
+        model.fit(df)
+        future = model.make_future_dataframe(periods=periods, freq="D")
+        forecast = model.predict(future)
+        forecast_values = forecast.tail(periods)["yhat"].tolist()
+        return [float(value) for value in forecast_values]
+
+    def _forecast_with_automl(self, series: list[float], periods: int) -> list[float] | None:
+        if not self.automl_endpoint or not self.automl_api_key:
+            return None
+        try:
+            import requests
+
+            response = requests.post(
+                f"{self.automl_endpoint}/forecast",
+                headers={
+                    "Authorization": f"Bearer {self.automl_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={"series": series, "horizon": periods},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+            forecasts = data.get("forecast")
+            if isinstance(forecasts, list):
+                return [float(value) for value in forecasts]
+        except Exception:
+            return None
+        return None
 
 
 class EventPublisher:
@@ -318,28 +375,57 @@ class EventPublisher:
 
 
 class NotificationService:
-    def __init__(self, graph_client: AzureADClient | None) -> None:
+    def __init__(
+        self,
+        graph_client: AzureADClient | None,
+        *,
+        acs_connection_string: str | None = None,
+        acs_sender: str | None = None,
+    ) -> None:
         self.graph_client = graph_client
+        self.acs_connection_string = acs_connection_string
+        self.acs_sender = acs_sender
 
     def send_email(self, recipient: str, subject: str, content: str) -> None:
-        if not self.graph_client:
-            return
-        access_token = self.graph_client._get_token()
-        import requests
+        if self.graph_client:
+            access_token = self.graph_client._get_token()
+            import requests
 
-        response = requests.post(
-            "https://graph.microsoft.com/v1.0/users/me/sendMail",
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-            json={
-                "message": {
-                    "subject": subject,
-                    "body": {"contentType": "Text", "content": content},
-                    "toRecipients": [{"emailAddress": {"address": recipient}}],
+            response = requests.post(
+                "https://graph.microsoft.com/v1.0/users/me/sendMail",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "message": {
+                        "subject": subject,
+                        "body": {"contentType": "Text", "content": content},
+                        "toRecipients": [{"emailAddress": {"address": recipient}}],
+                    }
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            return
+        if self.acs_connection_string and self.acs_sender:
+            try:
+                from azure.communication.email import EmailClient
+            except Exception as exc:
+                raise RuntimeError(
+                    "Azure Communication Services email client unavailable."
+                ) from exc
+            client = EmailClient.from_connection_string(self.acs_connection_string)
+            poller = client.begin_send(
+                {
+                    "senderAddress": self.acs_sender,
+                    "recipients": {"to": [{"address": recipient}]},
+                    "content": {"subject": subject, "plainText": content},
                 }
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
+            )
+            poller.result()
+            return
+        raise RuntimeError("No notification client configured")
 
 
 class ResourceCapacityAgent(BaseAgent):
@@ -389,6 +475,12 @@ class ResourceCapacityAgent(BaseAgent):
         self.default_working_days = (
             config.get("working_days", [0, 1, 2, 3, 4]) if config else [0, 1, 2, 3, 4]
         )
+        self.max_concurrent_allocations = (
+            config.get("max_concurrent_allocations", 3) if config else 3
+        )
+        self.enforce_allocation_constraints = (
+            config.get("enforce_allocation_constraints", True) if config else True
+        )
 
         resource_store_path = (
             Path(config.get("resource_store_path", "data/resource_pool.json"))
@@ -430,6 +522,7 @@ class ResourceCapacityAgent(BaseAgent):
         )
         self.notification_service: NotificationService | None = None
         self.redis_client: Any | None = None
+        self._skills_indexed = False
 
     async def initialize(self) -> None:
         """Initialize AI models, database connections, and external integrations."""
@@ -460,7 +553,11 @@ class ResourceCapacityAgent(BaseAgent):
             os.getenv("AZURE_SEARCH_API_KEY"),
             os.getenv("AZURE_SEARCH_INDEX"),
         )
-        self.notification_service = NotificationService(self.graph_client)
+        self.notification_service = NotificationService(
+            self.graph_client,
+            acs_connection_string=os.getenv("AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING"),
+            acs_sender=os.getenv("AZURE_COMMUNICATION_EMAIL_SENDER"),
+        )
         redis_url = os.getenv("REDIS_URL")
         if redis_url:
             from redis import Redis
@@ -684,10 +781,8 @@ class ResourceCapacityAgent(BaseAgent):
                 "source_system": "agent",
             }
         )
-        self.repository.upsert_employee_profile(canonical_profile)
-
-        if self.db_service:
-            await self.db_service.store("resource_profiles", resource_id, resource_profile)
+        await self._store_canonical_profile(resource_id, canonical_profile, resource_profile)
+        await self._index_skills()
         # Future work: Sync with Azure AD
         # Future work: Publish resource.added event
 
@@ -943,8 +1038,10 @@ class ResourceCapacityAgent(BaseAgent):
         query_embedding = embedding_client.get_embedding(query_text)
         search_candidates = []
         if self.search_client and self.search_client.is_configured():
+            if not self._skills_indexed:
+                await self._index_skills()
             search_candidates = self.search_client.query_documents(
-                query_embedding, top_k=10
+                query_embedding, query_text=query_text, top_k=10
             )
         if search_candidates:
             for result in search_candidates:
@@ -1032,17 +1129,12 @@ class ResourceCapacityAgent(BaseAgent):
 
         history_months = int(filters.get("history_months", 6))
         capacity_series, demand_series = await self._build_capacity_demand_history(history_months)
-        forecaster = TimeSeriesForecaster()
-        capacity_model = forecaster.train(capacity_series)
-        demand_model = forecaster.train(demand_series)
-        await self._store_model_in_azure_ml("capacity", capacity_model)
-        await self._store_model_in_azure_ml("demand", demand_model)
-        capacity_forecast = forecaster.forecast(
-            capacity_model, self.forecast_horizon_months, len(capacity_series)
+        forecaster = TimeSeriesForecaster(
+            automl_endpoint=os.getenv("AZURE_AUTOML_ENDPOINT"),
+            automl_api_key=os.getenv("AZURE_AUTOML_API_KEY"),
         )
-        demand_forecast = forecaster.forecast(
-            demand_model, self.forecast_horizon_months, len(demand_series)
-        )
+        capacity_forecast = forecaster.forecast(capacity_series, self.forecast_horizon_months)
+        demand_forecast = forecaster.forecast(demand_series, self.forecast_horizon_months)
         future_capacity = [
             {"month": index + 1, "capacity": max(0.0, value)}
             for index, value in enumerate(capacity_forecast)
@@ -1513,9 +1605,7 @@ class ResourceCapacityAgent(BaseAgent):
                 "source_system": profile.get("source_system", "unknown"),
             }
             self.resource_pool[resource_id] = resource_profile
-            self.repository.upsert_employee_profile(profile)
-            if self.db_service:
-                await self.db_service.store("resource_profiles", resource_id, resource_profile)
+            await self._store_canonical_profile(resource_id, profile, resource_profile)
         await self._index_skills()
 
     async def _fetch_azure_ad_profiles(self) -> list[dict[str, Any]]:
@@ -1647,6 +1737,7 @@ class ResourceCapacityAgent(BaseAgent):
                 }
             )
         self.search_client.upload_documents(documents)
+        self._skills_indexed = True
 
     async def _refresh_capacity_allocations(self) -> None:
         allocations = []
@@ -1663,6 +1754,15 @@ class ResourceCapacityAgent(BaseAgent):
             if self.db_service:
                 await self.db_service.store(
                     "capacity_allocations", allocation.get("allocation_id", ""), allocation
+                )
+            if self.redis_client:
+                allocation_id = allocation.get("allocation_id")
+                if allocation_id:
+                    self.redis_client.set(
+                        f"allocation:{allocation_id}", json.dumps(allocation), ex=3600
+                    )
+                self.redis_client.rpush(
+                    f"resource_allocations:{resource_id}", json.dumps(allocation)
                 )
 
     async def _fetch_planview_allocations(self) -> list[dict[str, Any]]:
@@ -2083,8 +2183,9 @@ class ResourceCapacityAgent(BaseAgent):
 
         start = datetime.fromisoformat(start_date)
         end = datetime.fromisoformat(end_date)
-        allocations = self.allocations.get(resource_id, [])
+        allocations = self._load_allocations(resource_id)
         total_overlap = allocation_percentage
+        overlapping_allocations = 0
         for alloc in allocations:
             overlap = await self._check_allocation_overlap(
                 alloc,
@@ -2094,7 +2195,16 @@ class ResourceCapacityAgent(BaseAgent):
                 },
             )
             if overlap.get("has_overlap"):
+                overlapping_allocations += 1
                 total_overlap += float(alloc.get("allocation_percentage", 0))
+        if (
+            self.enforce_allocation_constraints
+            and overlapping_allocations >= self.max_concurrent_allocations
+        ):
+            return {
+                "valid": False,
+                "reason": "Allocation exceeds maximum concurrent allocation constraint",
+            }
         if total_overlap > (self.max_allocation_threshold * 100):
             return {
                 "valid": False,
@@ -2240,6 +2350,17 @@ class ResourceCapacityAgent(BaseAgent):
 
         return {"has_overlap": False}
 
+    async def _store_canonical_profile(
+        self,
+        resource_id: str,
+        canonical_profile: dict[str, Any],
+        resource_profile: dict[str, Any],
+    ) -> None:
+        self.repository.upsert_employee_profile(canonical_profile)
+        if self.db_service:
+            await self.db_service.store("employee_profiles", resource_id, canonical_profile)
+            await self.db_service.store("resource_profiles", resource_id, resource_profile)
+
     async def _generate_conflict_recommendations(
         self, conflicts: list[dict[str, Any]]
     ) -> list[str]:
@@ -2329,16 +2450,15 @@ class ResourceCapacityAgent(BaseAgent):
             for value in capacity_series
         ]
         adjusted_demand_series = [value * scope_multiplier for value in demand_series]
-        forecaster = TimeSeriesForecaster()
-        capacity_model = forecaster.train(adjusted_capacity_series)
-        demand_model = forecaster.train(adjusted_demand_series)
-        await self._store_model_in_azure_ml("scenario_capacity", capacity_model)
-        await self._store_model_in_azure_ml("scenario_demand", demand_model)
+        forecaster = TimeSeriesForecaster(
+            automl_endpoint=os.getenv("AZURE_AUTOML_ENDPOINT"),
+            automl_api_key=os.getenv("AZURE_AUTOML_API_KEY"),
+        )
         capacity_forecast = forecaster.forecast(
-            capacity_model, self.forecast_horizon_months, len(adjusted_capacity_series)
+            adjusted_capacity_series, self.forecast_horizon_months
         )
         demand_forecast = forecaster.forecast(
-            demand_model, self.forecast_horizon_months, len(adjusted_demand_series)
+            adjusted_demand_series, self.forecast_horizon_months
         )
         return {
             "future_capacity": [

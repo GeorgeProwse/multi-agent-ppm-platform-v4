@@ -44,8 +44,14 @@ Agent runtime configuration is centralized in `.env` (see `.env.example`) and sh
 **Azure ML Model Registry**
 - `AZURE_ML_ENDPOINT`, `AZURE_ML_API_KEY`
 
+**Azure AutoML Forecasting**
+- `AZURE_AUTOML_ENDPOINT`, `AZURE_AUTOML_API_KEY`
+
 **Azure Service Bus**
 - `AZURE_SERVICEBUS_CONNECTION_STRING`, `AZURE_SERVICEBUS_QUEUE_NAME`
+
+**Azure Communication Services**
+- `AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING`, `AZURE_COMMUNICATION_EMAIL_SENDER`
 
 **HRIS Integrations**
 - Workday: `WORKDAY_API_URL`, `WORKDAY_CLIENT_ID`, `WORKDAY_CLIENT_SECRET`, `WORKDAY_REFRESH_TOKEN`, `WORKDAY_TOKEN_URL`
@@ -58,6 +64,11 @@ Agent runtime configuration is centralized in `.env` (see `.env.example`) and sh
 **Storage & Caching**
 - `RESOURCE_CAPACITY_DATABASE_URL` (PostgreSQL SQLAlchemy URL)
 - `REDIS_URL`
+
+### Runtime Configuration Flags
+
+- `max_concurrent_allocations`: Maximum number of overlapping allocations allowed per resource.
+- `enforce_allocation_constraints`: Enable or disable conflict enforcement during allocation creation.
 
 ### New Dependencies
 
