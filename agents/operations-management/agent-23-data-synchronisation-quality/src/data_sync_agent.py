@@ -14,9 +14,11 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from jsonschema import ValidationError, validate
 from observability.tracing import get_trace_id
 from security.lineage import mask_lineage_payload
 
+from agents.common.connector_integration import DatabaseStorageService
 from agents.runtime import BaseAgent
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.state_store import TenantStateStore
@@ -50,6 +52,38 @@ class DataSyncAgent(BaseAgent):
             if config
             else "last_write_wins"
         )
+        self.authoritative_sources = (
+            config.get("authoritative_sources", {}) if config else {}
+        )
+        self.sync_event_webhook_url = (
+            config.get("sync_event_webhook_url") if config else None
+        )
+        self.sync_event_webhook_timeout = (
+            config.get("sync_event_webhook_timeout", 5.0) if config else 5.0
+        )
+        self.transformation_rules = config.get("transformation_rules", []) if config else []
+        self.transformation_schema = {
+            "type": "object",
+            "properties": {
+                "entity_type": {"type": "string"},
+                "source_system": {"type": "string"},
+                "field_mappings": {"type": "object", "additionalProperties": {"type": "string"}},
+                "defaults": {"type": "object"},
+                "transformations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "field": {"type": "string"},
+                            "operation": {"type": "string"},
+                            "value": {},
+                        },
+                        "required": ["field", "operation"],
+                    },
+                },
+            },
+            "required": ["entity_type", "field_mappings"],
+        }
 
         master_store_path = (
             Path(config.get("master_record_store_path", "data/master_records.json"))
@@ -83,6 +117,7 @@ class DataSyncAgent(BaseAgent):
         self.conflicts = {}  # type: ignore
         self.duplicates = {}  # type: ignore
         self.audit_records = {}  # type: ignore
+        self.db_service: DatabaseStorageService | None = None
 
     async def initialize(self) -> None:
         """Initialize data sync infrastructure and integrations."""
@@ -100,6 +135,10 @@ class DataSyncAgent(BaseAgent):
         # Future work: Connect to all domain agents for data collection
         # Future work: Initialize fuzzy matching algorithms for duplicate detection
         # Future work: Set up Azure Key Vault for external system credentials
+
+        db_config = self.config.get("database_storage", {}) if self.config else {}
+        self.db_service = DatabaseStorageService(db_config)
+        self.logger.info("Database Storage Service initialized")
 
         self.logger.info("Data Synchronization & Consistency Agent initialized")
 
@@ -279,7 +318,9 @@ class DataSyncAgent(BaseAgent):
         )
 
         # Publish sync event
-        # Future work: Publish to Event Grid for subscribers
+        await self._publish_sync_event(
+            tenant_id, entity_type, master_id, source_system, transformed_data
+        )
 
         return {
             "status": "success",
@@ -325,7 +366,7 @@ class DataSyncAgent(BaseAgent):
             metadata={"version": 1},
         )
 
-        # Future work: Store in database
+        await self._store_record("master_records", master_id, master_record)
         # Future work: Publish master_record.created event
 
         return {"master_id": master_id, "entity_type": entity_type, "version": 1}
@@ -371,7 +412,7 @@ class DataSyncAgent(BaseAgent):
             metadata={"version": master_record["version"], "source_system": source_system},
         )
 
-        # Future work: Store in database
+        await self._store_record("master_records", master_id, master_record)
         # Future work: Publish master_record.updated event
 
         return {
@@ -429,7 +470,7 @@ class DataSyncAgent(BaseAgent):
             field = conflict.get("field")
             self.master_records[master_id]["data"][field] = resolved_value
 
-        # Future work: Store in database
+        await self._store_record("conflicts", conflict_id, conflict)
         # Future work: Publish conflict.resolved event
 
         return {
@@ -500,7 +541,11 @@ class DataSyncAgent(BaseAgent):
         primary_record["version"] += 1
         primary_record["updated_at"] = datetime.utcnow().isoformat()
 
-        # Future work: Store in database
+        await self._store_record("master_records", primary_id, primary_record)
+        for master_id in master_ids:
+            duplicate_record = self.master_records.get(master_id)
+            if duplicate_record:
+                await self._store_record("master_records", master_id, duplicate_record)
         # Future work: Publish duplicates.merged event
 
         return {
@@ -565,7 +610,7 @@ class DataSyncAgent(BaseAgent):
         # Store mapping rule
         self.mapping_rules[mapping_id] = mapping_rule
 
-        # Future work: Store in database
+        await self._store_record("mapping_rules", mapping_id, mapping_rule)
 
         return {
             "mapping_id": mapping_id,
@@ -650,8 +695,28 @@ class DataSyncAgent(BaseAgent):
         self, entity_type: str, data: dict[str, Any], source_system: str
     ) -> dict[str, Any]:
         """Transform data using mapping rules."""
-        # Future work: Apply actual transformation rules
-        return data
+        applicable_rules = self._get_transformation_rules(entity_type, source_system)
+        if not applicable_rules:
+            return data
+
+        transformed = data.copy()
+        for rule in applicable_rules:
+            if not self._validate_transformation_rule(rule):
+                continue
+            field_mappings = rule.get("field_mappings", {})
+            mapped_payload: dict[str, Any] = {}
+            for source_field, target_field in field_mappings.items():
+                if source_field in transformed:
+                    mapped_payload[target_field] = transformed.get(source_field)
+            defaults = rule.get("defaults", {})
+            for key, value in defaults.items():
+                mapped_payload.setdefault(key, value)
+
+            transformed = mapped_payload
+            transformations = rule.get("transformations", [])
+            transformed = self._apply_transformations(transformed, transformations)
+
+        return transformed
 
     async def _find_existing_master(
         self, entity_type: str, data: dict[str, Any]
@@ -812,18 +877,17 @@ class DataSyncAgent(BaseAgent):
     ) -> dict[str, Any]:
         """Apply conflict resolution strategy."""
         if self.conflict_resolution_strategy == "last_write_wins":
-            return new_data
+            return self._resolve_by_timestamp(master_record, new_data, conflicts)
         elif self.conflict_resolution_strategy == "authoritative_source":
-            # Future work: Implement authoritative source logic
-            return new_data
+            return self._resolve_by_authority(master_record, new_data, conflicts)
+        elif self.conflict_resolution_strategy == "prefer_existing":
+            return self._resolve_prefer_existing(master_record, new_data, conflicts)
         else:
             return new_data
 
     async def _fuzzy_match_duplicates(self, records: list[tuple]) -> list[list[str]]:
         """Find duplicates using fuzzy matching."""
-        # Future work: Implement actual fuzzy matching
-        duplicates: list[dict[str, Any]] = []
-        return duplicates  # type: ignore
+        return self._find_potential_duplicates(records)
 
     async def _get_validation_rules(self, entity_type: str) -> list[dict[str, Any]]:
         """Get validation rules for entity type."""
@@ -855,6 +919,246 @@ class DataSyncAgent(BaseAgent):
         # Future work: Close database connections
         # Future work: Close event bus connections
         # Future work: Flush pending sync events
+
+    async def _store_record(self, table: str, record_id: str, payload: dict[str, Any]) -> None:
+        if not self.db_service:
+            return
+        await self.db_service.store(table, record_id, payload)
+
+    async def _publish_sync_event(
+        self,
+        tenant_id: str,
+        entity_type: str,
+        master_id: str,
+        source_system: str,
+        payload: dict[str, Any],
+    ) -> None:
+        self.logger.info(
+            "sync_event_published",
+            extra={
+                "tenant_id": tenant_id,
+                "entity_type": entity_type,
+                "master_id": master_id,
+                "source_system": source_system,
+            },
+        )
+        if not self.sync_event_webhook_url:
+            return
+        webhook_payload = {
+            "tenant_id": tenant_id,
+            "entity_type": entity_type,
+            "master_id": master_id,
+            "source_system": source_system,
+            "payload": payload,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        try:
+            async with httpx.AsyncClient(timeout=self.sync_event_webhook_timeout) as client:
+                await client.post(self.sync_event_webhook_url, json=webhook_payload)
+        except httpx.RequestError:
+            self.logger.warning(
+                "sync_event_webhook_unavailable",
+                extra={"url": self.sync_event_webhook_url},
+            )
+
+    def _get_transformation_rules(self, entity_type: str, source_system: str) -> list[dict[str, Any]]:
+        rules = []
+        for rule in self.transformation_rules:
+            if rule.get("entity_type") != entity_type:
+                continue
+            if rule.get("source_system") and rule.get("source_system") != source_system:
+                continue
+            rules.append(rule)
+        return rules
+
+    def _validate_transformation_rule(self, rule: dict[str, Any]) -> bool:
+        try:
+            validate(instance=rule, schema=self.transformation_schema)
+        except ValidationError as exc:
+            self.logger.warning(
+                "invalid_transformation_rule",
+                extra={"error": str(exc), "rule": rule},
+            )
+            return False
+        return True
+
+    def _apply_transformations(
+        self, payload: dict[str, Any], transformations: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        updated = payload.copy()
+        for transformation in transformations:
+            field = transformation.get("field")
+            operation = transformation.get("operation")
+            value = transformation.get("value")
+            if field is None or operation is None:
+                continue
+            current = updated.get(field)
+            if operation == "uppercase" and isinstance(current, str):
+                updated[field] = current.upper()
+            elif operation == "lowercase" and isinstance(current, str):
+                updated[field] = current.lower()
+            elif operation == "strip" and isinstance(current, str):
+                updated[field] = current.strip()
+            elif operation == "prefix" and isinstance(current, str) and isinstance(value, str):
+                updated[field] = f"{value}{current}"
+            elif operation == "suffix" and isinstance(current, str) and isinstance(value, str):
+                updated[field] = f"{current}{value}"
+            elif operation == "concat" and isinstance(value, list):
+                parts = [str(updated.get(part, "")) for part in value]
+                updated[field] = "".join(parts)
+            elif operation == "cast_int":
+                try:
+                    updated[field] = int(current)
+                except (TypeError, ValueError):
+                    continue
+            elif operation == "cast_float":
+                try:
+                    updated[field] = float(current)
+                except (TypeError, ValueError):
+                    continue
+        return updated
+
+    def _resolve_by_timestamp(
+        self,
+        master_record: dict[str, Any],
+        new_data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        resolved = new_data.copy()
+        new_timestamp = self._extract_timestamp(new_data) or self._extract_timestamp(
+            master_record
+        )
+        current_timestamp = self._extract_timestamp(master_record)
+        if new_timestamp and current_timestamp and new_timestamp < current_timestamp:
+            for conflict in conflicts:
+                field = conflict.get("field")
+                if field in master_record.get("data", {}):
+                    resolved[field] = master_record["data"][field]
+        return resolved
+
+    def _resolve_by_authority(
+        self,
+        master_record: dict[str, Any],
+        new_data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        resolved = master_record.get("data", {}).copy()
+        resolved.update(new_data)
+        for conflict in conflicts:
+            field = conflict.get("field")
+            source_system = conflict.get("source_system")
+            authoritative_source = self.authoritative_sources.get(field)
+            if authoritative_source and source_system != authoritative_source:
+                resolved[field] = master_record.get("data", {}).get(field)
+        return resolved
+
+    def _resolve_prefer_existing(
+        self,
+        master_record: dict[str, Any],
+        new_data: dict[str, Any],
+        conflicts: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        resolved = master_record.get("data", {}).copy()
+        for key, value in new_data.items():
+            if key not in resolved or resolved[key] in (None, ""):
+                resolved[key] = value
+        for conflict in conflicts:
+            field = conflict.get("field")
+            if field in master_record.get("data", {}):
+                resolved[field] = master_record["data"][field]
+        return resolved
+
+    def _extract_timestamp(self, payload: dict[str, Any]) -> datetime | None:
+        for key in ("updated_at", "timestamp", "created_at"):
+            raw = payload.get(key)
+            if isinstance(raw, str):
+                try:
+                    return datetime.fromisoformat(raw)
+                except ValueError:
+                    continue
+        return None
+
+    def _find_potential_duplicates(self, records: list[tuple]) -> list[list[str]]:
+        duplicates: list[set[str]] = []
+        for index, (left_id, left_record) in enumerate(records):
+            left_text = self._build_similarity_text(left_record)
+            for right_id, right_record in records[index + 1 :]:
+                right_text = self._build_similarity_text(right_record)
+                similarity = self._calculate_similarity(left_text, right_text)
+                if similarity >= self.duplicate_confidence_threshold:
+                    self._add_duplicate_pair(duplicates, left_id, right_id)
+        return [sorted(group) for group in duplicates]
+
+    def _build_similarity_text(self, record: dict[str, Any]) -> str:
+        data = record.get("data", {})
+        fields = [
+            str(data.get("name", "")),
+            str(data.get("title", "")),
+            str(data.get("email", "")),
+            str(data.get("id", "")),
+        ]
+        return " ".join(part for part in fields if part).lower().strip()
+
+    def _calculate_similarity(self, left: str, right: str) -> float:
+        if not left or not right:
+            return 0.0
+        token_similarity = self._token_similarity(left, right)
+        levenshtein_similarity = self._levenshtein_similarity(left, right)
+        return max(token_similarity, levenshtein_similarity)
+
+    def _token_similarity(self, left: str, right: str) -> float:
+        left_tokens = set(left.split())
+        right_tokens = set(right.split())
+        if not left_tokens or not right_tokens:
+            return 0.0
+        intersection = left_tokens.intersection(right_tokens)
+        union = left_tokens.union(right_tokens)
+        return len(intersection) / len(union)
+
+    def _levenshtein_similarity(self, left: str, right: str) -> float:
+        distance = self._levenshtein_distance(left, right)
+        max_len = max(len(left), len(right))
+        if max_len == 0:
+            return 1.0
+        return 1 - (distance / max_len)
+
+    def _levenshtein_distance(self, left: str, right: str) -> int:
+        if left == right:
+            return 0
+        if not left:
+            return len(right)
+        if not right:
+            return len(left)
+        previous_row = list(range(len(right) + 1))
+        for i, left_char in enumerate(left, start=1):
+            current_row = [i]
+            for j, right_char in enumerate(right, start=1):
+                insertions = previous_row[j] + 1
+                deletions = current_row[j - 1] + 1
+                substitutions = previous_row[j - 1] + (left_char != right_char)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        return previous_row[-1]
+
+    def _add_duplicate_pair(
+        self, groups: list[set[str]], left_id: str, right_id: str
+    ) -> None:
+        left_group = None
+        right_group = None
+        for group in groups:
+            if left_id in group:
+                left_group = group
+            if right_id in group:
+                right_group = group
+        if left_group and right_group and left_group is not right_group:
+            left_group.update(right_group)
+            groups.remove(right_group)
+        elif left_group:
+            left_group.add(right_id)
+        elif right_group:
+            right_group.add(left_id)
+        else:
+            groups.append({left_id, right_id})
 
     def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
