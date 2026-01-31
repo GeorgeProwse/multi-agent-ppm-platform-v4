@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any
 
 from agent_client import AgentClient
@@ -40,6 +41,7 @@ class WorkflowRuntime:
         decision: str,
         approver_id: str,
         comments: str | None,
+        resume_after_decision: bool = True,
     ) -> WorkflowInstance:
         await self.approval_agent.process(
             {
@@ -97,9 +99,307 @@ class WorkflowRuntime:
         definition_record = self.store.get_definition(instance.workflow_id)
         if not definition_record:
             return instance
-        return await self._run_until_pause(
-            instance, definition_record.definition, {"id": approver_id}
+        if resume_after_decision:
+            return await self._run_until_pause(
+                instance, definition_record.definition, {"id": approver_id}
+            )
+        steps = definition_record.definition.get("steps", [])
+        step_map = {step["id"]: step for step in steps}
+        step = step_map.get(approval.step_id)
+        if not step:
+            return instance
+        next_step_id = self._next_step_id(step, instance.payload)
+        if next_step_id:
+            self.store.update_status(instance.run_id, "running", next_step_id)
+            return self.store.get(instance.run_id)
+        self.store.update_status(instance.run_id, "completed", None)
+        self.store.add_event(instance.run_id, "completed", "Workflow completed")
+        return self.store.get(instance.run_id)
+
+    @dataclass
+    class StepExecutionResult:
+        instance: WorkflowInstance
+        status: str
+        next_step_id: str | None
+        should_retry: bool = False
+        retry_delay_seconds: int = 0
+
+    async def execute_step(
+        self,
+        instance: WorkflowInstance,
+        definition: dict[str, Any],
+        actor: dict[str, Any],
+        step_id: str,
+    ) -> StepExecutionResult:
+        steps = definition.get("steps", [])
+        if not steps:
+            self.store.update_status(instance.run_id, "failed", instance.current_step_id)
+            self.store.add_event(instance.run_id, "failed", "Workflow has no steps")
+            return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
+
+        step_map = {step["id"]: step for step in steps}
+        step = step_map.get(step_id)
+        if not step:
+            self.store.update_status(instance.run_id, "failed", step_id)
+            self.store.add_event(
+                instance.run_id, "failed", f"Unknown step {step_id}", step_id
+            )
+            return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
+
+        existing_state = self.store.get_step_state(instance.run_id, step_id)
+        if existing_state and existing_state.status == "completed":
+            instance = self.store.get(instance.run_id)
+            return self.StepExecutionResult(instance, "completed", instance.current_step_id)
+
+        step_type = step["type"]
+        if step_type == "approval":
+            existing_approval = self.store.find_approval_for_step(instance.run_id, step_id)
+            if existing_approval and existing_approval.status == "approved":
+                self.store.upsert_step_state(
+                    instance.run_id,
+                    step_id,
+                    "completed",
+                    attempts=1,
+                    output={"approval_id": existing_approval.approval_id},
+                )
+                self.store.add_event(
+                    instance.run_id,
+                    "completed",
+                    f"Approval {existing_approval.approval_id} approved",
+                    step_id,
+                )
+                next_step_id = self._next_step_id(step, instance.payload)
+                if next_step_id:
+                    self.store.update_status(instance.run_id, "running", next_step_id)
+                    return self.StepExecutionResult(
+                        self.store.get(instance.run_id), "completed", next_step_id
+                    )
+                self.store.update_status(instance.run_id, "completed", None)
+                self.store.add_event(instance.run_id, "completed", "Workflow completed")
+                return self.StepExecutionResult(
+                    self.store.get(instance.run_id), "completed", None
+                )
+            if existing_approval and existing_approval.status == "rejected":
+                self.store.update_status(instance.run_id, "rejected", step_id)
+                self.store.add_event(
+                    instance.run_id,
+                    "rejected",
+                    f"Approval {existing_approval.approval_id} rejected",
+                    step_id,
+                )
+                return self.StepExecutionResult(
+                    self.store.get(instance.run_id), "rejected", None
+                )
+            approval = await self._ensure_approval(instance, step, actor)
+            self.store.update_status(instance.run_id, "waiting_approval", step_id)
+            self.store.add_event(
+                instance.run_id,
+                "waiting_approval",
+                f"Waiting on approval {approval.approval_id}",
+                step_id,
+            )
+            return self.StepExecutionResult(
+                self.store.get(instance.run_id), "waiting_approval", None
+            )
+
+        step_output: dict[str, Any] = {}
+        previous_attempts = existing_state.attempts if existing_state else 0
+        attempts = previous_attempts + 1
+        retry_policy = step.get("retry", {})
+        max_attempts = max(1, retry_policy.get("max_attempts", 1))
+        delay_seconds = max(0, retry_policy.get("delay_seconds", 0))
+        failures_before_success = step.get("config", {}).get("failures_before_success", 0)
+        simulate_timeout = step.get("config", {}).get("simulate_timeout", False)
+        breaker = self._get_circuit_breaker(step, instance)
+
+        if breaker and not breaker.allow():
+            self.store.upsert_step_state(
+                instance.run_id, step_id, "paused", previous_attempts, step_output
+            )
+            self.store.update_status(instance.run_id, "paused", step_id)
+            self.store.add_event(
+                instance.run_id,
+                "paused",
+                f"Circuit open for step {step_id}; retry after "
+                f"{breaker.time_until_retry():.0f}s",
+                step_id,
+            )
+            return self.StepExecutionResult(self.store.get(instance.run_id), "paused", None)
+
+        if simulate_timeout and step.get("timeout_seconds"):
+            self.store.update_step_error(
+                instance.run_id,
+                step_id,
+                f"Step timed out after {step['timeout_seconds']} seconds",
+            )
+            self.store.update_status(instance.run_id, "failed", step_id)
+            self.store.add_event(
+                instance.run_id,
+                "failed",
+                f"Step {step_id} timed out",
+                step_id,
+            )
+            return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
+
+        if failures_before_success and attempts <= failures_before_success:
+            return self._prepare_retry(
+                instance,
+                step_id,
+                attempts,
+                max_attempts,
+                delay_seconds,
+                step_output,
+                breaker,
+                failure_message="Simulated failure before success",
+            )
+
+        if step_type == "task":
+            agent_config = step.get("config", {})
+            agent_id = agent_config.get("agent")
+            action = agent_config.get("action")
+            if not self.agent_client:
+                self.store.upsert_step_state(
+                    instance.run_id, step_id, "failed", attempts, step_output
+                )
+                self.store.update_step_error(
+                    instance.run_id, step_id, "Agent client not configured"
+                )
+                self.store.update_status(instance.run_id, "failed", step_id)
+                self.store.add_event(
+                    instance.run_id,
+                    "failed",
+                    f"Agent client not configured for step {step_id}",
+                    step_id,
+                )
+                return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
+            if not agent_id or not action:
+                self.store.upsert_step_state(
+                    instance.run_id, step_id, "failed", attempts, step_output
+                )
+                self.store.update_step_error(
+                    instance.run_id, step_id, "Task step missing agent or action"
+                )
+                self.store.update_status(instance.run_id, "failed", step_id)
+                self.store.add_event(
+                    instance.run_id,
+                    "failed",
+                    f"Task step {step_id} missing agent/action",
+                    step_id,
+                )
+                return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
+            resolved_config = {
+                key: self._resolve_reference(value, instance.payload)
+                for key, value in agent_config.items()
+                if key not in {"agent", "action"}
+            }
+            try:
+                agent_response = await self.agent_client.execute(
+                    agent_id=agent_id,
+                    action=action,
+                    payload={
+                        "workflow_id": instance.workflow_id,
+                        "run_id": instance.run_id,
+                        "step_id": step_id,
+                        "payload": instance.payload,
+                        "config": resolved_config,
+                        "actor": actor,
+                    },
+                    context={
+                        "tenant_id": instance.tenant_id,
+                        "correlation_id": instance.run_id,
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 - bubble up with retry metadata
+                return self._prepare_retry(
+                    instance,
+                    step_id,
+                    attempts,
+                    max_attempts,
+                    delay_seconds,
+                    step_output,
+                    breaker,
+                    failure_message=f"Agent call failed: {exc}",
+                )
+            step_output = {
+                "agent": agent_id,
+                "action": action,
+                "response": agent_response,
+            }
+            if breaker:
+                breaker.record_success()
+
+        self.store.upsert_step_state(
+            instance.run_id, step_id, "completed", attempts, step_output
         )
+        self.store.add_event(
+            instance.run_id,
+            "completed",
+            f"Step {step_id} completed",
+            step_id,
+        )
+        next_step_id = self._next_step_id(step, instance.payload)
+        if next_step_id:
+            self.store.update_status(instance.run_id, "running", next_step_id)
+            return self.StepExecutionResult(
+                self.store.get(instance.run_id), "completed", next_step_id
+            )
+        self.store.update_status(instance.run_id, "completed", None)
+        self.store.add_event(instance.run_id, "completed", "Workflow completed")
+        return self.StepExecutionResult(self.store.get(instance.run_id), "completed", None)
+
+    def _prepare_retry(
+        self,
+        instance: WorkflowInstance,
+        step_id: str,
+        attempts: int,
+        max_attempts: int,
+        delay_seconds: int,
+        step_output: dict[str, Any],
+        breaker: CircuitBreaker | None,
+        failure_message: str,
+    ) -> StepExecutionResult:
+        if breaker:
+            breaker.record_failure()
+            if breaker.is_open():
+                self.store.upsert_step_state(
+                    instance.run_id, step_id, "paused", attempts, step_output
+                )
+                self.store.update_status(instance.run_id, "paused", step_id)
+                self.store.add_event(
+                    instance.run_id,
+                    "paused",
+                    f"Circuit opened for step {step_id} after failure",
+                    step_id,
+                )
+                return self.StepExecutionResult(self.store.get(instance.run_id), "paused", None)
+        if attempts < max_attempts:
+            self.store.upsert_step_state(
+                instance.run_id, step_id, "retrying", attempts, step_output
+            )
+            self.store.add_event(
+                instance.run_id,
+                "retrying",
+                f"{failure_message}. Retrying step {step_id} ({attempts}/{max_attempts})",
+                step_id,
+            )
+            return self.StepExecutionResult(
+                self.store.get(instance.run_id),
+                "retrying",
+                step_id,
+                should_retry=True,
+                retry_delay_seconds=delay_seconds * (2 ** (attempts - 1)),
+            )
+        self.store.update_step_error(
+            instance.run_id, step_id, f"Step failed after {attempts} attempts"
+        )
+        self.store.update_status(instance.run_id, "failed", step_id)
+        self.store.add_event(
+            instance.run_id,
+            "failed",
+            f"Step {step_id} failed after retries",
+            step_id,
+        )
+        return self.StepExecutionResult(self.store.get(instance.run_id), "failed", None)
 
     async def _run_until_pause(
         self, instance: WorkflowInstance, definition: dict[str, Any], actor: dict[str, Any]

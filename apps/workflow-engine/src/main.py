@@ -16,7 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 WORKFLOW_ROOT = Path(__file__).resolve().parent
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (REPO_ROOT, WORKFLOW_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
+WORKFLOW_PACKAGE_ROOT = REPO_ROOT / "packages" / "workflow" / "src"
+for root in (REPO_ROOT, WORKFLOW_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, WORKFLOW_PACKAGE_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -28,6 +29,7 @@ from workflow_audit import emit_audit_event  # noqa: E402
 from workflow_definitions import load_definition, seed_definitions  # noqa: E402
 from workflow_runtime import WorkflowRuntime  # noqa: E402
 from workflow_storage import WorkflowStore  # noqa: E402
+from workflow.dispatcher import WorkflowDispatcher  # noqa: E402
 
 logger = logging.getLogger("workflow-engine")
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +52,7 @@ from approval_workflow_agent import ApprovalWorkflowAgent  # noqa: E402
 approval_agent = ApprovalWorkflowAgent()
 agent_client = get_agent_client()
 runtime = WorkflowRuntime(store, approval_agent, agent_client)
+dispatcher = WorkflowDispatcher()
 
 
 class HealthResponse(BaseModel):
@@ -195,9 +198,15 @@ async def start_workflow(
         raise HTTPException(status_code=403, detail="Tenant mismatch")
     definition = _get_definition(request.workflow_id)
     _enforce_methodology_gates(definition, request.payload)
+    steps = definition.get("steps", [])
+    if not steps:
+        raise HTTPException(status_code=422, detail="Workflow definition has no steps")
+    first_step_id = steps[0]["id"]
     run_id = str(uuid4())
-    instance = store.create(run_id, request.workflow_id, request.tenant_id, request.payload)
-    instance = await runtime.start(instance, definition, request.actor)
+    instance = store.create(
+        run_id, request.workflow_id, request.tenant_id, request.payload, first_step_id
+    )
+    dispatcher.dispatch_step(run_id, first_step_id, request.actor)
 
     emit_audit_event(
         tenant_id=request.tenant_id,
@@ -262,7 +271,12 @@ async def resume_workflow(run_id: str, http_request: Request) -> WorkflowRunResp
         raise HTTPException(status_code=403, detail="Tenant mismatch")
     definition = _get_definition(instance.workflow_id)
     _enforce_methodology_gates(definition, instance.payload)
-    instance = await runtime.resume(instance, definition, {"id": http_request.state.auth.subject})
+    step_id = instance.current_step_id or (definition.get("steps", [{}])[0].get("id"))
+    if not step_id:
+        raise HTTPException(status_code=422, detail="Workflow definition has no steps")
+    store.update_status(run_id, "running", step_id)
+    dispatcher.dispatch_step(run_id, step_id, {"id": http_request.state.auth.subject})
+    instance = store.get(run_id)
     return WorkflowRunResponse(
         run_id=instance.run_id,
         workflow_id=instance.workflow_id,
@@ -376,8 +390,18 @@ async def decide_approval(
     if approval.tenant_id != http_request.state.auth.tenant_id:
         raise HTTPException(status_code=403, detail="Tenant mismatch")
     instance = await runtime.handle_approval_decision(
-        approval, request.decision, request.approver_id, request.comments
+        approval,
+        request.decision,
+        request.approver_id,
+        request.comments,
+        resume_after_decision=False,
     )
+    if instance and instance.status == "running" and instance.current_step_id:
+        dispatcher.dispatch_step(
+            instance.run_id,
+            instance.current_step_id,
+            {"id": request.approver_id},
+        )
     if not instance:
         raise HTTPException(status_code=404, detail="Workflow not found")
     return WorkflowRunResponse(
