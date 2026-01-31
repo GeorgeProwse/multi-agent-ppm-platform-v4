@@ -75,6 +75,27 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.environments_inventory: dict[str, Any] = {}
         self.release_notes: dict[str, Any] = {}
         self.deployment_metrics: dict[str, Any] = {}
+        self.enforce_readiness_gates = (
+            config.get("enforce_readiness_gates", True) if config else True
+        )
+        self.auto_rollback_on_anomaly = (
+            config.get("auto_rollback_on_anomaly", True) if config else True
+        )
+
+        self.quality_agent = config.get("quality_agent") if config else None
+        self.change_agent = config.get("change_agent") if config else None
+        self.risk_agent = config.get("risk_agent") if config else None
+        self.compliance_agent = config.get("compliance_agent") if config else None
+        self.schedule_agent = config.get("schedule_agent") if config else None
+        self.schedule_agent_action = (
+            config.get("schedule_agent_action", "suggest_deployment_window") if config else None
+        )
+
+        self.azure_devops_client = config.get("azure_devops_client") if config else None
+        self.github_actions_client = config.get("github_actions_client") if config else None
+        self.durable_functions_client = config.get("durable_functions_client") if config else None
+        self.azure_policy_client = config.get("azure_policy_client") if config else None
+        self.openai_client = config.get("openai_client") if config else None
         self.approval_agent = config.get("approval_agent") if config else None
         if self.approval_agent is None:
             approval_config = config.get("approval_agent_config", {}) if config else {}
@@ -518,6 +539,25 @@ class ReleaseDeploymentAgent(BaseAgent):
         release = self.releases.get(release_id)
         assert release is not None and isinstance(release, dict), "Release not found"
 
+        if self.enforce_readiness_gates:
+            readiness = await self._assess_readiness(release_id)
+            if readiness.get("recommendation") != "GO":
+                if release.get("approval_required"):
+                    return {
+                        "deployment_plan_id": deployment_plan_id,
+                        "release_id": release_id,
+                        "status": "Pending Approval",
+                        "readiness": readiness,
+                        "next_steps": "Await release approval before deployment.",
+                    }
+                return {
+                    "deployment_plan_id": deployment_plan_id,
+                    "release_id": release_id,
+                    "status": "Blocked",
+                    "readiness": readiness,
+                    "next_steps": "Resolve readiness gate failures before deployment.",
+                }
+
         if release.get("approval_required"):
             approval = release.get("approval")
             if approval is None:
@@ -567,11 +607,8 @@ class ReleaseDeploymentAgent(BaseAgent):
                 "details": pre_deployment_results,
             }
 
-        # Execute deployment steps
-        # Future work: Integrate with Azure DevOps pipelines
-        # Future work: Orchestrate via Durable Functions or Logic Apps
-        deployment_results = await self._execute_deployment_steps(
-            deployment_plan.get("deployment_steps", [])
+        deployment_results = await self._orchestrate_deployment(
+            deployment_plan, tenant_id=tenant_id, correlation_id=correlation_id
         )
 
         if not deployment_results.get("success"):
@@ -593,6 +630,10 @@ class ReleaseDeploymentAgent(BaseAgent):
         verification_results = await self._execute_post_deployment_verification(
             deployment_plan.get("post_deployment_verification", [])
         )
+
+        if not verification_results.get("success") and self.auto_rollback_on_anomaly:
+            self.logger.warning("Post-deployment verification failed; triggering rollback")
+            await self._rollback_deployment(deployment_plan_id)
 
         # Update deployment plan and release
         deployment_plan["status"] = "Completed" if verification_results.get("success") else "Failed"
@@ -703,21 +744,23 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Get baseline configuration
         baseline_config = await self._get_baseline_configuration(environment.get("type"))
 
-        # Compare current vs baseline
-        # Future work: Use Azure Policy or configuration scanning tools
+        policy_results = await self._check_azure_policy_compliance(environment)
         drift_items = await self._compare_configurations(
             environment.get("configuration", {}), baseline_config
         )
+        policy_drift_items = policy_results.get("drift_items", [])
 
-        drift_detected = len(drift_items) > 0
+        combined_drift = drift_items + policy_drift_items
+        drift_detected = len(combined_drift) > 0
 
         return {
             "environment_id": environment_id,
             "drift_detected": drift_detected,
-            "drift_items": drift_items,
-            "drift_count": len(drift_items),
+            "drift_items": combined_drift,
+            "drift_count": len(combined_drift),
             "baseline_version": baseline_config.get("version"),
-            "recommendations": await self._generate_drift_recommendations(drift_items),
+            "policy_compliance": policy_results.get("compliance_state"),
+            "recommendations": await self._generate_drift_recommendations(combined_drift),
         }
 
     async def _generate_release_notes(self, release_id: str) -> dict[str, Any]:
@@ -739,7 +782,6 @@ class ReleaseDeploymentAgent(BaseAgent):
         known_issues = await self._gather_known_issues(release_id)
 
         # Generate notes using AI
-        # Future work: Use Azure OpenAI for NLG
         release_notes_content = await self._generate_notes_content(
             release, changes, features, bug_fixes, known_issues
         )
@@ -803,11 +845,13 @@ class ReleaseDeploymentAgent(BaseAgent):
             "rollback_rate": await self._calculate_rollback_rate(),
             "environment_utilization": await self._calculate_environment_utilization(),
         }
+        anomalies = await self._detect_metric_anomalies(metrics)
 
         # Store metrics
         metrics_record = {
             "release_id": release_id,
             "metrics": metrics,
+            "anomalies": anomalies,
             "calculated_at": datetime.utcnow().isoformat(),
         }
         self.deployment_metrics[release_id] = metrics_record
@@ -818,6 +862,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         return {
             "release_id": release_id,
             "metrics": metrics,
+            "anomalies": anomalies,
             "recommendations": await self._generate_deployment_recommendations(metrics),
         }
 
@@ -835,14 +880,24 @@ class ReleaseDeploymentAgent(BaseAgent):
         if not release:
             raise ValueError(f"Release not found: {release_id}")
 
-        # Analyze usage patterns
-        # Future work: Use optimization algorithms
+        optimal_window = None
         usage_patterns = await self._analyze_usage_patterns(release.get("target_environment"))
 
-        # Find optimal window
-        optimal_window = await self._find_optimal_deployment_window(
-            preferred_window, usage_patterns, release.get("target_environment")
-        )
+        if self.schedule_agent and self.schedule_agent_action:
+            response = await self.schedule_agent.process(
+                {
+                    "action": self.schedule_agent_action,
+                    "release_id": release_id,
+                    "preferred_window": preferred_window,
+                    "environment": release.get("target_environment"),
+                }
+            )
+            optimal_window = response.get("scheduled_window") or response.get("window")
+
+        if not optimal_window:
+            optimal_window = await self._find_optimal_deployment_window(
+                preferred_window, usage_patterns, release.get("target_environment")
+            )
 
         # Check for conflicts
         start_time = optimal_window.get("start_time")
@@ -1026,27 +1081,49 @@ class ReleaseDeploymentAgent(BaseAgent):
 
     async def _check_quality_criteria(self, release_id: str) -> dict[str, Any]:
         """Check quality criteria."""
-        # Future work: Integrate with Quality Management Agent
+        if self.quality_agent:
+            return await self.quality_agent.process(
+                {"action": "assess_release_quality", "release_id": release_id}
+            )
         return {"passed": True, "test_pass_rate": 100.0}
 
     async def _check_approval_status(self, release_id: str) -> dict[str, Any]:
         """Check approval status."""
-        # Future work: Integrate with Approval Workflow Agent
+        if self.approval_agent:
+            response = await self.approval_agent.process(
+                {
+                    "request_type": "release_readiness",
+                    "request_id": release_id,
+                }
+            )
+            if isinstance(response, dict) and "complete" not in response:
+                status = response.get("status")
+                response["complete"] = status == "approved"
+            return response
         return {"complete": True, "approvals": []}
 
     async def _check_change_approvals(self, release_id: str) -> dict[str, Any]:
         """Check change approvals."""
-        # Future work: Integrate with Change Management Agent
+        if self.change_agent:
+            return await self.change_agent.process(
+                {"action": "check_release_changes", "release_id": release_id}
+            )
         return {"approved": True, "change_requests": []}
 
     async def _check_risk_level(self, release_id: str) -> dict[str, Any]:
         """Check risk level."""
-        # Future work: Integrate with Risk Management Agent
+        if self.risk_agent:
+            return await self.risk_agent.process(
+                {"action": "assess_release_risk", "release_id": release_id}
+            )
         return {"acceptable": True, "risk_score": 0.2}
 
     async def _check_compliance_requirements(self, release_id: str) -> dict[str, Any]:
         """Check compliance requirements."""
-        # Future work: Integrate with Compliance Agent
+        if self.compliance_agent:
+            return await self.compliance_agent.process(
+                {"action": "verify_release_compliance", "release_id": release_id}
+            )
         return {"met": True, "requirements": []}
 
     async def _define_deployment_steps(
@@ -1136,8 +1213,19 @@ class ReleaseDeploymentAgent(BaseAgent):
         self, current_config: dict[str, Any], baseline_config: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """Compare configurations to detect drift."""
-        # Future work: Implement detailed comparison
-        return []
+        drift = []
+        baseline_settings = baseline_config.get("settings", {})
+        for key, baseline_value in baseline_settings.items():
+            current_value = current_config.get(key)
+            if current_value != baseline_value:
+                drift.append(
+                    {
+                        "setting": key,
+                        "expected": baseline_value,
+                        "actual": current_value,
+                    }
+                )
+        return drift
 
     async def _generate_drift_recommendations(self, drift_items: list[dict[str, Any]]) -> list[str]:
         """Generate recommendations for drift remediation."""
@@ -1174,7 +1262,16 @@ class ReleaseDeploymentAgent(BaseAgent):
         known_issues: list[dict[str, Any]],
     ) -> str:
         """Generate release notes content using NLG."""
-        # Future work: Use Azure OpenAI for NLG
+        if self.openai_client:
+            prompt = await self._build_release_notes_prompt(
+                release, changes, features, bug_fixes, known_issues
+            )
+            if hasattr(self.openai_client, "generate"):
+                response = await self.openai_client.generate(prompt)
+                return cast(str, response)
+            if hasattr(self.openai_client, "complete"):
+                response = await self.openai_client.complete(prompt)
+                return cast(str, response)
         return f"""Release Notes: {release.get('name')}
 
 Date: {release.get('actual_date', release.get('planned_date'))}
@@ -1189,6 +1286,30 @@ Bug Fixes:
 Known Issues:
 {chr(10).join(f"- {i.get('description', 'Issue')}" for i in known_issues)}
 """
+
+    async def _build_release_notes_prompt(
+        self,
+        release: dict[str, Any],
+        changes: list[dict[str, Any]],
+        features: list[dict[str, Any]],
+        bug_fixes: list[dict[str, Any]],
+        known_issues: list[dict[str, Any]],
+    ) -> str:
+        """Build prompt for release notes generation."""
+        change_list = "\n".join(f"- {item.get('description', 'Change')}" for item in changes)
+        feature_list = "\n".join(f"- {item.get('description', 'Feature')}" for item in features)
+        bug_list = "\n".join(f"- {item.get('description', 'Fix')}" for item in bug_fixes)
+        issue_list = "\n".join(f"- {item.get('description', 'Issue')}" for item in known_issues)
+        return (
+            "Create release notes with sections for Changes, Features, Bug Fixes, and Known Issues.\n"
+            f"Release: {release.get('name')}\n"
+            f"Environment: {release.get('target_environment')}\n"
+            f"Planned Date: {release.get('planned_date')}\n"
+            f"Changes:\n{change_list}\n"
+            f"Features:\n{feature_list}\n"
+            f"Bug Fixes:\n{bug_list}\n"
+            f"Known Issues:\n{issue_list}\n"
+        )
 
     async def _calculate_deployment_frequency(self) -> float:
         """Calculate deployment frequency."""
@@ -1280,6 +1401,102 @@ Known Issues:
         """Detect post-deployment anomalies."""
         # Future work: Use anomaly detection algorithms
         return []
+
+    async def _detect_metric_anomalies(self, metrics: dict[str, Any]) -> list[dict[str, Any]]:
+        """Detect anomalies in deployment metrics."""
+        anomalies = []
+        if metrics.get("deployment_success_rate", 1.0) < 0.9:
+            anomalies.append(
+                {
+                    "metric": "deployment_success_rate",
+                    "severity": "high",
+                    "value": metrics.get("deployment_success_rate"),
+                }
+            )
+        if metrics.get("rollback_rate", 0.0) > 0.05:
+            anomalies.append(
+                {
+                    "metric": "rollback_rate",
+                    "severity": "medium",
+                    "value": metrics.get("rollback_rate"),
+                }
+            )
+        return anomalies
+
+    async def _check_azure_policy_compliance(self, environment: dict[str, Any]) -> dict[str, Any]:
+        """Check configuration compliance using Azure Policy."""
+        if not self.azure_policy_client:
+            return {"compliance_state": "unknown", "drift_items": []}
+        if hasattr(self.azure_policy_client, "assess_compliance"):
+            response = await self.azure_policy_client.assess_compliance(environment)
+            return cast(dict[str, Any], response)
+        if hasattr(self.azure_policy_client, "process"):
+            response = await self.azure_policy_client.process(
+                {"action": "check_policy_compliance", "environment": environment}
+            )
+            return cast(dict[str, Any], response)
+        return {"compliance_state": "unknown", "drift_items": []}
+
+    async def _orchestrate_deployment(
+        self,
+        deployment_plan: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Orchestrate deployment via Durable Functions and CI/CD pipelines."""
+        steps = deployment_plan.get("deployment_steps", [])
+        orchestrator_payload = {
+            "deployment_plan_id": deployment_plan.get("deployment_plan_id"),
+            "steps": steps,
+            "tenant_id": tenant_id,
+            "correlation_id": correlation_id,
+        }
+
+        pipeline_results = []
+        if self.azure_devops_client:
+            pipeline_results.append(
+                await self._trigger_azure_devops_pipeline(deployment_plan, orchestrator_payload)
+            )
+        if self.github_actions_client:
+            pipeline_results.append(
+                await self._trigger_github_actions_workflow(deployment_plan, orchestrator_payload)
+            )
+
+        if self.durable_functions_client and hasattr(self.durable_functions_client, "orchestrate"):
+            orchestration = await self.durable_functions_client.orchestrate(orchestrator_payload)
+        else:
+            orchestration = {"orchestration_id": str(uuid.uuid4()), "status": "completed"}
+
+        step_results = await self._execute_deployment_steps(steps)
+        success = step_results.get("success", False) and all(
+            result.get("status") in {"queued", "success", "completed"}
+            for result in pipeline_results
+        )
+        return {
+            "success": success,
+            "completed_steps": step_results.get("completed_steps", 0),
+            "pipelines": pipeline_results,
+            "durable_functions": orchestration,
+        }
+
+    async def _trigger_azure_devops_pipeline(
+        self, deployment_plan: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Trigger Azure DevOps pipeline deployment."""
+        if hasattr(self.azure_devops_client, "run_pipeline"):
+            response = await self.azure_devops_client.run_pipeline(payload)
+            return cast(dict[str, Any], response)
+        return {"system": "azure_devops", "status": "queued", "pipeline_id": "ado-mock"}
+
+    async def _trigger_github_actions_workflow(
+        self, deployment_plan: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Trigger GitHub Actions workflow deployment."""
+        if hasattr(self.github_actions_client, "run_workflow"):
+            response = await self.github_actions_client.run_workflow(payload)
+            return cast(dict[str, Any], response)
+        return {"system": "github_actions", "status": "queued", "run_id": "gha-mock"}
 
     async def _matches_filters(self, release: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if release matches filters."""
