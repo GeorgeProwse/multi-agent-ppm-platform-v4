@@ -11,6 +11,56 @@ class ApprovalStub:
         return {"approval_id": "appr-release", "status": "pending"}
 
 
+class QualityStub:
+    def __init__(self, passed: bool = True) -> None:
+        self.passed = passed
+
+    async def process(self, input_data: dict) -> dict:
+        return {"passed": self.passed, "test_pass_rate": 88.0}
+
+
+class ChangeStub:
+    def __init__(self, approved: bool = True) -> None:
+        self.approved = approved
+
+    async def process(self, input_data: dict) -> dict:
+        return {"approved": self.approved}
+
+
+class RiskStub:
+    def __init__(self, acceptable: bool = True) -> None:
+        self.acceptable = acceptable
+
+    async def process(self, input_data: dict) -> dict:
+        return {"acceptable": self.acceptable, "risk_score": 0.8}
+
+
+class ComplianceStub:
+    def __init__(self, met: bool = True) -> None:
+        self.met = met
+
+    async def process(self, input_data: dict) -> dict:
+        return {"met": self.met, "requirements": []}
+
+
+class PolicyStub:
+    async def assess_compliance(self, environment: dict) -> dict:
+        return {
+            "compliance_state": "noncompliant",
+            "drift_items": [{"policy": "allowed-locations", "status": "noncompliant"}],
+        }
+
+
+class OpenAIStub:
+    async def generate(self, prompt: str) -> str:
+        return "AI Release Notes"
+
+
+class ScheduleStub:
+    async def process(self, input_data: dict) -> dict:
+        return {"scheduled_window": {"start_time": "2024-06-02T01:00:00", "duration_hours": 2}}
+
+
 @pytest.mark.asyncio
 async def test_release_deployment_requires_approval_before_execute(tmp_path):
     approval_stub = ApprovalStub()
@@ -60,6 +110,50 @@ async def test_release_deployment_requires_approval_before_execute(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_release_deployment_readiness_gate_blocks(tmp_path):
+    agent = ReleaseDeploymentAgent(
+        config={
+            "quality_agent": QualityStub(passed=False),
+            "change_agent": ChangeStub(approved=False),
+            "risk_agent": RiskStub(acceptable=False),
+            "compliance_agent": ComplianceStub(met=True),
+            "release_store_path": tmp_path / "releases.json",
+            "deployment_plan_store_path": tmp_path / "plans.json",
+        }
+    )
+    await agent.initialize()
+
+    release_response = await agent.process(
+        {
+            "action": "plan_release",
+            "tenant_id": "tenant-rel",
+            "release": {
+                "name": "Release 2",
+                "target_environment": "staging",
+                "planned_date": "2024-06-03",
+            },
+        }
+    )
+    plan_response = await agent.process(
+        {
+            "action": "create_deployment_plan",
+            "tenant_id": "tenant-rel",
+            "release_id": release_response["release_id"],
+        }
+    )
+    execute_response = await agent.process(
+        {
+            "action": "execute_deployment",
+            "tenant_id": "tenant-rel",
+            "deployment_plan_id": plan_response["deployment_plan_id"],
+        }
+    )
+
+    assert execute_response["status"] == "Blocked"
+    assert execute_response["readiness"]["recommendation"] == "NO-GO"
+
+
+@pytest.mark.asyncio
 async def test_release_deployment_calendar_success(tmp_path):
     agent = ReleaseDeploymentAgent(
         config={
@@ -92,3 +186,98 @@ async def test_release_deployment_validation_rejects_missing_fields(tmp_path):
     valid = await agent.validate_input({"action": "plan_release", "release": {"name": "X"}})
 
     assert valid is False
+
+
+@pytest.mark.asyncio
+async def test_release_deployment_configuration_drift_uses_policy(tmp_path):
+    agent = ReleaseDeploymentAgent(
+        config={
+            "azure_policy_client": PolicyStub(),
+            "release_store_path": tmp_path / "releases.json",
+        }
+    )
+    await agent.initialize()
+
+    env_response = await agent.process(
+        {
+            "action": "manage_environment",
+            "environment": {
+                "name": "Prod",
+                "type": "production",
+                "configuration": {"region": "eastus"},
+            },
+        }
+    )
+
+    drift_response = await agent.process(
+        {"action": "check_configuration_drift", "environment_id": env_response["environment_id"]}
+    )
+
+    assert drift_response["drift_detected"] is True
+    assert drift_response["policy_compliance"] == "noncompliant"
+
+
+@pytest.mark.asyncio
+async def test_release_deployment_release_notes_uses_openai(tmp_path):
+    agent = ReleaseDeploymentAgent(
+        config={
+            "openai_client": OpenAIStub(),
+            "release_store_path": tmp_path / "releases.json",
+        }
+    )
+    await agent.initialize()
+
+    release_response = await agent.process(
+        {
+            "action": "plan_release",
+            "tenant_id": "tenant-rel",
+            "release": {
+                "name": "Release 3",
+                "target_environment": "staging",
+                "planned_date": "2024-06-05",
+            },
+        }
+    )
+
+    notes_response = await agent.process(
+        {
+            "action": "generate_release_notes",
+            "release_id": release_response["release_id"],
+        }
+    )
+
+    assert notes_response["content"] == "AI Release Notes"
+
+
+@pytest.mark.asyncio
+async def test_release_deployment_schedule_window_uses_schedule_agent(tmp_path):
+    agent = ReleaseDeploymentAgent(
+        config={
+            "schedule_agent": ScheduleStub(),
+            "schedule_agent_action": "suggest_deployment_window",
+            "release_store_path": tmp_path / "releases.json",
+        }
+    )
+    await agent.initialize()
+
+    release_response = await agent.process(
+        {
+            "action": "plan_release",
+            "tenant_id": "tenant-rel",
+            "release": {
+                "name": "Release 4",
+                "target_environment": "production",
+                "planned_date": "2024-06-07",
+            },
+        }
+    )
+
+    window_response = await agent.process(
+        {
+            "action": "schedule_deployment_window",
+            "release_id": release_response["release_id"],
+            "preferred_window": {"start_time": "2024-06-02T01:00:00"},
+        }
+    )
+
+    assert window_response["scheduled_window"]["start_time"] == "2024-06-02T01:00:00"
