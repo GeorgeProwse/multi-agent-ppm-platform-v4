@@ -3,6 +3,23 @@ from workflow_engine_agent import WorkflowEngineAgent
 from workflow_task_queue import InMemoryWorkflowTaskQueue
 
 
+class FakeEventBus:
+    def __init__(self):
+        self.published = []
+
+    def subscribe(self, topic, handler):
+        return None
+
+    async def publish(self, topic, payload):
+        self.published.append((topic, payload))
+
+    def get_metrics(self):
+        return {}
+
+    def get_recent_events(self, topic=None):
+        return []
+
+
 @pytest.mark.asyncio
 async def test_workflow_engine_bpmn_deploy_parses_tasks(tmp_path):
     task_queue = InMemoryWorkflowTaskQueue()
@@ -38,6 +55,97 @@ async def test_workflow_engine_bpmn_deploy_parses_tasks(tmp_path):
     tasks = definition.get("tasks", [])
     assert any(task["task_id"] == "user_task" for task in tasks)
     assert any(task["initial"] for task in tasks)
+    orchestration = definition.get("orchestration")
+    assert orchestration is not None
+    assert orchestration["engine"] == "azure_durable_functions"
+    assert any(step["task_id"] == "user_task" for step in orchestration["steps"])
+
+
+@pytest.mark.asyncio
+async def test_workflow_engine_upload_bpmn_file(tmp_path):
+    task_queue = InMemoryWorkflowTaskQueue()
+    agent = WorkflowEngineAgent(
+        config={
+            "workflow_definition_store_path": tmp_path / "definitions.json",
+            "workflow_instance_store_path": tmp_path / "instances.json",
+            "workflow_event_store_path": tmp_path / "events.json",
+            "workflow_subscription_store_path": tmp_path / "subscriptions.json",
+            "workflow_task_store_path": tmp_path / "tasks.json",
+            "workflow_task_queue": task_queue,
+        }
+    )
+    await agent.initialize()
+
+    bpmn_xml = """<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
+      <bpmn:process id="process_2" isExecutable="true">
+        <bpmn:startEvent id="start_event_2"/>
+        <bpmn:serviceTask id="service_task" name="Run Service"/>
+        <bpmn:endEvent id="end_event_2"/>
+        <bpmn:sequenceFlow id="flow1" sourceRef="start_event_2" targetRef="service_task"/>
+        <bpmn:sequenceFlow id="flow2" sourceRef="service_task" targetRef="end_event_2"/>
+      </bpmn:process>
+    </bpmn:definitions>"""
+    bpmn_path = tmp_path / "workflow.bpmn"
+    bpmn_path.write_text(bpmn_xml, encoding="utf-8")
+
+    response = await agent.process(
+        {
+            "action": "upload_bpmn_workflow",
+            "tenant_id": "tenant-bpmn",
+            "bpmn_path": str(bpmn_path),
+            "workflow_name": "Uploaded BPMN",
+        }
+    )
+    assert response["workflow_id"]
+    definition = await agent.state_store.get_definition("tenant-bpmn", response["workflow_id"])
+    assert definition is not None
+    assert definition["definition_source"] == "bpmn_upload"
+
+
+@pytest.mark.asyncio
+async def test_workflow_engine_loads_durable_config(tmp_path):
+    config_path = tmp_path / "durable.yaml"
+    config_path.write_text(
+        """
+workflows:
+  - workflow_id: durable-test
+    name: Durable Test
+    description: Test orchestration
+    version: 1
+    steps:
+      - task_id: first-step
+        name: First
+        type: automated
+      - task_id: second-step
+        name: Second
+        type: logic_app
+""",
+        encoding="utf-8",
+    )
+    task_queue = InMemoryWorkflowTaskQueue()
+    agent = WorkflowEngineAgent(
+        config={
+            "workflow_definition_store_path": tmp_path / "definitions.json",
+            "workflow_instance_store_path": tmp_path / "instances.json",
+            "workflow_event_store_path": tmp_path / "events.json",
+            "workflow_subscription_store_path": tmp_path / "subscriptions.json",
+            "workflow_task_store_path": tmp_path / "tasks.json",
+            "workflow_task_queue": task_queue,
+            "durable_workflows_config": config_path,
+        }
+    )
+    await agent.initialize()
+
+    durable_defs = [
+        definition
+        for definition in agent.workflow_definitions.values()
+        if definition.get("definition_source") == "durable_config"
+    ]
+    assert durable_defs
+    orchestration = durable_defs[0].get("orchestration")
+    assert orchestration is not None
+    assert orchestration["engine"] == "azure_durable_functions"
+    assert orchestration["steps"][0]["task_id"] == "first-step"
 
 
 @pytest.mark.asyncio
@@ -112,6 +220,7 @@ async def test_workflow_engine_instances_success(tmp_path):
 @pytest.mark.asyncio
 async def test_workflow_engine_trigger_task_event_executes_automated_task(tmp_path):
     task_queue = InMemoryWorkflowTaskQueue()
+    event_bus = FakeEventBus()
     agent = WorkflowEngineAgent(
         config={
             "workflow_definition_store_path": tmp_path / "definitions.json",
@@ -120,6 +229,7 @@ async def test_workflow_engine_trigger_task_event_executes_automated_task(tmp_pa
             "workflow_subscription_store_path": tmp_path / "subscriptions.json",
             "workflow_task_store_path": tmp_path / "tasks.json",
             "workflow_task_queue": task_queue,
+            "event_bus": event_bus,
         }
     )
     await agent.initialize()
@@ -170,6 +280,7 @@ async def test_workflow_engine_trigger_task_event_executes_automated_task(tmp_pa
     assignment = await agent.state_store.get_task("tenant-workflow", "auto-task")
     assert assignment is not None
     assert assignment["status"] == "completed"
+    assert any(topic == "workflow.notifications" for topic, _payload in event_bus.published)
 
 
 @pytest.mark.asyncio
