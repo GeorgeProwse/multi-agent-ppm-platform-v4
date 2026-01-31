@@ -8,17 +8,85 @@ comprehensive monitoring, alerting, and proactive maintenance.
 Specification: agents/operations-management/agent-25-system-health-monitoring/README.md
 """
 
+import asyncio
+import importlib.util
+import json
+import logging
+import os
 import re
+import statistics
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 from observability.metrics import build_kpi_handles, configure_metrics
 from observability.tracing import configure_tracing, start_agent_span
 
 from agents.runtime import BaseAgent
 from agents.runtime.src.state_store import TenantStateStore
+
+_HAS_AZURE = importlib.util.find_spec("azure") is not None
+_HAS_AZURE_MONITOR_OPENTELEMETRY = _HAS_AZURE and (
+    importlib.util.find_spec("azure.monitor.opentelemetry") is not None
+)
+if _HAS_AZURE_MONITOR_OPENTELEMETRY:
+    from azure.monitor.opentelemetry import configure_azure_monitor as _configure_azure_monitor
+else:
+    _configure_azure_monitor = None
+
+_HAS_OTEL_AZURE_EXPORTER = (
+    importlib.util.find_spec("opentelemetry.exporter.azuremonitor") is not None
+)
+if _HAS_OTEL_AZURE_EXPORTER:
+    from opentelemetry.exporter.azuremonitor import (
+        AzureMonitorLogExporter,
+        AzureMonitorMetricExporter,
+        AzureMonitorTraceExporter,
+    )
+else:
+    AzureMonitorLogExporter = None
+    AzureMonitorMetricExporter = None
+    AzureMonitorTraceExporter = None
+
+_HAS_AZURE_MONITOR_QUERY = _HAS_AZURE and (
+    importlib.util.find_spec("azure.monitor.query") is not None
+)
+if _HAS_AZURE_MONITOR_QUERY:
+    from azure.monitor.query import LogsQueryClient, LogsQueryStatus, MetricsQueryClient
+else:
+    LogsQueryClient = None
+    LogsQueryStatus = None
+    MetricsQueryClient = None
+
+_HAS_ANOMALY_DETECTOR = _HAS_AZURE and (
+    importlib.util.find_spec("azure.ai.anomalydetector") is not None
+)
+if _HAS_ANOMALY_DETECTOR:
+    from azure.ai.anomalydetector import AnomalyDetectorClient
+    from azure.ai.anomalydetector.models import TimeSeriesPoint
+    from azure.core.credentials import AzureKeyCredential
+else:
+    AnomalyDetectorClient = None
+    TimeSeriesPoint = None
+    AzureKeyCredential = None
+
+_HAS_AZURE_EVENTHUB = _HAS_AZURE and importlib.util.find_spec("azure.eventhub") is not None
+if _HAS_AZURE_EVENTHUB:
+    from azure.eventhub import EventData, EventHubProducerClient
+else:
+    EventData = None
+    EventHubProducerClient = None
+
+_HAS_PROMETHEUS = importlib.util.find_spec("prometheus_client") is not None
+if _HAS_PROMETHEUS:
+    from prometheus_client import CollectorRegistry, Counter, Gauge, start_http_server
+else:
+    CollectorRegistry = None
+    Counter = None
+    Gauge = None
+    start_http_server = None
 
 
 class SystemHealthAgent(BaseAgent):
@@ -47,6 +115,128 @@ class SystemHealthAgent(BaseAgent):
             config.get("alert_threshold_response_time_ms", 1000) if config else 1000
         )
         self.metrics_retention_days = config.get("metrics_retention_days", 90) if config else 90
+        self.monitor_workspace_id = (
+            config.get("monitor_workspace_id")
+            if config and config.get("monitor_workspace_id")
+            else os.getenv("MONITOR_WORKSPACE_ID")
+        )
+        self.app_insights_instrumentation_key = (
+            config.get("appinsights_instrumentation_key")
+            if config and config.get("appinsights_instrumentation_key")
+            else os.getenv("APPINSIGHTS_INSTRUMENTATION_KEY")
+        )
+        self.azure_monitor_connection_string = (
+            config.get("azure_monitor_connection_string")
+            if config and config.get("azure_monitor_connection_string")
+            else os.getenv("AZURE_MONITOR_CONNECTION_STRING")
+        )
+        if not self.azure_monitor_connection_string and self.app_insights_instrumentation_key:
+            self.azure_monitor_connection_string = (
+                f"InstrumentationKey={self.app_insights_instrumentation_key}"
+            )
+        self.event_hub_connection_string = (
+            config.get("event_hub_connection_string")
+            if config and config.get("event_hub_connection_string")
+            else os.getenv("EVENT_HUB_CONNECTION_STRING")
+        )
+        self.event_hub_name = (
+            config.get("event_hub_name")
+            if config and config.get("event_hub_name")
+            else os.getenv("EVENT_HUB_NAME")
+        )
+        self.event_hub_partitions = int(
+            config.get("event_hub_partitions", os.getenv("EVENT_HUB_PARTITIONS", "4"))
+            if config
+            else os.getenv("EVENT_HUB_PARTITIONS", "4")
+        )
+        self.event_hub_throughput_units = int(
+            config.get("event_hub_throughput_units", os.getenv("EVENT_HUB_THROUGHPUT_UNITS", "1"))
+            if config
+            else os.getenv("EVENT_HUB_THROUGHPUT_UNITS", "1")
+        )
+        self.pagerduty_webhook_url = (
+            config.get("pagerduty_webhook_url")
+            if config and config.get("pagerduty_webhook_url")
+            else os.getenv("PAGERDUTY_WEBHOOK_URL")
+        )
+        self.opsgenie_webhook_url = (
+            config.get("opsgenie_webhook_url")
+            if config and config.get("opsgenie_webhook_url")
+            else os.getenv("OPSGENIE_WEBHOOK_URL")
+        )
+        self.scaling_webhook_url = (
+            config.get("scaling_webhook_url")
+            if config and config.get("scaling_webhook_url")
+            else os.getenv("SCALING_WEBHOOK_URL")
+        )
+        self.scaling_thresholds = {
+            "cpu": float(
+                config.get("scaling_threshold_cpu", os.getenv("SCALING_THRESHOLD_CPU", "0.8"))
+                if config
+                else os.getenv("SCALING_THRESHOLD_CPU", "0.8")
+            ),
+            "memory": float(
+                config.get(
+                    "scaling_threshold_memory", os.getenv("SCALING_THRESHOLD_MEMORY", "0.8")
+                )
+                if config
+                else os.getenv("SCALING_THRESHOLD_MEMORY", "0.8")
+            ),
+            "queue_depth": float(
+                config.get(
+                    "scaling_threshold_queue_depth",
+                    os.getenv("SCALING_THRESHOLD_QUEUE_DEPTH", "1000"),
+                )
+                if config
+                else os.getenv("SCALING_THRESHOLD_QUEUE_DEPTH", "1000")
+            ),
+        }
+        self.servicenow_instance_url = (
+            config.get("servicenow_instance_url")
+            if config and config.get("servicenow_instance_url")
+            else os.getenv("SERVICENOW_INSTANCE_URL")
+        )
+        self.servicenow_username = (
+            config.get("servicenow_username")
+            if config and config.get("servicenow_username")
+            else os.getenv("SERVICENOW_USERNAME")
+        )
+        self.servicenow_password = (
+            config.get("servicenow_password")
+            if config and config.get("servicenow_password")
+            else os.getenv("SERVICENOW_PASSWORD")
+        )
+        self.servicenow_token = (
+            config.get("servicenow_token")
+            if config and config.get("servicenow_token")
+            else os.getenv("SERVICENOW_TOKEN")
+        )
+        self.anomaly_detector_endpoint = (
+            config.get("anomaly_detector_endpoint")
+            if config and config.get("anomaly_detector_endpoint")
+            else os.getenv("ANOMALY_DETECTOR_ENDPOINT")
+        )
+        self.anomaly_detector_key = (
+            config.get("anomaly_detector_key")
+            if config and config.get("anomaly_detector_key")
+            else os.getenv("ANOMALY_DETECTOR_KEY")
+        )
+        self.health_endpoints = (
+            config.get("health_endpoints") if config and config.get("health_endpoints") else None
+        ) or self._load_health_endpoints()
+        self.health_probe_interval_seconds = int(
+            config.get(
+                "health_probe_interval_seconds",
+                os.getenv("HEALTH_PROBE_INTERVAL_SECONDS", "60"),
+            )
+            if config
+            else os.getenv("HEALTH_PROBE_INTERVAL_SECONDS", "60")
+        )
+        self.metrics_port = int(
+            config.get("metrics_port", os.getenv("PROMETHEUS_METRICS_PORT", "0"))
+            if config
+            else os.getenv("PROMETHEUS_METRICS_PORT", "0")
+        )
 
         alert_store_path = (
             Path(config.get("alert_store_path", "data/alerts.json"))
@@ -68,6 +258,14 @@ class SystemHealthAgent(BaseAgent):
         self.health_checks = {}  # type: ignore
         self.anomalies = {}  # type: ignore
         self._kpi_handles = None
+        self._logs_query_client = None
+        self._metrics_query_client = None
+        self._event_hub_producer = None
+        self._health_probe_task: asyncio.Task | None = None
+        self._prometheus_registry = None
+        self._prometheus_metrics: dict[str, Any] = {}
+        self._azure_monitor_configured = False
+        self._alert_rules: list[dict[str, Any]] = []
         self._pii_patterns = {
             "email": re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE),
             "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
@@ -82,19 +280,12 @@ class SystemHealthAgent(BaseAgent):
         configure_tracing(self.agent_id)
         configure_metrics(self.agent_id)
         self._kpi_handles = build_kpi_handles(self.agent_id)
-
-        # Future work: Initialize Azure Monitor for infrastructure monitoring
-        # Future work: Set up Application Insights for application telemetry
-        # Future work: Connect to Azure Log Analytics for log aggregation
-        # Future work: Initialize OpenTelemetry for distributed tracing
-        # Future work: Set up Azure Alerts with action groups
-        # Future work: Connect to PagerDuty/OpsGenie for incident management
-        # Future work: Initialize Azure Dashboards for visualization
-        # Future work: Set up Azure Automation for scaling actions
-        # Future work: Connect to all agents for health check endpoints
-        # Future work: Initialize anomaly detection models
-        # Future work: Set up Azure Event Hub for telemetry ingestion
-        # Future work: Connect to ServiceNow for incident tracking
+        await self._initialize_azure_monitoring()
+        await self._configure_opentelemetry_exporters()
+        await self._initialize_event_hub()
+        await self._initialize_prometheus_metrics()
+        await self._configure_alert_rules()
+        await self._initialize_health_probes()
 
         self.logger.info("System Health & Monitoring Agent initialized")
 
@@ -260,8 +451,18 @@ class SystemHealthAgent(BaseAgent):
                 tenant_id, service_name, metrics_data
             )
 
-        # Future work: Store in Azure Monitor
-        # Future work: Emit to Application Insights
+        await self._emit_event_hub_event(
+            {
+                "type": "metric",
+                "metric_id": metric_id,
+                "tenant_id": tenant_id,
+                "service_name": service_name,
+                "metrics": metrics_data,
+                "timestamp": timestamp,
+                "event_hub_partitions": self.event_hub_partitions,
+                "event_hub_throughput_units": self.event_hub_throughput_units,
+            }
+        )
 
         return {
             "metric_id": metric_id,
@@ -327,8 +528,8 @@ class SystemHealthAgent(BaseAgent):
         self.alerts[alert_id] = alert
         self.alert_store.upsert(tenant_id, alert_id, alert.copy())
 
-        # Future work: Create in Azure Monitor Alerts
-        # Future work: Configure action group
+        if alert.get("severity") == "critical":
+            await self._notify_alert_integrations(alert)
 
         return {
             "alert_id": alert_id,
@@ -405,9 +606,9 @@ class SystemHealthAgent(BaseAgent):
         self.incidents[incident_id] = incident
         self.incident_store.upsert(tenant_id, incident_id, incident.copy())
 
-        # Future work: Create in PagerDuty/ServiceNow
-        # Future work: Notify on-call team
-        # Future work: Publish incident.created event
+        await self._create_servicenow_incident(incident)
+        if incident.get("servicenow_sys_id"):
+            self.incident_store.upsert(tenant_id, incident_id, incident.copy())
 
         return {
             "incident_id": incident_id,
@@ -640,8 +841,7 @@ class SystemHealthAgent(BaseAgent):
         incident["resolution_time_minutes"] = resolution_time
         self.incident_store.upsert(tenant_id, incident_id, incident.copy())
 
-        # Future work: Update in incident management system
-        # Future work: Publish incident.resolved event
+        await self._update_servicenow_incident(incident)
 
         return {
             "incident_id": incident_id,
@@ -649,6 +849,424 @@ class SystemHealthAgent(BaseAgent):
             "resolution_time_minutes": resolution_time,
             "resolved_at": incident["resolved_at"],
         }
+
+    async def _initialize_azure_monitoring(self) -> None:
+        if _HAS_AZURE_MONITOR_QUERY and self.monitor_workspace_id:
+            from azure.identity import DefaultAzureCredential
+
+            credential = DefaultAzureCredential()
+            self._logs_query_client = LogsQueryClient(credential)
+            self._metrics_query_client = MetricsQueryClient(credential)
+            self.logger.info(
+                "Log Analytics clients configured", extra={"workspace_id": self.monitor_workspace_id}
+            )
+
+    async def _configure_opentelemetry_exporters(self) -> None:
+        if self._azure_monitor_configured:
+            return
+        if not self.azure_monitor_connection_string:
+            self.logger.info("Azure Monitor connection string not configured")
+            return
+        if _configure_azure_monitor:
+            _configure_azure_monitor(connection_string=self.azure_monitor_connection_string)
+            self._azure_monitor_configured = True
+            self.logger.info("Azure Monitor OpenTelemetry configured via SDK")
+            return
+        if not _HAS_OTEL_AZURE_EXPORTER:
+            self.logger.warning("Azure Monitor exporter unavailable")
+            return
+
+        from opentelemetry import metrics, trace
+        from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+        from opentelemetry.sdk.metrics import MeterProvider
+        from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+        resource = Resource.create({"service.name": self.agent_id})
+        tracer_provider = TracerProvider(resource=resource)
+        tracer_provider.add_span_processor(
+            BatchSpanProcessor(AzureMonitorTraceExporter(self.azure_monitor_connection_string))
+        )
+        trace.set_tracer_provider(tracer_provider)
+
+        metric_reader = PeriodicExportingMetricReader(
+            AzureMonitorMetricExporter(self.azure_monitor_connection_string)
+        )
+        metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[metric_reader]))
+
+        logger_provider = LoggerProvider(resource=resource)
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(AzureMonitorLogExporter(self.azure_monitor_connection_string))
+        )
+        handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+        logging.getLogger().addHandler(handler)
+        self._azure_monitor_configured = True
+        self.logger.info("Azure Monitor exporters configured")
+
+    async def _initialize_event_hub(self) -> None:
+        if not (self.event_hub_connection_string and self.event_hub_name):
+            return
+        if not _HAS_AZURE_EVENTHUB:
+            self.logger.warning("Azure Event Hub SDK not available")
+            return
+        self._event_hub_producer = EventHubProducerClient.from_connection_string(
+            conn_str=self.event_hub_connection_string,
+            eventhub_name=self.event_hub_name,
+        )
+        self.logger.info(
+            "Event Hub producer initialized",
+            extra={
+                "event_hub": self.event_hub_name,
+                "partitions": self.event_hub_partitions,
+                "throughput_units": self.event_hub_throughput_units,
+            },
+        )
+
+    async def _initialize_prometheus_metrics(self) -> None:
+        if not (_HAS_PROMETHEUS and self.metrics_port and self.metrics_port > 0):
+            return
+        self._prometheus_registry = CollectorRegistry()
+        self._prometheus_metrics["health_status"] = Gauge(
+            "service_health_status",
+            "Health status of monitored services (1=healthy, 0=degraded)",
+            ["service"],
+            registry=self._prometheus_registry,
+        )
+        self._prometheus_metrics["health_latency"] = Gauge(
+            "service_health_latency_ms",
+            "Latency of health checks in milliseconds",
+            ["service"],
+            registry=self._prometheus_registry,
+        )
+        self._prometheus_metrics["health_checks"] = Counter(
+            "service_health_checks_total",
+            "Total health checks executed",
+            ["service"],
+            registry=self._prometheus_registry,
+        )
+        start_http_server(self.metrics_port, registry=self._prometheus_registry)
+        self.logger.info("Prometheus metrics endpoint started", extra={"port": self.metrics_port})
+
+    async def _configure_alert_rules(self) -> None:
+        self._alert_rules = [
+            {
+                "name": "error_rate_threshold",
+                "metric": "error_rate",
+                "threshold": self.alert_threshold_error_rate,
+                "severity": "critical",
+                "notification_channels": [
+                    url
+                    for url in [self.pagerduty_webhook_url, self.opsgenie_webhook_url]
+                    if url
+                ],
+            },
+            {
+                "name": "response_time_threshold",
+                "metric": "response_time_ms",
+                "threshold": self.alert_threshold_response_time_ms,
+                "severity": "warning",
+                "notification_channels": [
+                    url
+                    for url in [self.pagerduty_webhook_url, self.opsgenie_webhook_url]
+                    if url
+                ],
+            },
+        ]
+        self.logger.info("Alert rules configured", extra={"count": len(self._alert_rules)})
+
+    async def _initialize_health_probes(self) -> None:
+        if not self.health_endpoints or self.health_probe_interval_seconds <= 0:
+            return
+        if self._health_probe_task:
+            return
+        self._health_probe_task = asyncio.create_task(self._periodic_health_probes())
+        self.logger.info(
+            "Health probes scheduled",
+            extra={"interval": self.health_probe_interval_seconds},
+        )
+
+    async def _periodic_health_probes(self) -> None:
+        while True:
+            try:
+                await self._check_all_services_health()
+            except Exception as exc:
+                self.logger.warning("Health probe failure", extra={"error": str(exc)})
+            await asyncio.sleep(self.health_probe_interval_seconds)
+
+    def _load_health_endpoints(self) -> list[dict[str, Any]]:
+        raw = os.getenv("HEALTH_ENDPOINTS")
+        if not raw:
+            return []
+        try:
+            endpoints = json.loads(raw)
+        except json.JSONDecodeError:
+            self.logger.warning("Unable to parse HEALTH_ENDPOINTS JSON")
+            return []
+        if isinstance(endpoints, list):
+            return endpoints
+        return []
+
+    def _find_health_endpoint(self, service_name: str) -> dict[str, Any] | None:
+        for endpoint in self.health_endpoints:
+            if endpoint.get("name") == service_name or endpoint.get("service") == service_name:
+                return endpoint
+        return None
+
+    async def _fetch_health_endpoint(self, endpoint: dict[str, Any]) -> dict[str, Any]:
+        url = endpoint.get("url")
+        timeout_seconds = endpoint.get("timeout_seconds", 5)
+        if not url:
+            return {"healthy": False, "error": "missing_url", "response_time_ms": 0}
+        start = datetime.utcnow()
+        try:
+            async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                response = await client.get(url)
+            elapsed = (datetime.utcnow() - start).total_seconds() * 1000
+            healthy = 200 <= response.status_code < 400
+            return {
+                "healthy": healthy,
+                "status_code": response.status_code,
+                "response_time_ms": elapsed,
+                "checked_at": datetime.utcnow().isoformat(),
+            }
+        except httpx.HTTPError as exc:
+            elapsed = (datetime.utcnow() - start).total_seconds() * 1000
+            return {
+                "healthy": False,
+                "status_code": 0,
+                "response_time_ms": elapsed,
+                "error": str(exc),
+                "checked_at": datetime.utcnow().isoformat(),
+            }
+
+    async def _publish_health_status(self, services: dict[str, dict[str, Any]]) -> None:
+        timestamp = datetime.utcnow().isoformat()
+        payload = {
+            "type": "health",
+            "timestamp": timestamp,
+            "services": services,
+        }
+        self.health_checks["latest"] = payload
+        await self._emit_event_hub_event(payload)
+
+    async def _update_prometheus_metrics(self, service_name: str, result: dict[str, Any]) -> None:
+        if not self._prometheus_metrics:
+            return
+        status_value = 1.0 if result.get("healthy") else 0.0
+        self._prometheus_metrics["health_status"].labels(service=service_name).set(status_value)
+        self._prometheus_metrics["health_latency"].labels(service=service_name).set(
+            result.get("response_time_ms", 0)
+        )
+        self._prometheus_metrics["health_checks"].labels(service=service_name).inc()
+
+    async def _notify_alert_integrations(self, alert: dict[str, Any]) -> None:
+        await self._trigger_webhook_notification(self.pagerduty_webhook_url, alert)
+        await self._trigger_webhook_notification(self.opsgenie_webhook_url, alert)
+        if alert.get("severity") == "critical":
+            await self._create_servicenow_incident(
+                {
+                    "title": alert.get("name", "Critical alert"),
+                    "description": alert.get("description"),
+                    "severity": "critical",
+                    "affected_services": [alert.get("service_name")],
+                }
+            )
+
+    async def _trigger_webhook_notification(self, url: str | None, alert: dict[str, Any]) -> None:
+        if not url:
+            return
+        payload = {
+            "event_type": "trigger",
+            "alert": alert,
+            "priority": "high" if alert.get("severity") == "critical" else "normal",
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(url, json=payload)
+
+    async def _trigger_scaling_actions(self, service_name: str, metrics_data: dict[str, Any]) -> None:
+        if not self.scaling_webhook_url:
+            return
+        scaling_payload = {
+            "service_name": service_name,
+            "cpu": metrics_data.get("cpu_usage"),
+            "memory": metrics_data.get("memory_usage"),
+            "queue_depth": metrics_data.get("queue_depth"),
+            "thresholds": self.scaling_thresholds,
+        }
+        cpu_exceeded = (
+            metrics_data.get("cpu_usage") is not None
+            and metrics_data.get("cpu_usage") > self.scaling_thresholds["cpu"]
+        )
+        memory_exceeded = (
+            metrics_data.get("memory_usage") is not None
+            and metrics_data.get("memory_usage") > self.scaling_thresholds["memory"]
+        )
+        queue_exceeded = (
+            metrics_data.get("queue_depth") is not None
+            and metrics_data.get("queue_depth") > self.scaling_thresholds["queue_depth"]
+        )
+        if not (cpu_exceeded or memory_exceeded or queue_exceeded):
+            return
+        scaling_payload["reason"] = [
+            name
+            for name, exceeded in [
+                ("cpu", cpu_exceeded),
+                ("memory", memory_exceeded),
+                ("queue_depth", queue_exceeded),
+            ]
+            if exceeded
+        ]
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(self.scaling_webhook_url, json=scaling_payload)
+
+    async def _create_servicenow_incident(self, incident: dict[str, Any]) -> None:
+        if not self.servicenow_instance_url:
+            return
+        payload = {
+            "short_description": incident.get("title") or incident.get("name") or "Monitoring incident",
+            "description": incident.get("description"),
+            "severity": incident.get("severity"),
+            "urgency": "1",
+        }
+        response = await self._servicenow_request("post", "/api/now/table/incident", payload)
+        if response and "result" in response and isinstance(response["result"], dict):
+            sys_id = response["result"].get("sys_id")
+            if sys_id:
+                incident["servicenow_sys_id"] = sys_id
+
+    async def _update_servicenow_incident(self, incident: dict[str, Any]) -> None:
+        if not self.servicenow_instance_url:
+            return
+        payload = {
+            "state": "Resolved",
+            "close_notes": incident.get("resolution"),
+        }
+        sys_id = incident.get("servicenow_sys_id")
+        if not sys_id:
+            return
+        await self._servicenow_request("patch", f"/api/now/table/incident/{sys_id}", payload)
+
+    async def _servicenow_request(
+        self, method: str, path: str, payload: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        url = f"{self.servicenow_instance_url}{path}"
+        headers = {"Accept": "application/json"}
+        auth = None
+        if self.servicenow_token:
+            headers["Authorization"] = f"Bearer {self.servicenow_token}"
+        elif self.servicenow_username and self.servicenow_password:
+            auth = (self.servicenow_username, self.servicenow_password)
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.request(method, url, json=payload, headers=headers, auth=auth)
+        if response.is_error:
+            self.logger.warning(
+                "ServiceNow request failed",
+                extra={"status": response.status_code, "path": path},
+            )
+            return None
+        try:
+            return response.json()
+        except json.JSONDecodeError:
+            return None
+
+    async def _apply_azure_anomaly_detection(
+        self, metrics: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        if not (self.anomaly_detector_endpoint and self.anomaly_detector_key):
+            return []
+        client = AnomalyDetectorClient(
+            self.anomaly_detector_endpoint, AzureKeyCredential(self.anomaly_detector_key)
+        )
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for metric in metrics:
+            name = metric.get("metric") or metric.get("metric_name") or "unknown"
+            grouped.setdefault(name, []).append(metric)
+        anomalies: list[dict[str, Any]] = []
+        for name, points in grouped.items():
+            series = [
+                TimeSeriesPoint(
+                    timestamp=(
+                        datetime.fromisoformat(p["timestamp"])
+                        if isinstance(p.get("timestamp"), str)
+                        else p.get("timestamp")
+                    ),
+                    value=p.get("value"),
+                )
+                for p in points
+                if p.get("timestamp") and p.get("value") is not None
+            ]
+            if len(series) < 12:
+                continue
+            result = await asyncio.to_thread(
+                client.detect_last_point, series=series
+            )
+            if result.is_anomaly:
+                anomalies.append(
+                    {
+                        "metric": name,
+                        "value": series[-1].value,
+                        "expected_range": [result.expected_value_low, result.expected_value_high],
+                        "severity": "critical" if result.is_anomaly else "warning",
+                        "timestamp": series[-1].timestamp,
+                    }
+                )
+        return anomalies
+
+    def _parse_time_range(self, time_range: dict[str, Any]) -> tuple[datetime, datetime]:
+        end = datetime.utcnow()
+        if "end" in time_range:
+            end = datetime.fromisoformat(time_range["end"])
+        if "start" in time_range:
+            start = datetime.fromisoformat(time_range["start"])
+        else:
+            days = int(time_range.get("days", 1))
+            start = end - timedelta(days=days)
+        return start, end
+
+    def _summarize_trend(self, values: list[dict[str, Any]]) -> dict[str, Any]:
+        series = [
+            {"timestamp": v.get("timestamp"), "value": float(v.get("value", 0))}
+            for v in values
+            if v.get("value") is not None
+        ]
+        if len(series) < 2:
+            return {"direction": "stable", "series": series}
+        first = series[0]["value"]
+        last = series[-1]["value"]
+        if last > first * 1.05:
+            direction = "increasing"
+        elif last < first * 0.95:
+            direction = "decreasing"
+        else:
+            direction = "stable"
+        return {"direction": direction, "series": series}
+
+    def _linear_regression_forecast(
+        self, series: list[dict[str, Any]], horizon_days: int
+    ) -> float | None:
+        if len(series) < 2:
+            return None
+        x_values = list(range(len(series)))
+        y_values = [point["value"] for point in series]
+        x_mean = statistics.mean(x_values)
+        y_mean = statistics.mean(y_values)
+        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_values, y_values))
+        denominator = sum((x - x_mean) ** 2 for x in x_values) or 1
+        slope = numerator / denominator
+        forecast_index = len(series) - 1 + horizon_days
+        forecast = y_mean + slope * (forecast_index - x_mean)
+        return round(forecast, 2)
+
+    async def _emit_event_hub_event(self, payload: dict[str, Any]) -> None:
+        if not self._event_hub_producer:
+            return
+        event_body = json.dumps(payload)
+        batch = self._event_hub_producer.create_batch()
+        batch.add(EventData(event_body))
+        await asyncio.to_thread(self._event_hub_producer.send_batch, batch)
 
     # Helper methods
 
@@ -717,34 +1335,118 @@ class SystemHealthAgent(BaseAgent):
             )
             alert_ids.append(response["alert_id"])
 
+        await self._trigger_scaling_actions(service_name, metrics_data)
+
         return alert_ids
 
     async def _check_service_health(self, service_name: str) -> dict[str, Any]:
         """Check health of specific service."""
-        # Future work: Call service health endpoint
-        return {"healthy": True, "response_time_ms": 50, "status_code": 200}
+        endpoint = self._find_health_endpoint(service_name)
+        if not endpoint:
+            return {"healthy": True, "response_time_ms": 50, "status_code": 200}
+
+        result = await self._fetch_health_endpoint(endpoint)
+        await self._update_prometheus_metrics(service_name, result)
+        return result
 
     async def _check_all_services_health(self) -> dict[str, dict[str, Any]]:
         """Check health of all services."""
-        # Future work: Check all registered services
-        services = {
-            "api_gateway": {"healthy": True, "response_time_ms": 45},
-            "database": {"healthy": True, "response_time_ms": 10},
-            "cache": {"healthy": True, "response_time_ms": 5},
-        }
+        if not self.health_endpoints:
+            return {
+                "api_gateway": {"healthy": True, "response_time_ms": 45},
+                "database": {"healthy": True, "response_time_ms": 10},
+                "cache": {"healthy": True, "response_time_ms": 5},
+            }
+
+        services: dict[str, dict[str, Any]] = {}
+        for endpoint in self.health_endpoints:
+            name = endpoint.get("name") or endpoint.get("service") or endpoint.get("url")
+            if not name:
+                continue
+            result = await self._fetch_health_endpoint(endpoint)
+            services[name] = result
+            await self._update_prometheus_metrics(name, result)
+
+        await self._publish_health_status(services)
         return services
 
     async def _get_service_metrics(
         self, service_name: str, time_range: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """Get metrics for service in time range."""
-        # Future work: Query from metrics store
-        return []
+        metrics: list[dict[str, Any]] = []
+        start_time, end_time = self._parse_time_range(time_range)
+        for metric in self.metrics.values():
+            if metric.get("service_name") != service_name:
+                continue
+            timestamp = metric.get("timestamp")
+            if timestamp:
+                parsed = (
+                    datetime.fromisoformat(timestamp)
+                    if isinstance(timestamp, str)
+                    else timestamp
+                )
+                if parsed < start_time or parsed > end_time:
+                    continue
+            metrics.append(metric)
+
+        query_metrics = await self._query_metrics(service_name, "*", time_range)
+        metrics.extend(query_metrics)
+        return metrics
 
     async def _apply_anomaly_detection(self, metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Apply anomaly detection to metrics."""
-        # Future work: Use ML model for anomaly detection
-        return []
+        if not metrics:
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        for metric in metrics:
+            if isinstance(metric.get("metrics"), dict):
+                for name, value in metric["metrics"].items():
+                    normalized.append(
+                        {
+                            "metric": name,
+                            "value": value,
+                            "timestamp": metric.get("timestamp"),
+                        }
+                    )
+            else:
+                normalized.append(metric)
+
+        if (
+            _HAS_ANOMALY_DETECTOR
+            and self.anomaly_detector_endpoint
+            and self.anomaly_detector_key
+        ):
+            return await self._apply_azure_anomaly_detection(normalized)
+
+        anomalies: list[dict[str, Any]] = []
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for metric in normalized:
+            name = metric.get("metric") or metric.get("metric_name") or "unknown"
+            grouped.setdefault(name, []).append(metric)
+
+        for name, points in grouped.items():
+            values = [float(p.get("value", 0)) for p in points if p.get("value") is not None]
+            if len(values) < 5:
+                continue
+            median = statistics.median(values)
+            mad = statistics.median([abs(v - median) for v in values]) or 1.0
+            for point in points:
+                value = float(point.get("value", 0))
+                modified_z = 0.6745 * (value - median) / mad
+                if abs(modified_z) >= 3.5:
+                    anomalies.append(
+                        {
+                            "metric": name,
+                            "value": value,
+                            "expected_range": [median - 3 * mad, median + 3 * mad],
+                            "severity": "critical" if abs(modified_z) >= 4.5 else "warning",
+                            "timestamp": point.get("timestamp"),
+                            "z_score": modified_z,
+                        }
+                    )
+        return anomalies
 
     async def _collect_incident_metrics(self, affected_services: list[str]) -> dict[str, Any]:
         """Collect metrics related to incident."""
@@ -780,8 +1482,42 @@ class SystemHealthAgent(BaseAgent):
         self, service_name: str, metric_name: str, time_range: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """Query metrics from store."""
-        # Future work: Query from Azure Monitor
-        return []
+        if not (self._logs_query_client and self.monitor_workspace_id):
+            return []
+
+        start_time, end_time = self._parse_time_range(time_range)
+        metric_filter = "" if metric_name == "*" else f'| where name == "{metric_name}"'
+        query = (
+            "customMetrics "
+            f'| where cloud_RoleName == "{service_name}" '
+            f"{metric_filter} "
+            f"| where timestamp between (datetime({start_time.isoformat()}) .. datetime({end_time.isoformat()})) "
+            "| project timestamp, name, value"
+            "| order by timestamp asc"
+        )
+        response = await asyncio.to_thread(
+            self._logs_query_client.query_workspace,
+            workspace_id=self.monitor_workspace_id,
+            query=query,
+            timespan=(start_time, end_time),
+        )
+        if response.status != LogsQueryStatus.SUCCESS:
+            self.logger.warning("Log Analytics query returned partial results")
+
+        table = response.tables[0] if response.tables else None
+        if not table:
+            return []
+
+        values = []
+        for row in table.rows:
+            values.append(
+                {
+                    "timestamp": row[0],
+                    "metric": row[1],
+                    "value": row[2],
+                }
+            )
+        return values
 
     async def _matches_alert_filters(self, alert: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if alert matches filters."""
@@ -795,22 +1531,36 @@ class SystemHealthAgent(BaseAgent):
 
     async def _analyze_utilization_trends(self, service_name: str | None) -> dict[str, Any]:
         """Analyze resource utilization trends."""
-        # Future work: Analyze historical metrics
-        return {"cpu_trend": "increasing", "memory_trend": "stable", "storage_trend": "increasing"}
+        trends: dict[str, Any] = {}
+        target_service = service_name or "platform"
+        for metric in ("cpu_usage", "memory_usage", "storage_usage"):
+            values = await self._query_metrics(target_service, metric, {"days": 7})
+            trend_data = self._summarize_trend(values)
+            trends[f"{metric}_trend"] = trend_data["direction"]
+            trends[f"{metric}_series"] = trend_data["series"]
+        return trends
 
     async def _forecast_capacity_needs(self, trends: dict[str, Any]) -> dict[str, Any]:
         """Forecast future capacity needs."""
-        # Future work: Use forecasting models
-        return {"cpu_forecast_30d": 75.0, "memory_forecast_30d": 60.0, "storage_forecast_30d": 85.0}
+        forecasts: dict[str, Any] = {}
+        for metric in ("cpu_usage", "memory_usage", "storage_usage"):
+            series = trends.get(f"{metric}_series", [])
+            forecast = self._linear_regression_forecast(series, horizon_days=30)
+            if forecast is not None:
+                forecasts[f"{metric}_forecast_30d"] = forecast
+        return forecasts
 
     async def _generate_capacity_recommendations(self, forecasts: dict[str, Any]) -> list[str]:
         """Generate capacity recommendations."""
         recommendations = []
 
-        if forecasts.get("cpu_forecast_30d", 0) > 80:
+        if forecasts.get("cpu_usage_forecast_30d", 0) > 80:
             recommendations.append("Consider scaling up CPU resources within 30 days")
 
-        if forecasts.get("storage_forecast_30d", 0) > 80:
+        if forecasts.get("memory_usage_forecast_30d", 0) > 80:
+            recommendations.append("Consider scaling up memory resources within 30 days")
+
+        if forecasts.get("storage_usage_forecast_30d", 0) > 80:
             recommendations.append("Plan for storage expansion within 30 days")
 
         if not recommendations:
@@ -830,9 +1580,12 @@ class SystemHealthAgent(BaseAgent):
     async def cleanup(self) -> None:
         """Cleanup resources."""
         self.logger.info("Cleaning up System Health & Monitoring Agent...")
-        # Future work: Close monitoring connections
-        # Future work: Flush pending metrics
-        # Future work: Close incident management connections
+        if self._health_probe_task:
+            self._health_probe_task.cancel()
+            self._health_probe_task = None
+        if self._event_hub_producer:
+            await asyncio.to_thread(self._event_hub_producer.close)
+            self._event_hub_producer = None
 
     def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""

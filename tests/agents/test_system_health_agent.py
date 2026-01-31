@@ -1,6 +1,8 @@
 import json
+from datetime import datetime, timedelta
 
 import pytest
+import system_health_agent as system_health_module
 from system_health_agent import SystemHealthAgent
 
 
@@ -116,3 +118,59 @@ async def test_system_health_validation_rejects_missing_action(tmp_path):
     valid = await agent.validate_input({})
 
     assert valid is False
+
+
+@pytest.mark.asyncio
+async def test_system_health_initializes_azure_monitor(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_configure_azure_monitor(connection_string: str) -> None:
+        calls["connection_string"] = connection_string
+
+    monkeypatch.setenv("APPINSIGHTS_INSTRUMENTATION_KEY", "appinsights-key")
+    monkeypatch.setenv("MONITOR_WORKSPACE_ID", "workspace-id")
+    monkeypatch.setattr(system_health_module, "_configure_azure_monitor", fake_configure_azure_monitor)
+
+    agent = SystemHealthAgent(
+        config={
+            "alert_store_path": tmp_path / "alerts.json",
+            "incident_store_path": tmp_path / "incidents.json",
+        }
+    )
+    await agent.initialize()
+
+    assert calls["connection_string"] == "InstrumentationKey=appinsights-key"
+
+
+@pytest.mark.asyncio
+async def test_system_health_anomaly_detection_flags_outliers(tmp_path):
+    agent = SystemHealthAgent(
+        config={
+            "alert_store_path": tmp_path / "alerts.json",
+            "incident_store_path": tmp_path / "incidents.json",
+        }
+    )
+    await agent.initialize()
+
+    start = datetime.utcnow() - timedelta(minutes=5)
+    metrics = [
+        {"metric": "latency_ms", "value": 100, "timestamp": start.isoformat()},
+        {
+            "metric": "latency_ms",
+            "value": 110,
+            "timestamp": (start + timedelta(minutes=1)).isoformat(),
+        },
+        {"metric": "latency_ms", "value": 95, "timestamp": (start + timedelta(minutes=2)).isoformat()},
+        {
+            "metric": "latency_ms",
+            "value": 105,
+            "timestamp": (start + timedelta(minutes=3)).isoformat(),
+        },
+        {"metric": "latency_ms", "value": 98, "timestamp": (start + timedelta(minutes=4)).isoformat()},
+        {"metric": "latency_ms", "value": 900, "timestamp": (start + timedelta(minutes=5)).isoformat()},
+    ]
+
+    anomalies = await agent._apply_anomaly_detection(metrics)
+
+    assert anomalies
+    assert anomalies[0]["metric"] == "latency_ms"

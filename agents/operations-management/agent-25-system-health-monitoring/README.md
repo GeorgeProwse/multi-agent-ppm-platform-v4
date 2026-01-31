@@ -32,6 +32,49 @@ pytest agents/operations-management/agent-25-system-health-monitoring/tests
 
 Agent runtime configuration is centralized in `.env` (see `.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
 
+### Monitoring setup
+
+The system health agent initializes Azure Monitor, Application Insights, and Log Analytics clients when the following environment variables are provided:
+
+- `MONITOR_WORKSPACE_ID`: Log Analytics workspace ID for querying historical metrics.
+- `APPINSIGHTS_INSTRUMENTATION_KEY`: Application Insights key used to build the Azure Monitor connection string.
+- `AZURE_MONITOR_CONNECTION_STRING`: (Optional) Overrides the connection string used by OpenTelemetry exporters.
+
+It also supports OpenTelemetry exporters (Azure Monitor), Prometheus metrics, and Event Hub telemetry delivery:
+
+- `PROMETHEUS_METRICS_PORT`: Port for the Prometheus `/metrics` endpoint (set to `0` to disable).
+- `EVENT_HUB_CONNECTION_STRING`: Azure Event Hub connection string.
+- `EVENT_HUB_NAME`: Event Hub name for telemetry events.
+- `EVENT_HUB_PARTITIONS`: Partition count for high-volume events (documented for provisioning).
+- `EVENT_HUB_THROUGHPUT_UNITS`: Throughput unit count for high-volume events.
+
+Alert routing and automation are configured with webhook-style integrations:
+
+- `PAGERDUTY_WEBHOOK_URL`, `OPSGENIE_WEBHOOK_URL`: High-priority alert webhooks.
+- `SCALING_WEBHOOK_URL`: Logic App/Azure Automation webhook for scaling events.
+- `SCALING_THRESHOLD_CPU`, `SCALING_THRESHOLD_MEMORY`, `SCALING_THRESHOLD_QUEUE_DEPTH`: Thresholds that trigger scaling.
+
+ServiceNow integration (incident creation and updates) is enabled with:
+
+- `SERVICENOW_INSTANCE_URL`, `SERVICENOW_USERNAME`, `SERVICENOW_PASSWORD` or `SERVICENOW_TOKEN`.
+
+Anomaly detection can be enabled with Azure Anomaly Detector:
+
+- `ANOMALY_DETECTOR_ENDPOINT`, `ANOMALY_DETECTOR_KEY`.
+
+### Adding new health probes
+
+Provide a JSON list of endpoints via `HEALTH_ENDPOINTS`. Example:
+
+```json
+[
+  {"name": "api", "url": "https://api.example.com/health", "timeout_seconds": 5},
+  {"name": "worker", "url": "https://worker.example.com/health", "timeout_seconds": 5}
+]
+```
+
+Set `HEALTH_PROBE_INTERVAL_SECONDS` to control the probe cadence. The agent publishes aggregated health status via its API responses (for `check_health` and `get_system_status`) and emits the same payload to Event Hub when configured.
+
 ## Troubleshooting
 
 - `run-agent` fails with missing entrypoint: ensure a Python module exists under `src/`.
