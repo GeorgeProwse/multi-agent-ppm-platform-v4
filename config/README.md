@@ -107,6 +107,10 @@ Environment-specific endpoints, secrets, and feature toggles.
 | `feature_flags.*` | Environment-level feature toggles. |
 | `observability.*` | OpenTelemetry and log level settings. |
 | `connectors.*` | Secret references for connector credentials. |
+| `databases.*` | Database connection strings (primary, analytics). |
+| `service_bus.*` | Service Bus connection strings, queues, and topics. |
+| `graph_api.*` | Microsoft Graph API configuration. |
+| `email.*` | Email provider configuration (SMTP/SendGrid). |
 
 ### `config/feature-flags/flags.yaml`
 
