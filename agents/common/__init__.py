@@ -3,8 +3,24 @@
 from .health_recommendations import generate_recommendations, identify_health_concerns
 from .metrics_catalog import METRIC_DEFINITIONS, get_metric_value, normalize_metric_value
 from .scenario import ScenarioEngine
+from .connector_integration import (
+    DatabaseStorageService,
+    DocumentationPublishingService,
+    DocumentManagementService,
+    DocumentMetadata,
+    GRCControl,
+    GRCIntegrationService,
+    GRCRisk,
+)
 
 __all__ = [
+    "DatabaseStorageService",
+    "DocumentManagementService",
+    "DocumentMetadata",
+    "DocumentationPublishingService",
+    "GRCControl",
+    "GRCIntegrationService",
+    "GRCRisk",
     "METRIC_DEFINITIONS",
     "ScenarioEngine",
     "generate_recommendations",

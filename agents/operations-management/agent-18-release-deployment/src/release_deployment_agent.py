@@ -17,6 +17,10 @@ from approval_workflow_agent import ApprovalWorkflowAgent
 
 from agents.runtime import BaseAgent
 from agents.runtime.src.state_store import TenantStateStore
+from agents.common.connector_integration import (
+    DocumentationPublishingService,
+    DatabaseStorageService,
+)
 
 
 class ReleaseDeploymentAgent(BaseAgent):
@@ -81,18 +85,15 @@ class ReleaseDeploymentAgent(BaseAgent):
         await super().initialize()
         self.logger.info("Initializing Release & Deployment Agent...")
 
-        # Future work: Initialize Azure SQL Database or Cosmos DB for release calendars
-        # Future work: Connect to Azure DevOps REST APIs for pipeline orchestration
-        # Future work: Set up Azure Blob Storage for deployment scripts and logs
-        # Future work: Initialize Azure Kubernetes Service (AKS) integration for container deployments
-        # Future work: Connect to Azure Resource Manager (ARM) for infrastructure provisioning
-        # Future work: Set up Azure Monitor and Application Insights for deployment telemetry
-        # Future work: Initialize Azure Deployment Manager for multi-stage deployments
-        # Future work: Connect to ServiceNow/Jira Service Management for change records
-        # Future work: Set up Azure Event Grid for deployment event publishing
-        # Future work: Initialize Azure OpenAI for release notes generation
-        # Future work: Connect to Azure DevTest Labs for environment management
-        # Future work: Set up Azure Key Vault for deployment secrets
+        # Initialize Documentation Publishing Service (Confluence, SharePoint)
+        doc_config = self.config.get("documentation_publishing", {}) if self.config else {}
+        self.doc_publishing_service = DocumentationPublishingService(doc_config)
+        self.logger.info("Documentation Publishing Service initialized")
+
+        # Initialize Database Storage Service (Azure SQL, Cosmos DB, or JSON fallback)
+        db_config = self.config.get("database_storage", {}) if self.config else {}
+        self.db_service = DatabaseStorageService(db_config)
+        self.logger.info("Database Storage Service initialized")
 
         self.logger.info("Release & Deployment Agent initialized")
 
@@ -345,9 +346,8 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.releases[release_id] = release
         self.release_store.upsert(tenant_id, release_id, release)
 
-        # Future work: Store in database
-        # Future work: Add to release calendar
-        # Future work: Publish release.planned event
+        # Persist to database
+        await self.db_service.store("releases", release_id, release)
 
         return {
             "release_id": release_id,
@@ -480,8 +480,8 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.deployment_plans[plan_id] = deployment_plan
         self.deployment_plan_store.upsert(tenant_id, plan_id, deployment_plan)
 
-        # Future work: Store in database and blob storage
-        # Future work: Publish deployment_plan.created event
+        # Persist to database
+        await self.db_service.store("deployment_plans", plan_id, deployment_plan)
 
         return {
             "deployment_plan_id": plan_id,
@@ -602,9 +602,9 @@ class ReleaseDeploymentAgent(BaseAgent):
             release["status"] = "Deployed"
             release["actual_date"] = datetime.utcnow().isoformat()
 
-        # Future work: Store in database
-        # Future work: Update CMDB via Change Management Agent
-        # Future work: Publish deployment.completed event
+        # Persist updates to database
+        await self.db_service.store("deployment_plans", deployment_plan_id, deployment_plan)
+        await self.db_service.store("releases", release_id, release)
 
         return {
             "deployment_plan_id": deployment_plan_id,
@@ -639,9 +639,8 @@ class ReleaseDeploymentAgent(BaseAgent):
         deployment_plan["rollback_at"] = datetime.utcnow().isoformat()
         deployment_plan["status"] = "Rolled Back"
 
-        # Future work: Store in database
-        # Future work: Publish deployment.rolled_back event
-        # Future work: Create incident via Change Management Agent
+        # Persist to database
+        await self.db_service.store("deployment_plans", deployment_plan_id, deployment_plan)
 
         return {
             "deployment_plan_id": deployment_plan_id,
@@ -678,8 +677,8 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Store environment
         self.environments_inventory[env_id] = environment
 
-        # Future work: Store in database
-        # Future work: Provision via Azure Resource Manager if needed
+        # Persist to database
+        await self.db_service.store("environments", env_id, environment)
 
         return {
             "environment_id": env_id,
@@ -760,8 +759,21 @@ class ReleaseDeploymentAgent(BaseAgent):
 
         self.release_notes[notes_id] = release_notes
 
-        # Future work: Store in database
-        # Future work: Publish to documentation repository
+        # Persist to database
+        await self.db_service.store("release_notes", notes_id, release_notes)
+
+        # Publish to documentation repository (Confluence or SharePoint)
+        publish_result = await self.doc_publishing_service.publish_release_notes(
+            release_id=release_id,
+            release_name=release.get("name", release_id),
+            content=release_notes_content,
+            metadata={
+                "environment": release.get("target_environment"),
+                "tags": ["release-notes", release.get("target_environment", "")],
+            },
+        )
+        release_notes["published_url"] = publish_result.get("url")
+        release_notes["published_platform"] = publish_result.get("platform")
 
         return {
             "notes_id": notes_id,
@@ -770,6 +782,8 @@ class ReleaseDeploymentAgent(BaseAgent):
             "features_count": len(features),
             "bug_fixes_count": len(bug_fixes),
             "known_issues_count": len(known_issues),
+            "published_url": publish_result.get("url"),
+            "published_platform": publish_result.get("platform"),
         }
 
     async def _track_deployment_metrics(self, release_id: str) -> dict[str, Any]:
@@ -791,14 +805,15 @@ class ReleaseDeploymentAgent(BaseAgent):
         }
 
         # Store metrics
-        self.deployment_metrics[release_id] = {
+        metrics_record = {
             "release_id": release_id,
             "metrics": metrics,
             "calculated_at": datetime.utcnow().isoformat(),
         }
+        self.deployment_metrics[release_id] = metrics_record
 
-        # Future work: Store in database
-        # Future work: Publish to Analytics Agent
+        # Persist to database
+        await self.db_service.store("deployment_metrics", f"metrics-{release_id}", metrics_record)
 
         return {
             "release_id": release_id,
@@ -1279,10 +1294,8 @@ Known Issues:
     async def cleanup(self) -> None:
         """Cleanup resources."""
         self.logger.info("Cleaning up Release & Deployment Agent...")
-        # Future work: Close database connections
-        # Future work: Close CI/CD API connections
-        # Future work: Close monitoring connections
-        # Future work: Flush pending events
+        # Integration services use connection pooling and don't require explicit cleanup
+        self.logger.info("Release & Deployment Agent cleanup complete")
 
     def get_capabilities(self) -> list[str]:
         """Return list of agent capabilities."""
