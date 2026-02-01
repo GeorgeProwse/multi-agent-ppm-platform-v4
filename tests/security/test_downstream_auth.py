@@ -74,11 +74,11 @@ def test_audit_log_requires_auth(monkeypatch) -> None:
         REPO_ROOT / "services" / "audit-log" / "src" / "main.py", "audit_log_auth"
     )
 
-    response = client.post("/audit/events", json={"id": "evt-1"})
+    response = client.post("/v1/audit/events", json={"id": "evt-1"})
     assert response.status_code == 401
 
     response = client.post(
-        "/audit/events", json={"id": "evt-1"}, headers={"Authorization": "Bearer foo"}
+        "/v1/audit/events", json={"id": "evt-1"}, headers={"Authorization": "Bearer foo"}
     )
     assert response.status_code == 401
 
@@ -92,10 +92,10 @@ def test_audit_log_requires_auth(monkeypatch) -> None:
         "outcome": "success",
         "classification": "internal",
     }
-    response = client.post("/audit/events", json=payload, headers=_auth_headers_mismatch())
+    response = client.post("/v1/audit/events", json=payload, headers=_auth_headers_mismatch())
     assert response.status_code == 403
 
-    response = client.post("/audit/events", json=payload, headers=_auth_headers_missing_tenant())
+    response = client.post("/v1/audit/events", json=payload, headers=_auth_headers_missing_tenant())
     assert response.status_code == 403
 
 
@@ -106,25 +106,25 @@ def test_data_sync_requires_auth(monkeypatch) -> None:
         "data_sync_auth",
     )
 
-    response = client.post("/sync/run", json={"connector": "jira", "dry_run": True})
+    response = client.post("/v1/sync/run", json={"connector": "jira", "dry_run": True})
     assert response.status_code == 401
 
     response = client.post(
-        "/sync/run",
+        "/v1/sync/run",
         json={"connector": "jira", "dry_run": True},
         headers={"Authorization": "Bearer foo"},
     )
     assert response.status_code == 401
 
     response = client.post(
-        "/sync/run",
+        "/v1/sync/run",
         json={"connector": "jira", "dry_run": True},
         headers=_auth_headers_mismatch(),
     )
     assert response.status_code == 403
 
     response = client.post(
-        "/sync/run",
+        "/v1/sync/run",
         json={"connector": "jira", "dry_run": True},
         headers=_auth_headers_missing_tenant(),
     )
@@ -139,19 +139,19 @@ def test_notification_requires_auth(monkeypatch) -> None:
     )
 
     payload = {"template": "welcome", "variables": {}, "channel": "stdout"}
-    response = client.post("/notifications/send", json=payload)
+    response = client.post("/v1/notifications/send", json=payload)
     assert response.status_code == 401
 
     response = client.post(
-        "/notifications/send", json=payload, headers={"Authorization": "Bearer foo"}
+        "/v1/notifications/send", json=payload, headers={"Authorization": "Bearer foo"}
     )
     assert response.status_code == 401
 
-    response = client.post("/notifications/send", json=payload, headers=_auth_headers_mismatch())
+    response = client.post("/v1/notifications/send", json=payload, headers=_auth_headers_mismatch())
     assert response.status_code == 403
 
     response = client.post(
-        "/notifications/send", json=payload, headers=_auth_headers_missing_tenant()
+        "/v1/notifications/send", json=payload, headers=_auth_headers_missing_tenant()
     )
     assert response.status_code == 403
 
@@ -164,27 +164,27 @@ def test_policy_engine_requires_auth(monkeypatch) -> None:
     )
 
     response = client.post(
-        "/rbac/evaluate",
+        "/v1/rbac/evaluate",
         json={"tenant_id": "tenant-alpha", "roles": [], "permission": "project.read"},
     )
     assert response.status_code == 401
 
     response = client.post(
-        "/rbac/evaluate",
+        "/v1/rbac/evaluate",
         json={"tenant_id": "tenant-alpha", "roles": [], "permission": "project.read"},
         headers={"Authorization": "Bearer foo"},
     )
     assert response.status_code == 401
 
     response = client.post(
-        "/rbac/evaluate",
+        "/v1/rbac/evaluate",
         json={"tenant_id": "tenant-alpha", "roles": [], "permission": "project.read"},
         headers=_auth_headers_mismatch(),
     )
     assert response.status_code == 403
 
     response = client.post(
-        "/rbac/evaluate",
+        "/v1/rbac/evaluate",
         json={"tenant_id": "tenant-alpha", "roles": [], "permission": "project.read"},
         headers=_auth_headers_missing_tenant(),
     )
@@ -199,26 +199,26 @@ def test_telemetry_requires_auth(monkeypatch) -> None:
     )
 
     response = client.post(
-        "/telemetry/ingest", json={"source": "api", "payload": {"message": "hello"}}
+        "/v1/telemetry/ingest", json={"source": "api", "payload": {"message": "hello"}}
     )
     assert response.status_code == 401
 
     response = client.post(
-        "/telemetry/ingest",
+        "/v1/telemetry/ingest",
         json={"source": "api", "payload": {"message": "hello"}},
         headers={"Authorization": "Bearer foo"},
     )
     assert response.status_code == 401
 
     response = client.post(
-        "/telemetry/ingest",
+        "/v1/telemetry/ingest",
         json={"source": "api", "payload": {"message": "hello"}},
         headers=_auth_headers_mismatch(),
     )
     assert response.status_code == 403
 
     response = client.post(
-        "/telemetry/ingest",
+        "/v1/telemetry/ingest",
         json={"source": "api", "payload": {"message": "hello"}},
         headers=_auth_headers_missing_tenant(),
     )
@@ -239,16 +239,16 @@ def test_workflow_engine_requires_auth(monkeypatch) -> None:
         "payload": {"request": "run"},
         "actor": {"id": "user-123", "type": "user", "roles": ["portfolio_admin"]},
     }
-    response = client.post("/workflows/start", json=payload)
+    response = client.post("/v1/workflows/start", json=payload)
     assert response.status_code == 401
 
     response = client.post(
-        "/workflows/start", json=payload, headers={"Authorization": "Bearer foo"}
+        "/v1/workflows/start", json=payload, headers={"Authorization": "Bearer foo"}
     )
     assert response.status_code == 401
 
-    response = client.post("/workflows/start", json=payload, headers=_auth_headers_mismatch())
+    response = client.post("/v1/workflows/start", json=payload, headers=_auth_headers_mismatch())
     assert response.status_code == 403
 
-    response = client.post("/workflows/start", json=payload, headers=_auth_headers_missing_tenant())
+    response = client.post("/v1/workflows/start", json=payload, headers=_auth_headers_missing_tenant())
     assert response.status_code == 403

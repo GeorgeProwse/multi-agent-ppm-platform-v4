@@ -3621,7 +3621,7 @@ const initWorkspace = () => {
         setAssistantStatus("Researching external risks...");
         researchRisksButton.disabled = true;
         try {
-          const response = await fetch(`/api/v1/projects/${projectId}/risks/research`, {
+          const response = await fetch(`/v1/projects/${projectId}/risks/research`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ context, categories: [] }),
@@ -3657,7 +3657,7 @@ const initWorkspace = () => {
         setAssistantStatus("Researching vendor signals...");
         researchVendorButton.disabled = true;
         try {
-          const response = await fetch(`/api/v1/vendors/${vendorId}/research`, {
+          const response = await fetch(`/v1/vendors/${vendorId}/research`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ domain }),
@@ -3690,7 +3690,7 @@ const initWorkspace = () => {
         researchComplianceButton.disabled = true;
         try {
           const response = await fetch(
-            `/api/v1/projects/${projectId}/compliance/research`,
+            `/v1/projects/${projectId}/compliance/research`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

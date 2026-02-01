@@ -15,7 +15,7 @@ import type {
 } from './types';
 
 // API base URL - in production this would come from environment
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 interface AgentConfigStoreState {
   // Agent configurations

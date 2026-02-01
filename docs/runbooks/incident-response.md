@@ -125,7 +125,7 @@ Next Update: [Time]
 
 ```bash
 # Verify service health
-curl -f https://api.ppm-platform.com/api/v1/health
+curl -f https://api.ppm-platform.com/v1/health
 
 # Check error rates returned to normal
 az monitor app-insights query --app ppm-production-appinsights \

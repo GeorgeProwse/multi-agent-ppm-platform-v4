@@ -45,7 +45,7 @@ scenario that exercises the API gateway, workflow engine, orchestration service,
 
 **Expected services**
 - API: http://localhost:8000
-- API Docs: http://localhost:8000/api/docs
+- API Docs: http://localhost:8000/v1/docs
 - Web Console: http://localhost:8501
 
 Run individual components when you need them:
@@ -62,16 +62,16 @@ their primary endpoints when run locally (each service defaults to port `8080` u
 
 | Service | Description | Primary endpoints |
 | --- | --- | --- |
-| API Gateway | Front door for client requests, auth hand-off, and orchestration fan-out. | `GET /healthz`, `POST /api/v1/query`, `GET /api/v1/status` |
-| Workflow Engine | Workflow persistence and execution for deterministic flows. | `GET /healthz`, `POST /workflows/start`, `GET /workflows/{workflow_id}` |
-| Audit Log | Immutable audit trail with retention enforcement. | `GET /healthz`, `POST /audit/events`, `GET /audit/events/{event_id}` |
-| Data Service | Canonical schema and entity storage. | `GET /healthz`, `POST /schemas`, `POST /entities/{schema_name}` |
-| Data Sync Service | Connector-driven sync jobs and conflict management. | `GET /healthz`, `POST /sync/run`, `GET /sync/status/{job_id}`, `GET /sync/conflicts` |
-| Data Lineage Service | Lineage capture and quality scoring. | `GET /healthz`, `POST /lineage/events`, `GET /lineage/graph`, `GET /quality/summary` |
-| Identity & Access | SCIM + token validation for identity management. | `GET /healthz`, `POST /auth/validate`, `POST /scim/v2/Users`, `GET /scim/v2/Groups` |
-| Notification Service | Outbound notifications (email/chat/webhook). | `GET /healthz`, `POST /notifications/send` |
-| Policy Engine | RBAC/ABAC and policy evaluation. | `GET /healthz`, `POST /policies/evaluate`, `POST /rbac/evaluate`, `POST /abac/evaluate` |
-| Telemetry Service | Ingests platform metrics/events for observability. | `GET /healthz`, `POST /telemetry/ingest` |
+| API Gateway | Front door for client requests, auth hand-off, and orchestration fan-out. | `GET /healthz`, `POST /v1/query`, `GET /v1/status` |
+| Workflow Engine | Workflow persistence and execution for deterministic flows. | `GET /healthz`, `POST /v1/workflows/start`, `GET /v1/workflows/{workflow_id}` |
+| Audit Log | Immutable audit trail with retention enforcement. | `GET /healthz`, `POST /v1/audit/events`, `GET /v1/audit/events/{event_id}` |
+| Data Service | Canonical schema and entity storage. | `GET /healthz`, `POST /v1/schemas`, `POST /v1/entities/{schema_name}` |
+| Data Sync Service | Connector-driven sync jobs and conflict management. | `GET /healthz`, `POST /v1/sync/run`, `GET /v1/sync/status/{job_id}`, `GET /v1/sync/conflicts` |
+| Data Lineage Service | Lineage capture and quality scoring. | `GET /healthz`, `POST /v1/lineage/events`, `GET /v1/lineage/graph`, `GET /v1/quality/summary` |
+| Identity & Access | SCIM + token validation for identity management. | `GET /healthz`, `POST /v1/auth/validate`, `POST /v1/scim/v2/Users`, `GET /v1/scim/v2/Groups` |
+| Notification Service | Outbound notifications (email/chat/webhook). | `GET /healthz`, `POST /v1/notifications/send` |
+| Policy Engine | RBAC/ABAC and policy evaluation. | `GET /healthz`, `POST /v1/policies/evaluate`, `POST /v1/rbac/evaluate`, `POST /v1/abac/evaluate` |
+| Telemetry Service | Ingests platform metrics/events for observability. | `GET /healthz`, `POST /v1/telemetry/ingest` |
 
 ## External research (optional)
 
@@ -155,6 +155,7 @@ python scripts/check-placeholders.py
 
 - [Docs hub](docs/README.md)
 - [Developer onboarding](docs/onboarding/developer-onboarding.md)
+- [Versioning strategy](docs/versioning.md)
 - [Solution overview](docs/product/solution-overview/README.md)
 - [Architecture documentation](docs/architecture/README.md)
 - [Agent catalog](docs/agents/README.md)

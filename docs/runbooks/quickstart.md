@@ -44,7 +44,7 @@ The scenario uses:
 
 ### 1) Post a workflow run (workflow engine)
 ```bash
-curl -sS -X POST "http://localhost:8080/workflows/start" \
+curl -sS -X POST "http://localhost:8080/v1/workflows/start" \
   -H "Content-Type: application/json" \
   -H "X-Tenant-ID: dev-tenant" \
   -d @examples/demo-scenarios/quickstart-workflow.json | jq
@@ -56,7 +56,7 @@ Expected output:
 
 ### 2) Run the multi-agent query (API gateway)
 ```bash
-curl -sS -X POST "http://localhost:8000/api/v1/query" \
+curl -sS -X POST "http://localhost:8000/v1/query" \
   -H "Content-Type: application/json" \
   -H "X-Tenant-ID: dev-tenant" \
   -d @examples/demo-scenarios/quickstart-request.json | jq

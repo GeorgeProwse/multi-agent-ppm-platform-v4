@@ -6,11 +6,11 @@ Define webhook conventions and document the current implementation status.
 
 ## Current implementation status
 
-Webhook endpoints are available for supported connectors. Connector syncs still fall back to polling and explicit `/sync/run` requests in the Data Sync Service when webhooks are not configured or supported.
+Webhook endpoints are available for supported connectors. Connector syncs still fall back to polling and explicit `/v1/sync/run` requests in the Data Sync Service when webhooks are not configured or supported.
 
 ## Endpoint
 
-`POST /api/v1/connectors/{connector_id}/webhook`
+`POST /v1/connectors/{connector_id}/webhook`
 
 The endpoint accepts JSON payloads from external systems. Webhooks are only accepted when the connector is enabled.
 
@@ -38,7 +38,7 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -H "X-Webhook-Secret: $CONNECTOR_JIRA_WEBHOOK_SECRET" \
   -d '{"webhookEvent": "jira:issue_updated", "issue": {"key": "ENG-42"}}' \
-  https://api.example.com/api/v1/connectors/jira/webhook
+  https://api.example.com/v1/connectors/jira/webhook
 ```
 
 ## Registration workflow
@@ -46,7 +46,7 @@ curl -X POST \
 When a connector is activated, the API gateway attempts to register the webhook endpoint with the external service (if the connector provides a registration handler). The URL it provides is:
 
 ```
-{base_url}/api/v1/connectors/{connector_id}/webhook
+{base_url}/v1/connectors/{connector_id}/webhook
 ```
 
 If a connector does not support webhooks or a secret is not configured, polling remains the fallback mechanism.
@@ -55,7 +55,7 @@ If a connector does not support webhooks or a secret is not configured, polling 
 
 - Confirm current sync entry points:
   ```bash
-  rg -n "/sync/run" services/data-sync-service/src/main.py
+  rg -n "/v1/sync/run" services/data-sync-service/src/main.py
   ```
 
 ## Related docs

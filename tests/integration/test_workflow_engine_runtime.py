@@ -65,7 +65,7 @@ def test_workflow_persistence(tmp_path, monkeypatch) -> None:
     client = TestClient(module.app)
 
     response = client.post(
-        "/workflows/start",
+        "/v1/workflows/start",
         json={
             "workflow_id": "intake-triage",
             "tenant_id": "tenant-alpha",
@@ -79,6 +79,6 @@ def test_workflow_persistence(tmp_path, monkeypatch) -> None:
     run_id = response.json()["run_id"]
     assert workflow_tasks.AGENT_CLIENT_OVERRIDE.calls
 
-    fetch = client.get(f"/workflows/{run_id}", headers=headers)
+    fetch = client.get(f"/v1/workflows/{run_id}", headers=headers)
     assert fetch.status_code == 200
     assert fetch.json()["run_id"] == run_id

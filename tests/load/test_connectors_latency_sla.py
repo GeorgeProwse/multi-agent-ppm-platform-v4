@@ -22,7 +22,7 @@ def test_connectors_latency_sla(monkeypatch) -> None:
         "PERFORMANCE_BASE_URL",
         profile.get("base_url") or "https://staging.api.ppm-platform.com",
     )
-    target_url = profile.get("target_url", "/api/v1/connectors")
+    target_url = profile.get("target_url", "/v1/connectors")
     request_url = (
         target_url
         if target_url.startswith("http")

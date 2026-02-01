@@ -29,7 +29,7 @@ def _client():
 def test_missing_auth_headers(monkeypatch) -> None:
     monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
     client = _client()
-    response = client.get("/api/v1/status")
+    response = client.get("/v1/status")
     assert response.status_code == 401
 
 
@@ -37,7 +37,7 @@ def test_missing_tenant_header(monkeypatch) -> None:
     monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
     client = _client()
     token = _make_token("portfolio_admin")
-    response = client.get("/api/v1/status", headers={"Authorization": f"Bearer {token}"})
+    response = client.get("/v1/status", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
 
 
@@ -55,7 +55,7 @@ def test_missing_tenant_claim(monkeypatch) -> None:
         algorithm="HS256",
     )
     response = client.get(
-        "/api/v1/status",
+        "/v1/status",
         headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
     )
     assert response.status_code == 403
@@ -72,7 +72,7 @@ def test_rbac_blocks_insufficient_role(monkeypatch) -> None:
 
     with patch("api.main.orchestrator", mock_orchestrator):
         response = client.post(
-            "/api/v1/query",
+            "/v1/query",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
             json={"query": "test", "classification": "restricted"},
         )
@@ -101,7 +101,7 @@ def test_rbac_allows_portfolio_admin(monkeypatch) -> None:
 
     with patch("api.main.orchestrator", mock_orchestrator):
         response = client.post(
-            "/api/v1/query",
+            "/v1/query",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
             json={"query": "test", "classification": "internal"},
         )
@@ -114,7 +114,7 @@ def test_tenant_mismatch(monkeypatch) -> None:
     token = _make_token("portfolio_admin")
 
     response = client.get(
-        "/api/v1/status",
+        "/v1/status",
         headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-beta"},
     )
     assert response.status_code == 403
@@ -158,7 +158,7 @@ def test_identity_access_validation(monkeypatch) -> None:
 
     with patch("api.middleware.security.httpx.AsyncClient", MockAsyncClient):
         response = client.get(
-            "/api/v1/status",
+            "/v1/status",
             headers={"Authorization": "Bearer oidc-token", "X-Tenant-ID": "tenant-alpha"},
         )
     assert response.status_code == 200

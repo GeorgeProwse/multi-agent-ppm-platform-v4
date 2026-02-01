@@ -184,7 +184,7 @@ CONNECTOR_CASES: list[ConnectorCase] = [
             "PLANVIEW_REFRESH_TOKEN": "refresh",
         },
         resource_type="projects",
-        auth_path="/v1/projects",
+        auth_path="/api/v1/projects",
         resource_path="/api/v1/projects",
         items_path="items",
         use_token_manager=True,

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from opentelemetry.metrics import Observation
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,7 @@ from observability.metrics import (  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from scheduler import AnalyticsScheduler  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from packages.version import API_VERSION
 
 from agents.common.health_recommendations import (  # noqa: E402
     generate_recommendations,
@@ -47,8 +48,9 @@ from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
 logger = logging.getLogger("analytics-service")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Analytics Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/health", "/healthz"})
+app = FastAPI(title="Analytics Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/health", "/healthz", "/version"})
 configure_tracing("analytics-service")
 configure_metrics("analytics-service")
 app.add_middleware(TraceMiddleware, service_name="analytics-service")
@@ -424,14 +426,23 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
-@app.get("/jobs", response_model=list[JobResponse])
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "analytics-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.get("/jobs", response_model=list[JobResponse])
 async def list_jobs(request: Request) -> list[JobResponse]:
     assert scheduler is not None
     tenant_id = request.state.auth.tenant_id
     return [_job_to_response(job) for job in scheduler.list_jobs(tenant_id)]
 
 
-@app.post("/jobs", response_model=JobResponse)
+@api_router.post("/jobs", response_model=JobResponse)
 async def create_job(request: Request, payload: JobRequest) -> JobResponse:
     assert scheduler is not None
     tenant_id = request.state.auth.tenant_id
@@ -441,7 +452,7 @@ async def create_job(request: Request, payload: JobRequest) -> JobResponse:
     return _job_to_response(job)
 
 
-@app.patch("/jobs/{job_id}", response_model=JobResponse)
+@api_router.patch("/jobs/{job_id}", response_model=JobResponse)
 async def update_job(job_id: str, request: Request, payload: JobUpdateRequest) -> JobResponse:
     assert scheduler is not None
     tenant_id = request.state.auth.tenant_id
@@ -453,7 +464,7 @@ async def update_job(job_id: str, request: Request, payload: JobUpdateRequest) -
     return _job_to_response(job)
 
 
-@app.post("/jobs/{job_id}/run", response_model=JobResponse)
+@api_router.post("/jobs/{job_id}/run", response_model=JobResponse)
 async def run_job(job_id: str, request: Request) -> JobResponse:
     assert scheduler is not None
     tenant_id = request.state.auth.tenant_id
@@ -467,7 +478,7 @@ async def run_job(job_id: str, request: Request) -> JobResponse:
     return _job_to_response(updated)
 
 
-@app.get("/api/projects/{project_id}/health", response_model=ProjectHealthResponse)
+@api_router.get("/api/projects/{project_id}/health", response_model=ProjectHealthResponse)
 async def get_project_health(project_id: str, request: Request) -> ProjectHealthResponse:
     assert health_snapshot_store is not None
     assert kpi_engine is not None
@@ -509,7 +520,7 @@ async def get_project_health(project_id: str, request: Request) -> ProjectHealth
     return _coerce_health_response(lifecycle_data)
 
 
-@app.get("/api/projects/{project_id}/health/trends", response_model=HealthTrendResponse)
+@api_router.get("/api/projects/{project_id}/health/trends", response_model=HealthTrendResponse)
 async def get_project_health_trends(project_id: str, request: Request) -> HealthTrendResponse:
     assert health_snapshot_store is not None
     assert metrics_store is not None
@@ -575,7 +586,7 @@ async def get_project_health_trends(project_id: str, request: Request) -> Health
     )
 
 
-@app.post("/api/projects/{project_id}/health/what-if", response_model=WhatIfResponse)
+@api_router.post("/api/projects/{project_id}/health/what-if", response_model=WhatIfResponse)
 async def request_health_what_if(
     project_id: str, request: Request, payload: WhatIfRequest
 ) -> WhatIfResponse:
@@ -598,7 +609,7 @@ async def request_health_what_if(
     )
 
 
-@app.get("/api/projects/{project_id}/kpis", response_model=ProjectKpiResponse)
+@api_router.get("/api/projects/{project_id}/kpis", response_model=ProjectKpiResponse)
 async def get_project_kpis(project_id: str, request: Request) -> ProjectKpiResponse:
     assert kpi_engine is not None
     tenant_id = request.state.auth.tenant_id
@@ -607,7 +618,7 @@ async def get_project_kpis(project_id: str, request: Request) -> ProjectKpiRespo
     return _snapshot_to_response(snapshot)
 
 
-@app.get("/api/projects/{project_id}/kpis/narrative", response_model=NarrativeResponse)
+@api_router.get("/api/projects/{project_id}/kpis/narrative", response_model=NarrativeResponse)
 async def get_project_kpi_narrative(project_id: str, request: Request) -> NarrativeResponse:
     assert kpi_engine is not None
     tenant_id = request.state.auth.tenant_id
@@ -625,7 +636,7 @@ async def get_project_kpi_narrative(project_id: str, request: Request) -> Narrat
     )
 
 
-@app.post("/api/projects/{project_id}/kpis/what-if", response_model=WhatIfDetailResponse)
+@api_router.post("/api/projects/{project_id}/kpis/what-if", response_model=WhatIfDetailResponse)
 async def run_kpi_what_if(
     project_id: str, request: Request, payload: WhatIfRequest
 ) -> WhatIfDetailResponse:
@@ -668,6 +679,9 @@ def _snapshot_to_response(snapshot: KpiSnapshot) -> ProjectKpiResponse:
         metrics=metrics,
         computed_at=snapshot.computed_at.isoformat(),
     )
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

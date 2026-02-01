@@ -45,7 +45,7 @@ const loadStatus = async (sessionInfo, statusOutput) => {
 };
 
 const startWorkflow = async (workflowOutput) => {
-  const response = await fetch("/api/workflows/start", {
+  const response = await fetch("/v1/api/workflows/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

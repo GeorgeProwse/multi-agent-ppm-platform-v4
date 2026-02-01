@@ -27,7 +27,7 @@ Define service-level objectives (SLOs) and the service-level indicators (SLIs) u
 These targets are aligned with the SLO template in `docs/templates/shared/slo-alert-definition.yaml` and should be adjusted per deployment.
 
 - **Availability:** 99.9% over 30 days for API Gateway and Workflow Engine.
-- **Latency (P95):** < 750 ms for `/api/v1/query` and `/workflows/start` over 7 days.
+- **Latency (P95):** < 750 ms for `/v1/query` and `/v1/workflows/start` over 7 days.
 - **Error rate:** < 0.5% 5xx responses for core APIs.
 - **Queue freshness:** 95% of sync jobs start within 5 minutes of enqueue.
 

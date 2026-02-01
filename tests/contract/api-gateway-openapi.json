@@ -2364,7 +2364,7 @@
         "summary": "Root"
       }
     },
-    "/api/v1/agents": {
+    "/v1/agents": {
       "get": {
         "description": "List all available agents.\n\nReturns information about all loaded agents and their capabilities.",
         "operationId": "list_agents_api_v1_agents_get",
@@ -2384,7 +2384,7 @@
         ]
       }
     },
-    "/api/v1/agents/config": {
+    "/v1/agents/config": {
       "get": {
         "description": "List all agent configurations.\n\nOptionally filter by category and/or enabled status.",
         "operationId": "list_agent_configs_api_v1_agents_config_get",
@@ -2454,7 +2454,7 @@
         ]
       }
     },
-    "/api/v1/agents/config/categories": {
+    "/v1/agents/config/categories": {
       "get": {
         "description": "List all available agent categories.",
         "operationId": "list_agent_categories_api_v1_agents_config_categories_get",
@@ -2474,7 +2474,7 @@
         ]
       }
     },
-    "/api/v1/agents/config/{catalog_id}": {
+    "/v1/agents/config/{catalog_id}": {
       "get": {
         "description": "Get configuration for a specific agent.",
         "operationId": "get_agent_config_api_v1_agents_config__catalog_id__get",
@@ -2568,7 +2568,7 @@
         ]
       }
     },
-    "/api/v1/agents/{agent_id}": {
+    "/v1/agents/{agent_id}": {
       "get": {
         "description": "Get information about a specific agent.",
         "operationId": "get_agent_info_api_v1_agents__agent_id__get",
@@ -2609,7 +2609,7 @@
         ]
       }
     },
-    "/api/v1/audit/events": {
+    "/v1/audit/events": {
       "get": {
         "operationId": "list_audit_events_api_v1_audit_events_get",
         "parameters": [
@@ -2666,7 +2666,7 @@
         ]
       }
     },
-    "/api/v1/certifications": {
+    "/v1/certifications": {
       "get": {
         "operationId": "list_certifications_api_v1_certifications_get",
         "parameters": [
@@ -2758,7 +2758,7 @@
         ]
       }
     },
-    "/api/v1/certifications/{connector_id}": {
+    "/v1/certifications/{connector_id}": {
       "get": {
         "operationId": "get_certification_api_v1_certifications__connector_id__get",
         "parameters": [
@@ -2850,7 +2850,7 @@
         ]
       }
     },
-    "/api/v1/certifications/{connector_id}/documents": {
+    "/v1/certifications/{connector_id}/documents": {
       "post": {
         "operationId": "upload_certification_document_api_v1_certifications__connector_id__documents_post",
         "parameters": [
@@ -2902,7 +2902,7 @@
         ]
       }
     },
-    "/api/v1/connectors": {
+    "/v1/connectors": {
       "get": {
         "description": "List all available connectors with their configuration status.\n\nOptionally filter by category.",
         "operationId": "list_connectors_api_v1_connectors_get",
@@ -2956,7 +2956,7 @@
         ]
       }
     },
-    "/api/v1/connectors/categories": {
+    "/v1/connectors/categories": {
       "get": {
         "description": "List all connector categories with their metadata.",
         "operationId": "list_categories_api_v1_connectors_categories_get",
@@ -2982,7 +2982,7 @@
         ]
       }
     },
-    "/api/v1/connectors/regulatory_compliance/audit-logs": {
+    "/v1/connectors/regulatory_compliance/audit-logs": {
       "get": {
         "operationId": "get_regulatory_audit_logs_api_v1_connectors_regulatory_compliance_audit_logs_get",
         "parameters": [
@@ -3049,7 +3049,7 @@
         ]
       }
     },
-    "/api/v1/connectors/regulatory_compliance/config": {
+    "/v1/connectors/regulatory_compliance/config": {
       "put": {
         "operationId": "update_regulatory_compliance_config_api_v1_connectors_regulatory_compliance_config_put",
         "requestBody": {
@@ -3090,7 +3090,7 @@
         ]
       }
     },
-    "/api/v1/connectors/regulatory_compliance/test": {
+    "/v1/connectors/regulatory_compliance/test": {
       "post": {
         "operationId": "test_regulatory_compliance_connection_api_v1_connectors_regulatory_compliance_test_post",
         "requestBody": {
@@ -3131,7 +3131,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}": {
+    "/v1/connectors/{connector_id}": {
       "get": {
         "description": "Get a specific connector with its configuration.",
         "operationId": "get_connector_api_v1_connectors__connector_id__get",
@@ -3174,7 +3174,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}/config": {
+    "/v1/connectors/{connector_id}/config": {
       "delete": {
         "description": "Delete a connector configuration.",
         "operationId": "delete_connector_config_api_v1_connectors__connector_id__config_delete",
@@ -3266,7 +3266,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}/disable": {
+    "/v1/connectors/{connector_id}/disable": {
       "post": {
         "description": "Disable a connector.",
         "operationId": "disable_connector_api_v1_connectors__connector_id__disable_post",
@@ -3309,7 +3309,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}/enable": {
+    "/v1/connectors/{connector_id}/enable": {
       "post": {
         "description": "Enable a connector.\n\nThis will disable any other connector in the same category (mutual exclusivity).",
         "operationId": "enable_connector_api_v1_connectors__connector_id__enable_post",
@@ -3352,7 +3352,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}/test": {
+    "/v1/connectors/{connector_id}/test": {
       "post": {
         "description": "Test connection to the external system.\n\nFor Jira connector, requires environment variables:\n- JIRA_INSTANCE_URL (or use request.instance_url)\n- JIRA_EMAIL\n- JIRA_API_TOKEN",
         "operationId": "test_connection_api_v1_connectors__connector_id__test_post",
@@ -3405,7 +3405,7 @@
         ]
       }
     },
-    "/api/v1/connectors/{connector_id}/webhook": {
+    "/v1/connectors/{connector_id}/webhook": {
       "post": {
         "description": "Receive webhook notifications from external systems.",
         "operationId": "handle_connector_webhook_api_v1_connectors__connector_id__webhook_post",
@@ -3446,7 +3446,7 @@
         ]
       }
     },
-    "/api/v1/documents/sessions": {
+    "/v1/documents/sessions": {
       "post": {
         "operationId": "start_session_api_v1_documents_sessions_post",
         "requestBody": {
@@ -3487,7 +3487,7 @@
         ]
       }
     },
-    "/api/v1/documents/sessions/{session_id}": {
+    "/v1/documents/sessions/{session_id}": {
       "get": {
         "operationId": "get_session_api_v1_documents_sessions__session_id__get",
         "parameters": [
@@ -3529,7 +3529,7 @@
         ]
       }
     },
-    "/api/v1/documents/sessions/{session_id}/persist": {
+    "/v1/documents/sessions/{session_id}/persist": {
       "post": {
         "operationId": "persist_session_api_v1_documents_sessions__session_id__persist_post",
         "parameters": [
@@ -3581,7 +3581,7 @@
         ]
       }
     },
-    "/api/v1/documents/sessions/{session_id}/stop": {
+    "/v1/documents/sessions/{session_id}/stop": {
       "post": {
         "operationId": "stop_session_api_v1_documents_sessions__session_id__stop_post",
         "parameters": [
@@ -3633,7 +3633,7 @@
         ]
       }
     },
-    "/api/v1/health": {
+    "/v1/health": {
       "get": {
         "description": "Health check endpoint for load balancers and monitoring.\n\nReturns:\n    Basic health status of the API",
         "operationId": "health_check_api_v1_health_get",
@@ -3653,7 +3653,7 @@
         ]
       }
     },
-    "/api/v1/health/live": {
+    "/v1/health/live": {
       "get": {
         "description": "Liveness check - indicates if the service is alive.\n\nReturns:\n    Simple alive status",
         "operationId": "liveness_check_api_v1_health_live_get",
@@ -3673,7 +3673,7 @@
         ]
       }
     },
-    "/api/v1/health/ready": {
+    "/v1/health/ready": {
       "get": {
         "description": "Readiness check - indicates if the service is ready to accept traffic.\n\nReturns:\n    Ready status including dependency checks",
         "operationId": "readiness_check_api_v1_health_ready_get",
@@ -3693,7 +3693,7 @@
         ]
       }
     },
-    "/api/v1/lineage": {
+    "/v1/lineage": {
       "get": {
         "operationId": "list_lineage_api_v1_lineage_get",
         "parameters": [
@@ -3756,7 +3756,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/agents/config": {
+    "/v1/projects/{project_id}/agents/config": {
       "get": {
         "description": "List all agent configurations for a specific project.",
         "operationId": "list_project_agent_configs_api_v1_projects__project_id__agents_config_get",
@@ -3803,7 +3803,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/agents/config/{agent_id}": {
+    "/v1/projects/{project_id}/agents/config/{agent_id}": {
       "get": {
         "description": "Get project-specific configuration for an agent.",
         "operationId": "get_project_agent_config_api_v1_projects__project_id__agents_config__agent_id__get",
@@ -3923,7 +3923,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/agents/enabled": {
+    "/v1/projects/{project_id}/agents/enabled": {
       "get": {
         "description": "Get list of enabled agents for a specific project.",
         "operationId": "get_enabled_agents_for_project_api_v1_projects__project_id__agents_enabled_get",
@@ -3964,7 +3964,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/agents/{agent_id}/enabled": {
+    "/v1/projects/{project_id}/agents/{agent_id}/enabled": {
       "get": {
         "description": "Check if a specific agent is enabled for a project.",
         "operationId": "check_agent_enabled_for_project_api_v1_projects__project_id__agents__agent_id__enabled_get",
@@ -4014,7 +4014,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/compliance/research": {
+    "/v1/projects/{project_id}/compliance/research": {
       "post": {
         "description": "Trigger external regulatory monitoring using the Compliance agent.",
         "operationId": "research_compliance_api_v1_projects__project_id__compliance_research_post",
@@ -4067,7 +4067,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/health": {
+    "/v1/projects/{project_id}/health": {
       "get": {
         "operationId": "project_health_api_v1_projects__project_id__health_get",
         "parameters": [
@@ -4107,7 +4107,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/health/trends": {
+    "/v1/projects/{project_id}/health/trends": {
       "get": {
         "operationId": "project_health_trends_api_v1_projects__project_id__health_trends_get",
         "parameters": [
@@ -4147,7 +4147,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/health/what-if": {
+    "/v1/projects/{project_id}/health/what-if": {
       "post": {
         "operationId": "project_health_what_if_api_v1_projects__project_id__health_what_if_post",
         "parameters": [
@@ -4198,7 +4198,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/risks/research": {
+    "/v1/projects/{project_id}/risks/research": {
       "post": {
         "description": "Trigger external risk research using the Risk & Issue Management agent.",
         "operationId": "research_project_risks_api_v1_projects__project_id__risks_research_post",
@@ -4251,7 +4251,7 @@
         ]
       }
     },
-    "/api/v1/projects/{project_id}/scope/research": {
+    "/v1/projects/{project_id}/scope/research": {
       "post": {
         "description": "Trigger scope research using the Project Definition & Scope agent.",
         "operationId": "generate_scope_research_api_v1_projects__project_id__scope_research_post",
@@ -4304,7 +4304,7 @@
         ]
       }
     },
-    "/api/v1/query": {
+    "/v1/query": {
       "post": {
         "description": "Process a natural language query through the agent system.\n\nThis endpoint routes the query through the Intent Router and Response Orchestration agents.",
         "operationId": "process_query_api_v1_query_post",
@@ -4346,7 +4346,7 @@
         ]
       }
     },
-    "/api/v1/status": {
+    "/v1/status": {
       "get": {
         "description": "Get platform status.",
         "operationId": "get_status_api_v1_status_get",
@@ -4363,7 +4363,7 @@
         "summary": "Get Status"
       }
     },
-    "/api/v1/vendors": {
+    "/v1/vendors": {
       "get": {
         "description": "List vendor profiles with optional filtering.",
         "operationId": "list_vendors_api_v1_vendors_get",
@@ -4461,7 +4461,7 @@
         ]
       }
     },
-    "/api/v1/vendors/{vendor_id}": {
+    "/v1/vendors/{vendor_id}": {
       "get": {
         "description": "Get a vendor profile by ID.",
         "operationId": "get_vendor_profile_api_v1_vendors__vendor_id__get",
@@ -4555,7 +4555,7 @@
         ]
       }
     },
-    "/api/v1/vendors/{vendor_id}/research": {
+    "/v1/vendors/{vendor_id}/research": {
       "post": {
         "description": "Trigger external vendor research using the Vendor & Procurement agent.",
         "operationId": "research_vendor_api_v1_vendors__vendor_id__research_post",
@@ -4608,7 +4608,7 @@
         ]
       }
     },
-    "/api/v1/workflows/approvals": {
+    "/v1/workflows/approvals": {
       "get": {
         "operationId": "list_approvals_api_v1_workflows_approvals_get",
         "parameters": [
@@ -4677,7 +4677,7 @@
         ]
       }
     },
-    "/api/v1/workflows/approvals/{approval_id}": {
+    "/v1/workflows/approvals/{approval_id}": {
       "get": {
         "operationId": "get_approval_api_v1_workflows_approvals__approval_id__get",
         "parameters": [
@@ -4719,7 +4719,7 @@
         ]
       }
     },
-    "/api/v1/workflows/approvals/{approval_id}/decision": {
+    "/v1/workflows/approvals/{approval_id}/decision": {
       "post": {
         "operationId": "decide_approval_api_v1_workflows_approvals__approval_id__decision_post",
         "parameters": [
@@ -4771,7 +4771,7 @@
         ]
       }
     },
-    "/api/v1/workflows/definitions": {
+    "/v1/workflows/definitions": {
       "get": {
         "operationId": "list_definitions_api_v1_workflows_definitions_get",
         "responses": {
@@ -4835,7 +4835,7 @@
         ]
       }
     },
-    "/api/v1/workflows/instances": {
+    "/v1/workflows/instances": {
       "get": {
         "operationId": "list_instances_api_v1_workflows_instances_get",
         "responses": {
@@ -4860,7 +4860,7 @@
         ]
       }
     },
-    "/api/v1/workflows/instances/{run_id}": {
+    "/v1/workflows/instances/{run_id}": {
       "get": {
         "operationId": "get_instance_api_v1_workflows_instances__run_id__get",
         "parameters": [
@@ -4902,7 +4902,7 @@
         ]
       }
     },
-    "/api/v1/workflows/instances/{run_id}/resume": {
+    "/v1/workflows/instances/{run_id}/resume": {
       "post": {
         "operationId": "resume_workflow_api_v1_workflows_instances__run_id__resume_post",
         "parameters": [
@@ -4944,7 +4944,7 @@
         ]
       }
     },
-    "/api/v1/workflows/instances/{run_id}/timeline": {
+    "/v1/workflows/instances/{run_id}/timeline": {
       "get": {
         "operationId": "workflow_timeline_api_v1_workflows_instances__run_id__timeline_get",
         "parameters": [
@@ -4990,7 +4990,7 @@
         ]
       }
     },
-    "/api/v1/workflows/start": {
+    "/v1/workflows/start": {
       "post": {
         "operationId": "start_workflow_api_v1_workflows_start_post",
         "requestBody": {

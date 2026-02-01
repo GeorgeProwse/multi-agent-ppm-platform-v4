@@ -8,7 +8,7 @@ Describe authentication and authorization flows for API consumers.
 
 - **JWT bearer tokens** are required for all non-health endpoints.
 - **Tenant headers** (`X-Tenant-ID`) must be present and match the tenant claim in the JWT.
-- **Identity Access service** (`services/identity-access`) can validate tokens via `/auth/validate` when `IDENTITY_ACCESS_URL` is set.
+- **Identity Access service** (`services/identity-access`) can validate tokens via `/v1/auth/validate` when `IDENTITY_ACCESS_URL` is set.
 - **Direct JWT validation** is supported via `IDENTITY_JWKS_URL` (public JWKS) or `IDENTITY_JWT_SECRET` (HMAC).
 - **OIDC discovery** is supported via `IDENTITY_OIDC_DISCOVERY_URL` or `IDENTITY_ISSUER` (fetches `.well-known/openid-configuration` and JWKS).
 - **Web console OIDC** uses `/login` + `/oidc/callback` to establish a tenant-aware session cookie.
@@ -19,7 +19,7 @@ Describe authentication and authorization flows for API consumers.
 - **RBAC enforcement**: Roles and permissions are defined in `config/rbac/roles.yaml` and `config/rbac/permissions.yaml`.
 - **Classification-based checks**: Requests with a `classification` field are validated against allowed roles and field-level rules in `config/rbac/field-level.yaml`.
 - **Policy engine optional**: When `POLICY_ENGINE_URL` is set, authorization checks are delegated to the policy engine service.
-- **ABAC evaluation**: When `ABAC_ENFORCEMENT=true`, the gateway evaluates attribute-based policies using the policy engine (`/abac/evaluate`) or local policies in `config/abac/policies.yaml`.
+- **ABAC evaluation**: When `ABAC_ENFORCEMENT=true`, the gateway evaluates attribute-based policies using the policy engine (`/v1/abac/evaluate`) or local policies in `config/abac/policies.yaml`.
 - **Field masking**: JSON responses are redacted using `config/rbac/field-level.yaml`, including nested fields defined with dot notation.
 
 ## Local development mode
@@ -54,9 +54,9 @@ Set `AUTH_DEV_MODE=true` and use the following environment variables for determi
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/auth/saml/metadata` | GET | Returns SP metadata XML for IdP registration. |
-| `/auth/saml/login` | GET | Initiates SAML login and redirects to the IdP. |
-| `/auth/saml/acs` | POST | Assertion consumer service that issues a JWT on success. |
+| `/v1/auth/saml/metadata` | GET | Returns SP metadata XML for IdP registration. |
+| `/v1/auth/saml/login` | GET | Initiates SAML login and redirects to the IdP. |
+| `/v1/auth/saml/acs` | POST | Assertion consumer service that issues a JWT on success. |
 
 Required configuration:
 

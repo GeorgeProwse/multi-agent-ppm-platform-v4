@@ -10,17 +10,18 @@ from typing import Any
 from uuid import uuid4
 
 import yaml
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
 DATA_QUALITY_ROOT = REPO_ROOT / "packages" / "data-quality" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT, DATA_QUALITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, DATA_QUALITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from data_quality.remediation import RemediationResult, remediate_payload  # noqa: E402
 from data_quality.rules import evaluate_quality_rules  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
@@ -136,8 +137,9 @@ class RetentionStatusResponse(BaseModel):
     last_pruned_count: int
 
 
-app = FastAPI(title="Data Lineage Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Data Lineage Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("data-lineage-service")
 configure_metrics("data-lineage-service")
 app.add_middleware(TraceMiddleware, service_name="data-lineage-service")
@@ -164,6 +166,15 @@ async def shutdown() -> None:
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "data-lineage-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 def get_store() -> LineageStore:
@@ -269,7 +280,7 @@ def _mask_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return mask_lineage_payload(payload)
 
 
-@app.post("/lineage/events", response_model=LineageEventOut)
+@api_router.post("/lineage/events", response_model=LineageEventOut)
 async def ingest_event(
     payload: LineageEventIn,
     request: Request,
@@ -328,7 +339,7 @@ async def ingest_event(
     return _record_to_response(store.get(payload.tenant_id, lineage_id))
 
 
-@app.get("/lineage/events", response_model=list[LineageEventOut])
+@api_router.get("/lineage/events", response_model=list[LineageEventOut])
 async def list_events(
     request: Request,
     connector_id: str | None = None,
@@ -347,7 +358,7 @@ async def list_events(
     return visible
 
 
-@app.get("/lineage/events/{lineage_id}", response_model=LineageEventOut)
+@api_router.get("/lineage/events/{lineage_id}", response_model=LineageEventOut)
 async def get_event(
     lineage_id: str, request: Request, store: LineageStore = Depends(get_store)
 ) -> LineageEventOut:
@@ -359,7 +370,7 @@ async def get_event(
     return _record_to_response(record)
 
 
-@app.get("/lineage/graph", response_model=LineageGraphResponse)
+@api_router.get("/lineage/graph", response_model=LineageGraphResponse)
 async def get_graph(
     request: Request, store: LineageStore = Depends(get_store)
 ) -> LineageGraphResponse:
@@ -402,7 +413,7 @@ async def get_graph(
     return LineageGraphResponse(nodes=list(nodes.values()), edges=edges)
 
 
-@app.get("/quality/summary", response_model=QualitySummaryResponse)
+@api_router.get("/quality/summary", response_model=QualitySummaryResponse)
 async def get_quality_summary(
     request: Request, store: LineageStore = Depends(get_store)
 ) -> QualitySummaryResponse:
@@ -439,7 +450,7 @@ async def get_quality_summary(
     )
 
 
-@app.post("/quality/remediate", response_model=QualityRemediationResponse)
+@api_router.post("/quality/remediate", response_model=QualityRemediationResponse)
 async def remediate_quality(
     payload: QualityRemediationRequest, request: Request
 ) -> QualityRemediationResponse:
@@ -458,7 +469,7 @@ async def remediate_quality(
     return _remediation_response(result, quality)
 
 
-@app.post("/quality/remediate/{lineage_id}", response_model=QualityRemediationResponse)
+@api_router.post("/quality/remediate/{lineage_id}", response_model=QualityRemediationResponse)
 async def remediate_lineage_record(
     lineage_id: str,
     request: Request,
@@ -496,7 +507,7 @@ async def remediate_lineage_record(
     return _remediation_response(result, quality)
 
 
-@app.get("/retention/status", response_model=RetentionStatusResponse)
+@api_router.get("/retention/status", response_model=RetentionStatusResponse)
 async def retention_status(request: Request) -> RetentionStatusResponse:
     scheduler = _get_retention_scheduler(request)
     if not scheduler:
@@ -507,3 +518,6 @@ async def retention_status(request: Request) -> RetentionStatusResponse:
         last_pruned_at=snapshot["last_pruned_at"],
         last_pruned_count=int(snapshot["last_pruned_count"]),
     )
+
+
+app.include_router(api_router)

@@ -1,12 +1,22 @@
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from runtime import AgentRuntime
 
-app = FastAPI(title="Agent Runtime Service", version="0.1.0")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from packages.version import API_VERSION  # noqa: E402
+from runtime import AgentRuntime  # noqa: E402
+
+app = FastAPI(title="Agent Runtime Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
 
 runtime = AgentRuntime()
 
@@ -69,12 +79,21 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-@app.get("/agents")
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "agent-runtime",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.get("/agents")
 async def list_agents() -> list[dict[str, Any]]:
     return runtime.list_agents()
 
 
-@app.post("/agents/{agent_id}/execute")
+@api_router.post("/agents/{agent_id}/execute")
 async def execute_agent(agent_id: str, request: AgentExecuteRequest) -> dict[str, Any]:
     try:
         return await runtime.execute_agent(agent_id, request.payload)
@@ -84,18 +103,18 @@ async def execute_agent(agent_id: str, request: AgentExecuteRequest) -> dict[str
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.get("/orchestration/config", response_model=OrchestrationConfig)
+@api_router.get("/orchestration/config", response_model=OrchestrationConfig)
 async def get_orchestration_config() -> OrchestrationConfig:
     return OrchestrationConfig(**runtime.get_orchestration_config())
 
 
-@app.put("/orchestration/config", response_model=OrchestrationConfig)
+@api_router.put("/orchestration/config", response_model=OrchestrationConfig)
 async def update_orchestration_config(config: OrchestrationConfig) -> OrchestrationConfig:
     runtime.set_orchestration_config(config.model_dump())
     return config
 
 
-@app.post("/orchestration/run")
+@api_router.post("/orchestration/run")
 async def run_orchestration(request: OrchestrationRunRequest) -> dict[str, Any]:
     routing = request.routing
     if routing is None:
@@ -117,7 +136,7 @@ async def run_orchestration(request: OrchestrationRunRequest) -> dict[str, Any]:
     return await runtime.execute_agent("response-orchestration", payload)
 
 
-@app.get("/connectors")
+@api_router.get("/connectors")
 async def list_connectors() -> list[dict[str, Any]]:
     return [
         {
@@ -131,7 +150,7 @@ async def list_connectors() -> list[dict[str, Any]]:
     ]
 
 
-@app.post("/connectors/{connector_id}/actions")
+@api_router.post("/connectors/{connector_id}/actions")
 async def run_connector_action(
     connector_id: str, request: ConnectorActionRequest
 ) -> dict[str, Any]:
@@ -145,13 +164,13 @@ async def run_connector_action(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@app.post("/events/publish")
+@api_router.post("/events/publish")
 async def publish_event(request: EventPublishRequest) -> dict[str, Any]:
     await runtime.event_bus.publish(request.topic, request.payload)
     return {"published": True, "topic": request.topic}
 
 
-@app.get("/events")
+@api_router.get("/events")
 async def list_events(topic: str | None = None) -> list[dict[str, Any]]:
     return [
         {
@@ -161,3 +180,6 @@ async def list_events(topic: str | None = None) -> list[dict[str, Any]]:
         }
         for record in runtime.event_bus.get_recent_events(topic)
     ]
+
+
+app.include_router(api_router)

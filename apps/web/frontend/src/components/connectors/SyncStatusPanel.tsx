@@ -12,7 +12,7 @@ interface SyncSummary {
   last_status: string | null;
 }
 
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 const mockSummary: SyncSummary[] = [
   {

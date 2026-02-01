@@ -62,23 +62,23 @@ def test_lineage_event_ingest_and_quality_summary(monkeypatch, tmp_path) -> None
             },
         }
         headers = {"X-Tenant-ID": "tenant-qa", "Authorization": f"Bearer {token}"}
-        response = client.post("/lineage/events", json=payload, headers=headers)
+        response = client.post("/v1/lineage/events", json=payload, headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data["quality"] is not None
         assert "project-required-fields" in data["quality"]["rules_checked"]
 
-        list_response = client.get("/lineage/events", headers=headers)
+        list_response = client.get("/v1/lineage/events", headers=headers)
         assert list_response.status_code == 200
         assert len(list_response.json()) == 1
 
-        graph_response = client.get("/lineage/graph", headers=headers)
+        graph_response = client.get("/v1/lineage/graph", headers=headers)
         assert graph_response.status_code == 200
         graph = graph_response.json()
         assert len(graph["nodes"]) == 2
         assert len(graph["edges"]) == 1
 
-        quality_response = client.get("/quality/summary", headers=headers)
+        quality_response = client.get("/v1/quality/summary", headers=headers)
         assert quality_response.status_code == 200
         summary = quality_response.json()
         assert summary["total_events"] == 1

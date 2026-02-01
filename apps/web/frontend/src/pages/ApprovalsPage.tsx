@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import styles from './ApprovalsPage.module.css';
 
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 const DEFAULT_APPROVER = 'dev-user';
 
 interface ApprovalSummary {

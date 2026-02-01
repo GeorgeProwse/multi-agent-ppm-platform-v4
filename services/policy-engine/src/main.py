@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -16,10 +16,11 @@ from jsonschema import Draft202012Validator, FormatChecker
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from policy_config import DEFAULT_POLICY_BUNDLE_PATH  # noqa: E402
@@ -72,8 +73,9 @@ class ABACEvaluationResponse(BaseModel):
     reasons: list[str]
 
 
-app = FastAPI(title="Policy Engine", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Policy Engine", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("policy-engine")
 configure_metrics("policy-engine")
 app.add_middleware(TraceMiddleware, service_name="policy-engine")
@@ -91,7 +93,7 @@ async def register_policy_schema() -> None:
     try:
         async with httpx.AsyncClient(base_url=data_service_url.rstrip("/"), timeout=10.0) as client:
             response = await client.post(
-                "/schemas", json=payload, headers={"X-Tenant-ID": tenant_id}
+                "/v1/schemas", json=payload, headers={"X-Tenant-ID": tenant_id}
             )
             if response.status_code not in {200, 409}:
                 response.raise_for_status()
@@ -103,6 +105,15 @@ async def register_policy_schema() -> None:
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "policy-engine",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 def _load_default_policies() -> dict[str, Any]:
@@ -265,7 +276,7 @@ def _evaluate_abac(
     return ABACEvaluationResponse(decision=default_decision, reasons=reasons)
 
 
-@app.post("/policies/evaluate", response_model=PolicyEvaluationResponse)
+@api_router.post("/policies/evaluate", response_model=PolicyEvaluationResponse)
 async def evaluate_policies(request: PolicyEvaluationRequest) -> PolicyEvaluationResponse:
     if not request.bundle.get("metadata"):
         raise HTTPException(status_code=422, detail="Bundle metadata is required")
@@ -277,7 +288,7 @@ async def evaluate_policies(request: PolicyEvaluationRequest) -> PolicyEvaluatio
     return response
 
 
-@app.post("/rbac/evaluate", response_model=RBACEvaluationResponse)
+@api_router.post("/rbac/evaluate", response_model=RBACEvaluationResponse)
 async def evaluate_rbac(request: RBACEvaluationRequest) -> RBACEvaluationResponse:
     roles_cfg, _, field_cfg = _load_rbac_config()
     role_permissions = _build_role_permissions(roles_cfg)
@@ -303,7 +314,7 @@ async def evaluate_rbac(request: RBACEvaluationRequest) -> RBACEvaluationRespons
     return RBACEvaluationResponse(decision=decision, reasons=reasons)
 
 
-@app.post("/abac/evaluate", response_model=ABACEvaluationResponse)
+@api_router.post("/abac/evaluate", response_model=ABACEvaluationResponse)
 async def evaluate_abac(request: ABACEvaluationRequest) -> ABACEvaluationResponse:
     policy_cfg = _load_abac_config()
     payload = {
@@ -315,6 +326,9 @@ async def evaluate_abac(request: ABACEvaluationRequest) -> ABACEvaluationRespons
     response = _evaluate_abac(payload, policy_cfg)
     logger.info("abac_evaluated", extra={"decision": response.decision, "action": request.action})
     return response
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ class LineageClient:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
-            response = client.post("/lineage/events", json=payload, headers=headers)
+            response = client.post("/v1/lineage/events", json=payload, headers=headers)
             response.raise_for_status()
             return response.json()
 

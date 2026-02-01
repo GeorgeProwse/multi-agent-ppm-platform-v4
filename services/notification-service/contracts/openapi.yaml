@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /notifications/send:
+  /v1/notifications/send:
     post:
       summary: Render and send a notification
       requestBody:

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -19,11 +19,13 @@ for root in (REPO_ROOT, OBSERVABILITY_ROOT):
 from auth import authenticate_request, validate_token  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
+from packages.version import API_VERSION
 
 logger = logging.getLogger("auth-service")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Auth Service", version="0.1.0")
+app = FastAPI(title="Auth Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
 configure_tracing("auth-service")
 configure_metrics("auth-service")
 app.add_middleware(TraceMiddleware, service_name="auth-service")
@@ -174,7 +176,16 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-@app.post("/auth/login", response_model=TokenResponse)
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "auth-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.post("/auth/login", response_model=TokenResponse)
 async def login(request: LoginRequest) -> TokenResponse:
     client_id, client_secret = _client_credentials(request.client_id, request.client_secret)
     payload: dict[str, Any] = {
@@ -209,7 +220,7 @@ async def login(request: LoginRequest) -> TokenResponse:
     return TokenResponse(**payload_fields, raw=token_response)
 
 
-@app.post("/auth/refresh", response_model=TokenResponse)
+@api_router.post("/auth/refresh", response_model=TokenResponse)
 async def refresh(request: RefreshRequest) -> TokenResponse:
     client_id, client_secret = _client_credentials(request.client_id, request.client_secret)
     payload: dict[str, Any] = {
@@ -229,7 +240,7 @@ async def refresh(request: RefreshRequest) -> TokenResponse:
     return TokenResponse(**payload_fields, raw=token_response)
 
 
-@app.post("/auth/logout")
+@api_router.post("/auth/logout")
 async def logout(request: LogoutRequest) -> dict[str, str]:
     revocation_endpoint = await _resolve_revocation_endpoint()
     logout_endpoint = await _resolve_logout_endpoint()
@@ -262,7 +273,7 @@ async def logout(request: LogoutRequest) -> dict[str, str]:
     return {"status": "unsupported"}
 
 
-@app.post("/auth/validate", response_model=AuthValidateResponse)
+@api_router.post("/auth/validate", response_model=AuthValidateResponse)
 async def validate_auth(request: AuthValidateRequest) -> AuthValidateResponse:
     try:
         claims = await validate_token(request.token)
@@ -271,7 +282,7 @@ async def validate_auth(request: AuthValidateRequest) -> AuthValidateResponse:
     return AuthValidateResponse(active=True, subject=claims.get("sub"), claims=claims)
 
 
-@app.get("/auth/me", response_model=AuthContextResponse)
+@api_router.get("/auth/me", response_model=AuthContextResponse)
 async def whoami(request: Request) -> AuthContextResponse:
     auth_context = await authenticate_request(request)
     return AuthContextResponse(
@@ -280,3 +291,6 @@ async def whoami(request: Request) -> AuthContextResponse:
         roles=auth_context.roles,
         claims=auth_context.claims,
     )
+
+
+app.include_router(api_router)

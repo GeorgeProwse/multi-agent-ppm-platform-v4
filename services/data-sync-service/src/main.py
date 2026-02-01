@@ -9,16 +9,17 @@ from typing import Any
 from uuid import uuid4
 
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException
 from pydantic import BaseModel
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from conflict_store import get_conflict_store  # noqa: E402
 from data_sync_queue import enqueue_sync_job, get_queue_client  # noqa: E402
 from data_sync_status import get_status_store  # noqa: E402
@@ -124,8 +125,9 @@ class ConflictResponse(BaseModel):
     details: dict[str, Any]
 
 
-app = FastAPI(title="Data Sync Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Data Sync Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("data-sync-service")
 configure_metrics("data-sync-service")
 app.add_middleware(TraceMiddleware, service_name="data-sync-service")
@@ -144,6 +146,15 @@ data_sync_jobs_total = configure_metrics("data-sync-service").create_counter(
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "data-sync-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 @app.on_event("startup")
@@ -176,7 +187,7 @@ def _mask_lineage(details: dict[str, Any]) -> dict[str, Any]:
     return masked
 
 
-@app.post("/sync/run", response_model=SyncRunResponse)
+@api_router.post("/sync/run", response_model=SyncRunResponse)
 async def run_sync(request: SyncRunRequest) -> SyncRunResponse:
     rules = _load_rules()
     planned = [rule.id for rule in rules]
@@ -213,7 +224,7 @@ async def run_sync(request: SyncRunRequest) -> SyncRunResponse:
     )
 
 
-@app.get("/sync/status/{job_id}", response_model=SyncStatusResponse)
+@api_router.get("/sync/status/{job_id}", response_model=SyncStatusResponse)
 async def get_sync_status(job_id: str) -> SyncStatusResponse:
     status_store = get_status_store()
     job = status_store.get(job_id)
@@ -224,7 +235,7 @@ async def get_sync_status(job_id: str) -> SyncStatusResponse:
     return SyncStatusResponse(**payload)
 
 
-@app.get("/sync/jobs", response_model=list[SyncJobSummary])
+@api_router.get("/sync/jobs", response_model=list[SyncJobSummary])
 async def list_sync_jobs() -> list[SyncJobSummary]:
     registry = get_registry()
     jobs: list[SyncJobSummary] = []
@@ -247,7 +258,7 @@ async def list_sync_jobs() -> list[SyncJobSummary]:
     return jobs
 
 
-@app.post("/sync/jobs/{connector}/{entity}/run", response_model=SyncLogResponse)
+@api_router.post("/sync/jobs/{connector}/{entity}/run", response_model=SyncLogResponse)
 async def run_sync_job(connector: str, entity: str, dry_run: bool = False) -> SyncLogResponse:
     try:
         result = scheduler.run_job(connector, entity, dry_run=dry_run)
@@ -270,13 +281,13 @@ async def run_sync_job(connector: str, entity: str, dry_run: bool = False) -> Sy
     )
 
 
-@app.get("/sync/logs", response_model=list[SyncLogResponse])
+@api_router.get("/sync/logs", response_model=list[SyncLogResponse])
 async def list_sync_logs(limit: int = 50) -> list[SyncLogResponse]:
     log_store = get_sync_log_store()
     return [SyncLogResponse(**log.__dict__) for log in log_store.list_recent(limit=limit)]
 
 
-@app.get("/sync/summary", response_model=list[SyncSummaryResponse])
+@api_router.get("/sync/summary", response_model=list[SyncSummaryResponse])
 async def get_sync_summary() -> list[SyncSummaryResponse]:
     log_store = get_sync_log_store()
     registry = get_registry()
@@ -299,12 +310,15 @@ async def get_sync_summary() -> list[SyncSummaryResponse]:
     return summaries
 
 
-@app.get("/sync/conflicts", response_model=list[ConflictResponse])
+@api_router.get("/sync/conflicts", response_model=list[ConflictResponse])
 async def list_conflicts(limit: int = 50) -> list[ConflictResponse]:
     conflict_store = get_conflict_store()
     return [
         ConflictResponse(**record.__dict__) for record in conflict_store.list_recent(limit=limit)
     ]
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

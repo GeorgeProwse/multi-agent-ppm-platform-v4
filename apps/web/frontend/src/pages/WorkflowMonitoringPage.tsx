@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import styles from './WorkflowMonitoringPage.module.css';
 
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 interface WorkflowInstance {
   run_id: string;

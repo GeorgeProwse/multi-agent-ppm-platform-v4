@@ -7,16 +7,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from connector_storage import ConnectorStore  # noqa: E402
 from observability.metrics import (  # noqa: E402
     RequestMetricsMiddleware,
@@ -29,8 +30,9 @@ from security.auth import AuthTenantMiddleware  # noqa: E402
 logger = logging.getLogger("connector-hub")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Connector Hub", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/health", "/healthz"})
+app = FastAPI(title="Connector Hub", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/health", "/healthz", "/version"})
 configure_tracing("connector-hub")
 configure_metrics("connector-hub")
 app.add_middleware(TraceMiddleware, service_name="connector-hub")
@@ -100,6 +102,15 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "connector-hub",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
 def _build_response(record) -> ConnectorResponse:
     return ConnectorResponse(
         connector_id=record.connector_id,
@@ -112,7 +123,7 @@ def _build_response(record) -> ConnectorResponse:
     )
 
 
-@app.post("/connectors", response_model=ConnectorResponse)
+@api_router.post("/connectors", response_model=ConnectorResponse)
 async def create_connector(request: Request, payload: ConnectorRequest) -> ConnectorResponse:
     assert store is not None
     tenant_id = request.state.auth.tenant_id
@@ -131,7 +142,7 @@ async def create_connector(request: Request, payload: ConnectorRequest) -> Conne
     return _build_response(record)
 
 
-@app.get("/connectors", response_model=list[ConnectorResponse])
+@api_router.get("/connectors", response_model=list[ConnectorResponse])
 async def list_connectors(request: Request) -> list[ConnectorResponse]:
     assert store is not None
     tenant_id = request.state.auth.tenant_id
@@ -139,7 +150,7 @@ async def list_connectors(request: Request) -> list[ConnectorResponse]:
     return [_build_response(record) for record in records]
 
 
-@app.patch("/connectors/{connector_id}", response_model=ConnectorResponse)
+@api_router.patch("/connectors/{connector_id}", response_model=ConnectorResponse)
 async def update_connector(
     connector_id: str, request: Request, payload: ConnectorUpdateRequest
 ) -> ConnectorResponse:
@@ -165,7 +176,7 @@ async def update_connector(
     return _build_response(record)
 
 
-@app.get("/connectors/{connector_id}/health", response_model=ConnectorResponse)
+@api_router.get("/connectors/{connector_id}/health", response_model=ConnectorResponse)
 async def connector_health(connector_id: str, request: Request) -> ConnectorResponse:
     assert store is not None
     tenant_id = request.state.auth.tenant_id
@@ -176,6 +187,9 @@ async def connector_health(connector_id: str, request: Request) -> ConnectorResp
     connector_health_checks.add(1, {"tenant_id": tenant_id, "status": record.health_status})
     kpi_handles.requests.add(1, {"operation": "connector_health", "tenant_id": tenant_id})
     return _build_response(record)
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

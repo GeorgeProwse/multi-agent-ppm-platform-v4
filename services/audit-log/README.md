@@ -7,8 +7,8 @@ Define the Audit Log service responsibilities and how it integrates with the pla
 ## Key endpoints
 
 - `GET /healthz`: Service health check.
-- `POST /audit/events`: Ingest a new audit event (validated against schema).
-- `GET /audit/events/{event_id}`: Retrieve a single audit event.
+- `POST /v1/audit/events`: Ingest a new audit event (validated against schema).
+- `GET /v1/audit/events/{event_id}`: Retrieve a single audit event.
 
 **Default port:** `8080`
 

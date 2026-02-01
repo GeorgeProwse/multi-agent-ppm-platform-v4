@@ -194,19 +194,19 @@ def test_lineage_event_creation_and_lookup(monkeypatch, tmp_path: Path) -> None:
     }
 
     with TestClient(module.app) as client:
-        response = client.post("/lineage/events", json=payload, headers=_auth_headers(monkeypatch))
+        response = client.post("/v1/lineage/events", json=payload, headers=_auth_headers(monkeypatch))
         assert response.status_code == 200
         event = response.json()
         assert event["connector"] == "jira"
         lineage_id = event["lineage_id"]
 
-        response = client.get(f"/lineage/events/{lineage_id}", headers=_auth_headers(monkeypatch))
+        response = client.get(f"/v1/lineage/events/{lineage_id}", headers=_auth_headers(monkeypatch))
         assert response.status_code == 200
         fetched = response.json()
         assert fetched["lineage_id"] == lineage_id
 
         response = client.get(
-            "/lineage/events",
+            "/v1/lineage/events",
             params={"connector_id": "jira"},
             headers=_auth_headers(monkeypatch),
         )
@@ -215,7 +215,7 @@ def test_lineage_event_creation_and_lookup(monkeypatch, tmp_path: Path) -> None:
         assert len(events) == 1
 
         response = client.get(
-            "/lineage/events",
+            "/v1/lineage/events",
             params={"work_item_id": "WI-100"},
             headers=_auth_headers(monkeypatch),
         )
@@ -229,7 +229,7 @@ def test_lineage_query_by_connector(monkeypatch, tmp_path: Path) -> None:
     with TestClient(module.app) as client:
         for connector in ("jira", "asana"):
             response = client.post(
-                "/lineage/events",
+                "/v1/lineage/events",
                 json={
                     "tenant_id": "tenant-a",
                     "connector": connector,
@@ -243,7 +243,7 @@ def test_lineage_query_by_connector(monkeypatch, tmp_path: Path) -> None:
             assert response.status_code == 200
 
         response = client.get(
-            "/lineage/events",
+            "/v1/lineage/events",
             params={"connector_id": "asana"},
             headers=_auth_headers(monkeypatch),
         )

@@ -53,7 +53,7 @@ def test_policy_engine_denies(monkeypatch) -> None:
 
     client = TestClient(app)
     response = client.get(
-        "/api/v1/status",
+        "/v1/status",
         headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
     )
     assert response.status_code == 403

@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /sync/run:
+  /v1/sync/run:
     post:
       summary: Trigger a sync run
       requestBody:
@@ -29,7 +29,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SyncRunResponse"
-  /sync/status/{job_id}:
+  /v1/sync/status/{job_id}:
     get:
       summary: Get sync job status
       parameters:

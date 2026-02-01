@@ -17,7 +17,7 @@ import type {
 } from './types';
 
 // API base URL
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 interface ConnectorStoreState {
   // Connectors

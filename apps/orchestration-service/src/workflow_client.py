@@ -22,17 +22,17 @@ class WorkflowClient:
     async def start_workflow(
         self, payload: dict[str, Any], headers: dict[str, str]
     ) -> dict[str, Any]:
-        return await self._request_json("POST", "/workflows/start", headers=headers, json=payload)
+        return await self._request_json("POST", "/v1/workflows/start", headers=headers, json=payload)
 
     async def list_workflows(self, headers: dict[str, str]) -> list[dict[str, Any]]:
-        response = await self._request_json("GET", "/workflows", headers=headers)
+        response = await self._request_json("GET", "/v1/workflows", headers=headers)
         return list(response)
 
     async def get_workflow(self, run_id: str, headers: dict[str, str]) -> dict[str, Any]:
-        return await self._request_json("GET", f"/workflows/{run_id}", headers=headers)
+        return await self._request_json("GET", f"/v1/workflows/{run_id}", headers=headers)
 
     async def resume_workflow(self, run_id: str, headers: dict[str, str]) -> dict[str, Any]:
-        return await self._request_json("POST", f"/workflows/{run_id}/resume", headers=headers)
+        return await self._request_json("POST", f"/v1/workflows/{run_id}/resume", headers=headers)
 
     async def _request_json(
         self,

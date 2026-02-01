@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -10,7 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 import yaml
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -23,13 +24,14 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 SCHEMA_PATH = REPO_ROOT / "data" / "schemas" / "audit-event.schema.json"
 RETENTION_CONFIG_PATH = REPO_ROOT / "config" / "retention" / "policies.yaml"
 CLASSIFICATION_CONFIG_PATH = REPO_ROOT / "config" / "data-classification" / "levels.yaml"
 
+from packages.version import API_VERSION  # noqa: E402
 from audit_storage import AuditRetentionPolicy, get_worm_storage  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
@@ -84,8 +86,9 @@ class HealthResponse(BaseModel):
     service: str = "audit-log"
 
 
-app = FastAPI(title="Audit Log Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Audit Log Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("audit-log")
 configure_metrics("audit-log")
 app.add_middleware(TraceMiddleware, service_name="audit-log")
@@ -95,6 +98,15 @@ app.add_middleware(RequestMetricsMiddleware, service_name="audit-log")
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "audit-log",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 def _serialize_event(event: AuditEventOut) -> dict[str, Any]:
@@ -122,7 +134,7 @@ def _load_retention_policy(classification: str) -> AuditRetentionPolicy:
     return AuditRetentionPolicy(policy_id=policy["id"], duration_days=policy["duration_days"])
 
 
-@app.post("/audit/events", response_model=AuditIngestResponse)
+@api_router.post("/audit/events", response_model=AuditIngestResponse)
 async def ingest_event(payload: AuditEventIn) -> AuditIngestResponse:
     event_id = payload.id or str(uuid4())
     timestamp = payload.timestamp or datetime.now(timezone.utc)
@@ -157,7 +169,7 @@ async def ingest_event(payload: AuditEventIn) -> AuditIngestResponse:
     return AuditIngestResponse(event=event)
 
 
-@app.get("/audit/events/{event_id}", response_model=AuditEventOut)
+@api_router.get("/audit/events/{event_id}", response_model=AuditEventOut)
 async def get_event(event_id: str) -> AuditEventOut:
     storage = get_worm_storage()
     data = storage.fetch_event(event_id)
@@ -168,7 +180,7 @@ async def get_event(event_id: str) -> AuditEventOut:
     raise HTTPException(status_code=404, detail="Audit event not found")
 
 
-@app.get("/audit/evidence/export")
+@api_router.get("/audit/evidence/export")
 async def export_evidence(request: Request) -> StreamingResponse:
     auth = request.state.auth
     storage = get_worm_storage()
@@ -185,6 +197,9 @@ async def export_evidence(request: Request) -> StreamingResponse:
         media_type="application/zip",
         headers=headers,
     )
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

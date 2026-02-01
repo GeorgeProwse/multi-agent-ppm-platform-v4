@@ -19,7 +19,7 @@ def test_certification_records_flow(auth_headers, monkeypatch, tmp_path):
     client = TestClient(app)
 
     response = client.post(
-        "/api/v1/certifications",
+        "/v1/certifications",
         json={
             "connector_id": "jira",
             "compliance_status": "pending",
@@ -35,7 +35,7 @@ def test_certification_records_flow(auth_headers, monkeypatch, tmp_path):
 
     files = {"file": ("soc2-report.pdf", b"evidence", "application/pdf")}
     response = client.post(
-        "/api/v1/certifications/jira/documents",
+        "/v1/certifications/jira/documents",
         data={"uploaded_by": "qa-user"},
         files=files,
         headers=auth_headers,
@@ -45,7 +45,7 @@ def test_certification_records_flow(auth_headers, monkeypatch, tmp_path):
     assert payload["documents"][0]["filename"] == "soc2-report.pdf"
 
     response = client.get(
-        "/api/v1/certifications/jira",
+        "/v1/certifications/jira",
         headers=auth_headers,
     )
     assert response.status_code == 200

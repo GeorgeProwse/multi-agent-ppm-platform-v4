@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /telemetry/ingest:
+  /v1/telemetry/ingest:
     post:
       summary: Ingest telemetry payload
       requestBody:

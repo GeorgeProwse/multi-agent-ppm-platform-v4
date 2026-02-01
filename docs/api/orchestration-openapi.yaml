@@ -18,7 +18,7 @@ paths:
       responses:
         "200":
           description: Agent list
-  /workflows/run:
+  /v1/workflows/run:
     post:
       summary: Start a workflow
       requestBody:
@@ -37,13 +37,13 @@ paths:
       responses:
         "200":
           description: Workflow state
-  /workflows:
+  /v1/workflows:
     get:
       summary: List workflow states
       responses:
         "200":
           description: Workflow list
-  /workflows/{run_id}:
+  /v1/workflows/{run_id}:
     get:
       summary: Get workflow state
       parameters:
@@ -55,7 +55,7 @@ paths:
       responses:
         "200":
           description: Workflow state
-  /workflows/{run_id}/resume:
+  /v1/workflows/{run_id}/resume:
     post:
       summary: Resume workflow
       parameters:

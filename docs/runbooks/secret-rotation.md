@@ -23,7 +23,7 @@ This runbook defines the procedures for rotating secrets safely across all envir
 6. **Revoke old secret** after validation completes.
 
 ## Validation checks
-- API `/api/v1/status` returns `healthy`.
+- API `/v1/status` returns `healthy`.
 - Connector sync jobs authenticate successfully.
 - Audit log events continue to ingest.
 

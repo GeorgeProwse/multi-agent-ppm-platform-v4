@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -33,6 +33,7 @@ for root in (
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from agent_client import get_agent_client  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
@@ -56,11 +57,12 @@ DB_PATH = Path(os.getenv("WORKFLOW_DB_PATH", "apps/workflow-engine/storage/workf
 SCHEMA_PATH = WORKFLOW_ROOT / "workflows" / "schema" / "workflow.schema.json"
 RATE_LIMIT = os.getenv("WORKFLOW_ENGINE_RATE_LIMIT", "100/minute")
 
-app = FastAPI(title="Workflow Engine", version="1.0.0")
+app = FastAPI(title="Workflow Engine", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 app.add_middleware(SlowAPIMiddleware)
 configure_tracing("workflow-engine")
 configure_metrics("workflow-engine")
@@ -202,13 +204,22 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "workflow-engine",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     await approval_agent.initialize()
     seed_definitions(store, DEFINITIONS_DIR, SCHEMA_PATH)
 
 
-@app.get("/workflows/definitions", response_model=list[WorkflowDefinitionResponse])
+@api_router.get("/workflows/definitions", response_model=list[WorkflowDefinitionResponse])
 async def list_definitions(http_request: Request) -> list[WorkflowDefinitionResponse]:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     return [
@@ -223,7 +234,7 @@ async def list_definitions(http_request: Request) -> list[WorkflowDefinitionResp
     ]
 
 
-@app.post("/workflows/definitions", response_model=WorkflowDefinitionResponse)
+@api_router.post("/workflows/definitions", response_model=WorkflowDefinitionResponse)
 async def create_definition(
     request: WorkflowDefinitionCreateRequest, http_request: Request
 ) -> WorkflowDefinitionResponse:
@@ -243,7 +254,7 @@ async def create_definition(
     )
 
 
-@app.get("/workflows/definitions/{workflow_id}", response_model=WorkflowDefinitionResponse)
+@api_router.get("/workflows/definitions/{workflow_id}", response_model=WorkflowDefinitionResponse)
 async def get_definition(workflow_id: str, http_request: Request) -> WorkflowDefinitionResponse:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     record = store.get_definition(workflow_id)
@@ -258,7 +269,7 @@ async def get_definition(workflow_id: str, http_request: Request) -> WorkflowDef
     )
 
 
-@app.put("/workflows/definitions/{workflow_id}", response_model=WorkflowDefinitionResponse)
+@api_router.put("/workflows/definitions/{workflow_id}", response_model=WorkflowDefinitionResponse)
 async def update_definition(
     workflow_id: str, request: WorkflowDefinitionUpdateRequest, http_request: Request
 ) -> WorkflowDefinitionResponse:
@@ -278,7 +289,7 @@ async def update_definition(
     )
 
 
-@app.delete("/workflows/definitions/{workflow_id}")
+@api_router.delete("/workflows/definitions/{workflow_id}")
 async def delete_definition(workflow_id: str, http_request: Request) -> dict[str, str]:
     _require_roles(http_request, ROLE_POLICIES["workflow:manage_definitions"])
     record = store.get_definition(workflow_id)
@@ -288,7 +299,7 @@ async def delete_definition(workflow_id: str, http_request: Request) -> dict[str
     return {"status": "deleted"}
 
 
-@app.post("/workflows/start", response_model=WorkflowRunResponse)
+@api_router.post("/workflows/start", response_model=WorkflowRunResponse)
 @limiter.limit(RATE_LIMIT)
 async def start_workflow(
     request: WorkflowStartRequest,
@@ -356,7 +367,7 @@ async def start_workflow(
     )
 
 
-@app.get("/workflows/{run_id}", response_model=WorkflowRunResponse)
+@api_router.get("/workflows/{run_id}", response_model=WorkflowRunResponse)
 async def get_workflow(run_id: str, http_request: Request) -> WorkflowRunResponse:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     instance = store.get(run_id)
@@ -375,7 +386,7 @@ async def get_workflow(run_id: str, http_request: Request) -> WorkflowRunRespons
     )
 
 
-@app.get("/workflows", response_model=list[WorkflowRunResponse])
+@api_router.get("/workflows", response_model=list[WorkflowRunResponse])
 async def list_workflows(http_request: Request) -> list[WorkflowRunResponse]:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     return [
@@ -392,7 +403,7 @@ async def list_workflows(http_request: Request) -> list[WorkflowRunResponse]:
     ]
 
 
-@app.post("/workflows/{run_id}/resume", response_model=WorkflowRunResponse)
+@api_router.post("/workflows/{run_id}/resume", response_model=WorkflowRunResponse)
 async def resume_workflow(run_id: str, http_request: Request) -> WorkflowRunResponse:
     _require_roles(http_request, ROLE_POLICIES["workflow:update"])
     instance = store.get(run_id)
@@ -419,7 +430,7 @@ async def resume_workflow(run_id: str, http_request: Request) -> WorkflowRunResp
     )
 
 
-@app.get("/workflows/{run_id}/timeline", response_model=list[WorkflowEventResponse])
+@api_router.get("/workflows/{run_id}/timeline", response_model=list[WorkflowEventResponse])
 async def workflow_timeline(run_id: str, http_request: Request) -> list[WorkflowEventResponse]:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     instance = store.get(run_id)
@@ -440,7 +451,7 @@ async def workflow_timeline(run_id: str, http_request: Request) -> list[Workflow
     ]
 
 
-@app.post("/workflows/{run_id}/status", response_model=WorkflowRunResponse)
+@api_router.post("/workflows/{run_id}/status", response_model=WorkflowRunResponse)
 async def update_workflow(
     run_id: str, request: WorkflowUpdateRequest, http_request: Request
 ) -> WorkflowRunResponse:
@@ -468,7 +479,7 @@ async def update_workflow(
     )
 
 
-@app.get("/approvals", response_model=list[WorkflowApprovalResponse])
+@api_router.get("/approvals", response_model=list[WorkflowApprovalResponse])
 async def list_approvals(
     http_request: Request, status: str | None = None
 ) -> list[WorkflowApprovalResponse]:
@@ -492,7 +503,7 @@ async def list_approvals(
     ]
 
 
-@app.get("/approvals/{approval_id}", response_model=WorkflowApprovalResponse)
+@api_router.get("/approvals/{approval_id}", response_model=WorkflowApprovalResponse)
 async def get_approval(approval_id: str, http_request: Request) -> WorkflowApprovalResponse:
     _require_roles(http_request, ROLE_POLICIES["workflow:monitor"])
     approval = store.get_approval(approval_id)
@@ -515,7 +526,7 @@ async def get_approval(approval_id: str, http_request: Request) -> WorkflowAppro
     )
 
 
-@app.post("/approvals/{approval_id}/decision", response_model=WorkflowRunResponse)
+@api_router.post("/approvals/{approval_id}/decision", response_model=WorkflowRunResponse)
 async def decide_approval(
     approval_id: str, request: WorkflowApprovalDecisionRequest, http_request: Request
 ) -> WorkflowRunResponse:
@@ -549,6 +560,9 @@ async def decide_approval(
         created_at=instance.created_at,
         updated_at=instance.updated_at,
     )
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -411,7 +411,7 @@ See [Observability & Monitoring](docs/architecture/observability-architecture.md
 - **[Data Architecture](docs/architecture/data-architecture.md)** - Data models and flows
 - **[Deployment Architecture](docs/architecture/deployment-architecture.md)** - Deployment and infrastructure
 - **[Agent Specifications](agents/README.md)** - Individual agent details
-- **[API Documentation](http://localhost:8000/api/docs)** - Interactive API reference
+- **[API Documentation](http://localhost:8000/v1/docs)** - Interactive API reference
 
 ---
 

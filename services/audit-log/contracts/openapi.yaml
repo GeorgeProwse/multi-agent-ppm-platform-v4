@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /audit/events:
+  /v1/audit/events:
     post:
       summary: Ingest an audit event
       requestBody:
@@ -29,7 +29,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuditIngestResponse"
-  /audit/events/{event_id}:
+  /v1/audit/events/{event_id}:
     get:
       summary: Fetch an audit event by ID
       parameters:

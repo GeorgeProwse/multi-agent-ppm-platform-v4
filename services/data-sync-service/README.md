@@ -7,13 +7,13 @@ Define the Data Sync Service service responsibilities and how it integrates with
 ## Key endpoints
 
 - `GET /healthz`: Service health check.
-- `POST /sync/run`: Run all configured sync jobs.
-- `GET /sync/status/{job_id}`: Retrieve status for a specific sync job.
-- `GET /sync/jobs`: List sync jobs.
-- `POST /sync/jobs/{connector}/{entity}/run`: Run a sync job for a specific connector/entity.
-- `GET /sync/logs`: List sync logs.
-- `GET /sync/summary`: Summary metrics across sync jobs.
-- `GET /sync/conflicts`: List unresolved conflicts.
+- `POST /v1/sync/run`: Run all configured sync jobs.
+- `GET /v1/sync/status/{job_id}`: Retrieve status for a specific sync job.
+- `GET /v1/sync/jobs`: List sync jobs.
+- `POST /v1/sync/jobs/{connector}/{entity}/run`: Run a sync job for a specific connector/entity.
+- `GET /v1/sync/logs`: List sync logs.
+- `GET /v1/sync/summary`: Summary metrics across sync jobs.
+- `GET /v1/sync/conflicts`: List unresolved conflicts.
 
 **Default port:** `8080`
 

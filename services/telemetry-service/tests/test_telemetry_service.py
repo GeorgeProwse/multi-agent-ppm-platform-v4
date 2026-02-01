@@ -47,7 +47,7 @@ def test_telemetry_ingest(monkeypatch) -> None:
         "type": "log",
         "payload": {"message": "hello"},
     }
-    response = client.post("/telemetry/ingest", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/telemetry/ingest", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
     body = response.json()
     assert body["ingested"] is True

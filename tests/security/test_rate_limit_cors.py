@@ -26,8 +26,8 @@ def test_rate_limit_exceeded_returns_429(monkeypatch, auth_headers) -> None:
         },
     )
     client = TestClient(app)
-    response_ok = client.get("/api/v1/status", headers=auth_headers)
-    response_limited = client.get("/api/v1/status", headers=auth_headers)
+    response_ok = client.get("/v1/status", headers=auth_headers)
+    response_limited = client.get("/v1/status", headers=auth_headers)
     assert response_ok.status_code == 200
     assert response_limited.status_code == 429
 

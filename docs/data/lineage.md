@@ -72,14 +72,14 @@ Query lineage by work item ID via the API gateway:
 
 ```bash
 curl -H "X-Tenant-ID: tenant-a" \
-  "http://localhost:8000/api/v1/lineage?work_item_id=WI-100"
+  "http://localhost:8000/v1/lineage?work_item_id=WI-100"
 ```
 
 Query lineage by connector ID via the API gateway:
 
 ```bash
 curl -H "X-Tenant-ID: tenant-a" \
-  "http://localhost:8000/api/v1/lineage?connector_id=jira"
+  "http://localhost:8000/v1/lineage?connector_id=jira"
 ```
 
 Query lineage directly from the database:
