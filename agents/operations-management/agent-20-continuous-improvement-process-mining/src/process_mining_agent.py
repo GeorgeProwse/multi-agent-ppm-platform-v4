@@ -8,9 +8,10 @@ bottlenecks and deviations, and by managing improvement initiatives.
 Specification: agents/operations-management/agent-20-continuous-improvement-process-mining/README.md
 """
 
+import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
@@ -45,12 +46,22 @@ class ProcessMiningAgent(BaseAgent):
             else ["alpha_miner", "heuristic_miner", "fuzzy_miner"]
         )
 
-        event_log_store_path = (
-            Path(config.get("event_log_store_path", "data/process_event_logs.json"))
-            if config
-            else Path("data/process_event_logs.json")
+        event_log_store_path = self._resolve_store_path(
+            config, "event_log_store_path", "data/process_event_logs.json"
+        )
+        process_model_store_path = self._resolve_store_path(
+            config, "process_model_store_path", "data/process_models.json"
+        )
+        conformance_store_path = self._resolve_store_path(
+            config, "conformance_store_path", "data/process_conformance.json"
+        )
+        recommendations_store_path = self._resolve_store_path(
+            config, "recommendations_store_path", "data/process_recommendations.json"
         )
         self.event_log_store = TenantStateStore(event_log_store_path)
+        self.process_model_store = TenantStateStore(process_model_store_path)
+        self.conformance_store = TenantStateStore(conformance_store_path)
+        self.recommendations_store = TenantStateStore(recommendations_store_path)
 
         # Data stores (will be replaced with database)
         self.event_logs = {}  # type: ignore
@@ -61,7 +72,31 @@ class ProcessMiningAgent(BaseAgent):
         self.workflow_engine_agent = config.get("workflow_engine_agent") if config else None
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
-            self.event_bus = get_event_bus()
+            try:
+                self.event_bus = get_event_bus()
+            except Exception:
+                self.event_bus = None
+        self.event_topics = (
+            config.get(
+                "event_topics",
+                [
+                    "task.started",
+                    "task.completed",
+                    "deployment.succeeded",
+                    "risk.mitigated",
+                    "workflow.step.completed",
+                ],
+            )
+            if config
+            else [
+                "task.started",
+                "task.completed",
+                "deployment.succeeded",
+                "risk.mitigated",
+                "workflow.step.completed",
+            ]
+        )
+        self.max_deviation_alerts = config.get("max_deviation_alerts", 5) if config else 5
 
     async def initialize(self) -> None:
         """Initialize process mining tools, analytics, and data sources."""
@@ -80,6 +115,7 @@ class ProcessMiningAgent(BaseAgent):
         # Future work: Initialize Azure Service Bus for process insights events
         # Future work: Set up Azure Cognitive Services for root cause analysis
 
+        await self._subscribe_to_event_bus()
         self.logger.info("Continuous Improvement & Process Mining Agent initialized")
 
     async def validate_input(self, input_data: dict[str, Any]) -> bool:
@@ -93,6 +129,7 @@ class ProcessMiningAgent(BaseAgent):
         valid_actions = [
             "ingest_event_log",
             "discover_process",
+            "check_conformance",
             "detect_bottlenecks",
             "detect_deviations",
             "analyze_root_cause",
@@ -102,6 +139,9 @@ class ProcessMiningAgent(BaseAgent):
             "benchmark_performance",
             "share_best_practices",
             "get_process_insights",
+            "get_process_model",
+            "get_conformance_report",
+            "get_recommendations",
             "get_improvement_backlog",
         ]
 
@@ -117,6 +157,13 @@ class ProcessMiningAgent(BaseAgent):
         elif action == "discover_process":
             if "process_id" not in input_data:
                 self.logger.warning("Missing process_id")
+                return False
+        elif action == "check_conformance":
+            if "process_id" not in input_data:
+                self.logger.warning("Missing process_id")
+                return False
+            if "expected_model" not in input_data and "process_model_id" not in input_data:
+                self.logger.warning("Missing expected_model or process_model_id")
                 return False
 
         return True
@@ -170,6 +217,16 @@ class ProcessMiningAgent(BaseAgent):
             return await self._discover_process(
                 process_id, input_data.get("algorithm", "heuristic_miner")
             )
+        elif action == "check_conformance":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            expected_model = input_data.get("expected_model")
+            process_model_id = input_data.get("process_model_id")
+            if expected_model is None and process_model_id:
+                expected_model = self.process_models.get(process_model_id, {}).get("model")
+            if expected_model is None:
+                expected_model = await self._get_designed_process_model(process_id)
+            return await self._check_conformance(process_id, expected_model)
 
         elif action == "detect_bottlenecks":
             process_id = input_data.get("process_id")
@@ -213,6 +270,18 @@ class ProcessMiningAgent(BaseAgent):
             process_id = input_data.get("process_id")
             assert isinstance(process_id, str), "process_id must be a string"
             return await self._get_process_insights(process_id)
+        elif action == "get_process_model":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._get_process_model(process_id)
+        elif action == "get_conformance_report":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._get_conformance_report(process_id)
+        elif action == "get_recommendations":
+            process_id = input_data.get("process_id")
+            assert isinstance(process_id, str), "process_id must be a string"
+            return await self._get_recommendations(process_id)
 
         elif action == "get_improvement_backlog":
             return await self._get_improvement_backlog(input_data.get("filters", {}))
@@ -259,6 +328,64 @@ class ProcessMiningAgent(BaseAgent):
             "time_range": await self._calculate_time_range(mapped_events),
         }
 
+    async def _check_conformance(
+        self, process_id: str, expected_model: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Compare actual traces against expected process model."""
+        self.logger.info(f"Checking conformance for process: {process_id}")
+
+        events = await self._get_process_events(process_id)
+        if not events:
+            raise ValueError(f"No events found for process: {process_id}")
+
+        traces = await self._build_traces(events)
+        expected_activities = set(expected_model.get("activities", []))
+        expected_transitions = {
+            (edge.get("from"), edge.get("to"))
+            for edge in expected_model.get("transitions", [])
+        }
+
+        deviations: list[dict[str, Any]] = []
+        compliant_traces = 0
+
+        for case_id, activities in traces.items():
+            trace_deviations = []
+            if expected_activities and not set(activities).issubset(expected_activities):
+                extra = set(activities) - expected_activities
+                trace_deviations.append(
+                    {"case_id": case_id, "category": "extra_activities", "activities": list(extra)}
+                )
+            for left, right in self._pairwise(activities):
+                if expected_transitions and (left, right) not in expected_transitions:
+                    trace_deviations.append(
+                        {
+                            "case_id": case_id,
+                            "category": "unexpected_transition",
+                            "from": left,
+                            "to": right,
+                        }
+                    )
+            if trace_deviations:
+                deviations.extend(trace_deviations)
+            else:
+                compliant_traces += 1
+
+        compliance_rate = (
+            (compliant_traces / len(traces)) * 100 if traces else 0.0
+        )
+        report = {
+            "process_id": process_id,
+            "expected_model": expected_model,
+            "total_traces": len(traces),
+            "compliant_traces": compliant_traces,
+            "compliance_rate": compliance_rate,
+            "deviations": deviations,
+            "checked_at": datetime.utcnow().isoformat(),
+        }
+        self.conformance_store.upsert(process_id, process_id, report)
+        await self._emit_deviation_alert(process_id, report)
+        return report
+
     async def _discover_process(
         self, process_id: str, algorithm: str = "heuristic_miner"
     ) -> dict[str, Any]:
@@ -275,8 +402,6 @@ class ProcessMiningAgent(BaseAgent):
         if not events:
             raise ValueError(f"No events found for process: {process_id}")
 
-        # Apply process mining algorithm
-        # Future work: Use process mining library (pm4py) or Azure Databricks
         process_model = await self._apply_mining_algorithm(events, algorithm)
 
         # Calculate performance metrics
@@ -288,7 +413,7 @@ class ProcessMiningAgent(BaseAgent):
         )
 
         # Store process model
-        self.process_models[process_id] = {
+        model_record = {
             "process_id": process_id,
             "model": process_model,
             "algorithm": algorithm,
@@ -296,6 +421,8 @@ class ProcessMiningAgent(BaseAgent):
             "visualization": visualization,
             "discovered_at": datetime.utcnow().isoformat(),
         }
+        self.process_models[process_id] = model_record
+        self.process_model_store.upsert(process_id, process_id, model_record)
 
         # Future work: Store in database
         # Future work: Publish process.discovered event
@@ -390,12 +517,14 @@ class ProcessMiningAgent(BaseAgent):
             if category in categorized_deviations:
                 categorized_deviations[category].append(deviation)
 
-        return {
+        report = {
             "process_id": process_id,
             "total_deviations": len(deviations),
             "deviations": categorized_deviations,
             "compliance_rate": await self._calculate_compliance_rate(deviations),
         }
+        await self._emit_deviation_alert(process_id, report)
+        return report
 
     async def _analyze_root_cause(self, process_id: str, issue_id: str) -> dict[str, Any]:
         """
@@ -682,15 +811,17 @@ class ProcessMiningAgent(BaseAgent):
         # Get deviations
         deviations_result = await self._detect_deviations(process_id)
 
+        recommendations = await self._generate_process_recommendations(
+            metrics, bottlenecks_result, deviations_result
+        )
+        await self._store_recommendations(process_id, recommendations)
         return {
             "process_id": process_id,
             "metrics": metrics,
             "bottlenecks": bottlenecks_result.get("bottlenecks", []),
             "deviations": deviations_result.get("total_deviations", 0),
             "compliance_rate": deviations_result.get("compliance_rate", 100),
-            "recommendations": await self._generate_process_recommendations(
-                metrics, bottlenecks_result, deviations_result
-            ),
+            "recommendations": recommendations,
         }
 
     async def _get_improvement_backlog(self, filters: dict[str, Any]) -> dict[str, Any]:
@@ -718,24 +849,57 @@ class ProcessMiningAgent(BaseAgent):
             "filters": filters,
         }
 
+    async def _get_process_model(self, process_id: str) -> dict[str, Any]:
+        """Return stored process model for API consumers."""
+        model = self.process_models.get(process_id) or self.process_model_store.get(
+            process_id, process_id
+        )
+        if not model:
+            await self._discover_process(process_id)
+            model = self.process_models.get(process_id) or self.process_model_store.get(
+                process_id, process_id
+            )
+        return model or {}
+
+    async def _get_conformance_report(self, process_id: str) -> dict[str, Any]:
+        """Return conformance report for API consumers."""
+        report = self.conformance_store.get(process_id, process_id)
+        if not report:
+            expected_model = await self._get_designed_process_model(process_id)
+            report = await self._check_conformance(process_id, expected_model)
+        return report
+
+    async def _get_recommendations(self, process_id: str) -> dict[str, Any]:
+        """Return stored recommendations for API consumers."""
+        stored = self.recommendations_store.get(process_id, process_id)
+        if stored:
+            return stored
+        insights = await self._get_process_insights(process_id)
+        return {
+            "process_id": process_id,
+            "generated_at": datetime.utcnow().isoformat(),
+            "recommendations": insights.get("recommendations", []),
+        }
+
     # Helper methods
 
     async def _generate_log_id(self) -> str:
         """Generate unique log ID."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
         return f"LOG-{timestamp}"
 
     async def _generate_improvement_id(self) -> str:
         """Generate unique improvement ID."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
         return f"IMP-{timestamp}"
 
     async def _validate_events(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Validate event log entries."""
         valid_events = []
         for event in events:
-            if all(k in event for k in ["timestamp", "activity"]):
-                valid_events.append(event)
+            normalized = await self._normalize_event(event)
+            if normalized:
+                valid_events.append(normalized)
         return valid_events
 
     async def _map_events_to_cases(self, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -751,9 +915,14 @@ class ProcessMiningAgent(BaseAgent):
         if not events:
             return {"start": None, "end": None}  # type: ignore
 
-        timestamps = [
-            datetime.fromisoformat(e.get("timestamp")) for e in events if e.get("timestamp")  # type: ignore
-        ]
+        timestamps = []
+        for event in events:
+            timestamp = event.get("timestamp")
+            if not timestamp:
+                continue
+            parsed = self._safe_parse_timestamp(timestamp)
+            if parsed:
+                timestamps.append(parsed)
         if not timestamps:
             return {"start": None, "end": None}  # type: ignore
 
@@ -761,33 +930,73 @@ class ProcessMiningAgent(BaseAgent):
 
     async def _get_process_events(self, process_id: str) -> list[dict[str, Any]]:
         """Get events for a specific process."""
-        # Future work: Query from event log storage
         all_events = []
-        for log in self.event_logs.values():
-            all_events.extend(log.get("events", []))
+        if not self.event_logs:
+            stored_logs = await self._load_all_event_logs()
+            for log in stored_logs:
+                all_events.extend(log.get("events", []))
+        else:
+            for log in self.event_logs.values():
+                all_events.extend(log.get("events", []))
 
         # Filter by process
         return [e for e in all_events if e.get("process_id") == process_id]
+
+    async def _load_all_event_logs(self) -> list[dict[str, Any]]:
+        if not self.event_log_store.path.exists():
+            return []
+        try:
+            data = self.event_log_store.path.read_text()
+            if not data:
+                return []
+            parsed: dict[str, Any] = json.loads(data)
+        except Exception:
+            return []
+        logs: list[dict[str, Any]] = []
+        for tenant_records in parsed.values():
+            if isinstance(tenant_records, dict):
+                logs.extend(
+                    record
+                    for record in tenant_records.values()
+                    if isinstance(record, dict)
+                )
+        return logs
 
     async def _apply_mining_algorithm(
         self, events: list[dict[str, Any]], algorithm: str
     ) -> dict[str, Any]:
         """Apply process mining algorithm."""
-        # Future work: Use pm4py or implement mining algorithms
-        # For now, create a simple model
+        traces = await self._build_traces(events)
+        activities = sorted({activity for trace in traces.values() for activity in trace})
+        transition_counts: dict[tuple[str, str], int] = {}
 
-        activities = list(set(e.get("activity") for e in events))
-        transitions = []
+        for trace in traces.values():
+            for left, right in self._pairwise(trace):
+                transition_counts[(left, right)] = transition_counts.get((left, right), 0) + 1
 
-        # Simple sequential model
-        for i in range(len(activities) - 1):
-            transitions.append(
+        if algorithm == "alpha_miner":
+            transitions = [
+                {"from": left, "to": right, "frequency": count}
+                for (left, right), count in transition_counts.items()
+            ]
+        elif algorithm == "inductive_miner":
+            transitions = [
+                {"from": left, "to": right, "frequency": count}
+                for (left, right), count in transition_counts.items()
+                if count >= self.min_frequency_threshold
+            ]
+            activities = sorted(
                 {
-                    "from": activities[i],
-                    "to": activities[i + 1],
-                    "frequency": len(events) // len(activities),
+                    activity
+                    for transition in transitions
+                    for activity in (transition["from"], transition["to"])
                 }
             )
+        else:
+            transitions = [
+                {"from": left, "to": right, "frequency": count}
+                for (left, right), count in transition_counts.items()
+            ]
 
         return {"activities": activities, "transitions": transitions, "algorithm": algorithm}
 
@@ -795,12 +1004,27 @@ class ProcessMiningAgent(BaseAgent):
         self, events: list[dict[str, Any]], process_model: dict[str, Any]
     ) -> dict[str, Any]:
         """Calculate process performance metrics."""
-        # Future work: Calculate actual metrics from events
+        traces = await self._build_traces(events)
+        cycle_times = []
+        for case_id in traces:
+            case_events = [e for e in events if e.get("case_id") == case_id]
+            timestamps = [
+                self._safe_parse_timestamp(e.get("timestamp"))
+                for e in case_events
+                if e.get("timestamp")
+            ]
+            timestamps = [ts for ts in timestamps if ts]
+            if timestamps:
+                cycle_times.append((max(timestamps) - min(timestamps)).total_seconds() / 3600)
+
+        median_cycle_time = (
+            sorted(cycle_times)[len(cycle_times) // 2] if cycle_times else 0.0
+        )
         return {
-            "median_cycle_time": 24.5,  # hours
-            "throughput": len(events),
+            "median_cycle_time": round(median_cycle_time, 2),
+            "throughput": len(traces),
             "activity_count": len(process_model.get("activities", [])),
-            "avg_waiting_time": 2.3,  # hours
+            "avg_waiting_time": await self._calculate_average_waiting_time(events),
         }
 
     async def _generate_process_visualization(
@@ -816,16 +1040,60 @@ class ProcessMiningAgent(BaseAgent):
 
     async def _analyze_waiting_times(self, process_id: str) -> dict[str, dict[str, Any]]:
         """Analyze waiting times per activity."""
-        # Future work: Calculate from event logs
-        return {
-            "activity_1": {"avg_waiting_time": 15.2, "frequency": 100},
-            "activity_2": {"avg_waiting_time": 45.8, "frequency": 98},
-        }
+        events = await self._get_process_events(process_id)
+        if not events:
+            return {}
+        traces = await self._build_traces(events)
+        activity_waits: dict[str, list[float]] = {}
+        activity_counts: dict[str, int] = {}
+
+        for case_id, activity_sequence in traces.items():
+            case_events = [
+                e for e in events if e.get("case_id") == case_id and e.get("timestamp")
+            ]
+            case_events = sorted(
+                case_events,
+                key=lambda e: self._safe_parse_timestamp(e.get("timestamp")) or datetime.min,
+            )
+            for idx in range(1, len(case_events)):
+                prev = case_events[idx - 1]
+                current = case_events[idx]
+                prev_ts = self._safe_parse_timestamp(prev.get("timestamp"))
+                curr_ts = self._safe_parse_timestamp(current.get("timestamp"))
+                if not prev_ts or not curr_ts:
+                    continue
+                wait_time = (curr_ts - prev_ts).total_seconds() / 3600
+                activity = activity_sequence[idx]
+                activity_waits.setdefault(activity, []).append(wait_time)
+                activity_counts[activity] = activity_counts.get(activity, 0) + 1
+
+        results: dict[str, dict[str, Any]] = {}
+        for activity, waits in activity_waits.items():
+            if waits:
+                results[activity] = {
+                    "avg_waiting_time": round(sum(waits) / len(waits), 2),
+                    "frequency": activity_counts.get(activity, 0),
+                }
+        return results
 
     async def _analyze_throughput(self, process_id: str) -> float:
         """Analyze overall process throughput."""
-        # Future work: Calculate actual throughput
-        return 25.5  # cases per day
+        events = await self._get_process_events(process_id)
+        if not events:
+            return 0.0
+        traces = await self._build_traces(events)
+        timestamps = [
+            self._safe_parse_timestamp(e.get("timestamp"))
+            for e in events
+            if e.get("timestamp")
+        ]
+        timestamps = [ts for ts in timestamps if ts]
+        if len(timestamps) < 2:
+            return float(len(traces))
+        duration_days = (max(timestamps) - min(timestamps)).total_seconds() / 86400
+        if duration_days <= 0:
+            return float(len(traces))
+        return round(len(traces) / duration_days, 2)
 
     async def _generate_bottleneck_recommendations(
         self, bottlenecks: list[dict[str, Any]]
@@ -841,6 +1109,9 @@ class ProcessMiningAgent(BaseAgent):
     async def _get_designed_process_model(self, process_id: str) -> dict[str, Any]:
         """Get designed process model."""
         # Future work: Query from Workflow & Process Engine Agent
+        stored = self.process_model_store.get(process_id, process_id)
+        if stored:
+            return stored.get("model", {})
         return {"activities": [], "transitions": []}
 
     async def _compare_process_models(
@@ -1093,6 +1364,7 @@ class ProcessMiningAgent(BaseAgent):
         return [
             "process_discovery",
             "process_visualization",
+            "process_conformance",
             "bottleneck_detection",
             "deviation_detection",
             "root_cause_analysis",
@@ -1105,3 +1377,139 @@ class ProcessMiningAgent(BaseAgent):
             "performance_metrics",
             "continuous_improvement",
         ]
+
+    async def _subscribe_to_event_bus(self) -> None:
+        if not self.event_bus:
+            return
+        for topic in self.event_topics:
+            self.event_bus.subscribe(topic, self._handle_event_bus_event)
+        if hasattr(self.event_bus, "start"):
+            await self.event_bus.start()
+
+    async def _handle_event_bus_event(self, payload: dict[str, Any]) -> None:
+        event, tenant_id = await self._convert_bus_payload(payload)
+        if not event:
+            return
+        await self._ingest_event_log(tenant_id, [event])
+
+    async def _convert_bus_payload(
+        self, payload: dict[str, Any]
+    ) -> tuple[dict[str, Any] | None, str]:
+        event_type = payload.get("event_type") or payload.get("type") or payload.get("activity")
+        data = payload.get("data", {})
+        tenant_id = payload.get("tenant_id") or data.get("tenant_id") or "default"
+        if not event_type and isinstance(payload.get("event"), str):
+            event_type = payload.get("event")
+        event = {
+            "timestamp": payload.get("timestamp")
+            or payload.get("time")
+            or data.get("timestamp")
+            or datetime.utcnow().isoformat(),
+            "activity": event_type or "unknown",
+            "process_id": payload.get("process_id")
+            or data.get("process_id")
+            or data.get("workflow_id")
+            or "unknown",
+            "case_id": payload.get("case_id")
+            or data.get("case_id")
+            or data.get("request_id")
+            or data.get("task_id")
+            or "unknown",
+            "metadata": data,
+        }
+        return event, tenant_id
+
+    async def _normalize_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
+        if not event.get("activity"):
+            return None
+        timestamp = event.get("timestamp") or datetime.utcnow().isoformat()
+        normalized = {
+            **event,
+            "timestamp": timestamp,
+            "process_id": event.get("process_id") or "unknown",
+        }
+        if self._safe_parse_timestamp(normalized.get("timestamp")) is None:
+            return None
+        return normalized
+
+    async def _build_traces(self, events: list[dict[str, Any]]) -> dict[str, list[str]]:
+        traces: dict[str, list[dict[str, Any]]] = {}
+        for event in events:
+            case_id = event.get("case_id", "unknown")
+            traces.setdefault(case_id, []).append(event)
+        ordered_traces: dict[str, list[str]] = {}
+        for case_id, case_events in traces.items():
+            ordered = sorted(
+                case_events,
+                key=lambda e: self._safe_parse_timestamp(e.get("timestamp")) or datetime.min,
+            )
+            ordered_traces[case_id] = [e.get("activity") for e in ordered if e.get("activity")]
+        return ordered_traces
+
+    async def _calculate_average_waiting_time(self, events: list[dict[str, Any]]) -> float:
+        traces = await self._build_traces(events)
+        wait_times = []
+        for case_id in traces:
+            case_events = [e for e in events if e.get("case_id") == case_id]
+            case_events = sorted(
+                case_events,
+                key=lambda e: self._safe_parse_timestamp(e.get("timestamp")) or datetime.min,
+            )
+            for idx in range(1, len(case_events)):
+                prev_ts = self._safe_parse_timestamp(case_events[idx - 1].get("timestamp"))
+                curr_ts = self._safe_parse_timestamp(case_events[idx].get("timestamp"))
+                if prev_ts and curr_ts:
+                    wait_times.append((curr_ts - prev_ts).total_seconds() / 3600)
+        if not wait_times:
+            return 0.0
+        return round(sum(wait_times) / len(wait_times), 2)
+
+    def _safe_parse_timestamp(self, value: Any) -> datetime | None:
+        if isinstance(value, datetime):
+            return value
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(str(value))
+        except ValueError:
+            return None
+
+    async def _store_recommendations(self, process_id: str, recommendations: list[str]) -> None:
+        payload = {
+            "process_id": process_id,
+            "recommendations": recommendations,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+        self.recommendations_store.upsert(process_id, process_id, payload)
+        if self.event_bus:
+            await self.event_bus.publish(
+                "process.recommendations.generated",
+                {"event_type": "process.recommendations.generated", "data": payload},
+            )
+
+    async def _emit_deviation_alert(self, process_id: str, report: dict[str, Any]) -> None:
+        total_deviations = report.get("total_deviations") or len(report.get("deviations", []))
+        if total_deviations < self.max_deviation_alerts:
+            return
+        event_payload = {
+            "event_type": "process.deviation.alert",
+            "data": {
+                "process_id": process_id,
+                "total_deviations": total_deviations,
+                "report": report,
+            },
+        }
+        if self.event_bus:
+            await self.event_bus.publish("process.deviation.alert", event_payload)
+
+    def _pairwise(self, sequence: Iterable[str]) -> Iterable[tuple[str, str]]:
+        items = list(sequence)
+        for idx in range(len(items) - 1):
+            yield items[idx], items[idx + 1]
+
+    def _resolve_store_path(
+        self, config: dict[str, Any] | None, key: str, fallback: str
+    ) -> Path:
+        if config and config.get(key):
+            return Path(config.get(key))
+        return Path(fallback)

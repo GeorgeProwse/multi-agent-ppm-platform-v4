@@ -11,6 +11,30 @@ class WorkflowStub:
         return {"status": "ok"}
 
 
+class EventBusStub:
+    def __init__(self) -> None:
+        self.subscribers: dict[str, list] = {}
+        self.published: list[dict] = []
+
+    def subscribe(self, topic: str, handler) -> None:
+        self.subscribers.setdefault(topic, []).append(handler)
+
+    async def publish(self, topic: str, payload: dict) -> None:
+        self.published.append({"topic": topic, "payload": payload})
+
+    async def emit(self, topic: str, payload: dict) -> None:
+        for handler in self.subscribers.get(topic, []):
+            result = handler(payload)
+            if hasattr(result, "__await__"):
+                await result
+
+    def get_metrics(self) -> dict[str, int]:
+        return {}
+
+    def get_recent_events(self, topic: str | None = None) -> list:
+        return []
+
+
 @pytest.mark.asyncio
 async def test_process_mining_persists_logs_and_emits_recommendations(tmp_path):
     workflow_stub = WorkflowStub()
@@ -83,6 +107,85 @@ async def test_process_mining_get_insights_success(tmp_path):
     )
 
     assert response["process_id"] == "proc-1"
+
+
+@pytest.mark.asyncio
+async def test_process_mining_discovers_and_checks_conformance(tmp_path):
+    event_bus = EventBusStub()
+    agent = ProcessMiningAgent(
+        config={
+            "event_log_store_path": tmp_path / "event_logs.json",
+            "process_model_store_path": tmp_path / "process_models.json",
+            "conformance_store_path": tmp_path / "conformance.json",
+            "event_bus": event_bus,
+        }
+    )
+    await agent.initialize()
+
+    await agent.process(
+        {
+            "action": "ingest_event_log",
+            "tenant_id": "tenant-process",
+            "events": [
+                {
+                    "timestamp": "2024-01-01T00:00:00",
+                    "activity": "A",
+                    "process_id": "proc-2",
+                    "case_id": "case-1",
+                },
+                {
+                    "timestamp": "2024-01-01T01:00:00",
+                    "activity": "C",
+                    "process_id": "proc-2",
+                    "case_id": "case-1",
+                },
+            ],
+        }
+    )
+
+    discovery = await agent.process(
+        {"action": "discover_process", "tenant_id": "tenant-process", "process_id": "proc-2"}
+    )
+    assert discovery["activities"] > 0
+
+    report = await agent.process(
+        {
+            "action": "check_conformance",
+            "tenant_id": "tenant-process",
+            "process_id": "proc-2",
+            "expected_model": {
+                "activities": ["A", "B", "C"],
+                "transitions": [{"from": "A", "to": "B"}, {"from": "B", "to": "C"}],
+            },
+        }
+    )
+
+    assert report["compliance_rate"] < 100
+
+
+@pytest.mark.asyncio
+async def test_process_mining_ingests_event_bus_events(tmp_path):
+    event_bus = EventBusStub()
+    agent = ProcessMiningAgent(
+        config={
+            "event_log_store_path": tmp_path / "event_logs.json",
+            "event_bus": event_bus,
+            "event_topics": ["task.started"],
+        }
+    )
+    await agent.initialize()
+
+    await event_bus.emit(
+        "task.started",
+        {
+            "event_type": "task.started",
+            "timestamp": "2024-01-01T00:00:00",
+            "data": {"process_id": "proc-3", "case_id": "case-9", "tenant_id": "tenant-bus"},
+        },
+    )
+
+    stored_logs = agent.event_log_store.list("tenant-bus")
+    assert stored_logs
 
 
 @pytest.mark.asyncio
