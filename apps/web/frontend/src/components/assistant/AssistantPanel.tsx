@@ -22,6 +22,7 @@ import {
   type AssistantMessage,
   type PrerequisiteInfo,
 } from '@/store/assistant';
+import { Icon } from '@/components/icon/Icon';
 import { createArtifact, createEmptyContent } from '@ppm/canvas-engine';
 import promptsData from '../../../../data/prompts.json';
 import styles from './AssistantPanel.module.css';
@@ -496,7 +497,7 @@ export function AssistantPanel() {
                 label: `Open ${targetActivity.name}`,
                 category: 'navigate',
                 priority: 'high',
-                icon: '→',
+                icon: 'navigation.next',
                 actionType: 'open_activity',
                 payload: {
                   type: 'open_activity',
@@ -522,7 +523,7 @@ export function AssistantPanel() {
               label: `Go to ${getActivity(prereqId)?.name}`,
               category: 'navigate' as const,
               priority: 'high' as const,
-              icon: '→',
+              icon: 'navigation.next',
               actionType: 'open_activity' as const,
               payload: {
                 type: 'open_activity' as const,
@@ -607,7 +608,7 @@ export function AssistantPanel() {
             label: 'View Dashboard',
             category: 'navigate',
             priority: 'medium',
-            icon: '📈',
+            icon: 'artifact.dashboard',
             actionType: 'open_dashboard',
             payload: { type: 'open_dashboard' },
             enabled: true,
@@ -631,7 +632,7 @@ export function AssistantPanel() {
               label: 'Open Budget Plan',
               category: 'navigate',
               priority: 'high',
-              icon: '💰',
+              icon: 'domain.budget',
               actionType: 'open_activity',
               payload: { type: 'open_activity', activityId: 'act-budget' },
               enabled: true,
@@ -641,7 +642,7 @@ export function AssistantPanel() {
               label: 'Generate from WBS',
               category: 'create',
               priority: 'high',
-              icon: '✨',
+              icon: 'ai.suggestion',
               actionType: 'generate_template',
               payload: {
                 type: 'generate_template',
@@ -671,7 +672,7 @@ export function AssistantPanel() {
               label: 'Open Project Schedule',
               category: 'navigate',
               priority: 'high',
-              icon: '📅',
+              icon: 'artifact.timeline',
               actionType: 'open_activity',
               payload: { type: 'open_activity', activityId: 'act-schedule' },
               enabled: true,
@@ -686,7 +687,7 @@ export function AssistantPanel() {
           label: 'Open WBS',
           category: 'navigate',
           priority: 'high',
-          icon: '🌳',
+          icon: 'artifact.tree',
           actionType: 'open_activity',
           payload: { type: 'open_activity', activityId: 'act-wbs' },
           enabled: true,
@@ -699,7 +700,7 @@ export function AssistantPanel() {
           label: 'Open Risk Register',
           category: 'navigate',
           priority: 'high',
-          icon: '⚠',
+          icon: 'status.warning',
           actionType: 'open_activity',
           payload: { type: 'open_activity', activityId: 'act-risks' },
           enabled: true,
@@ -728,13 +729,10 @@ export function AssistantPanel() {
           onClick={toggleRightPanel}
           title="Open Assistant"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-              clipRule="evenodd"
-            />
-          </svg>
+          <Icon
+            semantic="communication.message"
+            label="Open Assistant"
+          />
         </button>
       </aside>
     );
@@ -754,13 +752,10 @@ export function AssistantPanel() {
           onClick={toggleRightPanel}
           title="Close Assistant"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
+          <Icon
+            semantic="actions.cancelDismiss"
+            label="Close Assistant"
+          />
         </button>
       </div>
 
@@ -857,19 +852,12 @@ export function AssistantPanel() {
       <div className={styles.messages}>
         {messages.length === 0 ? (
           <div className={styles.empty}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+            <Icon
+              semantic="communication.message"
+              decorative
               className={styles.emptyIcon}
-            >
-              <path
-                fillRule="evenodd"
-                d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-                clipRule="evenodd"
-              />
-            </svg>
+              size="xl"
+            />
             <p className={styles.emptyText}>
               Select an activity from the methodology panel to see context-aware
               suggestions, or type a question below.
@@ -903,9 +891,10 @@ export function AssistantPanel() {
           disabled={!inputValue.trim()}
           title="Send message"
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-          </svg>
+          <Icon
+            semantic="communication.send"
+            label="Send message"
+          />
         </button>
       </form>
 
@@ -922,7 +911,10 @@ export function AssistantPanel() {
                   setScopeResearchPreviewOpen(false);
                 }}
               >
-                ✕
+                <Icon
+                  semantic="actions.cancelDismiss"
+                  label="Close scope research"
+                />
               </button>
             </div>
             <p className={styles.modalHint}>
@@ -1120,7 +1112,12 @@ function ActionChipButton({ chip, onClick, small = false }: ActionChipButtonProp
         borderColor: colors.border,
       }}
     >
-      <span className={styles.chipIcon}>{icon}</span>
+      <Icon
+        semantic={icon}
+        decorative
+        className={styles.chipIcon}
+        size={small ? 'sm' : 'md'}
+      />
       <span className={styles.chipLabel}>{chip.label}</span>
     </button>
   );

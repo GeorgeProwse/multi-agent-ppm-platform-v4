@@ -8,6 +8,7 @@ import { useAppStore } from '@/store';
 import { canManageConfig } from '@/auth/permissions';
 import { createArtifact, createEmptyContent, type CanvasType } from '@ppm/canvas-engine';
 import type { MethodologyMap } from '@/store/methodology';
+import { Icon } from '@/components/icon/Icon';
 import styles from './TemplateGallery.module.css';
 
 type TemplateTab = {
@@ -231,7 +232,7 @@ export function TemplateGallery() {
         <div className={styles.inlineError}>
           <span>{error}</span>
           <button onClick={() => setError(null)} aria-label="Dismiss error">
-            ✕
+            <Icon semantic="actions.cancelDismiss" label="Dismiss error" />
           </button>
         </div>
       )}

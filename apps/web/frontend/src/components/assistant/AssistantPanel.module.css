@@ -310,12 +310,13 @@
 }
 
 .chipIcon {
-  font-size: var(--font-size-sm);
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chipSmall .chipIcon {
-  font-size: var(--font-size-xs);
+  display: inline-flex;
 }
 
 .chipLabel {

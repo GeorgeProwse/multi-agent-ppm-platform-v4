@@ -696,15 +696,15 @@ function getMockConnectors(): Connector[] {
  */
 function getDefaultCategories(): CategoryInfo[] {
   return [
-    { value: 'ppm', label: 'PPM Tools', icon: 'chart-bar', description: 'Portfolio and Project Management platforms', connector_count: 3, enabled_connector: null },
-    { value: 'pm', label: 'PM Tools', icon: 'clipboard-list', description: 'Project management and work tracking tools', connector_count: 4, enabled_connector: null },
-    { value: 'doc_mgmt', label: 'Document Management', icon: 'folder', description: 'Document storage and collaboration platforms', connector_count: 3, enabled_connector: null },
-    { value: 'erp', label: 'ERP Systems', icon: 'building-office', description: 'Enterprise resource planning systems', connector_count: 3, enabled_connector: null },
-    { value: 'hris', label: 'HRIS', icon: 'users', description: 'Human resource information systems', connector_count: 3, enabled_connector: null },
-    { value: 'collaboration', label: 'Collaboration', icon: 'chat-bubble-left-right', description: 'Team communication and collaboration tools', connector_count: 3, enabled_connector: null },
-    { value: 'grc', label: 'GRC', icon: 'shield-check', description: 'Governance, Risk, and Compliance platforms', connector_count: 3, enabled_connector: null },
-    { value: 'compliance', label: 'Compliance', icon: 'shield-check', description: 'Specialised regulatory compliance platforms', connector_count: 1, enabled_connector: null },
-    { value: 'iot', label: 'IoT Integrations', icon: 'cpu-chip', description: 'Custom hardware and sensor integrations', connector_count: 1, enabled_connector: null },
+    { value: 'ppm', label: 'PPM Tools', icon: 'domain.portfolio', description: 'Portfolio and Project Management platforms', connector_count: 3, enabled_connector: null },
+    { value: 'pm', label: 'PM Tools', icon: 'provenance.auditLog', description: 'Project management and work tracking tools', connector_count: 4, enabled_connector: null },
+    { value: 'doc_mgmt', label: 'Document Management', icon: 'artifact.folder', description: 'Document storage and collaboration platforms', connector_count: 3, enabled_connector: null },
+    { value: 'erp', label: 'ERP Systems', icon: 'domain.platform', description: 'Enterprise resource planning systems', connector_count: 3, enabled_connector: null },
+    { value: 'hris', label: 'HRIS', icon: 'communication.user', description: 'Human resource information systems', connector_count: 3, enabled_connector: null },
+    { value: 'collaboration', label: 'Collaboration', icon: 'communication.message', description: 'Team communication and collaboration tools', connector_count: 3, enabled_connector: null },
+    { value: 'grc', label: 'GRC', icon: 'domain.governance', description: 'Governance, Risk, and Compliance platforms', connector_count: 3, enabled_connector: null },
+    { value: 'compliance', label: 'Compliance', icon: 'domain.governance', description: 'Specialised regulatory compliance platforms', connector_count: 1, enabled_connector: null },
+    { value: 'iot', label: 'IoT Integrations', icon: 'connectors.cpuChip', description: 'Custom hardware and sensor integrations', connector_count: 1, enabled_connector: null },
   ];
 }
 

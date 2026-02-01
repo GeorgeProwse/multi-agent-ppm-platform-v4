@@ -48,6 +48,11 @@ jobs:
       - name: Run MyPy
         run: mypy agents/ apps/ packages/ --ignore-missing-imports
 
+      - name: Enforce UI icon standards
+        run: |
+          scripts/check-ui-emojis.sh
+          scripts/check-ui-icons.sh
+
   security-scan-code:
     name: Static Security Scan
     runs-on: ubuntu-latest

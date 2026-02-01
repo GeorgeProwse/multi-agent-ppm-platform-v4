@@ -272,7 +272,7 @@ export const useAssistantStore = create<AssistantStoreState>((set, get) => ({
       label: `Go to ${prereq.activityName}`,
       category: 'navigate',
       priority: 'high',
-      icon: '→',
+      icon: 'navigation.next',
       actionType: 'open_activity',
       payload: {
         type: 'open_activity',
@@ -290,7 +290,7 @@ export const useAssistantStore = create<AssistantStoreState>((set, get) => ({
         label: 'View all prerequisites',
         category: 'analyse',
         priority: 'medium',
-        icon: '📋',
+        icon: 'provenance.auditLog',
         actionType: 'show_prerequisites',
         payload: {
           type: 'show_prerequisites',
@@ -333,7 +333,7 @@ function generateActivitySuggestions(
           label: 'Generate budget template from WBS',
           category: 'create',
           priority: 'high',
-          icon: '✨',
+          icon: 'ai.suggestion',
           actionType: 'generate_template',
           payload: {
             type: 'generate_template',
@@ -350,7 +350,7 @@ function generateActivitySuggestions(
         label: 'Start with blank budget',
         category: 'create',
         priority: 'medium',
-        icon: '📊',
+        icon: 'artifact.spreadsheet',
         actionType: 'open_artifact',
         payload: {
           type: 'open_artifact',
@@ -371,7 +371,7 @@ function generateActivitySuggestions(
           label: 'Generate schedule from WBS',
           category: 'create',
           priority: 'high',
-          icon: '✨',
+          icon: 'ai.suggestion',
           actionType: 'generate_template',
           payload: {
             type: 'generate_template',
@@ -392,11 +392,11 @@ function generateActivitySuggestions(
       if (charterActivity?.status === 'complete') {
         chips.push({
           id: 'review-charter-for-wbs',
-          label: 'Review Project Charter',
-          category: 'review',
-          priority: 'medium',
-          icon: '👁',
-          actionType: 'open_activity',
+        label: 'Review Project Charter',
+        category: 'review',
+        priority: 'medium',
+        icon: 'actions.preview',
+        actionType: 'open_activity',
           payload: {
             type: 'open_activity',
             activityId: 'act-charter',
@@ -410,7 +410,7 @@ function generateActivitySuggestions(
         label: 'Research scope with web sources',
         category: 'analyse',
         priority: 'medium',
-        icon: '🔍',
+        icon: 'actions.search',
         actionType: 'scope_research',
         payload: {
           type: 'scope_research',
@@ -423,7 +423,7 @@ function generateActivitySuggestions(
         label: 'Create WBS structure',
         category: 'create',
         priority: 'high',
-        icon: '🌳',
+        icon: 'artifact.tree',
         actionType: 'open_artifact',
         payload: {
           type: 'open_artifact',
@@ -439,11 +439,11 @@ function generateActivitySuggestions(
       // Risk Management Plan
       chips.push({
         id: 'open-risk-register',
-        label: 'Open Risk Register',
-        category: 'navigate',
-        priority: 'high',
-        icon: '⚠',
-        actionType: 'open_activity',
+      label: 'Open Risk Register',
+      category: 'navigate',
+      priority: 'high',
+      icon: 'status.warning',
+      actionType: 'open_activity',
         payload: {
           type: 'open_activity',
           activityId: 'act-risks',
@@ -457,11 +457,11 @@ function generateActivitySuggestions(
       // Dashboard - suggest reviewing key metrics
       chips.push({
         id: 'view-schedule-status',
-        label: 'View Schedule Status',
-        category: 'analyse',
-        priority: 'medium',
-        icon: '📅',
-        actionType: 'open_activity',
+      label: 'View Schedule Status',
+      category: 'analyse',
+      priority: 'medium',
+      icon: 'artifact.timeline',
+      actionType: 'open_activity',
         payload: {
           type: 'open_activity',
           activityId: 'act-schedule',
@@ -471,11 +471,11 @@ function generateActivitySuggestions(
       });
       chips.push({
         id: 'view-budget-status',
-        label: 'View Budget Status',
-        category: 'analyse',
-        priority: 'medium',
-        icon: '💰',
-        actionType: 'open_activity',
+      label: 'View Budget Status',
+      category: 'analyse',
+      priority: 'medium',
+      icon: 'domain.budget',
+      actionType: 'open_activity',
         payload: {
           type: 'open_activity',
           activityId: 'act-budget',
@@ -490,11 +490,11 @@ function generateActivitySuggestions(
       if (activity.status === 'not_started') {
         chips.push({
           id: `start-${activity.id}`,
-          label: `Start ${activity.name}`,
-          category: 'create',
-          priority: 'high',
-          icon: '▶',
-          actionType: 'open_artifact',
+        label: `Start ${activity.name}`,
+        category: 'create',
+        priority: 'high',
+        icon: 'navigation.next',
+        actionType: 'open_artifact',
           payload: {
             type: 'open_artifact',
             artifactId: activity.artifactId ?? `new-${activity.id}`,
@@ -505,11 +505,11 @@ function generateActivitySuggestions(
       } else if (activity.status === 'in_progress') {
         chips.push({
           id: `continue-${activity.id}`,
-          label: `Continue ${activity.name}`,
-          category: 'create',
-          priority: 'high',
-          icon: '▶',
-          actionType: 'open_artifact',
+        label: `Continue ${activity.name}`,
+        category: 'create',
+        priority: 'high',
+        icon: 'navigation.next',
+        actionType: 'open_artifact',
           payload: {
             type: 'open_artifact',
             artifactId: activity.artifactId ?? `new-${activity.id}`,
@@ -519,11 +519,11 @@ function generateActivitySuggestions(
         });
         chips.push({
           id: `complete-${activity.id}`,
-          label: `Mark as complete`,
-          category: 'approve',
-          priority: 'medium',
-          icon: '✓',
-          actionType: 'complete_activity',
+        label: `Mark as complete`,
+        category: 'approve',
+        priority: 'medium',
+        icon: 'actions.confirmApply',
+        actionType: 'complete_activity',
           payload: {
             type: 'complete_activity',
             activityId: activity.id,
@@ -543,7 +543,7 @@ function generateActivitySuggestions(
         label: `Go to ${next.name}`,
         category: 'navigate',
         priority: activity.status === 'complete' ? 'high' : 'low',
-        icon: '→',
+        icon: 'navigation.next',
         actionType: 'open_activity',
         payload: {
           type: 'open_activity',
@@ -561,7 +561,7 @@ function generateActivitySuggestions(
     label: 'View Dashboard',
     category: 'navigate',
     priority: 'low',
-    icon: '📈',
+    icon: 'artifact.dashboard',
     actionType: 'open_dashboard',
     payload: {
       type: 'open_dashboard',
@@ -590,7 +590,7 @@ function generateGeneralSuggestions(
       label: `Continue ${activity.name}`,
       category: 'create',
       priority: 'high',
-      icon: '▶',
+      icon: 'navigation.next',
       actionType: 'open_activity',
       payload: {
         type: 'open_activity',
@@ -612,7 +612,7 @@ function generateGeneralSuggestions(
       label: `Start ${nextActivity.name}`,
       category: 'create',
       priority: 'medium',
-      icon: '✨',
+      icon: 'ai.suggestion',
       actionType: 'open_activity',
       payload: {
         type: 'open_activity',
@@ -629,7 +629,7 @@ function generateGeneralSuggestions(
     label: 'View Dashboard',
     category: 'navigate',
     priority: 'low',
-    icon: '📈',
+    icon: 'artifact.dashboard',
     actionType: 'open_dashboard',
     payload: {
       type: 'open_dashboard',

@@ -3,6 +3,7 @@
  *
  * Types for agent gallery configuration, enablement, and parameters.
  */
+import type { IconSemantic } from '@/components/icon/iconMap';
 
 /**
  * Agent categories for grouping
@@ -91,7 +92,7 @@ export interface DevUser {
 export interface CategoryInfo {
   value: AgentCategory;
   label: string;
-  icon: string;
+  icon: IconSemantic;
   description: string;
 }
 
@@ -102,37 +103,37 @@ export const CATEGORY_INFO: Record<AgentCategory, CategoryInfo> = {
   core: {
     value: 'core',
     label: 'Core',
-    icon: '⚙️',
+    icon: 'domain.core',
     description: 'Core system agents for routing and orchestration',
   },
   portfolio: {
     value: 'portfolio',
     label: 'Portfolio',
-    icon: '📊',
+    icon: 'domain.portfolio',
     description: 'Portfolio management and investment agents',
   },
   delivery: {
     value: 'delivery',
     label: 'Delivery',
-    icon: '🚀',
+    icon: 'domain.delivery',
     description: 'Project and program delivery agents',
   },
   operations: {
     value: 'operations',
     label: 'Operations',
-    icon: '🔧',
+    icon: 'domain.operations',
     description: 'Operational management and support agents',
   },
   platform: {
     value: 'platform',
     label: 'Platform',
-    icon: '🏗️',
+    icon: 'domain.platform',
     description: 'Platform services and infrastructure agents',
   },
   governance: {
     value: 'governance',
     label: 'Governance',
-    icon: '🛡️',
+    icon: 'domain.governance',
     description: 'Governance, compliance, and approval agents',
   },
 };

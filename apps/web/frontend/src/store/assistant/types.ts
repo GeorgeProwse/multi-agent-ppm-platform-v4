@@ -8,6 +8,7 @@
  */
 
 import type { CanvasType } from '@ppm/canvas-engine';
+import type { IconSemantic } from '@/components/icon/iconMap';
 
 /**
  * Message roles in the assistant chat
@@ -72,8 +73,8 @@ export interface ActionChip {
   /** Priority for ordering */
   priority: ActionPriority;
 
-  /** Icon (emoji or icon name) */
-  icon?: string;
+  /** Icon semantic */
+  icon?: IconSemantic;
 
   /** Type of action */
   actionType: ActionType;
@@ -278,12 +279,12 @@ export const CATEGORY_COLORS: Record<ActionCategory, { bg: string; text: string;
 /**
  * Category icons
  */
-export const CATEGORY_ICONS: Record<ActionCategory, string> = {
-  create: '✨',
-  review: '👁',
-  approve: '✓',
-  analyse: '📊',
-  navigate: '→',
+export const CATEGORY_ICONS: Record<ActionCategory, IconSemantic> = {
+  create: 'ai.suggestion',
+  review: 'actions.preview',
+  approve: 'actions.confirmApply',
+  analyse: 'ai.explainability',
+  navigate: 'navigation.next',
 };
 
 /**
@@ -316,7 +317,7 @@ export interface SuggestionApiResponse {
   label: string;
   category: ActionCategory;
   priority: ActionPriority;
-  icon?: string;
+  icon?: IconSemantic;
   action_type: ActionType;
   payload: ActionPayload;
   enabled?: boolean;

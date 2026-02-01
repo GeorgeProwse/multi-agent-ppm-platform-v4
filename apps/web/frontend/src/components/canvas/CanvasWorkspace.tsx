@@ -23,6 +23,8 @@ import {
   type DashboardContent,
 } from '@ppm/canvas-engine';
 import { useCanvasStore } from '@/store/useCanvasStore';
+import { Icon } from '@/components/icon/Icon';
+import type { IconSemantic } from '@/components/icon/iconMap';
 import styles from './CanvasWorkspace.module.css';
 
 export function CanvasWorkspace() {
@@ -157,18 +159,7 @@ function CanvasEmptyState() {
   return (
     <div className={styles.emptyState}>
       <div className={styles.emptyIcon}>
-        <svg
-          width="64"
-          height="64"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M9 3v18" />
-          <path d="M3 9h6" />
-        </svg>
+        <Icon semantic="artifact.document" decorative size="3xl" />
       </div>
       <h3 className={styles.emptyTitle}>No canvas open</h3>
       <p className={styles.emptyText}>
@@ -185,11 +176,19 @@ function CanvasEmptyState() {
               onClick={() => openArtifact(artifact)}
             >
               <span className={styles.artifactIcon}>
-                {artifact.type === 'document' && '📄'}
-                {artifact.type === 'tree' && '🌳'}
-                {artifact.type === 'timeline' && '📅'}
-                {artifact.type === 'spreadsheet' && '📊'}
-                {artifact.type === 'dashboard' && '📈'}
+                <Icon
+                  semantic={
+                    ({
+                      document: 'artifact.document',
+                      tree: 'artifact.tree',
+                      timeline: 'artifact.timeline',
+                      spreadsheet: 'artifact.spreadsheet',
+                      dashboard: 'artifact.dashboard',
+                    } as Record<string, IconSemantic>)[artifact.type]
+                  }
+                  decorative
+                  size="lg"
+                />
               </span>
               <span className={styles.artifactInfo}>
                 <span className={styles.artifactName}>{artifact.title}</span>

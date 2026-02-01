@@ -149,10 +149,10 @@ const initWorkspace = () => {
         const activitiesMarkup = stage.activities
           .map((activity) => {
             const statusIcon = activity.completed
-              ? "✅"
+              ? "Complete"
               : activity.access.allowed
-                ? "🔓"
-                : "🔒";
+                ? "Available"
+                : "Locked";
             const isSelected = activity.id === currentActivityId;
             return `
               <li>
@@ -195,7 +195,7 @@ const initWorkspace = () => {
               data-activity-id="${activity.id}"
               data-canvas-tab="${activity.recommended_canvas_tab}"
             >
-              🔓 ${activity.name}
+              Available ${activity.name}
             </button>
           </li>
         `;
