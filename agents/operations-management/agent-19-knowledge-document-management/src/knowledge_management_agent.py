@@ -9,12 +9,18 @@ Specification: agents/operations-management/agent-19-knowledge-document-manageme
 """
 
 import json
+import os
+import re
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from agents.common.connector_integration import DocumentManagementService
+from agents.common.connector_integration import (
+    ConnectorCategory,
+    ConnectorConfig,
+    DocumentManagementService,
+)
 from agents.common.integration_services import (
     LocalEmbeddingService,
     NaiveBayesTextClassifier,
@@ -25,6 +31,7 @@ from agents.runtime.src.state_store import TenantStateStore
 from jsonschema import ValidationError
 from jsonschema import validate as jsonschema_validate
 
+from knowledge_db import KnowledgeDatabase
 
 class KnowledgeManagementAgent(BaseAgent):
     """
@@ -55,6 +62,11 @@ class KnowledgeManagementAgent(BaseAgent):
             if config
             else Path("data/knowledge_documents.json")
         )
+        knowledge_db_path = (
+            Path(config.get("knowledge_db_path", "data/knowledge_management.db"))
+            if config
+            else Path("data/knowledge_management.db")
+        )
         schema_path = (
             Path(config.get("document_schema_path", "data/schemas/document.schema.json"))
             if config
@@ -63,6 +75,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         self.document_store = TenantStateStore(document_store_path)
         self.document_schema = json.loads(schema_path.read_text())
+        self.knowledge_db = KnowledgeDatabase(knowledge_db_path)
 
         # Document categories
         self.document_types = (
@@ -106,6 +119,11 @@ class KnowledgeManagementAgent(BaseAgent):
         self.vector_index = VectorSearchIndex(self.embedding_service)
         self.classifier = NaiveBayesTextClassifier(self.document_types)
         self.classifier_trained = False
+        self._confluence_connector = None
+        self.github_extensions = (
+            config.get("github_extensions", [".md", ".txt", ".rst"]) if config else [".md", ".txt", ".rst"]
+        )
+        self.ingestion_max_files = config.get("ingestion_max_files", 200) if config else 200
 
         # Data stores (will be replaced with database)
         self.documents: dict[str, Any] = {}
@@ -414,6 +432,9 @@ class KnowledgeManagementAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
             "modified_at": datetime.utcnow().isoformat(),
             "accessed_count": 0,
+            "topic": classification.get("topic"),
+            "phase": classification.get("phase"),
+            "domain": classification.get("domain"),
         }
 
         await self._validate_document_schema(
@@ -434,8 +455,11 @@ class KnowledgeManagementAgent(BaseAgent):
         # Store document
         self.documents[document_id] = document
         self.document_store.upsert(tenant_id, document_id, document.copy())
+        self.knowledge_db.upsert_document(document)
+        self.knowledge_db.record_version(document)
         self._index_document(document)
         await self._update_graph_for_document(document)
+        self._update_classifier_with_document(document)
 
         # Store version
         self.document_versions[document_id] = [document.copy()]
@@ -470,6 +494,9 @@ class KnowledgeManagementAgent(BaseAgent):
             "type": document["type"],
             "tags": tags,
             "classification": classification,
+            "topic": classification.get("topic"),
+            "phase": classification.get("phase"),
+            "domain": classification.get("domain"),
             "next_steps": "Document indexed and ready for search",
         }
 
@@ -576,6 +603,17 @@ class KnowledgeManagementAgent(BaseAgent):
                 documents.extend(records)
             except Exception as exc:
                 self.logger.warning(f"Confluence crawl failed: {exc}")
+            return documents
+
+        connector = self._get_confluence_connector()
+        if connector is None:
+            return documents
+
+        try:
+            records = connector.read("pages", filters=source.get("filters"))
+            documents.extend(records)
+        except Exception as exc:
+            self.logger.warning(f"Confluence crawl failed: {exc}")
         return documents
 
     async def _crawl_sharepoint(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -586,6 +624,14 @@ class KnowledgeManagementAgent(BaseAgent):
             record = await self.document_management_service.get_document(document_id)
             if record:
                 documents.append(record)
+        if source.get("list_documents"):
+            documents.extend(
+                await self.document_management_service.list_documents(
+                    folder_path=source.get("folder_path"),
+                    filters=source.get("filters"),
+                    limit=source.get("limit", 100),
+                )
+            )
         return documents
 
     async def _crawl_github(self, source: dict[str, Any]) -> list[dict[str, Any]]:
@@ -593,6 +639,9 @@ class KnowledgeManagementAgent(BaseAgent):
         documents = list(source.get("documents", []))
         for file_record in source.get("files", []):
             documents.append(file_record)
+        repo_path = source.get("repo_path")
+        if repo_path:
+            documents.extend(self._scan_repository(Path(repo_path), source))
         return documents
 
     async def _normalize_ingested_document(
@@ -602,14 +651,16 @@ class KnowledgeManagementAgent(BaseAgent):
         content = document.get("content") or document.get("body") or document.get("text") or ""
         metadata = document.get("metadata", {})
         metadata.update({"source_type": source_type, "source_id": source.get("id")})
+        extracted = self._extract_document_attributes(content)
+        metadata.update(extracted.get("metadata", {}))
         return {
             "title": title,
             "content": content,
-            "author": document.get("author") or document.get("owner"),
+            "author": document.get("author") or document.get("owner") or extracted.get("author"),
             "project_id": document.get("project_id") or source.get("project_id"),
             "program_id": document.get("program_id") or source.get("program_id"),
             "portfolio_id": document.get("portfolio_id") or source.get("portfolio_id"),
-            "tags": document.get("tags") or source.get("tags") or [],
+            "tags": document.get("tags") or source.get("tags") or extracted.get("tags") or [],
             "metadata": metadata,
             "source": source_type,
             "permissions": document.get("permissions", {"public": False}),
@@ -749,8 +800,11 @@ class KnowledgeManagementAgent(BaseAgent):
         )
 
         self.document_store.upsert(tenant_id, document_id, document.copy())
+        self.knowledge_db.upsert_document(document)
+        self.knowledge_db.record_version(document)
         self._index_document(document)
         await self._update_graph_for_document(document)
+        self._update_classifier_with_document(document)
 
         await self._publish_event(
             "knowledge.document.updated",
@@ -824,7 +878,11 @@ class KnowledgeManagementAgent(BaseAgent):
         document["tags"] = tags
         document["classification_confidence"] = classification.get("confidence")
         document["doc_type"] = await self._map_doc_type_for_schema(classification.get("type"))
+        document["topic"] = classification.get("topic")
+        document["phase"] = classification.get("phase")
+        document["domain"] = classification.get("domain")
         self.document_store.upsert(tenant_id, document_id, document.copy())
+        self.knowledge_db.upsert_document(document)
         self._index_document(document)
 
         # Future work: Store in database
@@ -836,6 +894,9 @@ class KnowledgeManagementAgent(BaseAgent):
             "tags": tags,
             "confidence": classification.get("confidence"),
             "suggested_category": classification.get("category"),
+            "topic": classification.get("topic"),
+            "phase": classification.get("phase"),
+            "domain": classification.get("domain"),
         }
 
     async def _summarize_document(self, document_id: str, tenant_id: str) -> dict[str, Any]:
@@ -903,6 +964,7 @@ class KnowledgeManagementAgent(BaseAgent):
             entity_node = self._graph_entity_id(entity.get("text"))
             self._register_graph_node(entity_node, "entity", entity)
             self._register_graph_edge(document_node, entity_node, "mentions")
+        self.knowledge_db.upsert_graph(self.graph_nodes, self.graph_edges)
 
         # Future work: Store in graph database
 
@@ -931,6 +993,7 @@ class KnowledgeManagementAgent(BaseAgent):
             self.knowledge_graph[document_id] = {"entities": [], "relationships": []}
 
         self.knowledge_graph[document_id]["relationships"] = relationships
+        self.knowledge_db.upsert_graph(self.graph_nodes, self.graph_edges)
 
         # Future work: Store in graph database (Cosmos DB Gremlin API)
 
@@ -977,6 +1040,7 @@ class KnowledgeManagementAgent(BaseAgent):
 
         # Store lesson
         self.lessons_learned[lesson_id] = lesson
+        await self._publish_event("knowledge.lesson.captured", lesson)
 
         # Future work: Store in database
         # Future work: Index for search
@@ -1120,6 +1184,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "created_at": datetime.utcnow().isoformat(),
         }
         self.document_annotations.setdefault(document_id, []).append(record)
+        self.knowledge_db.record_interaction(document_id, "annotation", record)
         await self._publish_event("knowledge.document.annotated", record)
         return {"document_id": document_id, "annotation": record}
 
@@ -1147,6 +1212,7 @@ class KnowledgeManagementAgent(BaseAgent):
             "reviewed_at": datetime.utcnow().isoformat(),
         }
         self.document_reviews.setdefault(document_id, []).append(record)
+        self.knowledge_db.record_interaction(document_id, "review", record)
         await self._publish_event("knowledge.document.reviewed", record)
         return {"document_id": document_id, "review": record}
 
@@ -1178,6 +1244,8 @@ class KnowledgeManagementAgent(BaseAgent):
             "status", "draft"
         )
         self.document_store.upsert(tenant_id, document_id, document.copy())
+        self.knowledge_db.upsert_document(document)
+        self.knowledge_db.record_interaction(document_id, "approval", record)
         await self._publish_event("knowledge.document.approved", record)
         return {"document_id": document_id, "approval": record}
 
@@ -1213,6 +1281,7 @@ class KnowledgeManagementAgent(BaseAgent):
             await self._publish_event(
                 "knowledge.document.linked", {"links": created_links, "tenant_id": tenant_id}
             )
+            self.knowledge_db.upsert_graph(self.graph_nodes, self.graph_edges)
         return {"links": created_links, "count": len(created_links)}
 
     async def _query_knowledge_graph(self, query: dict[str, Any]) -> dict[str, Any]:
@@ -1275,13 +1344,18 @@ class KnowledgeManagementAgent(BaseAgent):
 
     async def _extract_metadata(self, document_data: dict[str, Any]) -> dict[str, Any]:
         """Extract metadata from document."""
-        keywords = self._extract_keywords(document_data.get("content", ""))
+        content = document_data.get("content", "")
+        keywords = self._extract_keywords(content)
+        extracted = self._extract_document_attributes(content)
         return {
             "file_size": len(document_data.get("content", "")),
             "format": document_data.get("format", "text"),
             "language": "en",  # Future work: Detect language
             "keywords": keywords,
             "source": document_data.get("source"),
+            "author": extracted.get("author"),
+            "published_at": extracted.get("date"),
+            "tags": extracted.get("tags", []),
         }
 
     async def _auto_classify_document(self, document_data: dict[str, Any]) -> dict[str, Any]:
@@ -1290,7 +1364,15 @@ class KnowledgeManagementAgent(BaseAgent):
         if self.classifier_trained:
             label, scores = self.classifier.predict(content)
             confidence = max(scores.values()) if scores else 0.5
-            return {"type": label, "confidence": confidence, "category": label}
+            extra = self._classify_topic_phase_domain(content)
+            return {
+                "type": label,
+                "confidence": confidence,
+                "category": label,
+                "topic": extra.get("topic"),
+                "phase": extra.get("phase"),
+                "domain": extra.get("domain"),
+            }
 
         # Fallback heuristic classification
         content_lower = content.lower()
@@ -1305,7 +1387,15 @@ class KnowledgeManagementAgent(BaseAgent):
         else:
             doc_type = "report"
 
-        return {"type": doc_type, "confidence": 0.85, "category": doc_type}
+        extra = self._classify_topic_phase_domain(content)
+        return {
+            "type": doc_type,
+            "confidence": 0.85,
+            "category": doc_type,
+            "topic": extra.get("topic"),
+            "phase": extra.get("phase"),
+            "domain": extra.get("domain"),
+        }
 
     async def _generate_tags(
         self, document_data: dict[str, Any], classification: dict[str, Any]
@@ -1314,6 +1404,12 @@ class KnowledgeManagementAgent(BaseAgent):
         tags = set(document_data.get("tags", []))
         if classification.get("type"):
             tags.add(classification.get("type"))
+        if classification.get("topic"):
+            tags.add(classification.get("topic"))
+        if classification.get("phase"):
+            tags.add(classification.get("phase"))
+        if classification.get("domain"):
+            tags.add(classification.get("domain"))
         keywords = self._extract_keywords(document_data.get("content", ""))
         tags.update(keywords[:5])
         if document_data.get("project_id"):
@@ -1323,6 +1419,59 @@ class KnowledgeManagementAgent(BaseAgent):
         if document_data.get("portfolio_id"):
             tags.add("portfolio")
         return list(tags)
+
+    def _extract_document_attributes(self, content: str) -> dict[str, Any]:
+        """Extract author, date, and tags from content using simple NLP heuristics."""
+        author_match = re.search(r"(?im)^author\\s*:\\s*(.+)$", content)
+        date_match = re.search(r"(?im)^date\\s*:\\s*(.+)$", content)
+        tag_match = re.search(r"(?im)^tags?\\s*:\\s*(.+)$", content)
+        hash_tags = re.findall(r"#(\\w+)", content)
+        tags = []
+        if tag_match:
+            tags.extend([tag.strip() for tag in tag_match.group(1).split(",") if tag.strip()])
+        tags.extend(hash_tags)
+        return {
+            "author": author_match.group(1).strip() if author_match else None,
+            "date": date_match.group(1).strip() if date_match else None,
+            "tags": list(dict.fromkeys(tags)),
+            "metadata": {"hashtags": hash_tags} if hash_tags else {},
+        }
+
+    def _classify_topic_phase_domain(self, content: str) -> dict[str, str | None]:
+        content_lower = content.lower()
+        phase_keywords = {
+            "initiation": ["charter", "business case", "kickoff"],
+            "planning": ["plan", "schedule", "scope", "requirements"],
+            "execution": ["implementation", "delivery", "build"],
+            "monitoring": ["status", "metrics", "risk", "issue"],
+            "closure": ["handover", "retrospective", "closure", "lessons learned"],
+        }
+        domain_keywords = {
+            "security": ["security", "vulnerability", "access control"],
+            "finance": ["budget", "cost", "invoice", "capex"],
+            "operations": ["operations", "runbook", "incident"],
+            "compliance": ["compliance", "policy", "audit"],
+            "engineering": ["architecture", "design", "code", "deployment"],
+        }
+        phase = None
+        for candidate, keywords in phase_keywords.items():
+            if any(keyword in content_lower for keyword in keywords):
+                phase = candidate
+                break
+        domain = None
+        for candidate, keywords in domain_keywords.items():
+            if any(keyword in content_lower for keyword in keywords):
+                domain = candidate
+                break
+        return {"topic": phase, "phase": phase, "domain": domain}
+
+    def _update_classifier_with_document(self, document: dict[str, Any]) -> None:
+        content = document.get("content")
+        label = document.get("type")
+        if not content or not label:
+            return
+        self.classifier.fit([(content, label)])
+        self.classifier_trained = True
 
     def _extract_keywords(self, content: str, *, limit: int = 10) -> list[str]:
         """Extract simple keyword list from content."""
@@ -1341,6 +1490,8 @@ class KnowledgeManagementAgent(BaseAgent):
                 document.get("title", ""),
                 document.get("content", ""),
                 " ".join(document.get("tags", [])),
+                document.get("topic") or "",
+                document.get("domain") or "",
                 json.dumps(document.get("metadata", {})),
             ]
         )
@@ -1376,6 +1527,7 @@ class KnowledgeManagementAgent(BaseAgent):
             decision_node = self._graph_decision_id(decision)
             self._register_graph_node(decision_node, "decision", {"name": decision})
             self._register_graph_edge(decision_node, doc_node, "documented_in")
+        self.knowledge_db.upsert_graph(self.graph_nodes, self.graph_edges)
 
     def _extract_risks(self, content: str) -> list[str]:
         keywords = [
@@ -1391,6 +1543,58 @@ class KnowledgeManagementAgent(BaseAgent):
             if "decision" in line.lower():
                 decisions.append(line.strip()[:80])
         return decisions[:5]
+
+    def _get_confluence_connector(self) -> Any | None:
+        if self._confluence_connector is not None:
+            return self._confluence_connector
+        try:
+            from confluence_connector import ConfluenceConnector
+
+            connector_config = ConnectorConfig(
+                connector_id="confluence",
+                name="Confluence",
+                category=ConnectorCategory.DOC_MGMT,
+                instance_url=os.getenv("CONFLUENCE_URL", ""),
+            )
+            self._confluence_connector = ConfluenceConnector(connector_config)
+            return self._confluence_connector
+        except Exception as exc:
+            self.logger.warning(f"Failed to initialize Confluence connector: {exc}")
+            return None
+
+    def _scan_repository(self, repo_path: Path, source: dict[str, Any]) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
+        if not repo_path.exists():
+            return documents
+        extensions = source.get("extensions") or self.github_extensions
+        max_files = source.get("max_files", self.ingestion_max_files)
+        count = 0
+        for path in repo_path.rglob("*"):
+            if count >= max_files:
+                break
+            if not path.is_file() or path.suffix.lower() not in extensions:
+                continue
+            try:
+                content = path.read_text(errors="ignore")
+            except OSError:
+                continue
+            documents.append(
+                {
+                    "title": path.stem,
+                    "content": content,
+                    "author": source.get("owner"),
+                    "tags": source.get("tags", []),
+                    "metadata": {
+                        "path": str(path),
+                        "extension": path.suffix,
+                        "repo": str(repo_path),
+                        "modified_at": datetime.utcfromtimestamp(path.stat().st_mtime).isoformat(),
+                    },
+                    "source": "github",
+                }
+            )
+            count += 1
+        return documents
 
     def _graph_document_id(self, document_id: str) -> str:
         return f"document:{document_id}"
