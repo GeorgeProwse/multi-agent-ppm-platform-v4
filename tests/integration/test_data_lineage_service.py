@@ -4,6 +4,7 @@ import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -23,16 +24,26 @@ if SRC_PATH in sys.path:
     sys.path.remove(SRC_PATH)
 
 
-def _configure_auth(monkeypatch, tenant_id: str = "tenant-qa") -> None:
-    monkeypatch.setenv("AUTH_DEV_MODE", "true")
-    monkeypatch.setenv("AUTH_DEV_TENANT_ID", tenant_id)
+def _configure_auth(monkeypatch, tenant_id: str = "tenant-qa") -> str:
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    return jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "aud": "ppm-platform",
+            "iss": "https://issuer.example.com",
+            "tenant_id": tenant_id,
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
 
 
 def test_lineage_event_ingest_and_quality_summary(monkeypatch, tmp_path) -> None:
     store_path = tmp_path / "lineage.json"
     monkeypatch.setenv("DATA_LINEAGE_STORE_PATH", str(store_path))
     monkeypatch.setenv("LINEAGE_MASK_SALT", "unit-test-salt")
-    _configure_auth(monkeypatch)
+    token = _configure_auth(monkeypatch)
 
     with TestClient(module.app) as client:
         payload = {
@@ -50,25 +61,24 @@ def test_lineage_event_ingest_and_quality_summary(monkeypatch, tmp_path) -> None
                 }
             },
         }
-        response = client.post(
-            "/lineage/events", json=payload, headers={"X-Tenant-ID": "tenant-qa"}
-        )
+        headers = {"X-Tenant-ID": "tenant-qa", "Authorization": f"Bearer {token}"}
+        response = client.post("/lineage/events", json=payload, headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data["quality"] is not None
         assert "project-required-fields" in data["quality"]["rules_checked"]
 
-        list_response = client.get("/lineage/events", headers={"X-Tenant-ID": "tenant-qa"})
+        list_response = client.get("/lineage/events", headers=headers)
         assert list_response.status_code == 200
         assert len(list_response.json()) == 1
 
-        graph_response = client.get("/lineage/graph", headers={"X-Tenant-ID": "tenant-qa"})
+        graph_response = client.get("/lineage/graph", headers=headers)
         assert graph_response.status_code == 200
         graph = graph_response.json()
         assert len(graph["nodes"]) == 2
         assert len(graph["edges"]) == 1
 
-        quality_response = client.get("/quality/summary", headers={"X-Tenant-ID": "tenant-qa"})
+        quality_response = client.get("/quality/summary", headers=headers)
         assert quality_response.status_code == 200
         summary = quality_response.json()
         assert summary["total_events"] == 1

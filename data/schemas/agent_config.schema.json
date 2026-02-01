@@ -2,9 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ppm.example.com/schemas/agent_config.json",
   "title": "Agent Configuration Schema",
-  "description": "Schema for agent configuration storage, including global agent settings, project-specific configurations, and user profiles.",
+  "description": "Schema for agent configuration storage, including global agent settings and project-specific configurations.",
   "type": "object",
-  "required": ["agents", "project_configs", "dev_users"],
+  "required": ["agents", "project_configs"],
   "properties": {
     "agents": {
       "type": "object",
@@ -22,13 +22,6 @@
         "additionalProperties": {
           "$ref": "#/$defs/ProjectAgentConfig"
         }
-      }
-    },
-    "dev_users": {
-      "type": "object",
-      "description": "Development user profiles for RBAC testing",
-      "additionalProperties": {
-        "$ref": "#/$defs/DevUserProfile"
       }
     }
   },
@@ -172,34 +165,6 @@
         "updated_by": {
           "type": ["string", "null"],
           "description": "User ID who last updated the config"
-        }
-      }
-    },
-    "DevUserProfile": {
-      "type": "object",
-      "description": "Development user profile for RBAC testing",
-      "required": ["user_id", "name", "email", "role"],
-      "properties": {
-        "user_id": {
-          "type": "string",
-          "description": "Unique user identifier"
-        },
-        "name": {
-          "type": "string",
-          "description": "User display name"
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "User email address"
-        },
-        "role": {
-          "$ref": "#/$defs/UserRole"
-        },
-        "tenant_id": {
-          "type": "string",
-          "default": "default",
-          "description": "Tenant identifier for multi-tenancy"
         }
       }
     }

@@ -68,6 +68,10 @@ def pytest_ignore_collect(collection_path: Path, config):
         return True
     if path_str.endswith("tests/security/test_auth_rbac.py") and not _module_available("slowapi"):
         return True
+    if path_str.endswith(
+        "tests/security/test_agent_config_rbac.py"
+    ) and not _module_available("slowapi"):
+        return True
     if path_str.endswith("tests/security/test_field_level_masking.py") and not _module_available(
         "slowapi"
     ):

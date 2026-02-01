@@ -10,11 +10,14 @@ import httpx
 class DataServiceClient:
     base_url: str
     client: httpx.AsyncClient
+    auth_token: str | None = None
 
     @classmethod
-    def from_url(cls, base_url: str, **kwargs: Any) -> DataServiceClient:
+    def from_url(
+        cls, base_url: str, auth_token: str | None = None, **kwargs: Any
+    ) -> DataServiceClient:
         client = httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=10.0, **kwargs)
-        return cls(base_url=base_url.rstrip("/"), client=client)
+        return cls(base_url=base_url.rstrip("/"), client=client, auth_token=auth_token)
 
     async def register_schema(
         self, name: str, schema: dict[str, Any], *, version: int | None = None, tenant_id: str
@@ -22,12 +25,14 @@ class DataServiceClient:
         payload: dict[str, Any] = {"name": name, "schema": schema}
         if version is not None:
             payload["version"] = version
-        response = await self.client.post("/schemas", json=payload, headers=_headers(tenant_id))
+        response = await self.client.post(
+            "/schemas", json=payload, headers=self._headers(tenant_id)
+        )
         response.raise_for_status()
         return response.json()
 
     async def list_schemas(self, *, tenant_id: str) -> list[dict[str, Any]]:
-        response = await self.client.get("/schemas", headers=_headers(tenant_id))
+        response = await self.client.get("/schemas", headers=self._headers(tenant_id))
         response.raise_for_status()
         return response.json()
 
@@ -35,14 +40,14 @@ class DataServiceClient:
         self, schema_name: str, *, tenant_id: str
     ) -> list[dict[str, Any]]:
         response = await self.client.get(
-            f"/schemas/{schema_name}/versions", headers=_headers(tenant_id)
+            f"/schemas/{schema_name}/versions", headers=self._headers(tenant_id)
         )
         response.raise_for_status()
         return response.json()
 
     async def get_latest_schema(self, schema_name: str, *, tenant_id: str) -> dict[str, Any]:
         response = await self.client.get(
-            f"/schemas/{schema_name}/latest", headers=_headers(tenant_id)
+            f"/schemas/{schema_name}/latest", headers=self._headers(tenant_id)
         )
         response.raise_for_status()
         return response.json()
@@ -51,7 +56,7 @@ class DataServiceClient:
         self, schema_name: str, version: int, *, tenant_id: str
     ) -> dict[str, Any]:
         response = await self.client.get(
-            f"/schemas/{schema_name}/versions/{version}", headers=_headers(tenant_id)
+            f"/schemas/{schema_name}/versions/{version}", headers=self._headers(tenant_id)
         )
         response.raise_for_status()
         return response.json()
@@ -74,7 +79,7 @@ class DataServiceClient:
         if entity_id is not None:
             payload["entity_id"] = entity_id
         response = await self.client.post(
-            f"/entities/{schema_name}", json=payload, headers=_headers(tenant_id)
+            f"/entities/{schema_name}", json=payload, headers=self._headers(tenant_id)
         )
         response.raise_for_status()
         return response.json()
@@ -83,7 +88,7 @@ class DataServiceClient:
         self, schema_name: str, entity_id: str, *, tenant_id: str
     ) -> dict[str, Any]:
         response = await self.client.get(
-            f"/entities/{schema_name}/{entity_id}", headers=_headers(tenant_id)
+            f"/entities/{schema_name}/{entity_id}", headers=self._headers(tenant_id)
         )
         response.raise_for_status()
         return response.json()
@@ -92,5 +97,8 @@ class DataServiceClient:
         await self.client.aclose()
 
 
-def _headers(tenant_id: str) -> dict[str, str]:
-    return {"X-Tenant-ID": tenant_id}
+    def _headers(self, tenant_id: str) -> dict[str, str]:
+        headers = {"X-Tenant-ID": tenant_id}
+        if self.auth_token:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
+        return headers

@@ -8,12 +8,20 @@ Uses a JSON-backed file store for persistence.
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, cast
 
+from sqlalchemy import Column, DateTime, ForeignKey, MetaData, String, Table, create_engine, func
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import delete, insert, select
+
+logger = logging.getLogger("agent-config")
 
 class AgentCategory(str, Enum):
     """Agent categories for grouping."""
@@ -34,6 +42,142 @@ class UserRole(str, Enum):
     TEAM_MEMBER = "TEAM_MEMBER"
     AUDITOR = "AUDITOR"
     COLLABORATOR = "COLLABORATOR"
+
+
+RBAC_METADATA = MetaData()
+
+RBAC_USERS_TABLE = Table(
+    "rbac_users",
+    RBAC_METADATA,
+    Column("user_id", String(128), primary_key=True),
+    Column("tenant_id", String(128), primary_key=True),
+    Column("display_name", String(256)),
+    Column("email", String(256)),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column(
+        "updated_at",
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    ),
+)
+
+RBAC_ROLES_TABLE = Table(
+    "rbac_roles",
+    RBAC_METADATA,
+    Column("role_id", String(128), primary_key=True),
+    Column("description", String(256)),
+)
+
+RBAC_USER_ROLES_TABLE = Table(
+    "rbac_user_roles",
+    RBAC_METADATA,
+    Column("user_id", String(128), primary_key=True),
+    Column("tenant_id", String(128), primary_key=True),
+    Column("role_id", String(128), ForeignKey("rbac_roles.role_id"), primary_key=True),
+    Column("granted_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+)
+
+
+def _to_sync_database_url(database_url: str) -> str:
+    if database_url.startswith("postgresql+asyncpg"):
+        return database_url.replace("postgresql+asyncpg", "postgresql", 1)
+    if database_url.startswith("sqlite+aiosqlite"):
+        return database_url.replace("sqlite+aiosqlite", "sqlite", 1)
+    return database_url
+
+
+class AgentConfigRBACStore:
+    """RBAC data store for agent configuration permissions."""
+
+    def __init__(self, database_url: str) -> None:
+        self.database_url = _to_sync_database_url(database_url)
+        self.engine: Engine = create_engine(self.database_url, pool_pre_ping=True)
+
+    def initialize(self) -> None:
+        RBAC_METADATA.create_all(self.engine)
+
+    def sync_user_roles(
+        self,
+        *,
+        user_id: str,
+        tenant_id: str,
+        roles: list[str],
+        display_name: str | None = None,
+        email: str | None = None,
+    ) -> None:
+        clean_roles = sorted({role for role in roles if role})
+        try:
+            with self.engine.begin() as connection:
+                existing = connection.execute(
+                    select(RBAC_USERS_TABLE.c.user_id).where(
+                        RBAC_USERS_TABLE.c.user_id == user_id,
+                        RBAC_USERS_TABLE.c.tenant_id == tenant_id,
+                    )
+                ).first()
+                if existing:
+                    connection.execute(
+                        RBAC_USERS_TABLE.update()
+                        .where(
+                            RBAC_USERS_TABLE.c.user_id == user_id,
+                            RBAC_USERS_TABLE.c.tenant_id == tenant_id,
+                        )
+                        .values(display_name=display_name, email=email)
+                    )
+                else:
+                    connection.execute(
+                        RBAC_USERS_TABLE.insert().values(
+                            user_id=user_id,
+                            tenant_id=tenant_id,
+                            display_name=display_name,
+                            email=email,
+                        )
+                    )
+
+                if clean_roles:
+                    existing_roles = connection.execute(
+                        select(RBAC_ROLES_TABLE.c.role_id).where(
+                            RBAC_ROLES_TABLE.c.role_id.in_(clean_roles)
+                        )
+                    ).scalars().all()
+                    for role in clean_roles:
+                        if role not in existing_roles:
+                            connection.execute(
+                                RBAC_ROLES_TABLE.insert().values(
+                                    role_id=role, description=None
+                                )
+                            )
+
+                connection.execute(
+                    delete(RBAC_USER_ROLES_TABLE).where(
+                        RBAC_USER_ROLES_TABLE.c.user_id == user_id,
+                        RBAC_USER_ROLES_TABLE.c.tenant_id == tenant_id,
+                    )
+                )
+                for role in clean_roles:
+                    connection.execute(
+                        insert(RBAC_USER_ROLES_TABLE).values(
+                            user_id=user_id, tenant_id=tenant_id, role_id=role
+                        )
+                    )
+        except SQLAlchemyError as exc:
+            logger.exception("rbac_sync_failed", extra={"user_id": user_id, "tenant_id": tenant_id})
+            raise RuntimeError("Failed to sync RBAC roles") from exc
+
+    def get_user_roles(self, user_id: str, tenant_id: str) -> list[str]:
+        with self.engine.begin() as connection:
+            result = connection.execute(
+                select(RBAC_USER_ROLES_TABLE.c.role_id).where(
+                    RBAC_USER_ROLES_TABLE.c.user_id == user_id,
+                    RBAC_USER_ROLES_TABLE.c.tenant_id == tenant_id,
+                )
+            )
+            return [row.role_id for row in result.fetchall()]
+
+    def can_user_configure_agents(self, user_id: str, tenant_id: str) -> bool:
+        roles = self.get_user_roles(user_id, tenant_id)
+        return any(role in {UserRole.PMO_ADMIN.value, UserRole.PM.value} for role in roles)
 
 
 @dataclass
@@ -129,96 +273,26 @@ class ProjectAgentConfig:
         return cls(**data)
 
 
-@dataclass
-class DevUserProfile:
-    """Development user profile for role-based access control stub."""
-
-    user_id: str
-    name: str
-    email: str
-    role: UserRole
-    tenant_id: str = "default"
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "user_id": self.user_id,
-            "name": self.name,
-            "email": self.email,
-            "role": self.role.value if isinstance(self.role, UserRole) else self.role,
-            "tenant_id": self.tenant_id,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> DevUserProfile:
-        role = data.get("role", UserRole.TEAM_MEMBER)
-        if isinstance(role, str):
-            legacy_map = {
-                "admin": UserRole.PMO_ADMIN,
-                "pm": UserRole.PM,
-                "member": UserRole.TEAM_MEMBER,
-            }
-            role = legacy_map.get(role, UserRole(role))
-        return cls(
-            user_id=data["user_id"],
-            name=data["name"],
-            email=data["email"],
-            role=role,
-            tenant_id=data.get("tenant_id", "default"),
-        )
 
 
 class AgentConfigStore:
     """JSON-backed store for agent configurations."""
 
-    def __init__(self, store_path: Path) -> None:
+    def __init__(self, store_path: Path, rbac_database_url: str) -> None:
         self.store_path = store_path
         self.store_path.parent.mkdir(parents=True, exist_ok=True)
         if not self.store_path.exists():
             self._initialize_store()
+        self.rbac_store = AgentConfigRBACStore(rbac_database_url)
+        self.rbac_store.initialize()
 
     def _initialize_store(self) -> None:
         """Initialize store with default agent configurations."""
         initial_data = {
             "agents": self._get_default_agents(),
             "project_configs": {},
-            "dev_users": self._get_default_dev_users(),
         }
         self._save(initial_data)
-
-    def _get_default_dev_users(self) -> dict[str, Any]:
-        """Return default development user profiles."""
-        return {
-            "admin": DevUserProfile(
-                user_id="admin",
-                name="PMO Admin",
-                email="admin@example.com",
-                role=UserRole.PMO_ADMIN,
-            ).to_dict(),
-            "pm": DevUserProfile(
-                user_id="pm",
-                name="Project Manager",
-                email="pm@example.com",
-                role=UserRole.PM,
-            ).to_dict(),
-            "member": DevUserProfile(
-                user_id="member",
-                name="Team Member",
-                email="member@example.com",
-                role=UserRole.TEAM_MEMBER,
-            ).to_dict(),
-            "auditor": DevUserProfile(
-                user_id="auditor",
-                name="Audit Reviewer",
-                email="auditor@example.com",
-                role=UserRole.AUDITOR,
-            ).to_dict(),
-            "collaborator": DevUserProfile(
-                user_id="collaborator",
-                name="Document Collaborator",
-                email="collaborator@example.com",
-                role=UserRole.COLLABORATOR,
-            ).to_dict(),
-        }
 
     def _get_default_agents(self) -> dict[str, Any]:
         """Return default agent configurations."""
@@ -1249,27 +1323,28 @@ class AgentConfigStore:
 
         return enabled_agents
 
-    # Dev user operations (stub for RBAC)
-    def get_dev_user(self, user_id: str) -> DevUserProfile | None:
-        """Get a development user profile."""
-        data = self._load()
-        user_data = data.get("dev_users", {}).get(user_id)
-        if not user_data:
-            return None
-        return DevUserProfile.from_dict(user_data)
+    # RBAC operations
+    def sync_user_roles(
+        self,
+        *,
+        user_id: str,
+        tenant_id: str,
+        roles: list[str],
+        display_name: str | None = None,
+        email: str | None = None,
+    ) -> None:
+        """Persist authenticated user roles for RBAC decisions."""
+        self.rbac_store.sync_user_roles(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            roles=roles,
+            display_name=display_name,
+            email=email,
+        )
 
-    def list_dev_users(self) -> list[DevUserProfile]:
-        """List all development user profiles."""
-        data = self._load()
-        return [DevUserProfile.from_dict(u) for u in data.get("dev_users", {}).values()]
-
-    def can_user_configure_agents(self, user_id: str) -> bool:
+    def can_user_configure_agents(self, user_id: str, tenant_id: str) -> bool:
         """Check if user has permission to configure agents."""
-        user = self.get_dev_user(user_id)
-        if not user:
-            return False
-        # Only PMO admin and PM roles can configure agents
-        return user.role in (UserRole.PMO_ADMIN, UserRole.PM)
+        return self.rbac_store.can_user_configure_agents(user_id, tenant_id)
 
 
 # Global instance for easy access
@@ -1281,9 +1356,18 @@ def get_agent_config_store(store_path: Path | None = None) -> AgentConfigStore:
     global _store_instance
     if _store_instance is None:
         if store_path is None:
-            # Default path in data directory
-            store_path = Path(__file__).parents[4] / "data" / "agent_config.json"
-        _store_instance = AgentConfigStore(store_path)
+            env_path = os.getenv("AGENT_CONFIG_STORE_PATH")
+            if env_path:
+                store_path = Path(env_path)
+            else:
+                # Default path in data directory
+                store_path = Path(__file__).parents[4] / "data" / "agent_config.json"
+        database_url = os.getenv("AGENT_CONFIG_DATABASE_URL") or os.getenv("DATABASE_URL")
+        if not database_url:
+            default_db_path = Path(__file__).parents[4] / "data" / "agent_config_rbac.db"
+            default_db_path.parent.mkdir(parents=True, exist_ok=True)
+            database_url = f"sqlite:///{default_db_path}"
+        _store_instance = AgentConfigStore(store_path, database_url)
     return _store_instance
 
 
