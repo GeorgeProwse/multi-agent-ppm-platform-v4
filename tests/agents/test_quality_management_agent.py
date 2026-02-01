@@ -172,3 +172,196 @@ async def test_quality_management_validation_rejects_missing_fields(tmp_path):
     )
 
     assert valid is False
+
+
+@pytest.mark.asyncio
+async def test_quality_management_requirement_linking(tmp_path):
+    event_bus = EventCollector()
+    agent = QualityManagementAgent(
+        config={
+            "event_bus": event_bus,
+            "quality_plan_store_path": tmp_path / "plans.json",
+            "test_case_store_path": tmp_path / "cases.json",
+            "requirement_link_store_path": tmp_path / "links.json",
+            "project_definition": {
+                "requirements_by_project": {"project-1": [{"id": "REQ-1", "title": "Login"}]}
+            },
+        }
+    )
+    await agent.initialize()
+
+    test_case_response = await agent.process(
+        {
+            "action": "create_test_case",
+            "tenant_id": "tenant-q",
+            "test_case": {
+                "project_id": "project-1",
+                "name": "Login test",
+                "requirement_ids": ["REQ-1", "REQ-2"],
+            },
+        }
+    )
+
+    link_response = await agent.process(
+        {
+            "action": "link_test_case_requirements",
+            "tenant_id": "tenant-q",
+            "link": {
+                "project_id": "project-1",
+                "test_case_id": test_case_response["test_case_id"],
+                "requirement_ids": ["REQ-1", "REQ-2"],
+            },
+        }
+    )
+    assert link_response["status"] == "linked"
+    assert any(req["status"] == "validated" for req in link_response["requirements"])
+
+    updated_link = await agent.process(
+        {
+            "action": "update_test_case_links",
+            "link_id": link_response["link_id"],
+            "updates": {"requirement_ids": ["REQ-1"]},
+        }
+    )
+    assert len(updated_link["requirements"]) == 1
+
+    query_response = await agent.process(
+        {
+            "action": "get_requirement_links",
+            "tenant_id": "tenant-q",
+            "filters": {"test_case_id": test_case_response["test_case_id"]},
+        }
+    )
+    assert query_response["count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_quality_management_defect_sync_and_assignment(tmp_path):
+    agent = QualityManagementAgent(
+        config={
+            "event_bus": EventCollector(),
+            "defect_store_path": tmp_path / "defects.json",
+            "resource_capacity": {
+                "candidates": [
+                    {"resource_id": "eng-1", "skills": ["auth", "code_defect"], "availability": 0.9}
+                ]
+            },
+            "jira": {"enabled": True},
+            "azure_devops": {"enabled": True},
+        }
+    )
+    await agent.initialize()
+
+    defect_response = await agent.process(
+        {
+            "action": "log_defect",
+            "tenant_id": "tenant-q",
+            "defect": {
+                "project_id": "project-1",
+                "summary": "Auth failure",
+                "severity": "high",
+                "component": "auth",
+            },
+        }
+    )
+    assert defect_response["assigned_to"] == "eng-1"
+
+    updated = await agent.process(
+        {
+            "action": "update_defect",
+            "defect_id": defect_response["defect_id"],
+            "updates": {"external_updates": {"jira": {"status": "Resolved"}}},
+        }
+    )
+    assert updated["status"] == "Resolved"
+
+
+@pytest.mark.asyncio
+async def test_quality_management_root_cause_and_recommendations(tmp_path):
+    agent = QualityManagementAgent(
+        config={"event_bus": EventCollector(), "defect_store_path": tmp_path / "defects.json"}
+    )
+    await agent.initialize()
+
+    defect_ids = []
+    for idx in range(3):
+        response = await agent.process(
+            {
+                "action": "log_defect",
+                "tenant_id": "tenant-q",
+                "defect": {
+                    "project_id": "project-1",
+                    "summary": f"Defect {idx}",
+                    "severity": "medium",
+                    "component": "api",
+                },
+            }
+        )
+        defect_ids.append(response["defect_id"])
+
+    rca_response = await agent.process(
+        {"action": "perform_root_cause_analysis", "defect_ids": defect_ids}
+    )
+    assert rca_response["refactoring_recommendations"]
+
+
+@pytest.mark.asyncio
+async def test_quality_management_end_to_end_defect_lifecycle(tmp_path):
+    event_bus = EventCollector()
+    agent = QualityManagementAgent(
+        config={
+            "event_bus": event_bus,
+            "test_case_store_path": tmp_path / "cases.json",
+            "defect_store_path": tmp_path / "defects.json",
+            "audit_store_path": tmp_path / "audits.json",
+            "ci_pipelines": {
+                "pipelines": {
+                    "pipeline-1": {
+                        "test_results": [
+                            {"test_case_id": "TC-1", "name": "Test 1", "result": "fail"}
+                        ]
+                    }
+                },
+                "coverage_by_project": {"project-1": {"coverage_pct": 78.0}},
+            },
+        }
+    )
+    await agent.initialize()
+
+    test_case_response = await agent.process(
+        {
+            "action": "create_test_case",
+            "tenant_id": "tenant-q",
+            "test_case": {
+                "project_id": "project-1",
+                "name": "API test",
+                "steps": ["Call endpoint"],
+                "expected_results": "200 OK",
+            },
+        }
+    )
+    suite_response = await agent.process(
+        {
+            "action": "create_test_suite",
+            "test_suite": {
+                "project_id": "project-1",
+                "name": "CI Suite",
+                "test_case_ids": [test_case_response["test_case_id"]],
+            },
+        }
+    )
+    execution_response = await agent.process(
+        {
+            "action": "execute_tests",
+            "tenant_id": "tenant-q",
+            "test_execution": {
+                "project_id": "project-1",
+                "suite_id": suite_response["suite_id"],
+                "execution_mode": "ci",
+                "ci_pipeline_id": "pipeline-1",
+                "auto_log_defects": True,
+            },
+        }
+    )
+    assert execution_response["failed"] == 1
+    assert execution_response["coverage_snapshot"]["coverage_pct"] == 78.0

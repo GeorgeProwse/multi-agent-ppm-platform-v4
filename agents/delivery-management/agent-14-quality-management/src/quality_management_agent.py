@@ -10,6 +10,7 @@ Specification: agents/delivery-management/agent-14-quality-management/README.md
 """
 
 import json
+import math
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -83,10 +84,22 @@ class QualityManagementAgent(BaseAgent):
             if config
             else Path("data/quality_audits.json")
         )
+        requirement_link_store_path = (
+            Path(config.get("requirement_link_store_path", "data/quality_requirement_links.json"))
+            if config
+            else Path("data/quality_requirement_links.json")
+        )
+        coverage_trend_store_path = (
+            Path(config.get("coverage_trend_store_path", "data/quality_coverage_trends.json"))
+            if config
+            else Path("data/quality_coverage_trends.json")
+        )
         self.quality_plan_store = TenantStateStore(quality_plan_store_path)
         self.test_case_store = TenantStateStore(test_case_store_path)
         self.defect_store = TenantStateStore(defect_store_path)
         self.audit_store = TenantStateStore(audit_store_path)
+        self.requirement_link_store = TenantStateStore(requirement_link_store_path)
+        self.coverage_trend_store = TenantStateStore(coverage_trend_store_path)
 
         # Data stores (will be replaced with database)
         self.quality_plans: dict[str, Any] = {}
@@ -99,8 +112,11 @@ class QualityManagementAgent(BaseAgent):
         self.quality_metrics: dict[str, Any] = {}
         self.defect_density_history: dict[str, list[dict[str, Any]]] = {}
         self.defect_prediction_models: dict[str, dict[str, Any]] = {}
+        self.defect_subsystem_models: dict[str, dict[str, Any]] = {}
         self.coverage_snapshots: dict[str, dict[str, Any]] = {}
+        self.coverage_trends: dict[str, list[dict[str, Any]]] = {}
         self.quality_reports: dict[str, dict[str, Any]] = {}
+        self.requirement_links: dict[str, dict[str, Any]] = {}
         self.db_service: DatabaseStorageService | None = None
         self.document_service: DocumentManagementService | None = None
         self.defect_classifier: NaiveBayesTextClassifier | None = None
@@ -113,6 +129,12 @@ class QualityManagementAgent(BaseAgent):
             "azure_ml": (config or {}).get("azure_ml", {}),
             "code_repos": (config or {}).get("code_repos", {}),
             "azure_openai": (config or {}).get("azure_openai", {}),
+            "project_definition": (config or {}).get("project_definition", {}),
+            "resource_capacity": (config or {}).get("resource_capacity", {}),
+            "jira": (config or {}).get("jira", {}),
+            "ci_pipelines": (config or {}).get("ci_pipelines", {}),
+            "analytics": (config or {}).get("analytics", {}),
+            "stakeholder_comms": (config or {}).get("stakeholder_comms", {}),
         }
         self.event_bus = config.get("event_bus") if config else None
         if self.event_bus is None:
@@ -154,6 +176,10 @@ class QualityManagementAgent(BaseAgent):
             "calculate_metrics",
             "analyze_defect_trends",
             "perform_root_cause_analysis",
+            "link_test_case_requirements",
+            "update_test_case_links",
+            "get_requirement_links",
+            "sync_defect_tickets",
             "get_quality_dashboard",
             "generate_quality_report",
         ]
@@ -181,6 +207,21 @@ class QualityManagementAgent(BaseAgent):
                 if field not in defect_data:
                     self.logger.warning(f"Missing required field: {field}")
                     return False
+        elif action == "link_test_case_requirements":
+            link_data = input_data.get("link", {})
+            required_fields = ["test_case_id", "requirement_ids"]
+            for field in required_fields:
+                if field not in link_data:
+                    self.logger.warning(f"Missing required field: {field}")
+                    return False
+        elif action == "update_test_case_links":
+            if not input_data.get("link_id"):
+                self.logger.warning("Missing required field: link_id")
+                return False
+        elif action == "sync_defect_tickets":
+            if not input_data.get("defect_ids"):
+                self.logger.warning("Missing required field: defect_ids")
+                return False
 
         return True
 
@@ -300,6 +341,30 @@ class QualityManagementAgent(BaseAgent):
 
         elif action == "perform_root_cause_analysis":
             return await self._perform_root_cause_analysis(input_data.get("defect_ids", []))
+
+        elif action == "link_test_case_requirements":
+            return await self._link_test_case_requirements(
+                input_data.get("link", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
+
+        elif action == "update_test_case_links":
+            return await self._update_test_case_links(
+                input_data.get("link_id"), input_data.get("updates", {})  # type: ignore
+            )
+
+        elif action == "get_requirement_links":
+            return await self._get_requirement_links(
+                input_data.get("filters", {}), tenant_id=tenant_id
+            )
+
+        elif action == "sync_defect_tickets":
+            return await self._sync_defect_tickets(
+                input_data.get("defect_ids", []),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "get_quality_dashboard":
             return await self._get_quality_dashboard(
@@ -483,7 +548,20 @@ class QualityManagementAgent(BaseAgent):
         test_case_id = await self._generate_test_case_id()
 
         # Link to requirements
-        requirements = await self._link_to_requirements(test_case_data.get("requirement_ids", []))
+        requirements = await self._link_to_requirements(
+            test_case_data.get("requirement_ids", []),
+            project_id=test_case_data.get("project_id"),
+        )
+        if requirements:
+            await self._link_test_case_requirements(
+                {
+                    "project_id": test_case_data.get("project_id"),
+                    "test_case_id": test_case_id,
+                    "requirement_ids": [req.get("requirement_id") for req in requirements],
+                },
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         # Create test case
         test_case = {
@@ -598,7 +676,9 @@ class QualityManagementAgent(BaseAgent):
         test_results = await self._import_test_results(execution_data)
         execution_mode = execution_data.get("execution_mode", "manual")
         if not test_results:
-            if execution_mode == "playwright":
+            if execution_mode == "ci":
+                test_results = await self._fetch_ci_test_results(execution_data)
+            elif execution_mode == "playwright":
                 test_results = await self._run_playwright_tests(
                     test_suite, execution_data.get("playwright_config", {})
                 )
@@ -614,6 +694,9 @@ class QualityManagementAgent(BaseAgent):
         # Calculate code coverage
         # Future work: Integrate with code coverage tools
         code_coverage = await self._calculate_code_coverage(execution_data.get("project_id"))  # type: ignore
+        coverage_snapshot = await self._record_coverage_snapshot(
+            execution_data.get("project_id"), code_coverage
+        )
 
         # Create execution record
         artifact_blob = await self._store_test_results_in_blob(
@@ -634,6 +717,7 @@ class QualityManagementAgent(BaseAgent):
             "failed": failed_tests,
             "pass_rate": pass_rate,
             "code_coverage": code_coverage,
+            "coverage_snapshot": coverage_snapshot,
             "artifact_blob": artifact_blob,
             "sync_status": sync_status,
             "executed_at": datetime.utcnow().isoformat(),
@@ -683,6 +767,7 @@ class QualityManagementAgent(BaseAgent):
             "defect_ids": defects_logged,
             "artifact_blob": artifact_blob,
             "sync_status": sync_status,
+            "coverage_snapshot": coverage_snapshot,
         }
 
     async def _log_defect(
@@ -745,13 +830,13 @@ class QualityManagementAgent(BaseAgent):
         )
 
         # Assign owner based on component
-        # Future work: Integrate with Resource Management Agent
         assigned_owner = await self._assign_defect_owner(defect)
         defect["assigned_to"] = assigned_owner
+        defect["external_sync"] = await self._sync_defect_ticket(
+            defect, action="create", tenant_id=tenant_id, correlation_id=correlation_id
+        )
 
         await self._store_record("quality_defects", defect_id, defect)
-        # Future work: Sync with Jira/Azure DevOps
-        # Future work: Publish defect.logged event
 
         return {
             "defect_id": defect_id,
@@ -785,6 +870,10 @@ class QualityManagementAgent(BaseAgent):
                 }
             )
 
+        external_updates = updates.pop("external_updates", None)
+        if external_updates:
+            await self._apply_external_defect_updates(defect, external_updates)
+
         # Apply updates
         for key, value in updates.items():
             if key in defect and key != "status_history":
@@ -797,8 +886,11 @@ class QualityManagementAgent(BaseAgent):
             resolution_time = await self._calculate_resolution_time(defect)
             defect["resolution_time_hours"] = resolution_time
 
+        defect["external_sync"] = await self._sync_defect_ticket(
+            defect, action="update", tenant_id=defect.get("project_id", "unknown"), correlation_id=str(uuid.uuid4())
+        )
+
         await self._store_record("quality_defects", defect_id, defect)
-        # Future work: Sync with external tracking systems
 
         return {
             "defect_id": defect_id,
@@ -965,6 +1057,14 @@ class QualityManagementAgent(BaseAgent):
         )
 
         model_summary = await self._train_defect_prediction_model(project_id)
+        subsystem_model = await self._train_defect_subsystem_model(project_id, project_defects)
+        improvement_recommendations = await self._generate_quality_improvement_recommendations(
+            project_id,
+            project_defects,
+            test_coverage,
+            pass_rate,
+            coverage_snapshot,
+        )
         metrics = {
             "project_id": project_id,
             "total_defects": total_defects,
@@ -977,6 +1077,8 @@ class QualityManagementAgent(BaseAgent):
             "mean_time_to_resolution_hours": mttr,
             "quality_score": quality_score,
             "defect_prediction_model": model_summary,
+            "defect_subsystem_model": subsystem_model,
+            "improvement_recommendations": improvement_recommendations,
             "calculated_at": datetime.utcnow().isoformat(),
         }
 
@@ -998,6 +1100,10 @@ class QualityManagementAgent(BaseAgent):
             tenant_id=project_id,
             correlation_id=str(uuid.uuid4()),
         )
+        await self._publish_improvement_recommendations(
+            project_id,
+            improvement_recommendations,
+        )
 
         return metrics
 
@@ -1016,11 +1122,9 @@ class QualityManagementAgent(BaseAgent):
         trends = await self._calculate_defect_trends_over_time(project_defects)
 
         # Identify patterns
-        # Future work: Use clustering and association rule mining
         patterns = await self._identify_defect_patterns(project_defects)
 
         # Detect anomalies
-        # Future work: Use anomaly detection
         anomalies = await self._detect_defect_anomalies(project_defects)
         defect_density_prediction = await self._predict_defect_density(project_id)
 
@@ -1047,7 +1151,6 @@ class QualityManagementAgent(BaseAgent):
         ]
 
         # Identify common root causes
-        # Future work: Use clustering and NLP
         root_causes = await self._identify_root_causes(defects_to_analyze)  # type: ignore
 
         # Perform Pareto analysis
@@ -1057,12 +1160,14 @@ class QualityManagementAgent(BaseAgent):
         recommendations = await self._generate_improvement_recommendations(
             root_causes, pareto_analysis
         )
+        subsystem_recommendations = await self._recommend_refactoring_targets(defects_to_analyze)
 
         return {
             "defects_analyzed": len(defects_to_analyze),
             "root_causes": root_causes,
             "pareto_analysis": pareto_analysis,
             "recommendations": recommendations,
+            "refactoring_recommendations": subsystem_recommendations,
             "analyzed_at": datetime.utcnow().isoformat(),
         }
 
@@ -1094,6 +1199,9 @@ class QualityManagementAgent(BaseAgent):
             "defect_statistics": defect_stats,
             "test_summary": test_summary,
             "recent_audits": recent_audits,
+            "recommendations": metrics.get("improvement_recommendations", [])
+            if isinstance(metrics, dict)
+            else [],
             "dashboard_generated_at": datetime.utcnow().isoformat(),
         }
 
@@ -1108,17 +1216,25 @@ class QualityManagementAgent(BaseAgent):
         self.logger.info(f"Generating {report_type} quality report")
 
         if report_type == "summary":
-            return await self._generate_summary_report(filters)
+            report = await self._generate_summary_report(filters)
         elif report_type == "defect_analysis":
-            return await self._generate_defect_analysis_report(filters)
+            report = await self._generate_defect_analysis_report(filters)
         elif report_type == "test_coverage":
-            return await self._generate_test_coverage_report(filters)
+            report = await self._generate_test_coverage_report(filters)
         elif report_type == "audit_summary":
-            return await self._generate_audit_summary_report(filters)
+            report = await self._generate_audit_summary_report(filters)
         elif report_type == "release_notes":
-            return await self._generate_release_notes_report(filters)
+            report = await self._generate_release_notes_report(filters)
         else:
             raise ValueError(f"Unknown report type: {report_type}")
+
+        await self._publish_quality_event(
+            "quality.report.published",
+            payload={"report_type": report_type, "filters": filters},
+            tenant_id=filters.get("tenant_id", "unknown"),
+            correlation_id=str(uuid.uuid4()),
+        )
+        return report
 
     # Helper methods
 
@@ -1162,6 +1278,85 @@ class QualityManagementAgent(BaseAgent):
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"AUD-{timestamp}"
 
+    async def _link_test_case_requirements(
+        self,
+        link_data: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Create a requirement linkage record for a test case."""
+        link_id = f"TRL-{uuid.uuid4().hex[:8]}"
+        requirement_ids = list(
+            {str(req) for req in link_data.get("requirement_ids", []) if req}
+        )
+        requirements = await self._link_to_requirements(
+            requirement_ids, project_id=link_data.get("project_id")
+        )
+        link_record = {
+            "link_id": link_id,
+            "project_id": link_data.get("project_id"),
+            "test_case_id": link_data.get("test_case_id"),
+            "requirements": requirements,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "status": "linked",
+        }
+        self.requirement_links[link_id] = link_record
+        self.requirement_link_store.upsert(tenant_id, link_id, link_record)
+        await self._store_record("quality_requirement_links", link_id, link_record)
+        await self._publish_quality_event(
+            "quality.requirements.linked",
+            payload={
+                "link_id": link_id,
+                "project_id": link_record.get("project_id"),
+                "test_case_id": link_record.get("test_case_id"),
+            },
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
+        return link_record
+
+    async def _update_test_case_links(self, link_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+        """Update a requirement linkage record."""
+        link_record = self.requirement_links.get(link_id)
+        if not link_record:
+            raise ValueError(f"Requirement link not found: {link_id}")
+        if "requirement_ids" in updates:
+            requirement_ids = list({str(req) for req in updates.get("requirement_ids", []) if req})
+            link_record["requirements"] = await self._link_to_requirements(
+                requirement_ids, project_id=link_record.get("project_id")
+            )
+        if "status" in updates:
+            link_record["status"] = updates.get("status")
+        link_record["updated_at"] = datetime.utcnow().isoformat()
+        self.requirement_links[link_id] = link_record
+        await self._store_record("quality_requirement_links", link_id, link_record)
+        return link_record
+
+    async def _get_requirement_links(
+        self, filters: dict[str, Any], *, tenant_id: str
+    ) -> dict[str, Any]:
+        """Query requirement linkage records by filters."""
+        project_id = filters.get("project_id")
+        test_case_id = filters.get("test_case_id")
+        requirement_id = filters.get("requirement_id")
+        link_records = list(self.requirement_links.values())
+        if not link_records and tenant_id:
+            link_records = self.requirement_link_store.list(tenant_id)
+        filtered = []
+        for record in link_records:
+            if project_id and record.get("project_id") != project_id:
+                continue
+            if test_case_id and record.get("test_case_id") != test_case_id:
+                continue
+            if requirement_id:
+                requirements = record.get("requirements", [])
+                if not any(req.get("requirement_id") == requirement_id for req in requirements):
+                    continue
+            filtered.append(record)
+        return {"count": len(filtered), "links": filtered}
+
     async def _recommend_quality_metrics(self, plan_data: dict[str, Any]) -> list[dict[str, Any]]:
         """Recommend quality metrics based on project type."""
         # Future work: Use AI to recommend metrics
@@ -1176,10 +1371,42 @@ class QualityManagementAgent(BaseAgent):
             {"name": "mean_time_to_resolution", "threshold": 48, "unit": "hours"},
         ]
 
-    async def _link_to_requirements(self, requirement_ids: list[str]) -> list[str]:
+    async def _link_to_requirements(
+        self, requirement_ids: list[str], project_id: str | None
+    ) -> list[dict[str, Any]]:
         """Link test case to requirements."""
-        # Future work: Integrate with Project Definition Agent
-        return requirement_ids
+        if not requirement_ids:
+            return []
+        requirements = await self._fetch_project_requirements(project_id)
+        requirement_lookup = {
+            str(req.get("requirement_id") or req.get("id")): req for req in requirements
+        }
+        linked = []
+        for req_id in requirement_ids:
+            req_record = requirement_lookup.get(str(req_id))
+            linked.append(
+                {
+                    "requirement_id": req_id,
+                    "title": req_record.get("title") if req_record else None,
+                    "status": "validated" if req_record else "unverified",
+                }
+            )
+        return linked
+
+    async def _fetch_project_requirements(self, project_id: str | None) -> list[dict[str, Any]]:
+        if not project_id:
+            return []
+        project_definition_client = (self.config or {}).get("project_definition_client")
+        if project_definition_client and hasattr(project_definition_client, "get_requirements"):
+            response = project_definition_client.get_requirements(project_id)
+            if hasattr(response, "__await__"):
+                response = await response
+            requirements = response.get("requirements", []) if isinstance(response, dict) else []
+            return requirements
+        requirements_config = self.integration_config.get("project_definition", {}).get(
+            "requirements_by_project", {}
+        )
+        return requirements_config.get(project_id, [])
 
     async def _run_test_suite(
         self, test_suite: dict[str, Any], execution_mode: str
@@ -1202,11 +1429,37 @@ class QualityManagementAgent(BaseAgent):
 
     async def _calculate_code_coverage(self, project_id: str) -> float:
         """Calculate code coverage percentage."""
+        ci_coverage = await self._fetch_ci_coverage_report(project_id)
+        if ci_coverage:
+            self.coverage_snapshots[project_id] = ci_coverage
+            return float(ci_coverage.get("coverage_pct", 0.0))
         coverage_snapshot = await self._fetch_coverage_metrics(project_id)
         if coverage_snapshot:
             self.coverage_snapshots[project_id] = coverage_snapshot
             return float(coverage_snapshot.get("coverage_pct", 0.0))
         return 85.0  # Baseline
+
+    async def _record_coverage_snapshot(
+        self, project_id: str | None, coverage_pct: float
+    ) -> dict[str, Any] | None:
+        if not project_id:
+            return None
+        snapshot = {
+            "project_id": project_id,
+            "coverage_pct": coverage_pct,
+            "captured_at": datetime.utcnow().isoformat(),
+        }
+        history = self.coverage_trends.setdefault(project_id, [])
+        history.append(snapshot)
+        self.coverage_trend_store.upsert(project_id, snapshot["captured_at"], snapshot)
+        await self._store_record("quality_coverage_trends", snapshot["captured_at"], snapshot)
+        await self._publish_quality_event(
+            "quality.coverage.trend.updated",
+            payload=snapshot,
+            tenant_id=project_id,
+            correlation_id=str(uuid.uuid4()),
+        )
+        return snapshot
 
     async def _auto_log_defect_from_test(
         self,
@@ -1268,8 +1521,43 @@ class QualityManagementAgent(BaseAgent):
 
     async def _assign_defect_owner(self, defect: dict[str, Any]) -> str:
         """Assign defect owner based on component."""
-        # Future work: Integrate with Resource Management Agent
-        return "unassigned"
+        resource_client = (self.config or {}).get("resource_capacity_client")
+        required_skills = self._derive_required_skills(defect)
+        if resource_client:
+            if hasattr(resource_client, "match_skills"):
+                results = resource_client.match_skills(required_skills)
+                if results:
+                    return results[0].get("resource_id", "unassigned")
+            if hasattr(resource_client, "search_resources"):
+                results = resource_client.search_resources({"skills": required_skills})
+                if results:
+                    return results[0].get("resource_id", "unassigned")
+        candidates = self.integration_config.get("resource_capacity", {}).get("candidates", [])
+        if not candidates:
+            return "unassigned"
+        scored = sorted(
+            (
+                (self._score_resource_candidate(candidate, required_skills), candidate)
+                for candidate in candidates
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        return scored[0][1].get("resource_id", "unassigned") if scored else "unassigned"
+
+    def _derive_required_skills(self, defect: dict[str, Any]) -> list[str]:
+        component = defect.get("component")
+        category = defect.get("root_cause")
+        required_skills = [skill for skill in [component, category] if skill]
+        if defect.get("severity") == "critical":
+            required_skills.append("incident_response")
+        return required_skills
+
+    def _score_resource_candidate(self, candidate: dict[str, Any], skills: list[str]) -> float:
+        candidate_skills = set(candidate.get("skills", []))
+        skill_match = sum(1 for skill in skills if skill in candidate_skills)
+        availability = float(candidate.get("availability", 0.0))
+        return skill_match * 0.7 + availability * 0.3
 
     async def _calculate_resolution_time(self, defect: dict[str, Any]) -> float:
         """Calculate defect resolution time in hours."""
@@ -1421,13 +1709,224 @@ class QualityManagementAgent(BaseAgent):
         self, defects: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """Identify patterns in defects."""
-        # Future work: Use clustering and association rules
-        return [{"pattern": "Most defects in authentication module", "count": 10}]
+        if not defects:
+            return []
+        component_counts: dict[str, int] = {}
+        category_counts: dict[str, int] = {}
+        for defect in defects:
+            component = defect.get("component", "unknown")
+            category = defect.get("root_cause", "unknown")
+            component_counts[component] = component_counts.get(component, 0) + 1
+            category_counts[category] = category_counts.get(category, 0) + 1
+        patterns = [
+            {"pattern": f"Defects clustered in component '{component}'", "count": count}
+            for component, count in sorted(
+                component_counts.items(), key=lambda item: item[1], reverse=True
+            )
+        ]
+        patterns.extend(
+            {
+                "pattern": f"Root cause '{category}' appears frequently",
+                "count": count,
+            }
+            for category, count in sorted(
+                category_counts.items(), key=lambda item: item[1], reverse=True
+            )
+        )
+        return patterns[:5]
 
     async def _detect_defect_anomalies(self, defects: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Detect anomalies in defect data."""
-        # Future work: Use anomaly detection
-        return []
+        if not defects:
+            return []
+        weekly_counts: dict[int, int] = {}
+        for defect in defects:
+            logged_at = defect.get("logged_at")
+            if not logged_at:
+                continue
+            week_num = datetime.fromisoformat(logged_at).isocalendar()[1]
+            weekly_counts[week_num] = weekly_counts.get(week_num, 0) + 1
+        if len(weekly_counts) < 2:
+            return []
+        counts = list(weekly_counts.values())
+        mean = sum(counts) / len(counts)
+        variance = sum((count - mean) ** 2 for count in counts) / len(counts)
+        std_dev = math.sqrt(variance)
+        threshold = mean + 2 * std_dev
+        anomalies = [
+            {
+                "week": week,
+                "count": count,
+                "reason": "defect_spike",
+            }
+            for week, count in weekly_counts.items()
+            if count > threshold
+        ]
+        return anomalies
+
+    async def _train_defect_subsystem_model(
+        self, project_id: str, defects: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        subsystem_map: dict[str, int] = {}
+        for defect in defects:
+            component = defect.get("component", "unknown")
+            subsystem_map[component] = subsystem_map.get(component, 0) + 1
+        model_version = datetime.utcnow().strftime("subsystem-%Y%m%d%H%M%S")
+        model_info = {
+            "project_id": project_id,
+            "model_version": model_version,
+            "trained_at": datetime.utcnow().isoformat(),
+            "subsystem_distribution": subsystem_map,
+        }
+        self.defect_subsystem_models[project_id] = model_info
+        await self._store_record(
+            "quality_defect_subsystem_models", f"{project_id}-{model_version}", model_info
+        )
+        return model_info
+
+    async def _recommend_refactoring_targets(self, defects: list[dict[str, Any]]) -> list[str]:
+        if not defects:
+            return []
+        component_counts: dict[str, int] = {}
+        for defect in defects:
+            component = defect.get("component", "unknown")
+            component_counts[component] = component_counts.get(component, 0) + 1
+        sorted_components = sorted(component_counts.items(), key=lambda item: item[1], reverse=True)
+        return [
+            f"Prioritize refactoring in {component} (defects: {count})"
+            for component, count in sorted_components[:3]
+        ]
+
+    async def _generate_quality_improvement_recommendations(
+        self,
+        project_id: str,
+        defects: list[dict[str, Any]],
+        coverage_pct: float,
+        pass_rate: float,
+        coverage_snapshot: dict[str, Any] | None,
+    ) -> list[str]:
+        recommendations = []
+        if coverage_pct < self.min_test_coverage:
+            recommendations.append(
+                f"Increase automated test coverage to at least {self.min_test_coverage:.0%}."
+            )
+        if pass_rate < 90:
+            recommendations.append("Stabilize flaky tests and improve pass rate above 90%.")
+        if defects:
+            top_components = await self._recommend_refactoring_targets(defects)
+            recommendations.extend(top_components)
+        if coverage_snapshot and coverage_snapshot.get("source") == "ci":
+            recommendations.append("Review CI coverage configuration for gaps.")
+        return recommendations
+
+    async def _publish_improvement_recommendations(
+        self, project_id: str, recommendations: list[str]
+    ) -> None:
+        if not recommendations:
+            return
+        await self._publish_quality_event(
+            "quality.improvement.recommendations",
+            payload={"project_id": project_id, "recommendations": recommendations},
+            tenant_id=project_id,
+            correlation_id=str(uuid.uuid4()),
+        )
+        stakeholder_client = (self.config or {}).get("stakeholder_communications_client")
+        if stakeholder_client:
+            if hasattr(stakeholder_client, "publish_update"):
+                stakeholder_client.publish_update(
+                    {
+                        "project_id": project_id,
+                        "recommendations": recommendations,
+                        "type": "quality_improvement",
+                    }
+                )
+            elif hasattr(stakeholder_client, "send_update"):
+                stakeholder_client.send_update(project_id, recommendations)
+
+    async def _sync_defect_tickets(
+        self, defect_ids: list[str], *, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
+        sync_results = []
+        for defect_id in defect_ids:
+            defect = self.defects.get(defect_id)
+            if not defect:
+                continue
+            sync_results.append(
+                await self._sync_defect_ticket(
+                    defect, action="update", tenant_id=tenant_id, correlation_id=correlation_id
+                )
+            )
+        return {"synced": len(sync_results), "results": sync_results}
+
+    async def _sync_defect_ticket(
+        self, defect: dict[str, Any], *, action: str, tenant_id: str, correlation_id: str
+    ) -> dict[str, Any]:
+        jira_enabled = self.integration_config.get("jira", {}).get("enabled", True)
+        azure_enabled = self.integration_config.get("azure_devops", {}).get("enabled", True)
+        jira_key = defect.get("external", {}).get("jira_key") if defect.get("external") else None
+        azure_id = defect.get("external", {}).get("azure_work_item") if defect.get("external") else None
+        if action == "create":
+            jira_key = jira_key or f"JIRA-{defect.get('defect_id')}"
+            azure_id = azure_id or f"ADO-{defect.get('defect_id')}"
+        sync_record = {
+            "defect_id": defect.get("defect_id"),
+            "action": action,
+            "jira": {"status": "queued" if jira_enabled else "disabled", "key": jira_key},
+            "azure_devops": {
+                "status": "queued" if azure_enabled else "disabled",
+                "work_item": azure_id,
+            },
+            "synced_at": datetime.utcnow().isoformat(),
+        }
+        defect["external"] = {"jira_key": jira_key, "azure_work_item": azure_id}
+        await self._publish_quality_event(
+            "quality.defect.synced",
+            payload=sync_record,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+        )
+        await self._store_record("quality_defect_sync", defect.get("defect_id", ""), sync_record)
+        return sync_record
+
+    async def _apply_external_defect_updates(
+        self, defect: dict[str, Any], external_updates: dict[str, Any]
+    ) -> None:
+        jira_update = external_updates.get("jira")
+        azure_update = external_updates.get("azure_devops")
+        for update in [jira_update, azure_update]:
+            if not update:
+                continue
+            status = update.get("status")
+            if status:
+                defect["status"] = status
+            resolution = update.get("resolution")
+            if resolution:
+                defect["resolution"] = resolution
+
+    async def _fetch_ci_test_results(self, execution_data: dict[str, Any]) -> list[dict[str, Any]]:
+        pipeline_id = execution_data.get("ci_pipeline_id")
+        pipelines = self.integration_config.get("ci_pipelines", {}).get("pipelines", {})
+        pipeline = pipelines.get(pipeline_id, {})
+        results = pipeline.get("test_results", [])
+        return [
+            {
+                **result,
+                "result": result.get("result", "pass"),
+                "project_id": execution_data.get("project_id"),
+            }
+            for result in results
+        ]
+
+    async def _fetch_ci_coverage_report(self, project_id: str) -> dict[str, Any] | None:
+        pipeline_config = self.integration_config.get("ci_pipelines", {})
+        coverage = pipeline_config.get("coverage_by_project", {}).get(project_id)
+        if coverage:
+            return {
+                "coverage_pct": coverage.get("coverage_pct", 0.0),
+                "source": "ci",
+                "captured_at": datetime.utcnow().isoformat(),
+            }
+        return None
 
     async def _identify_root_causes(self, defects: list[dict[str, Any]]) -> dict[str, int]:
         """Identify root causes from defects."""
@@ -1480,22 +1979,62 @@ class QualityManagementAgent(BaseAgent):
         self, project_id: str | None, filters: dict[str, Any]
     ) -> dict[str, Any]:
         """Get defect statistics."""
-        # Future work: Query and aggregate defect data
-        return {"total": 0, "by_severity": {}, "by_status": {}}
+        defects = [
+            defect
+            for defect in self.defects.values()
+            if not project_id or defect.get("project_id") == project_id
+        ]
+        severity_counts: dict[str, int] = {}
+        status_counts: dict[str, int] = {}
+        for defect in defects:
+            severity = defect.get("severity", "unknown")
+            status = defect.get("status", "unknown")
+            severity_counts[severity] = severity_counts.get(severity, 0) + 1
+            status_counts[status] = status_counts.get(status, 0) + 1
+        return {"total": len(defects), "by_severity": severity_counts, "by_status": status_counts}
 
     async def _get_test_execution_summary(
         self, project_id: str | None, filters: dict[str, Any]
     ) -> dict[str, Any]:
         """Get test execution summary."""
-        # Future work: Query test executions
-        return {"total_executions": 0, "pass_rate": 0, "coverage": 0}
+        executions = [
+            execution
+            for execution in self.test_executions.values()
+            if not project_id or execution.get("project_id") == project_id
+        ]
+        if not executions:
+            return {"total_executions": 0, "pass_rate": 0, "coverage": 0}
+        total_tests = sum(execution.get("total_tests", 0) for execution in executions)
+        passed_tests = sum(execution.get("passed", 0) for execution in executions)
+        avg_pass_rate = (passed_tests / total_tests) * 100 if total_tests else 0.0
+        latest_execution = max(
+            executions,
+            key=lambda item: datetime.fromisoformat(item.get("executed_at"))
+            if item.get("executed_at")
+            else datetime.min,
+        )
+        return {
+            "total_executions": len(executions),
+            "pass_rate": avg_pass_rate,
+            "coverage": latest_execution.get("code_coverage", 0),
+        }
 
     async def _get_recent_audits(
         self, project_id: str | None, filters: dict[str, Any]
     ) -> list[dict[str, Any]]:
         """Get recent audits."""
-        # Future work: Query audit records
-        return []
+        audits = [
+            audit
+            for audit in self.audits.values()
+            if not project_id or audit.get("project_id") == project_id
+        ]
+        audits.sort(
+            key=lambda item: datetime.fromisoformat(item.get("audit_date"))
+            if item.get("audit_date")
+            else datetime.min,
+            reverse=True,
+        )
+        return audits[:5]
 
     async def _generate_summary_report(self, filters: dict[str, Any]) -> dict[str, Any]:
         """Generate summary quality report."""
