@@ -11,6 +11,7 @@ from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExp
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
+from prometheus_client import Counter, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -94,9 +95,24 @@ def build_kpi_handles(service_name: str) -> KPIHandles:
     return KPIHandles(requests=requests, errors=errors)
 
 
+agent_request_count = Counter(
+    "agent_requests_total",
+    "Total number of agent invocations",
+    ["agent_name", "outcome"],
+)
+
+agent_request_latency = Histogram(
+    "agent_request_latency_seconds",
+    "Latency of agent invocations",
+    ["agent_name"],
+)
+
+
 __all__ = [
     "configure_metrics",
     "build_kpi_handles",
     "KPIHandles",
     "RequestMetricsMiddleware",
+    "agent_request_count",
+    "agent_request_latency",
 ]

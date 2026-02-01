@@ -70,6 +70,26 @@
           "legendFormat": "ingest_rate"
         }
       ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Requests by Outcome",
+      "targets": [
+        {
+          "expr": "sum(rate(agent_requests_total[5m])) by (agent_name, outcome)",
+          "legendFormat": "{{agent_name}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent Request Latency (p95)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(agent_request_latency_seconds_bucket[5m])) by (le, agent_name))",
+          "legendFormat": "{{agent_name}}"
+        }
+      ]
     }
   ]
 }

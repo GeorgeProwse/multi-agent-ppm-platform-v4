@@ -57,6 +57,22 @@ groups:
         annotations:
           summary: "Workflow failure rate above SLO"
           description: "Workflow failures above 3% for 15 minutes."
+      - alert: AgentErrorRateHigh
+        expr: sum(rate(agent_requests_total{outcome="error"}[5m])) / sum(rate(agent_requests_total[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent error rate above threshold"
+          description: "Agent error rate exceeds 5% for 10 minutes."
+      - alert: AgentHighLatency
+        expr: histogram_quantile(0.95, sum(rate(agent_request_latency_seconds_bucket[5m])) by (le, agent_name)) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent latency above threshold"
+          description: "Agent p95 latency exceeds 2 seconds for 10 minutes."
       - alert: OrchestrationWorkflowStall
         expr: sum(rate(orchestration_workflows_started_total[15m])) == 0
         for: 20m

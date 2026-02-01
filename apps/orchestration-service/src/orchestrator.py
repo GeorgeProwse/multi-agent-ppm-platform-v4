@@ -5,16 +5,20 @@ Agent Orchestrator - Manages agent lifecycle and routing
 import asyncio
 import logging
 import os
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
 
 import httpx
+import structlog
 from persistence import WorkflowState, build_state_store, make_state_key
 from workflow_client import WorkflowClient
 
 from agents.runtime import AgentContext, AgentResponse, AgentResponseMetadata, BaseAgent
+from observability.metrics import agent_request_count, agent_request_latency
 from tools.runtime_paths import bootstrap_runtime_paths
 
 logger = logging.getLogger(__name__)
@@ -211,7 +215,13 @@ class AgentOrchestrator:
         self, tenant_id: str, headers: dict[str, str] | None = None
     ) -> dict[str, str]:
         workflow_headers = dict(headers or {})
+        correlation_id = workflow_headers.get("X-Correlation-ID") or str(uuid4())
         workflow_headers.setdefault("X-Tenant-ID", tenant_id)
+        workflow_headers["X-Correlation-ID"] = correlation_id
+        structlog.get_logger().bind(correlation_id=correlation_id).info(
+            "workflow_request_headers_prepared",
+            tenant_id=tenant_id,
+        )
         return workflow_headers
 
     def resume_workflows(self, tenant_id: str) -> list[str]:
@@ -229,6 +239,9 @@ class AgentOrchestrator:
         self, agent: BaseAgent, context: dict[str, Any] | AgentContext
     ) -> AgentResponse:
         async with self._agent_semaphore:
+            start = time.monotonic()
+            outcome = "success"
+            agent_name = getattr(agent, "name", None) or agent.agent_id
             try:
                 payload = context
                 if isinstance(context, AgentContext):
@@ -239,6 +252,7 @@ class AgentOrchestrator:
                 )
                 return AgentResponse.model_validate(result)
             except asyncio.TimeoutError:
+                outcome = "error"
                 logger.error("Agent %s timed out after %ss", agent.agent_id, AGENT_CALL_TIMEOUT)
                 if isinstance(context, AgentContext):
                     correlation_id = context.correlation_id
@@ -264,6 +278,13 @@ class AgentOrchestrator:
                         policy_reasons=None,
                     ),
                 )
+            except Exception:
+                outcome = "error"
+                raise
+            finally:
+                duration = time.monotonic() - start
+                agent_request_count.labels(agent_name, outcome).inc()
+                agent_request_latency.labels(agent_name).observe(duration)
 
     async def _load_governance_agents(self):
         """Initialize governance agents."""
