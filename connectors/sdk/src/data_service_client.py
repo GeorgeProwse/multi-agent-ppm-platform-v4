@@ -11,11 +11,19 @@ class DataServiceClient:
     base_url: str
     tenant_id: str
     client: httpx.Client
+    auth_token: str | None = None
 
     @classmethod
-    def from_url(cls, base_url: str, tenant_id: str, **kwargs: Any) -> "DataServiceClient":
+    def from_url(
+        cls, base_url: str, tenant_id: str, auth_token: str | None = None, **kwargs: Any
+    ) -> "DataServiceClient":
         client = httpx.Client(base_url=base_url.rstrip("/"), timeout=10.0, **kwargs)
-        return cls(base_url=base_url.rstrip("/"), tenant_id=tenant_id, client=client)
+        return cls(
+            base_url=base_url.rstrip("/"),
+            tenant_id=tenant_id,
+            client=client,
+            auth_token=auth_token,
+        )
 
     def register_schema(
         self, name: str, schema: dict[str, Any], version: int | None = None
@@ -80,7 +88,10 @@ class DataServiceClient:
         self.client.close()
 
     def _headers(self) -> dict[str, str]:
-        return {"X-Tenant-ID": self.tenant_id}
+        headers = {"X-Tenant-ID": self.tenant_id}
+        if self.auth_token:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
+        return headers
 
 
 @dataclass
@@ -88,11 +99,19 @@ class DataLineageClient:
     base_url: str
     tenant_id: str
     client: httpx.Client
+    auth_token: str | None = None
 
     @classmethod
-    def from_url(cls, base_url: str, tenant_id: str, **kwargs: Any) -> "DataLineageClient":
+    def from_url(
+        cls, base_url: str, tenant_id: str, auth_token: str | None = None, **kwargs: Any
+    ) -> "DataLineageClient":
         client = httpx.Client(base_url=base_url.rstrip("/"), timeout=10.0, **kwargs)
-        return cls(base_url=base_url.rstrip("/"), tenant_id=tenant_id, client=client)
+        return cls(
+            base_url=base_url.rstrip("/"),
+            tenant_id=tenant_id,
+            client=client,
+            auth_token=auth_token,
+        )
 
     def close(self) -> None:
         self.client.close()
@@ -158,4 +177,7 @@ class LineageEventEmitter:
         return response.json()
 
     def _headers(self) -> dict[str, str]:
-        return {"X-Tenant-ID": self.client.tenant_id}
+        headers = {"X-Tenant-ID": self.client.tenant_id}
+        if self.client.auth_token:
+            headers["Authorization"] = f"Bearer {self.client.auth_token}"
+        return headers

@@ -148,7 +148,7 @@ async def _load_oidc_config(discovery_url: str) -> dict[str, Any]:
 
 
 async def _validate_jwt(token: str) -> dict[str, Any]:
-    identity_url = os.getenv("IDENTITY_ACCESS_URL")
+    identity_url = os.getenv("AUTH_SERVICE_URL") or os.getenv("IDENTITY_ACCESS_URL")
     if identity_url:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(f"{identity_url}/auth/validate", json={"token": token})
@@ -210,25 +210,6 @@ async def _validate_jwt(token: str) -> dict[str, Any]:
     except InvalidTokenError as exc:
         logger.warning("token_validation_failed", extra={"error": str(exc)})
         raise HTTPException(status_code=401, detail="Invalid token") from exc
-
-
-def _dev_claims_from_jwt(token: str) -> dict[str, Any] | None:
-    dev_secret = os.getenv("AUTH_DEV_JWT_SECRET")
-    if not dev_secret:
-        return None
-    try:
-        return cast(
-            dict[str, Any],
-            jwt.decode(
-                token,
-                dev_secret,
-                algorithms=["HS256"],
-                options={"verify_aud": False, "verify_iss": False},
-            ),
-        )
-    except InvalidTokenError as exc:
-        logger.warning("dev_token_validation_failed", extra={"error": str(exc)})
-        return None
 
 
 async def _evaluate_rbac(auth: AuthContext, permission: str, classification: str | None) -> None:
@@ -405,33 +386,9 @@ async def _evaluate_abac(
         raise HTTPException(status_code=403, detail="ABAC denied")
 
 
-def validate_auth_dev_mode_safety() -> None:
-    """Validate that AUTH_DEV_MODE is not enabled in production environments.
-
-    This function should be called at application startup to fail fast if
-    AUTH_DEV_MODE is misconfigured.
-    """
-    auth_dev_mode = os.getenv("AUTH_DEV_MODE", "false").lower() in {"1", "true", "yes"}
-    environment = os.getenv("ENVIRONMENT", "development").lower()
-    production_environments = {"production", "prod", "staging", "stg"}
-
-    if auth_dev_mode and environment in production_environments:
-        logger.critical(
-            "SECURITY_VIOLATION: AUTH_DEV_MODE is enabled in a production environment. "
-            "This is a critical security misconfiguration. Refusing to start.",
-            extra={"environment": environment, "auth_dev_mode": auth_dev_mode},
-        )
-        raise RuntimeError(
-            f"AUTH_DEV_MODE cannot be enabled in '{environment}' environment. "
-            "This would bypass authentication and is a critical security risk."
-        )
-
-
 class AuthTenantMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, *args, **kwargs) -> None:
         super().__init__(app, *args, **kwargs)
-        # Validate at middleware initialization
-        validate_auth_dev_mode_safety()
 
     async def dispatch(self, request: Request, call_next):
         exempt_paths = {
@@ -450,71 +407,6 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
             and request.url.path.endswith("/webhook")
         ):
             return await call_next(request)
-
-        auth_dev_mode = os.getenv("AUTH_DEV_MODE", "false").lower() in {"1", "true", "yes"}
-        environment = os.getenv("ENVIRONMENT", "development").lower()
-        production_environments = {"production", "prod", "staging", "stg"}
-
-        # Defense in depth - reject requests if misconfigured
-        if auth_dev_mode and environment in production_environments:
-            logger.error(
-                "AUTH_DEV_MODE enabled in production - rejecting request",
-                extra={"environment": environment},
-            )
-            return JSONResponse(
-                status_code=500, content={"detail": "Authentication system misconfigured"}
-            )
-
-        if auth_dev_mode and environment in {"dev", "development", "local", "test"}:
-            auth_header = request.headers.get("Authorization", "")
-            token = (
-                auth_header.replace("Bearer ", "", 1).strip()
-                if auth_header.startswith("Bearer ")
-                else None
-            )
-            claims = _dev_claims_from_jwt(token) if token else None
-            tenant_id = (
-                request.headers.get("X-Tenant-ID")
-                or (claims.get("tenant_id") if claims else None)
-                or os.getenv("AUTH_DEV_TENANT_ID", "dev-tenant")
-            )
-            roles_raw = (
-                ",".join(claims.get("roles", []))
-                if claims and isinstance(claims.get("roles"), list)
-                else (
-                    claims.get("roles")
-                    if claims and isinstance(claims.get("roles"), str)
-                    else os.getenv("AUTH_DEV_ROLES", "PMO_ADMIN")
-                )
-            )
-            roles = [role.strip() for role in str(roles_raw).split(",") if role.strip()]
-            subject = claims.get("sub") if claims else request.headers.get("X-Dev-User", "dev-user")
-            auth_context = AuthContext(
-                tenant_id=tenant_id,
-                subject=subject,
-                roles=roles,
-                claims=claims or {"roles": roles, "sub": subject},
-            )
-            request.state.auth = auth_context
-            body = await request.body()
-            request._body = body
-            classification = _classification_from_body(body)
-            permission = _required_permission(request)
-            try:
-                await _evaluate_rbac(auth_context, permission, classification)
-                resource = None
-                if body:
-                    try:
-                        resource = json.loads(body.decode("utf-8"))
-                    except json.JSONDecodeError:
-                        return JSONResponse(
-                            status_code=400, content={"detail": "Invalid JSON payload"}
-                        )
-                await _evaluate_abac(auth_context, permission, resource, request)
-            except HTTPException as exc:
-                return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-            response = await call_next(request)
-            return response
 
         token = None
         auth_header = request.headers.get("Authorization", "")

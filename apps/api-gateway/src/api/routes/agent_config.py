@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 # Add services to path
@@ -82,33 +82,25 @@ class ProjectAgentConfigUpdateModel(BaseModel):
     parameter_overrides: dict[str, Any] | None = None
 
 
-class DevUserModel(BaseModel):
-    """API model for development user profile."""
-
-    user_id: str
-    name: str
-    email: str
-    role: str
-    tenant_id: str = "default"
-
-
-# Helper to get current user (stub for RBAC)
-def get_current_user_id(x_user_id: str | None = Header(None, alias="X-User-Id")) -> str:
-    """Get current user ID from header or default to 'admin'."""
-    return x_user_id or "admin"
-
-
-def check_user_permission(user_id: str, roles: list[str]) -> None:
-    """Check if user has permission to configure agents."""
+def check_user_permission(request: Request) -> str:
+    """Check if authenticated user has permission to configure agents."""
+    auth = request.state.auth
     store = get_agent_config_store()
-    if store.can_user_configure_agents(user_id):
-        return
-    if any(
-        role in {"PMO_ADMIN", "PM", "tenant_owner", "portfolio_admin", "project_manager"}
-        for role in roles
-    ):
-        return
+    store.sync_user_roles(
+        user_id=auth.subject,
+        tenant_id=auth.tenant_id,
+        roles=auth.roles,
+        display_name=auth.claims.get("name") if isinstance(auth.claims, dict) else None,
+        email=auth.claims.get("email") if isinstance(auth.claims, dict) else None,
+    )
+    if store.can_user_configure_agents(auth.subject, auth.tenant_id):
+        return auth.subject
     raise HTTPException(status_code=403, detail="User does not have permission to configure agents")
+
+
+def require_agent_config_permission(request: Request) -> str:
+    """Dependency that enforces agent configuration permissions."""
+    return check_user_permission(request)
 
 
 # Agent Configuration Endpoints
@@ -164,7 +156,7 @@ async def update_agent_config(
     catalog_id: str,
     updates: AgentConfigUpdateModel,
     http_request: Request,
-    x_user_id: str | None = Header(None, alias="X-User-Id"),
+    user_id: str = Depends(require_agent_config_permission),
 ):
     """
     Update configuration for a specific agent.
@@ -172,8 +164,6 @@ async def update_agent_config(
     Requires admin or PM role.
     """
     auth = http_request.state.auth
-    user_id = get_current_user_id(x_user_id or auth.subject)
-    check_user_permission(user_id, auth.roles)
 
     store = get_agent_config_store()
 
@@ -240,7 +230,7 @@ async def set_project_agent_config(
     agent_id: str,
     config: ProjectAgentConfigUpdateModel,
     http_request: Request,
-    x_user_id: str | None = Header(None, alias="X-User-Id"),
+    user_id: str = Depends(require_agent_config_permission),
 ):
     """
     Set project-specific configuration for an agent.
@@ -248,8 +238,6 @@ async def set_project_agent_config(
     Requires admin or PM role.
     """
     auth = http_request.state.auth
-    user_id = get_current_user_id(x_user_id or auth.subject)
-    check_user_permission(user_id, auth.roles)
 
     store = get_agent_config_store()
     result = store.set_project_agent_config(
@@ -309,37 +297,4 @@ async def check_agent_enabled_for_project(project_id: str, agent_id: str):
         "project_id": project_id,
         "agent_id": agent_id,
         "enabled": enabled,
-    }
-
-
-# Dev User Endpoints (RBAC stub)
-@router.get("/users/dev", response_model=list[DevUserModel])
-async def list_dev_users():
-    """List all development user profiles (for testing RBAC)."""
-    store = get_agent_config_store()
-    users = store.list_dev_users()
-    return [DevUserModel(**u.to_dict()) for u in users]
-
-
-@router.get("/users/dev/{user_id}", response_model=DevUserModel | None)
-async def get_dev_user(user_id: str):
-    """Get a specific development user profile."""
-    store = get_agent_config_store()
-    user = store.get_dev_user(user_id)
-
-    if not user:
-        return None
-
-    return DevUserModel(**user.to_dict())
-
-
-@router.get("/users/dev/{user_id}/can-configure")
-async def check_user_can_configure(user_id: str):
-    """Check if a user can configure agents."""
-    store = get_agent_config_store()
-    can_configure = store.can_user_configure_agents(user_id)
-
-    return {
-        "user_id": user_id,
-        "can_configure_agents": can_configure,
     }

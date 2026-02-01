@@ -4,6 +4,7 @@ import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -23,9 +24,19 @@ if SRC_PATH in sys.path:
     sys.path.remove(SRC_PATH)
 
 
-def _configure_auth(monkeypatch, tenant_id: str = "tenant-test") -> None:
-    monkeypatch.setenv("AUTH_DEV_MODE", "true")
-    monkeypatch.setenv("AUTH_DEV_TENANT_ID", tenant_id)
+def _configure_auth(monkeypatch, tenant_id: str = "tenant-test") -> str:
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    return jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "aud": "ppm-platform",
+            "iss": "https://issuer.example.com",
+            "tenant_id": tenant_id,
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
 
 
 def _wait_for_message(socket, message_type: str) -> dict:
@@ -37,13 +48,13 @@ def _wait_for_message(socket, message_type: str) -> dict:
 
 
 def test_realtime_coedit_two_users_sync(monkeypatch) -> None:
-    _configure_auth(monkeypatch)
+    token = _configure_auth(monkeypatch)
 
     with TestClient(module.app) as client:
         session_response = client.post(
             "/sessions",
             json={"document_id": "doc-123", "initial_content": "Hello"},
-            headers={"X-Tenant-ID": "tenant-test"},
+            headers={"X-Tenant-ID": "tenant-test", "Authorization": f"Bearer {token}"},
         )
         assert session_response.status_code == 200
         session_id = session_response.json()["session_id"]

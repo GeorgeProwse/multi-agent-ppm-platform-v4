@@ -5,6 +5,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import httpx
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
@@ -30,9 +31,19 @@ def _database_url(tmp_path: Path) -> str:
     return f"sqlite+aiosqlite:///{db_path}"
 
 
-def _configure_auth(monkeypatch, tenant_id: str = "tenant-a") -> None:
-    monkeypatch.setenv("AUTH_DEV_MODE", "true")
-    monkeypatch.setenv("AUTH_DEV_TENANT_ID", tenant_id)
+def _configure_auth(monkeypatch, tenant_id: str = "tenant-a") -> str:
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    return jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "aud": "ppm-platform",
+            "iss": "https://issuer.example.com",
+            "tenant_id": tenant_id,
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
 
 
 def _schema_payload() -> dict[str, object]:
@@ -51,11 +62,11 @@ def _schema_payload() -> dict[str, object]:
 def test_connector_client_schema_registry(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DATA_SERVICE_DATABASE_URL", _database_url(tmp_path))
     monkeypatch.setenv("DATA_SERVICE_LOAD_SEED_SCHEMAS", "false")
-    _configure_auth(monkeypatch)
+    token = _configure_auth(monkeypatch)
 
     with TestClient(module.app) as client:
         data_client = ConnectorDataServiceClient(
-            base_url="http://test", tenant_id="tenant-a", client=client
+            base_url="http://test", tenant_id="tenant-a", client=client, auth_token=token
         )
         first = data_client.register_schema("demo", _schema_payload())
         second = data_client.register_schema("demo", _schema_payload())
@@ -81,12 +92,14 @@ def test_connector_client_schema_registry(monkeypatch, tmp_path) -> None:
 async def test_agent_client_schema_registry(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DATA_SERVICE_DATABASE_URL", _database_url(tmp_path))
     monkeypatch.setenv("DATA_SERVICE_LOAD_SEED_SCHEMAS", "false")
-    _configure_auth(monkeypatch)
+    token = _configure_auth(monkeypatch)
 
     await module.startup()
     try:
         async with httpx.AsyncClient(app=module.app, base_url="http://test") as http_client:
-            data_client = AgentDataServiceClient(base_url="http://test", client=http_client)
+            data_client = AgentDataServiceClient(
+                base_url="http://test", client=http_client, auth_token=token
+            )
             registered = await data_client.register_schema(
                 "agent-demo", _schema_payload(), tenant_id="tenant-a"
             )
