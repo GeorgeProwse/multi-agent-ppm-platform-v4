@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { KpiWidget } from '@/components/dashboard/KpiWidget';
+import { StatusIndicator } from '@/components/dashboard/StatusIndicator';
 import { useAppStore, type EntitySelection } from '@/store';
 import styles from './WorkspacePage.module.css';
 
@@ -8,6 +10,82 @@ type EntityType = 'portfolio' | 'program' | 'project';
 interface WorkspacePageProps {
   type: EntityType;
 }
+
+interface DemandStage {
+  stage: string;
+  count: number;
+  target: number;
+  trend?: 'up' | 'down' | 'steady';
+}
+
+interface KpiMetric {
+  label: string;
+  value: string;
+  delta?: string;
+}
+
+interface CharterSnapshot {
+  id: string;
+  name: string;
+  owner: string;
+  status: string;
+  updated: string;
+}
+
+interface WbsItem {
+  name: string;
+  children: string[];
+}
+
+interface RequirementItem {
+  id: string;
+  title: string;
+  priority: string;
+  status: string;
+}
+
+interface RiskItem {
+  id: string;
+  title: string;
+  severity: string;
+  owner: string;
+}
+
+interface IssueItem {
+  id: string;
+  title: string;
+  status: string;
+  owner: string;
+}
+
+interface HealthMetric {
+  label: string;
+  value: string;
+  status: string;
+}
+
+interface RelatedItem {
+  id: string;
+  name: string;
+  status?: string;
+  owner?: string;
+}
+
+interface DashboardPayload {
+  kpis: KpiMetric[];
+  pipeline: DemandStage[];
+  charters: CharterSnapshot[];
+  wbs: WbsItem[];
+  requirements: RequirementItem[];
+  risks: RiskItem[];
+  issues: IssueItem[];
+  healthMetrics: HealthMetric[];
+  relatedItems: RelatedItem[];
+  relatedItemsLimit?: number;
+}
+
+const API_BASE = '/api';
+const RELATED_PAGE_SIZES = [5, 10, 20];
 
 const typeLabels: Record<EntityType, string> = {
   portfolio: 'Portfolio',
@@ -23,71 +101,46 @@ const typeDescriptions: Record<EntityType, string> = {
   project: 'Execution of specific deliverables with defined scope and timeline.',
 };
 
-const demandPipeline = [
-  { stage: 'Intake', count: 14, target: 20, trend: 'steady' },
-  { stage: 'Triage', count: 9, target: 15, trend: 'up' },
-  { stage: 'Business Case', count: 6, target: 10, trend: 'down' },
-  { stage: 'Approval', count: 4, target: 6, trend: 'steady' },
-  { stage: 'In Delivery', count: 11, target: 12, trend: 'up' },
-];
+const emptyDashboard: DashboardPayload = {
+  kpis: [],
+  pipeline: [],
+  charters: [],
+  wbs: [],
+  requirements: [],
+  risks: [],
+  issues: [],
+  healthMetrics: [],
+  relatedItems: [],
+};
 
-const charterSnapshots = [
-  { id: 'charter-001', name: 'Project Atlas Charter', owner: 'PMO', status: 'Approved', updated: '2 days ago' },
-  { id: 'charter-002', name: 'Growth Program Charter', owner: 'Strategy', status: 'In review', updated: 'Yesterday' },
-  { id: 'charter-003', name: 'Cloud Migration Charter', owner: 'IT', status: 'Draft', updated: '5 hours ago' },
-];
-
-const wbsSnapshot = [
-  { name: 'Initiation', children: ['Charter approval', 'Stakeholder alignment'] },
-  { name: 'Planning', children: ['WBS', 'Schedule baseline', 'Budget baseline'] },
-  { name: 'Execution', children: ['Sprint delivery', 'Vendor onboarding', 'QA checkpoints'] },
-  { name: 'Closeout', children: ['Lessons learned', 'Benefits handoff'] },
-];
-
-const requirementsSnapshot = [
-  { id: 'REQ-118', title: 'Automated demand scoring', priority: 'High', status: 'In progress' },
-  { id: 'REQ-121', title: 'Resource capacity heatmap', priority: 'Medium', status: 'Validated' },
-  { id: 'REQ-124', title: 'Portfolio health narrative', priority: 'High', status: 'Draft' },
-  { id: 'REQ-131', title: 'Risk escalation workflow', priority: 'Medium', status: 'Approved' },
-];
-
-const kpiHighlights = [
-  { label: 'Portfolio ROI', value: '18.4%', delta: '+1.2%' },
-  { label: 'Schedule variance', value: '-2.3%', delta: '+0.6%' },
-  { label: 'Budget consumed', value: '64%', delta: '+4%' },
-  { label: 'Benefits realized', value: '$4.2M', delta: '+$0.5M' },
-];
-
-const riskSummary = [
-  { id: 'R-14', title: 'Vendor onboarding delay', severity: 'High', owner: 'Procurement' },
-  { id: 'R-18', title: 'Data migration quality', severity: 'Medium', owner: 'IT' },
-  { id: 'R-21', title: 'Regulatory sign-off', severity: 'Low', owner: 'Compliance' },
-];
-
-const issueSummary = [
-  { id: 'I-07', title: 'Sprint capacity shortfall', status: 'Open', owner: 'Delivery' },
-  { id: 'I-11', title: 'Integration test failures', status: 'In progress', owner: 'QA' },
-  { id: 'I-13', title: 'Scope change request pending', status: 'Escalated', owner: 'PMO' },
-];
-
-const healthMetrics = [
-  { label: 'Schedule', value: 'On track', status: 'healthy' },
-  { label: 'Budget', value: 'Watch', status: 'watch' },
-  { label: 'Quality', value: 'At risk', status: 'risk' },
-  { label: 'Benefits', value: 'On track', status: 'healthy' },
-];
+const endpointMap: Record<EntityType, string> = {
+  portfolio: 'portfolios',
+  program: 'programs',
+  project: 'projects',
+};
 
 export function WorkspacePage({ type }: WorkspacePageProps) {
   const { portfolioId, programId, projectId } = useParams();
   const { setCurrentSelection, currentActivity, addTab, openTabs } = useAppStore();
 
   const entityId = portfolioId || programId || projectId || 'unknown';
+  const [entityName, setEntityName] = useState(entityId);
+  const [dashboardData, setDashboardData] = useState<DashboardPayload>(emptyDashboard);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [relatedFilter, setRelatedFilter] = useState('');
+  const [relatedPage, setRelatedPage] = useState(1);
+  const [relatedPageSize, setRelatedPageSize] = useState(RELATED_PAGE_SIZES[0]);
+
+  useEffect(() => {
+    setEntityName(entityId);
+  }, [entityId]);
 
   useEffect(() => {
     const selection: EntitySelection = {
       type,
       id: entityId,
-      name: `${typeLabels[type]} ${entityId}`,
+      name: entityName || `${typeLabels[type]} ${entityId}`,
     };
     setCurrentSelection(selection);
 
@@ -102,13 +155,104 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
         entityId,
       });
     }
-  }, [type, entityId, setCurrentSelection, addTab, openTabs]);
+  }, [type, entityId, entityName, setCurrentSelection, addTab, openTabs]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const fetchDashboard = async () => {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const response = await fetch(
+          `${API_BASE}/${endpointMap[type]}/${entityId}`,
+          { signal: controller.signal }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to load dashboard: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const payload = data.dashboard ?? data;
+        if (!isMounted) return;
+        setEntityName(payload.name ?? data.name ?? entityId);
+        setDashboardData({
+          kpis: payload.kpis ?? payload.kpiHighlights ?? [],
+          pipeline: payload.pipeline ?? payload.demandPipeline ?? [],
+          charters: payload.charters ?? payload.charterSnapshots ?? [],
+          wbs: payload.wbs ?? payload.wbsSnapshot ?? [],
+          requirements: payload.requirements ?? payload.requirementsSnapshot ?? [],
+          risks: payload.risks ?? payload.riskSummary ?? [],
+          issues: payload.issues ?? payload.issueSummary ?? [],
+          healthMetrics: payload.healthMetrics ?? payload.health ?? [],
+          relatedItems: payload.relatedItems ?? payload.programs ?? payload.projects ?? [],
+          relatedItemsLimit: payload.relatedItemsLimit ?? payload.pageSize,
+        });
+        if (payload.relatedItemsLimit) {
+          setRelatedPageSize(payload.relatedItemsLimit);
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : 'Failed to load dashboard data';
+        setErrorMessage(message);
+        setDashboardData(emptyDashboard);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    if (entityId !== 'unknown') {
+      fetchDashboard();
+    }
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [type, entityId]);
+
+  useEffect(() => {
+    setRelatedPage(1);
+  }, [relatedFilter, relatedPageSize, dashboardData.relatedItems.length]);
+
+  const relatedLabel = useMemo(() => {
+    if (type === 'portfolio') return 'Programs';
+    if (type === 'program') return 'Projects';
+    return 'Related workstreams';
+  }, [type]);
+
+  const pageSizeOptions = useMemo(() => {
+    const sizes = new Set(RELATED_PAGE_SIZES);
+    sizes.add(relatedPageSize);
+    return Array.from(sizes).sort((a, b) => a - b);
+  }, [relatedPageSize]);
+
+  const filteredRelatedItems = useMemo(() => {
+    if (!relatedFilter) return dashboardData.relatedItems;
+    const lowered = relatedFilter.toLowerCase();
+    return dashboardData.relatedItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowered) ||
+        item.id.toLowerCase().includes(lowered) ||
+        (item.status ?? '').toLowerCase().includes(lowered)
+    );
+  }, [dashboardData.relatedItems, relatedFilter]);
+
+  const relatedTotalPages = Math.max(
+    1,
+    Math.ceil(filteredRelatedItems.length / relatedPageSize)
+  );
+  const relatedPageStart = (relatedPage - 1) * relatedPageSize;
+  const pagedRelatedItems = filteredRelatedItems.slice(
+    relatedPageStart,
+    relatedPageStart + relatedPageSize
+  );
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.badge}>{typeLabels[type]}</div>
-        <h1 className={styles.title}>{entityId}</h1>
+        <h1 className={styles.title}>{entityName}</h1>
         <p className={styles.description}>{typeDescriptions[type]}</p>
       </header>
 
@@ -127,19 +271,27 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
             </button>
           </div>
           <div className={styles.summaryGrid}>
-            {kpiHighlights.map((kpi) => (
-              <div key={kpi.label} className={styles.summaryCard}>
-                <p className={styles.summaryLabel}>{kpi.label}</p>
-                <div className={styles.summaryValue}>{kpi.value}</div>
-                <span className={styles.summaryDelta}>{kpi.delta} vs last period</span>
-              </div>
-            ))}
+            {dashboardData.kpis.length > 0 ? (
+              dashboardData.kpis.map((kpi) => (
+                <KpiWidget
+                  key={kpi.label}
+                  label={kpi.label}
+                  value={kpi.value}
+                  delta={kpi.delta}
+                  description="vs last period"
+                />
+              ))
+            ) : (
+              <p className={styles.emptyState}>No KPI data available yet.</p>
+            )}
           </div>
           {currentActivity && (
             <p className={styles.activityNote}>
               Current activity: <strong>{currentActivity.name}</strong>
             </p>
           )}
+          {isLoading && <p className={styles.statusNote}>Loading latest metrics…</p>}
+          {errorMessage && <p className={styles.errorNote}>{errorMessage}</p>}
         </section>
 
         <section className={styles.section}>
@@ -148,33 +300,42 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
             Visualize pipeline throughput from intake to delivery with targets and trend signals.
           </p>
           <div className={styles.pipeline}>
-            {demandPipeline.map((stage) => {
-              const percentage = Math.min(
-                100,
-                Math.round((stage.count / stage.target) * 100)
-              );
-              return (
-                <div key={stage.stage} className={styles.pipelineCard}>
-                  <div className={styles.pipelineHeader}>
-                    <span className={styles.pipelineStage}>{stage.stage}</span>
-                    <span className={styles.pipelineCount}>
-                      {stage.count}/{stage.target}
+            {dashboardData.pipeline.length > 0 ? (
+              dashboardData.pipeline.map((stage) => {
+                const percentage = stage.target
+                  ? Math.min(100, Math.round((stage.count / stage.target) * 100))
+                  : 0;
+                return (
+                  <div key={stage.stage} className={styles.pipelineCard}>
+                    <div className={styles.pipelineHeader}>
+                      <span className={styles.pipelineStage}>{stage.stage}</span>
+                      <span className={styles.pipelineCount}>
+                        {stage.count}/{stage.target}
+                      </span>
+                    </div>
+                    <div
+                      className={styles.pipelineBar}
+                      role="progressbar"
+                      aria-valuenow={percentage}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <span
+                        className={styles.pipelineFill}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className={styles.pipelineTrend}>
+                      {stage.trend === 'up' && '▲ Accelerating'}
+                      {stage.trend === 'down' && '▼ Slowing'}
+                      {stage.trend === 'steady' && '● Steady'}
                     </span>
                   </div>
-                  <div className={styles.pipelineBar} role="progressbar" aria-valuenow={percentage} aria-valuemin={0} aria-valuemax={100}>
-                    <span
-                      className={styles.pipelineFill}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <span className={styles.pipelineTrend}>
-                    {stage.trend === 'up' && '▲ Accelerating'}
-                    {stage.trend === 'down' && '▼ Slowing'}
-                    {stage.trend === 'steady' && '● Steady'}
-                  </span>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className={styles.emptyState}>No pipeline data available yet.</p>
+            )}
           </div>
         </section>
 
@@ -182,50 +343,62 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>Health metrics</h3>
             <div className={styles.healthGrid}>
-              {healthMetrics.map((metric) => (
-                <div key={metric.label} className={styles.healthItem}>
-                  <span className={`${styles.healthStatus} ${styles[metric.status]}`}></span>
-                  <div>
-                    <div className={styles.healthValue}>{metric.value}</div>
-                    <div className={styles.healthLabel}>{metric.label}</div>
+              {dashboardData.healthMetrics.length > 0 ? (
+                dashboardData.healthMetrics.map((metric) => (
+                  <div key={metric.label} className={styles.healthItem}>
+                    <StatusIndicator status={metric.status} />
+                    <div>
+                      <div className={styles.healthValue}>{metric.value}</div>
+                      <div className={styles.healthLabel}>{metric.label}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className={styles.emptyState}>No health metrics reported yet.</p>
+              )}
             </div>
           </section>
 
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>Charters</h3>
             <ul className={styles.list}>
-              {charterSnapshots.map((charter) => (
-                <li key={charter.id} className={styles.listItem}>
-                  <div>
-                    <div className={styles.listTitle}>{charter.name}</div>
-                    <div className={styles.listMeta}>
-                      Owner: {charter.owner} · Updated {charter.updated}
+              {dashboardData.charters.length > 0 ? (
+                dashboardData.charters.map((charter) => (
+                  <li key={charter.id} className={styles.listItem}>
+                    <div>
+                      <div className={styles.listTitle}>{charter.name}</div>
+                      <div className={styles.listMeta}>
+                        Owner: {charter.owner} · Updated {charter.updated}
+                      </div>
                     </div>
-                  </div>
-                  <span className={styles.badge}>{charter.status}</span>
-                </li>
-              ))}
+                    <span className={styles.badge}>{charter.status}</span>
+                  </li>
+                ))
+              ) : (
+                <li className={styles.emptyState}>No charter snapshots available.</li>
+              )}
             </ul>
           </section>
 
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>WBS snapshot</h3>
             <ul className={styles.treeList}>
-              {wbsSnapshot.map((item) => (
-                <li key={item.name}>
-                  <span className={styles.treeTitle}>{item.name}</span>
-                  <ul>
-                    {item.children.map((child) => (
-                      <li key={child} className={styles.treeItem}>
-                        {child}
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
+              {dashboardData.wbs.length > 0 ? (
+                dashboardData.wbs.map((item) => (
+                  <li key={item.name}>
+                    <span className={styles.treeTitle}>{item.name}</span>
+                    <ul>
+                      {item.children.map((child) => (
+                        <li key={child} className={styles.treeItem}>
+                          {child}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))
+              ) : (
+                <li className={styles.emptyState}>No WBS entries available.</li>
+              )}
             </ul>
           </section>
 
@@ -242,14 +415,22 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {requirementsSnapshot.map((req) => (
-                    <tr key={req.id}>
-                      <td>{req.id}</td>
-                      <td>{req.title}</td>
-                      <td>{req.priority}</td>
-                      <td>{req.status}</td>
+                  {dashboardData.requirements.length > 0 ? (
+                    dashboardData.requirements.map((req) => (
+                      <tr key={req.id}>
+                        <td>{req.id}</td>
+                        <td>{req.title}</td>
+                        <td>{req.priority}</td>
+                        <td>{req.status}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className={styles.emptyState}>
+                        No requirements captured yet.
+                      </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>
@@ -258,33 +439,119 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>Risks</h3>
             <ul className={styles.list}>
-              {riskSummary.map((risk) => (
-                <li key={risk.id} className={styles.listItem}>
-                  <div>
-                    <div className={styles.listTitle}>{risk.title}</div>
-                    <div className={styles.listMeta}>Owner: {risk.owner}</div>
-                  </div>
-                  <span className={`${styles.badge} ${styles[`badge${risk.severity}`]}`}>
-                    {risk.severity}
-                  </span>
-                </li>
-              ))}
+              {dashboardData.risks.length > 0 ? (
+                dashboardData.risks.map((risk) => (
+                  <li key={risk.id} className={styles.listItem}>
+                    <div>
+                      <div className={styles.listTitle}>{risk.title}</div>
+                      <div className={styles.listMeta}>Owner: {risk.owner}</div>
+                    </div>
+                    <span className={`${styles.badge} ${styles[`badge${risk.severity}`]}`}>
+                      {risk.severity}
+                    </span>
+                  </li>
+                ))
+              ) : (
+                <li className={styles.emptyState}>No risk summary available.</li>
+              )}
             </ul>
           </section>
 
           <section className={styles.card}>
             <h3 className={styles.cardTitle}>Issues</h3>
             <ul className={styles.list}>
-              {issueSummary.map((issue) => (
-                <li key={issue.id} className={styles.listItem}>
-                  <div>
-                    <div className={styles.listTitle}>{issue.title}</div>
-                    <div className={styles.listMeta}>Owner: {issue.owner}</div>
-                  </div>
-                  <span className={styles.badge}>{issue.status}</span>
-                </li>
-              ))}
+              {dashboardData.issues.length > 0 ? (
+                dashboardData.issues.map((issue) => (
+                  <li key={issue.id} className={styles.listItem}>
+                    <div>
+                      <div className={styles.listTitle}>{issue.title}</div>
+                      <div className={styles.listMeta}>Owner: {issue.owner}</div>
+                    </div>
+                    <span className={styles.badge}>{issue.status}</span>
+                  </li>
+                ))
+              ) : (
+                <li className={styles.emptyState}>No active issues reported.</li>
+              )}
             </ul>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.cardTitle}>{relatedLabel}</h3>
+            <div className={styles.listControls}>
+              <input
+                type="search"
+                placeholder={`Filter ${relatedLabel.toLowerCase()}...`}
+                value={relatedFilter}
+                onChange={(event) => setRelatedFilter(event.target.value)}
+                className={styles.filterInput}
+              />
+              <select
+                className={styles.pageSizeSelect}
+                value={relatedPageSize}
+                onChange={(event) => setRelatedPageSize(Number(event.target.value))}
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    Show {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ul className={styles.list}>
+              {pagedRelatedItems.length > 0 ? (
+                pagedRelatedItems.map((item) => (
+                  <li key={item.id} className={styles.listItem}>
+                    <div>
+                      <div className={styles.listTitle}>{item.name}</div>
+                      <div className={styles.listMeta}>
+                        ID: {item.id}
+                        {item.owner ? ` · Owner: ${item.owner}` : ''}
+                      </div>
+                    </div>
+                    {item.status ? (
+                      <div className={styles.statusChip}>
+                        <StatusIndicator status={item.status} />
+                        <span>{item.status}</span>
+                      </div>
+                    ) : (
+                      <span className={styles.badge}>No status</span>
+                    )}
+                  </li>
+                ))
+              ) : (
+                <li className={styles.emptyState}>
+                  {dashboardData.relatedItems.length === 0
+                    ? `No ${relatedLabel.toLowerCase()} available.`
+                    : 'No matches for the current filter.'}
+                </li>
+              )}
+            </ul>
+            {filteredRelatedItems.length > relatedPageSize && (
+              <div className={styles.pagination}>
+                <button
+                  type="button"
+                  onClick={() => setRelatedPage((page) => Math.max(1, page - 1))}
+                  className={styles.pageButton}
+                  disabled={relatedPage <= 1}
+                >
+                  Previous
+                </button>
+                <span className={styles.pageInfo}>
+                  Page {relatedPage} of {relatedTotalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRelatedPage((page) => Math.min(relatedTotalPages, page + 1))
+                  }
+                  className={styles.pageButton}
+                  disabled={relatedPage >= relatedTotalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </section>
         </div>
 
