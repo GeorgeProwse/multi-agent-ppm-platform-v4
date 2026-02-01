@@ -31,7 +31,7 @@ export function AuditLogPage() {
     let mounted = true;
     const load = async () => {
       try {
-        const response = await fetch('/api/v1/audit/events?limit=200');
+        const response = await fetch('/v1/audit/events?limit=200');
         if (!response.ok) {
           throw new Error('Failed to fetch audit logs');
         }

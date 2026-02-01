@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /policies/evaluate:
+  /v1/policies/evaluate:
     post:
       summary: Evaluate a policy bundle
       requestBody:
@@ -29,7 +29,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PolicyEvaluationResponse"
-  /rbac/evaluate:
+  /v1/rbac/evaluate:
     post:
       summary: Evaluate tenant RBAC decision
       requestBody:
@@ -45,7 +45,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RBACEvaluationResponse"
-  /abac/evaluate:
+  /v1/abac/evaluate:
     post:
       summary: Evaluate attribute-based access decision
       requestBody:

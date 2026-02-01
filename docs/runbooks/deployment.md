@@ -24,8 +24,8 @@ release steps, and rollback guidance.
 3. **Deploy services**
    - Use Helm to upgrade services in order: identity, policy engine, core services, API gateway, workflow engine, agents, connectors.
 4. **Run smoke tests**
-   - Execute `/healthz` and `/api/v1/status` checks.
-   - Confirm `POST /audit/events` and `POST /telemetry/ingest` respond with success.
+   - Execute `/healthz` and `/v1/status` checks.
+   - Confirm `POST /v1/audit/events` and `POST /v1/telemetry/ingest` respond with success.
 5. **Validate monitoring**
    - Confirm metrics, traces, and alerts are flowing in Azure Monitor.
 6. **Notify stakeholders**

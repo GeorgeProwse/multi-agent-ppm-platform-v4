@@ -43,7 +43,7 @@ This runbook documents how to bootstrap secrets for new environments.
 
 ## Validation
 - `kubectl describe pod` shows CSI mount ready.
-- API gateway `/api/v1/status` returns `healthy`.
+- API gateway `/v1/status` returns `healthy`.
 - Identity service can validate JWTs using Key Vault-backed secrets.
 
 ## Rotation readiness

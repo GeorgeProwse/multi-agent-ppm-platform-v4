@@ -68,7 +68,7 @@ def test_api_status_with_orchestrator(monkeypatch) -> None:
     module.orchestrator = orchestrator
 
     client = TestClient(module.app)
-    response = client.get("/api/v1/status", headers=_auth_headers())
+    response = client.get("/v1/status", headers=_auth_headers())
 
     assert response.status_code == 200
     payload = response.json()
@@ -101,7 +101,7 @@ def test_identity_token_validation(monkeypatch) -> None:
     client = _client_for(
         ["services", "identity-access", "src", "main.py"], "identity_main_validate"
     )
-    response = client.post("/auth/validate", json={"token": token})
+    response = client.post("/v1/auth/validate", json={"token": token})
     assert response.status_code == 200
     assert response.json()["active"] is True
 
@@ -123,7 +123,7 @@ def test_workflow_engine_start(monkeypatch) -> None:
         "payload": {"request": "upgrade"},
         "actor": {"id": "user-123", "type": "user", "roles": ["portfolio_admin"]},
     }
-    response = client.post("/workflows/start", json=payload, headers=_auth_headers())
+    response = client.post("/v1/workflows/start", json=payload, headers=_auth_headers())
     assert response.status_code == 200
     assert response.json()["status"] == "running"
 
@@ -142,13 +142,13 @@ def test_document_service_create_and_list(tmp_path, monkeypatch) -> None:
     client = _client_for(["apps", "document-service", "src", "main.py"], "document_main_write")
 
     response = client.post(
-        "/documents",
+        "/v1/documents",
         json={"name": "spec", "content": "hello", "classification": "internal"},
         headers=_auth_headers(),
     )
     assert response.status_code == 200
 
-    list_response = client.get("/documents", headers=_auth_headers())
+    list_response = client.get("/v1/documents", headers=_auth_headers())
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
 

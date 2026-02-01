@@ -29,7 +29,7 @@ class OrchestratorProxyClient:
         payload: dict[str, Any] = {"query": query, "context": context}
         if prompt:
             payload["prompt"] = prompt
-        return await self._request("POST", "/api/v1/query", headers=headers, json=payload)
+        return await self._request("POST", "/v1/query", headers=headers, json=payload)
 
     async def _request(
         self,

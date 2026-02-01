@@ -30,7 +30,7 @@ def test_auth_validate_hs256() -> None:
     os.environ["IDENTITY_JWT_SECRET"] = "dev-secret"
     token = jwt.encode({"sub": "user-123"}, "dev-secret", algorithm="HS256")
 
-    response = client.post("/auth/validate", json={"token": token})
+    response = client.post("/v1/auth/validate", json={"token": token})
     assert response.status_code == 200
     payload = response.json()
     assert payload["active"] is True

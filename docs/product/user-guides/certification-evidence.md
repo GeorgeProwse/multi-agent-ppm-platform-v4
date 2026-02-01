@@ -21,7 +21,7 @@ The web console now includes a certification evidence workflow for connector cov
 
 - Certification metadata is stored persistently in `data/connectors/certifications.json` (configurable via `CERTIFICATION_STORE_PATH`).
 - Evidence documents are stored under `data/connectors/certification_documents/` (configurable via `CERTIFICATION_DOCUMENT_ROOT`).
-- The API gateway exposes `/api/v1/certifications` for listing, creating, and updating records, plus `/api/v1/certifications/{connector_id}/documents` for evidence uploads.
+- The API gateway exposes `/v1/certifications` for listing, creating, and updating records, plus `/v1/certifications/{connector_id}/documents` for evidence uploads.
 
 ## Operational checklist
 

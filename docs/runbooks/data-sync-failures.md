@@ -12,7 +12,7 @@ Restore connector syncs when jobs back up, fail, or produce partial data.
 
 ## Symptoms
 
-- `/sync/run` responses remain in `queued` or `planned` status.
+- `/v1/sync/run` responses remain in `queued` or `planned` status.
 - Connector-specific mappings are missing or invalid.
 - Lineage artifacts are missing or contain redacted fields unexpectedly.
 
@@ -61,17 +61,17 @@ Restore connector syncs when jobs back up, fail, or produce partial data.
 - **Missing mappings:** Create or update mapping YAMLs under `connectors/<name>/mappings/` and re-run the sync.
 - **Queue misconfiguration:** Set Service Bus environment variables or use local mode for dev.
 - **Invalid schema targets:** Update mapping targets to match `data/schemas/*.schema.json`.
-- **Backlogged jobs:** Delete stale entries in `services/data-sync-service/storage/status.json` and re-trigger `/sync/run`.
+- **Backlogged jobs:** Delete stale entries in `services/data-sync-service/storage/status.json` and re-trigger `/v1/sync/run`.
 
 ## Verification
 
 - Trigger a sync run:
   ```bash
-  curl -sS -X POST http://localhost:8080/sync/run -H "Content-Type: application/json" -H "X-Tenant-ID: dev-tenant" -d '{"connector":"jira","dry_run":true}' | jq
+  curl -sS -X POST http://localhost:8080/v1/sync/run -H "Content-Type: application/json" -H "X-Tenant-ID: dev-tenant" -d '{"connector":"jira","dry_run":true}' | jq
   ```
 - Confirm status updates:
   ```bash
-  curl -sS http://localhost:8080/sync/status/<job_id> -H "X-Tenant-ID: dev-tenant" | jq
+  curl -sS http://localhost:8080/v1/sync/status/<job_id> -H "X-Tenant-ID: dev-tenant" | jq
   ```
 
 ## Escalation

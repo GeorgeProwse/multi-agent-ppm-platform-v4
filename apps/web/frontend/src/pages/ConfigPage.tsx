@@ -4,7 +4,7 @@ import type { AgentConfig, AgentParameter } from '@/store/agentConfig/types';
 import type { ConfigField, Connector } from '@/store/connectors/types';
 import styles from './ConfigPage.module.css';
 
-const API_BASE = '/api/v1';
+const API_BASE = '/v1';
 
 type ConfigType = 'agents' | 'connectors' | 'workflows';
 

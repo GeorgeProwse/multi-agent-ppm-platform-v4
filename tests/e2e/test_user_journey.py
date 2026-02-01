@@ -49,7 +49,7 @@ def test_end_to_end_workflow(monkeypatch) -> None:
     )
 
     identity = _identity_client()
-    identity_response = identity.post("/auth/validate", json={"token": token})
+    identity_response = identity.post("/v1/auth/validate", json={"token": token})
     assert identity_response.status_code == 200
     assert identity_response.json()["active"] is True
 
@@ -62,7 +62,7 @@ def test_end_to_end_workflow(monkeypatch) -> None:
     gateway = _gateway_client()
     with patch("api.main.orchestrator", mock_orchestrator):
         response = gateway.post(
-            "/api/v1/query",
+            "/v1/query",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
             json={"query": "Start workflow", "classification": "internal"},
         )
@@ -70,7 +70,7 @@ def test_end_to_end_workflow(monkeypatch) -> None:
 
     workflow = _workflow_client()
     workflow_response = workflow.post(
-        "/workflows/start",
+        "/v1/workflows/start",
         json={
             "workflow_id": "intake-triage",
             "tenant_id": "tenant-alpha",

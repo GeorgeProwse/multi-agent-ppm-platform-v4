@@ -260,7 +260,7 @@ export function AssistantPanel() {
     setScopeResearchResult(null);
 
     try {
-      const response = await fetch(`/api/v1/projects/${context.projectId}/scope/research`, {
+      const response = await fetch(`/v1/projects/${context.projectId}/scope/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ objective: scopeResearchObjective.trim() }),

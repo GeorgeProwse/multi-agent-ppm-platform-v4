@@ -17,12 +17,12 @@ connections, shared document state, and conflict resolution.
 | Endpoint | Description |
 | --- | --- |
 | `GET /healthz` | Health check. |
-| `POST /sessions` | Start a co-edit session. |
-| `GET /sessions/{session_id}` | Fetch session details. |
-| `POST /sessions/{session_id}/stop` | Stop a session and release resources. |
-| `POST /sessions/{session_id}/persist` | Persist the final document version. |
-| `GET /documents/{document_id}/history` | List recent versions for a document. |
-| `GET /ws/documents/{document_id}` | WebSocket endpoint for live co-editing. |
+| `POST /v1/sessions` | Start a co-edit session. |
+| `GET /v1/sessions/{session_id}` | Fetch session details. |
+| `POST /v1/sessions/{session_id}/stop` | Stop a session and release resources. |
+| `POST /v1/sessions/{session_id}/persist` | Persist the final document version. |
+| `GET /v1/documents/{document_id}/history` | List recent versions for a document. |
+| `GET /v1/ws/documents/{document_id}` | WebSocket endpoint for live co-editing. |
 
 ## Configuration
 

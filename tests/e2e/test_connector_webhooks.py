@@ -43,7 +43,7 @@ def _client() -> TestClient:
     from api.routes import connectors as connectors_route
 
     app = FastAPI()
-    app.include_router(connectors_route.router, prefix="/api/v1")
+    app.include_router(connectors_route.router, prefix="/v1")
     return TestClient(app)
 
 
@@ -69,7 +69,7 @@ def test_webhook_payload_persisted(tmp_path, monkeypatch) -> None:
 
     payload = {"webhookEvent": "jira:issue_updated", "issue": {"key": "ENG-42"}}
     response = client.post(
-        "/api/v1/connectors/jira/webhook",
+        "/v1/connectors/jira/webhook",
         headers={"X-Webhook-Secret": "secret-123", "X-Tenant-ID": "tenant-alpha"},
         json=payload,
     )
@@ -101,7 +101,7 @@ def test_webhook_rejects_invalid_secret(tmp_path, monkeypatch) -> None:
     connectors_route._webhook_store = WebhookEventStore(tmp_path / "webhooks.json")
 
     response = client.post(
-        "/api/v1/connectors/jira/webhook",
+        "/v1/connectors/jira/webhook",
         headers={"X-Webhook-Secret": "wrong-secret"},
         json={"webhookEvent": "jira:issue_updated"},
     )

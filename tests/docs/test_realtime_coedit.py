@@ -52,7 +52,7 @@ def test_realtime_coedit_two_users_sync(monkeypatch) -> None:
 
     with TestClient(module.app) as client:
         session_response = client.post(
-            "/sessions",
+            "/v1/sessions",
             json={"document_id": "doc-123", "initial_content": "Hello"},
             headers={"X-Tenant-ID": "tenant-test", "Authorization": f"Bearer {token}"},
         )
@@ -60,13 +60,13 @@ def test_realtime_coedit_two_users_sync(monkeypatch) -> None:
         session_id = session_response.json()["session_id"]
 
         with client.websocket_connect(
-            f"/ws/documents/doc-123?session_id={session_id}&user_id=user-a&user_name=Alice"
+            f"/v1/ws/documents/doc-123?session_id={session_id}&user_id=user-a&user_name=Alice"
         ) as ws_a:
             state_a = _wait_for_message(ws_a, "session_state")
             assert state_a["content"] == "Hello"
 
             with client.websocket_connect(
-                f"/ws/documents/doc-123?session_id={session_id}&user_id=user-b&user_name=Ben"
+                f"/v1/ws/documents/doc-123?session_id={session_id}&user_id=user-b&user_name=Ben"
             ) as ws_b:
                 state_b = _wait_for_message(ws_b, "session_state")
                 assert state_b["content"] == "Hello"

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -20,12 +21,16 @@ from observability.metrics import RequestMetricsMiddleware, configure_metrics  #
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from orchestrator import AgentOrchestrator  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from packages.version import API_VERSION  # noqa: E402
 
 logger = logging.getLogger("orchestration-service")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Orchestration Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/health", "/healthz", "/health/ready"})
+app = FastAPI(title="Orchestration Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(
+    AuthTenantMiddleware, exempt_paths={"/health", "/healthz", "/health/ready", "/version"}
+)
 configure_tracing("orchestration-service")
 configure_metrics("orchestration-service")
 configure_logging("orchestration-service")
@@ -80,6 +85,15 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "orchestration-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
 @app.get("/health/ready")
 async def readiness(request: Request) -> dict[str, bool | dict[str, bool]]:
     leader_elector = getattr(request.app.state, "leader_elector", None)
@@ -91,12 +105,12 @@ async def readiness(request: Request) -> dict[str, bool | dict[str, bool]]:
     return {"ready": ready, "checks": checks}
 
 
-@app.get("/agents", response_model=list[str])
+@api_router.get("/agents", response_model=list[str])
 async def list_agents() -> list[str]:
     return sorted(orchestrator.agents.keys())
 
 
-@app.get("/dependencies", response_model=list[DependencyRequest])
+@api_router.get("/dependencies", response_model=list[DependencyRequest])
 async def list_dependencies() -> list[DependencyRequest]:
     return [
         DependencyRequest(agent_id=dep.agent_id, depends_on=dep.depends_on)
@@ -104,13 +118,13 @@ async def list_dependencies() -> list[DependencyRequest]:
     ]
 
 
-@app.post("/dependencies", response_model=DependencyRequest)
+@api_router.post("/dependencies", response_model=DependencyRequest)
 async def register_dependency(payload: DependencyRequest) -> DependencyRequest:
     orchestrator.register_dependency(payload.agent_id, payload.depends_on)
     return payload
 
 
-@app.get("/agents/{agent_id}/state", response_model=AgentStateResponse)
+@api_router.get("/agents/{agent_id}/state", response_model=AgentStateResponse)
 async def get_agent_state(agent_id: str) -> AgentStateResponse:
     state = orchestrator.get_agent_state(agent_id)
     if not state:
@@ -118,7 +132,7 @@ async def get_agent_state(agent_id: str) -> AgentStateResponse:
     return AgentStateResponse(**state.__dict__)
 
 
-@app.post("/agents/{agent_id}/activate", response_model=AgentStateResponse)
+@api_router.post("/agents/{agent_id}/activate", response_model=AgentStateResponse)
 async def activate_agent(agent_id: str, request: Request) -> AgentStateResponse:
     auth = request.state.auth
     if not orchestrator.dependencies_satisfied(agent_id):
@@ -132,14 +146,14 @@ async def activate_agent(agent_id: str, request: Request) -> AgentStateResponse:
     return AgentStateResponse(**state.__dict__)
 
 
-@app.post("/agents/{agent_id}/deactivate", response_model=AgentStateResponse)
+@api_router.post("/agents/{agent_id}/deactivate", response_model=AgentStateResponse)
 async def deactivate_agent(agent_id: str) -> AgentStateResponse:
     orchestrator.set_agent_state(agent_id, "stopped")
     state = orchestrator.get_agent_state(agent_id)
     return AgentStateResponse(**state.__dict__)
 
 
-@app.post("/workflows/upload", response_model=WorkflowUploadResponse)
+@api_router.post("/workflows/upload", response_model=WorkflowUploadResponse)
 async def upload_workflow(
     request: Request, file: UploadFile = File(...), workflow_name: str | None = None
 ) -> WorkflowUploadResponse:
@@ -157,6 +171,9 @@ async def upload_workflow(
         }
     )
     return WorkflowUploadResponse(**response)
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 import yaml
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -29,10 +29,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 LLM_ROOT = REPO_ROOT / "packages" / "llm" / "src"
-for root in (OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT):
+for root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from agent_registry import load_agent_registry  # noqa: E402
 from agent_settings_models import (  # noqa: E402
     AgentConfigUpdate,
@@ -132,7 +133,8 @@ STATE_COOKIE = "ppm_oidc_state"
 SESSION_SIGNING_ALGORITHM = "HS256"
 OIDC_HTTP_TRANSPORT: httpx.BaseTransport | None = None
 
-app = FastAPI(title="PPM Web Console", version="1.0.0")
+app = FastAPI(title="PPM Web Console", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if FRONTEND_DIST_DIR.exists():
     app.mount("/app", StaticFiles(directory=FRONTEND_DIST_DIR, html=True), name="frontend")
@@ -579,6 +581,15 @@ def _load_connector_registry() -> list[dict[str, Any]]:
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "web-ui",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 def _oidc_required(name: str) -> str:
@@ -1146,7 +1157,7 @@ async def _decode_id_token(id_token: str) -> dict[str, Any]:
     )
 
 
-@app.get("/config", response_model=UIConfig)
+@api_router.get("/config", response_model=UIConfig)
 async def config() -> UIConfig:
     return UIConfig(
         api_gateway_url=os.getenv("API_GATEWAY_URL", "http://api-gateway:8000"),
@@ -1157,7 +1168,7 @@ async def config() -> UIConfig:
     )
 
 
-@app.get("/session", response_model=SessionInfo)
+@api_router.get("/session", response_model=SessionInfo)
 async def session_info(request: Request) -> SessionInfo:
     session = _session_from_request(request)
     if not session:
@@ -1170,7 +1181,7 @@ async def session_info(request: Request) -> SessionInfo:
     )
 
 
-@app.get("/login")
+@api_router.get("/login")
 async def login(request: Request) -> RedirectResponse:
     if not _oidc_enabled():
         if _legacy_oidc_enabled():
@@ -1229,7 +1240,7 @@ async def login(request: Request) -> RedirectResponse:
     return response
 
 
-@app.get("/oidc/callback")
+@api_router.get("/oidc/callback")
 async def oidc_callback(request: Request) -> RedirectResponse:
     code = request.query_params.get("code")
     state = request.query_params.get("state")
@@ -1295,12 +1306,12 @@ async def oidc_callback(request: Request) -> RedirectResponse:
     return response
 
 
-@app.get("/callback")
+@api_router.get("/callback")
 async def callback(request: Request) -> RedirectResponse:
     return await oidc_callback(request)
 
 
-@app.post("/logout")
+@api_router.post("/logout")
 async def logout(request: Request) -> RedirectResponse:
     session = _session_from_request(request) or {}
     response = RedirectResponse(url="/")
@@ -1320,13 +1331,13 @@ async def logout(request: Request) -> RedirectResponse:
     return response
 
 
-@app.get("/api/status")
+@api_router.get("/api/status")
 async def api_status(request: Request) -> dict[str, Any]:
     session = _require_session(request)
     api_gateway_url = os.getenv("API_GATEWAY_URL", "http://localhost:8000")
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"{api_gateway_url}/api/v1/status",
+            f"{api_gateway_url}/v1/status",
             headers={
                 "Authorization": f"Bearer {session['access_token']}",
                 "X-Tenant-ID": session["tenant_id"],
@@ -1336,13 +1347,13 @@ async def api_status(request: Request) -> dict[str, Any]:
         return response.json()
 
 
-@app.post("/api/workflows/start", response_model=WorkflowStartResponse)
+@api_router.post("/api/workflows/start", response_model=WorkflowStartResponse)
 async def api_start_workflow(request: Request, payload: WorkflowStartRequest) -> dict[str, Any]:
     session = _require_session(request)
     workflow_url = os.getenv("WORKFLOW_ENGINE_URL", "http://localhost:8082")
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.post(
-            f"{workflow_url}/workflows/start",
+            f"{workflow_url}/v1/workflows/start",
             headers={
                 "Authorization": f"Bearer {session['access_token']}",
                 "X-Tenant-ID": session["tenant_id"],
@@ -1363,7 +1374,7 @@ async def api_start_workflow(request: Request, payload: WorkflowStartRequest) ->
         return response.json()
 
 
-@app.get("/api/workspace/{project_id}", response_model=WorkspaceStateResponse)
+@api_router.get("/api/workspace/{project_id}", response_model=WorkspaceStateResponse)
 async def get_workspace_state(project_id: str, request: Request) -> WorkspaceStateResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1371,7 +1382,7 @@ async def get_workspace_state(project_id: str, request: Request) -> WorkspaceSta
     return _build_workspace_response(state)
 
 
-@app.post("/api/workspace/{project_id}/select", response_model=WorkspaceStateResponse)
+@api_router.post("/api/workspace/{project_id}/select", response_model=WorkspaceStateResponse)
 async def update_workspace_selection(
     project_id: str, payload: WorkspaceSelectionUpdate, request: Request
 ) -> WorkspaceStateResponse:
@@ -1393,7 +1404,7 @@ async def update_workspace_selection(
     return _build_workspace_response(state)
 
 
-@app.post("/api/workspace/{project_id}/activity-completion", response_model=WorkspaceStateResponse)
+@api_router.post("/api/workspace/{project_id}/activity-completion", response_model=WorkspaceStateResponse)
 async def update_activity_completion(
     project_id: str, payload: ActivityCompletionUpdate, request: Request
 ) -> WorkspaceStateResponse:
@@ -1405,7 +1416,7 @@ async def update_activity_completion(
     return _build_workspace_response(state)
 
 
-@app.post(
+@api_router.post(
     "/api/templates/{template_id}/instantiate",
     response_model=TemplateInstantiateResponse,
 )
@@ -1509,7 +1520,7 @@ async def instantiate_template(
     raise HTTPException(status_code=400, detail="Unsupported template type")
 
 
-@app.get("/api/agent-gallery/agents")
+@api_router.get("/api/agent-gallery/agents")
 async def list_agent_registry(request: Request) -> JSONResponse:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -1521,7 +1532,7 @@ async def list_agent_registry(request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content=[entry.model_dump() for entry in registry])
 
 
-@app.get("/api/agent-gallery/{project_id}")
+@api_router.get("/api/agent-gallery/{project_id}")
 async def get_project_agent_settings(project_id: str, request: Request) -> JSONResponse:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -1560,7 +1571,7 @@ async def get_project_agent_settings(project_id: str, request: Request) -> JSONR
     )
 
 
-@app.patch("/api/agent-gallery/{project_id}/agents/{agent_id}")
+@api_router.patch("/api/agent-gallery/{project_id}/agents/{agent_id}")
 async def update_project_agent_settings(
     project_id: str,
     agent_id: str,
@@ -1609,7 +1620,7 @@ async def update_project_agent_settings(
     return JSONResponse(status_code=200, content=response.model_dump())
 
 
-@app.post("/api/agent-gallery/{project_id}/reset-defaults")
+@api_router.post("/api/agent-gallery/{project_id}/reset-defaults")
 async def reset_project_agent_settings(project_id: str, request: Request) -> JSONResponse:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -1650,7 +1661,7 @@ async def reset_project_agent_settings(project_id: str, request: Request) -> JSO
     )
 
 
-@app.post("/api/assistant/send")
+@api_router.post("/api/assistant/send")
 async def send_assistant_message(payload: AssistantSendRequest, request: Request) -> JSONResponse:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -1727,7 +1738,7 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
     )
 
 
-@app.post("/api/assistant/suggestions", response_model=AssistantSuggestionResponse)
+@api_router.post("/api/assistant/suggestions", response_model=AssistantSuggestionResponse)
 async def generate_assistant_suggestions(
     payload: AssistantSuggestionRequest, request: Request
 ) -> AssistantSuggestionResponse:
@@ -1773,7 +1784,7 @@ async def generate_assistant_suggestions(
     )
 
 
-@app.get("/api/tree/{project_id}", response_model=TreeListResponse)
+@api_router.get("/api/tree/{project_id}", response_model=TreeListResponse)
 async def list_tree_nodes(project_id: str, request: Request) -> TreeListResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1785,7 +1796,7 @@ async def list_tree_nodes(project_id: str, request: Request) -> TreeListResponse
     return TreeListResponse(tenant_id=tenant_id, project_id=project_id, nodes=nodes)
 
 
-@app.post("/api/tree/{project_id}/nodes", response_model=TreeNode)
+@api_router.post("/api/tree/{project_id}/nodes", response_model=TreeNode)
 async def create_tree_node(project_id: str, payload: TreeNodeCreate, request: Request) -> TreeNode:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1800,7 +1811,7 @@ async def create_tree_node(project_id: str, payload: TreeNodeCreate, request: Re
     return node
 
 
-@app.patch("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeNode)
+@api_router.patch("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeNode)
 async def update_tree_node(
     project_id: str, node_id: str, payload: TreeNodeUpdate, request: Request
 ) -> TreeNode:
@@ -1819,7 +1830,7 @@ async def update_tree_node(
     return node
 
 
-@app.post("/api/tree/{project_id}/nodes/{node_id}/move", response_model=TreeNode)
+@api_router.post("/api/tree/{project_id}/nodes/{node_id}/move", response_model=TreeNode)
 async def move_tree_node(
     project_id: str, node_id: str, payload: TreeMoveRequest, request: Request
 ) -> TreeNode:
@@ -1838,7 +1849,7 @@ async def move_tree_node(
     return node
 
 
-@app.delete("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeDeleteResult)
+@api_router.delete("/api/tree/{project_id}/nodes/{node_id}", response_model=TreeDeleteResult)
 async def delete_tree_node(project_id: str, node_id: str, request: Request) -> TreeDeleteResult:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1850,7 +1861,7 @@ async def delete_tree_node(project_id: str, node_id: str, request: Request) -> T
     return TreeDeleteResult(deleted=deleted_count > 0, deleted_count=deleted_count)
 
 
-@app.get("/api/tree/{project_id}/export", response_model=TreeExportResponse)
+@api_router.get("/api/tree/{project_id}/export", response_model=TreeExportResponse)
 async def export_tree(project_id: str, request: Request) -> TreeExportResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1867,7 +1878,7 @@ async def export_tree(project_id: str, request: Request) -> TreeExportResponse:
     )
 
 
-@app.get("/api/timeline/{project_id}", response_model=TimelineResponse)
+@api_router.get("/api/timeline/{project_id}", response_model=TimelineResponse)
 async def list_timeline_milestones(project_id: str, request: Request) -> TimelineResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1883,7 +1894,7 @@ async def list_timeline_milestones(project_id: str, request: Request) -> Timelin
     )
 
 
-@app.post("/api/timeline/{project_id}/milestones", response_model=Milestone)
+@api_router.post("/api/timeline/{project_id}/milestones", response_model=Milestone)
 async def create_timeline_milestone(
     project_id: str, payload: MilestoneCreate, request: Request
 ) -> Milestone:
@@ -1901,7 +1912,7 @@ async def create_timeline_milestone(
     return milestone
 
 
-@app.patch("/api/timeline/{project_id}/milestones/{milestone_id}", response_model=Milestone)
+@api_router.patch("/api/timeline/{project_id}/milestones/{milestone_id}", response_model=Milestone)
 async def update_timeline_milestone(
     project_id: str,
     milestone_id: str,
@@ -1924,7 +1935,7 @@ async def update_timeline_milestone(
     return milestone
 
 
-@app.delete("/api/timeline/{project_id}/milestones/{milestone_id}")
+@api_router.delete("/api/timeline/{project_id}/milestones/{milestone_id}")
 async def delete_timeline_milestone(
     project_id: str, milestone_id: str, request: Request
 ) -> dict[str, Any]:
@@ -1944,7 +1955,7 @@ async def delete_timeline_milestone(
     return {"deleted": True, "milestone_id": milestone_id}
 
 
-@app.get("/api/timeline/{project_id}/export", response_model=TimelineExportResponse)
+@api_router.get("/api/timeline/{project_id}/export", response_model=TimelineExportResponse)
 async def export_timeline(project_id: str, request: Request) -> TimelineExportResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1961,7 +1972,7 @@ async def export_timeline(project_id: str, request: Request) -> TimelineExportRe
     )
 
 
-@app.get("/api/spreadsheets/{project_id}/sheets", response_model=list[Sheet])
+@api_router.get("/api/spreadsheets/{project_id}/sheets", response_model=list[Sheet])
 async def list_spreadsheet_sheets(project_id: str, request: Request) -> list[Sheet]:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -1973,7 +1984,7 @@ async def list_spreadsheet_sheets(project_id: str, request: Request) -> list[She
     return sheets
 
 
-@app.post("/api/spreadsheets/{project_id}/sheets", response_model=Sheet)
+@api_router.post("/api/spreadsheets/{project_id}/sheets", response_model=Sheet)
 async def create_spreadsheet_sheet(
     project_id: str, payload: SheetCreate, request: Request
 ) -> Sheet:
@@ -1994,7 +2005,7 @@ async def create_spreadsheet_sheet(
     return sheet
 
 
-@app.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}", response_model=SheetDetail)
+@api_router.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}", response_model=SheetDetail)
 async def get_spreadsheet_sheet(project_id: str, sheet_id: str, request: Request) -> SheetDetail:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -2012,7 +2023,7 @@ async def get_spreadsheet_sheet(project_id: str, sheet_id: str, request: Request
     return detail
 
 
-@app.post("/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows", response_model=Row)
+@api_router.post("/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows", response_model=Row)
 async def add_spreadsheet_row(
     project_id: str, sheet_id: str, payload: RowCreate, request: Request
 ) -> Row:
@@ -2036,7 +2047,7 @@ async def add_spreadsheet_row(
     return row
 
 
-@app.patch(
+@api_router.patch(
     "/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows/{row_id}",
     response_model=Row,
 )
@@ -2067,7 +2078,7 @@ async def update_spreadsheet_row(
     return row
 
 
-@app.delete(
+@api_router.delete(
     "/api/spreadsheets/{project_id}/sheets/{sheet_id}/rows/{row_id}",
     response_model=DeleteResult,
 )
@@ -2091,7 +2102,7 @@ async def delete_spreadsheet_row(
     return DeleteResult(deleted=True, row_id=row_id)
 
 
-@app.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}/export.csv")
+@api_router.get("/api/spreadsheets/{project_id}/sheets/{sheet_id}/export.csv")
 async def export_spreadsheet_csv(project_id: str, sheet_id: str, request: Request) -> Response:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
@@ -2109,7 +2120,7 @@ async def export_spreadsheet_csv(project_id: str, sheet_id: str, request: Reques
     return Response(content=csv_payload, media_type="text/csv")
 
 
-@app.post(
+@api_router.post(
     "/api/spreadsheets/{project_id}/sheets/{sheet_id}/import.csv",
     response_model=ImportResult,
 )
@@ -2140,7 +2151,7 @@ async def import_spreadsheet_csv(project_id: str, sheet_id: str, request: Reques
     return ImportResult(imported=imported)
 
 
-@app.get(
+@api_router.get(
     "/api/templates",
     response_model=list[TemplateSummary | DeliverableTemplateSummary],
 )
@@ -2214,7 +2225,7 @@ async def list_templates(
     return summaries
 
 
-@app.get(
+@api_router.get(
     "/api/templates/{template_id}",
     response_model=TemplateDefinition | DeliverableTemplate,
 )
@@ -2262,7 +2273,7 @@ async def get_template(
     return template
 
 
-@app.post("/api/templates/{template_id}/apply", response_model=TemplateApplyResponse)
+@api_router.post("/api/templates/{template_id}/apply", response_model=TemplateApplyResponse)
 async def apply_template(
     template_id: str, payload: TemplateApplyRequest, request: Request
 ) -> TemplateApplyResponse:
@@ -2316,7 +2327,7 @@ async def apply_template(
     return TemplateApplyResponse(project=project, template=response_template)
 
 
-@app.post("/api/knowledge/documents", response_model=DocumentVersionResponse)
+@api_router.post("/api/knowledge/documents", response_model=DocumentVersionResponse)
 async def create_document_version(
     payload: DocumentVersionRequest, request: Request
 ) -> DocumentVersionResponse:
@@ -2361,7 +2372,7 @@ async def create_document_version(
     )
 
 
-@app.get("/api/knowledge/documents", response_model=list[DocumentSummaryResponse])
+@api_router.get("/api/knowledge/documents", response_model=list[DocumentSummaryResponse])
 async def list_documents(
     project_id: str, query: str | None = None
 ) -> list[DocumentSummaryResponse]:
@@ -2384,7 +2395,7 @@ async def list_documents(
     ]
 
 
-@app.get(
+@api_router.get(
     "/api/knowledge/documents/{document_id}/versions", response_model=list[DocumentVersionResponse]
 )
 async def list_document_versions(document_id: str) -> list[DocumentVersionResponse]:
@@ -2408,7 +2419,7 @@ async def list_document_versions(document_id: str) -> list[DocumentVersionRespon
     ]
 
 
-@app.post("/api/knowledge/lessons", response_model=LessonResponse)
+@api_router.post("/api/knowledge/lessons", response_model=LessonResponse)
 async def create_lesson(payload: LessonRequest) -> LessonResponse:
     store = _get_knowledge_store()
     record = store.create_lesson(
@@ -2434,7 +2445,7 @@ async def create_lesson(payload: LessonRequest) -> LessonResponse:
     )
 
 
-@app.put("/api/knowledge/lessons/{lesson_id}", response_model=LessonResponse)
+@api_router.put("/api/knowledge/lessons/{lesson_id}", response_model=LessonResponse)
 async def update_lesson(lesson_id: str, payload: LessonRequest) -> LessonResponse:
     store = _get_knowledge_store()
     record = store.update_lesson(
@@ -2462,7 +2473,7 @@ async def update_lesson(lesson_id: str, payload: LessonRequest) -> LessonRespons
     )
 
 
-@app.delete("/api/knowledge/lessons/{lesson_id}")
+@api_router.delete("/api/knowledge/lessons/{lesson_id}")
 async def delete_lesson(lesson_id: str) -> dict[str, Any]:
     store = _get_knowledge_store()
     deleted = store.delete_lesson(lesson_id)
@@ -2471,7 +2482,7 @@ async def delete_lesson(lesson_id: str) -> dict[str, Any]:
     return {"status": "deleted", "lesson_id": lesson_id}
 
 
-@app.get("/api/knowledge/lessons", response_model=list[LessonResponse])
+@api_router.get("/api/knowledge/lessons", response_model=list[LessonResponse])
 async def list_lessons(
     project_id: str,
     query: str | None = None,
@@ -2504,7 +2515,7 @@ async def list_lessons(
     ]
 
 
-@app.post("/api/knowledge/lessons/recommendations", response_model=list[LessonResponse])
+@api_router.post("/api/knowledge/lessons/recommendations", response_model=list[LessonResponse])
 async def recommend_lessons(payload: LessonRecommendationRequest) -> list[LessonResponse]:
     store = _get_knowledge_store()
     records = store.recommend_lessons(
@@ -2530,7 +2541,7 @@ async def recommend_lessons(payload: LessonRecommendationRequest) -> list[Lesson
     ]
 
 
-@app.get("/api/dashboard/{project_id}/health")
+@api_router.get("/api/dashboard/{project_id}/health")
 async def get_dashboard_health(project_id: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2545,7 +2556,7 @@ async def get_dashboard_health(project_id: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/dashboard/{project_id}/trends")
+@api_router.get("/api/dashboard/{project_id}/trends")
 async def get_dashboard_trends(project_id: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2560,7 +2571,7 @@ async def get_dashboard_trends(project_id: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/dashboard/{project_id}/quality")
+@api_router.get("/api/dashboard/{project_id}/quality")
 async def get_dashboard_quality(project_id: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2575,7 +2586,7 @@ async def get_dashboard_quality(project_id: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.post("/api/dashboard/{project_id}/what-if")
+@api_router.post("/api/dashboard/{project_id}/what-if")
 async def create_dashboard_what_if(
     project_id: str, payload: DashboardWhatIfRequest, request: Request
 ) -> Response:
@@ -2592,7 +2603,7 @@ async def create_dashboard_what_if(
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/dashboard/{project_id}/kpis")
+@api_router.get("/api/dashboard/{project_id}/kpis")
 async def get_dashboard_kpis(project_id: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2607,7 +2618,7 @@ async def get_dashboard_kpis(project_id: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/dashboard/{project_id}/narrative")
+@api_router.get("/api/dashboard/{project_id}/narrative")
 async def get_dashboard_narrative(project_id: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2622,7 +2633,7 @@ async def get_dashboard_narrative(project_id: str, request: Request) -> Response
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/analytics/powerbi/{report_type}")
+@api_router.get("/api/analytics/powerbi/{report_type}")
 async def get_powerbi_embed(report_type: str, request: Request) -> Response:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2637,7 +2648,7 @@ async def get_powerbi_embed(report_type: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.get("/api/connector-gallery/types")
+@api_router.get("/api/connector-gallery/types")
 async def list_connector_types(request: Request) -> list[dict[str, Any]]:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -2646,7 +2657,7 @@ async def list_connector_types(request: Request) -> list[dict[str, Any]]:
     return types
 
 
-@app.get("/api/connector-gallery/instances")
+@api_router.get("/api/connector-gallery/instances")
 async def list_connector_instances(request: Request) -> Response:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -2662,7 +2673,7 @@ async def list_connector_instances(request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=response.json())
 
 
-@app.post("/api/connector-gallery/instances")
+@api_router.post("/api/connector-gallery/instances")
 async def create_connector_instance(payload: ConnectorInstanceCreate, request: Request) -> Response:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -2694,7 +2705,7 @@ async def create_connector_instance(payload: ConnectorInstanceCreate, request: R
     return JSONResponse(status_code=response.status_code, content=body)
 
 
-@app.patch("/api/connector-gallery/instances/{connector_id}")
+@api_router.patch("/api/connector-gallery/instances/{connector_id}")
 async def update_connector_instance(
     connector_id: str, payload: ConnectorInstanceUpdate, request: Request
 ) -> Response:
@@ -2721,7 +2732,7 @@ async def update_connector_instance(
     return JSONResponse(status_code=response.status_code, content=body)
 
 
-@app.get("/api/connector-gallery/instances/{connector_id}/health")
+@api_router.get("/api/connector-gallery/instances/{connector_id}/health")
 async def get_connector_health(connector_id: str, request: Request) -> Response:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
@@ -2745,7 +2756,7 @@ async def get_connector_health(connector_id: str, request: Request) -> Response:
     return JSONResponse(status_code=response.status_code, content=body)
 
 
-@app.post("/api/document-canvas/documents")
+@api_router.post("/api/document-canvas/documents")
 async def create_document_canvas_document(
     payload: DocumentCanvasRequest, request: Request
 ) -> dict[str, Any]:
@@ -2776,7 +2787,7 @@ async def create_document_canvas_document(
     return body
 
 
-@app.get("/api/document-canvas/documents")
+@api_router.get("/api/document-canvas/documents")
 async def list_document_canvas_documents(request: Request) -> list[dict[str, Any]]:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2795,7 +2806,7 @@ async def list_document_canvas_documents(request: Request) -> list[dict[str, Any
     return body
 
 
-@app.get("/api/document-canvas/documents/{document_id}")
+@api_router.get("/api/document-canvas/documents/{document_id}")
 async def get_document_canvas_document(document_id: str, request: Request) -> dict[str, Any]:
     session = _require_session(request)
     headers = build_forward_headers(request, session)
@@ -2815,7 +2826,7 @@ async def get_document_canvas_document(document_id: str, request: Request) -> di
     return body
 
 
-@app.get("/api/audit/evidence/export")
+@api_router.get("/api/audit/evidence/export")
 async def export_audit_evidence(request: Request) -> Response:
     session = _require_session(request)
     audit_url = os.getenv("AUDIT_LOG_SERVICE_URL")
@@ -2838,14 +2849,14 @@ async def export_audit_evidence(request: Request) -> Response:
     )
 
 
-@app.get("/")
+@api_router.get("/")
 async def index() -> FileResponse:
     if FRONTEND_DIST_DIR.exists():
         return FileResponse(FRONTEND_DIST_DIR / "index.html")
     return FileResponse(STATIC_DIR / "index.html")
 
 
-@app.get("/workspace")
+@api_router.get("/workspace")
 async def workspace_shell() -> HTMLResponse:
     html = """
     <!doctype html>
@@ -2866,6 +2877,9 @@ async def workspace_shell() -> HTMLResponse:
     </html>
     """
     return HTMLResponse(html)
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ def test_healthz() -> None:
 
 
 def test_list_agents_includes_catalog() -> None:
-    response = client.get("/agents")
+    response = client.get("/v1/agents")
     assert response.status_code == 200
     payload = response.json()
     agent_ids = {agent["agent_id"] for agent in payload}
@@ -40,7 +40,7 @@ def test_list_agents_includes_catalog() -> None:
 
 def test_intent_router_routes_demand_intake() -> None:
     response = client.post(
-        "/agents/intent-router/execute",
+        "/v1/agents/intent-router/execute",
         json={"payload": {"query": "Submit a demand intake request for a new project idea"}},
     )
     assert response.status_code == 200
@@ -52,7 +52,7 @@ def test_intent_router_routes_demand_intake() -> None:
 
 def test_orchestration_config_drives_execution() -> None:
     config_response = client.put(
-        "/orchestration/config",
+        "/v1/orchestration/config",
         json={
             "default_routing": [
                 {"agent_id": "demand-intake", "action": "get_pipeline", "depends_on": []}
@@ -63,7 +63,7 @@ def test_orchestration_config_drives_execution() -> None:
     assert config_response.status_code == 200
 
     response = client.post(
-        "/orchestration/run",
+        "/v1/orchestration/run",
         json={"parameters": {}, "context": {"tenant_id": "test-tenant"}},
     )
     assert response.status_code == 200
@@ -74,7 +74,7 @@ def test_orchestration_config_drives_execution() -> None:
 
 def test_connector_action_is_returned() -> None:
     response = client.post(
-        "/agents/demand-intake/execute",
+        "/v1/agents/demand-intake/execute",
         json={
             "payload": {
                 "action": "get_pipeline",
@@ -97,7 +97,7 @@ def test_connector_action_is_returned() -> None:
 
 def test_approval_workflow_escalation_metadata() -> None:
     response = client.post(
-        "/agents/agent_003_approval_workflow/execute",
+        "/v1/agents/agent_003_approval_workflow/execute",
         json={
             "payload": {
                 "request_type": "budget_change",

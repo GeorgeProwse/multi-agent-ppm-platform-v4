@@ -7,14 +7,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOCUMENT_ROOT = Path(__file__).resolve().parent
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (DOCUMENT_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, DOCUMENT_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -30,12 +30,14 @@ from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E4
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.crypto import get_encryption_key  # noqa: E402
 from security.dlp import DLPFinding, ensure_dlp_environment, scan_payload  # noqa: E402
+from packages.version import API_VERSION  # noqa: E402
 
 logger = logging.getLogger("document-service")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Document Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/health"})
+app = FastAPI(title="Document Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/health", "/version"})
 configure_tracing("document-service")
 configure_metrics("document-service")
 app.add_middleware(TraceMiddleware, service_name="document-service")
@@ -108,6 +110,15 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "document-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
 def _build_response(record, advisories: list[str]) -> DocumentResponse:
     return DocumentResponse(
         document_id=record.document_id,
@@ -135,7 +146,7 @@ def _format_dlp_reasons(findings: list[DLPFinding]) -> list[dict[str, str]]:
     return reasons
 
 
-@app.post("/documents", response_model=DocumentResponse)
+@api_router.post("/documents", response_model=DocumentResponse)
 async def create_document(request: Request, payload: DocumentRequest) -> DocumentResponse:
     store = _get_store()
     tenant_id = request.state.auth.tenant_id
@@ -185,7 +196,7 @@ async def create_document(request: Request, payload: DocumentRequest) -> Documen
     return _build_response(record, advisories)
 
 
-@app.get("/documents", response_model=list[DocumentResponse])
+@api_router.get("/documents", response_model=list[DocumentResponse])
 async def list_documents(request: Request) -> list[DocumentResponse]:
     store = _get_store()
     tenant_id = request.state.auth.tenant_id
@@ -193,7 +204,7 @@ async def list_documents(request: Request) -> list[DocumentResponse]:
     return [_build_response(record, []) for record in records]
 
 
-@app.get("/documents/{document_id}", response_model=DocumentResponse)
+@api_router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(document_id: str, request: Request) -> DocumentResponse:
     store = _get_store()
     tenant_id = request.state.auth.tenant_id
@@ -203,6 +214,9 @@ async def get_document(document_id: str, request: Request) -> DocumentResponse:
         raise HTTPException(status_code=404, detail="Document not found")
     kpi_handles.requests.add(1, {"operation": "get_document", "tenant_id": tenant_id})
     return _build_response(record, [])
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

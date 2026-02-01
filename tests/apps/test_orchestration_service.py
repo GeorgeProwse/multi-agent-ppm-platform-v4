@@ -23,6 +23,6 @@ def test_list_agents():
     app = module.app
 
     client = TestClient(app)
-    resp = client.get("/agents")
+    resp = client.get("/v1/agents")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)

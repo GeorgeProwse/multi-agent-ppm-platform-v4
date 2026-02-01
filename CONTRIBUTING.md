@@ -103,7 +103,7 @@ make test
 make lint
 
 # Visit API docs
-open http://localhost:8000/api/docs
+open http://localhost:8000/v1/docs
 ```
 
 ## Development Workflow

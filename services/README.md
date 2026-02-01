@@ -24,17 +24,17 @@ Each service runs a FastAPI application (default port `8080`) with health checks
 
 | Service | Description | Primary endpoints |
 | --- | --- | --- |
-| Audit Log | Immutable audit trail with retention and WORM storage enforcement. | `POST /audit/events`, `GET /audit/events/{event_id}` |
-| Auth Service | Exchanges OAuth2/OIDC tokens and validates JWTs. | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/validate` |
-| Agent Runtime | Hosts agent registry, orchestration, and connector integration for the platform. | `GET /agents`, `POST /agents/{agent_id}/execute`, `POST /orchestration/run` |
-| Data Sync Service | Runs connector sync jobs, tracks status, and manages conflicts. | `POST /sync/run`, `GET /sync/status/{job_id}`, `GET /sync/conflicts` |
-| Data Lineage Service | Captures lineage events and quality summaries. | `POST /lineage/events`, `GET /lineage/graph`, `GET /quality/summary` |
-| Data Service | Manages schemas and canonical entities. | `POST /schemas`, `GET /schemas`, `POST /entities/{schema_name}` |
-| Identity & Access | Validates auth tokens and supports SCIM provisioning. | `POST /auth/validate`, `POST /scim/v2/Users`, `GET /scim/v2/Groups` |
-| Notification Service | Sends email/chat/webhook notifications. | `POST /notifications/send` |
-| Policy Engine | Evaluates RBAC/ABAC policy decisions. | `POST /policies/evaluate`, `POST /rbac/evaluate`, `POST /abac/evaluate` |
-| Telemetry Service | Ingests telemetry payloads for observability. | `POST /telemetry/ingest` |
-| Realtime Coedit Service | Manages collaborative document editing sessions. | `POST /sessions`, `GET /sessions/{session_id}`, `GET /ws/documents/{document_id}` |
+| Audit Log | Immutable audit trail with retention and WORM storage enforcement. | `POST /v1/audit/events`, `GET /v1/audit/events/{event_id}` |
+| Auth Service | Exchanges OAuth2/OIDC tokens and validates JWTs. | `POST /v1/auth/login`, `POST /v1/auth/refresh`, `POST /v1/auth/logout`, `POST /v1/auth/validate` |
+| Agent Runtime | Hosts agent registry, orchestration, and connector integration for the platform. | `GET /v1/agents`, `POST /v1/agents/{agent_id}/execute`, `POST /v1/orchestration/run` |
+| Data Sync Service | Runs connector sync jobs, tracks status, and manages conflicts. | `POST /v1/sync/run`, `GET /v1/sync/status/{job_id}`, `GET /v1/sync/conflicts` |
+| Data Lineage Service | Captures lineage events and quality summaries. | `POST /v1/lineage/events`, `GET /v1/lineage/graph`, `GET /v1/quality/summary` |
+| Data Service | Manages schemas and canonical entities. | `POST /v1/schemas`, `GET /v1/schemas`, `POST /v1/entities/{schema_name}` |
+| Identity & Access | Validates auth tokens and supports SCIM provisioning. | `POST /v1/auth/validate`, `POST /v1/scim/v2/Users`, `GET /v1/scim/v2/Groups` |
+| Notification Service | Sends email/chat/webhook notifications. | `POST /v1/notifications/send` |
+| Policy Engine | Evaluates RBAC/ABAC policy decisions. | `POST /v1/policies/evaluate`, `POST /v1/rbac/evaluate`, `POST /v1/abac/evaluate` |
+| Telemetry Service | Ingests telemetry payloads for observability. | `POST /v1/telemetry/ingest` |
+| Realtime Coedit Service | Manages collaborative document editing sessions. | `POST /v1/sessions`, `GET /v1/sessions/{session_id}`, `GET /v1/ws/documents/{document_id}` |
 
 ## How it's used
 

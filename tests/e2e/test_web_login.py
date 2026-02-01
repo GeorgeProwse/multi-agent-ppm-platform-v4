@@ -38,7 +38,7 @@ class MockAsyncClient:
         )
         if url.endswith("/token"):
             return MockResponse({"access_token": "access-token", "id_token": "id-token"})
-        if url.endswith("/workflows/start"):
+        if url.endswith("/v1/workflows/start"):
             return MockResponse(
                 {
                     "run_id": "run-123",
@@ -124,7 +124,7 @@ def test_web_oidc_session_flow(monkeypatch) -> None:
     status_response = client.get("/api/status")
     assert status_response.status_code == 200
 
-    workflow_response = client.post("/api/workflows/start", json={"workflow_id": "intake-triage"})
+    workflow_response = client.post("/v1/api/workflows/start", json={"workflow_id": "intake-triage"})
     assert workflow_response.status_code == 200
 
     auth_calls = [call for call in calls if call["method"] in {"get", "post"}]

@@ -60,7 +60,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiRoot"
-  /api/v1/status:
+  /v1/status:
     get:
       summary: Platform status
       responses:
@@ -70,7 +70,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlatformStatus"
-  /api/v1/health:
+  /v1/health:
     get:
       summary: Health check
       responses:
@@ -80,7 +80,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthCheck"
-  /api/v1/health/ready:
+  /v1/health/ready:
     get:
       summary: Readiness check
       responses:
@@ -90,7 +90,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ReadinessCheck"
-  /api/v1/health/live:
+  /v1/health/live:
     get:
       summary: Liveness check
       responses:
@@ -100,7 +100,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LivenessCheck"
-  /api/v1/query:
+  /v1/query:
     post:
       summary: Process a natural language query
       requestBody:
@@ -118,7 +118,7 @@ paths:
                 $ref: "#/components/schemas/QueryResponse"
         "503":
           description: Orchestrator not initialized
-  /api/v1/agents:
+  /v1/agents:
     get:
       summary: List available agents
       responses:
@@ -128,7 +128,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentList"
-  /api/v1/agents/{agent_id}:
+  /v1/agents/{agent_id}:
     get:
       summary: Get agent details
       parameters:
@@ -146,7 +146,7 @@ paths:
                 $ref: "#/components/schemas/AgentDetails"
         "404":
           description: Agent not found
-  /api/v1/projects/{project_id}/scope/research:
+  /v1/projects/{project_id}/scope/research:
     post:
       summary: Generate scope, requirements, and WBS proposals with external research
       parameters:
@@ -170,7 +170,7 @@ paths:
                 $ref: "#/components/schemas/ScopeResearchResponse"
         "503":
           description: Orchestrator not initialized
-  /api/v1/projects/{project_id}/risks/research:
+  /v1/projects/{project_id}/risks/research:
     post:
       summary: Research emerging risks with external sources
       parameters:
@@ -194,7 +194,7 @@ paths:
                 $ref: "#/components/schemas/RiskResearchResponse"
         "503":
           description: Orchestrator not initialized
-  /api/v1/vendors/{vendor_id}/research:
+  /v1/vendors/{vendor_id}/research:
     post:
       summary: Research a vendor using external sources
       parameters:
@@ -218,7 +218,7 @@ paths:
                 $ref: "#/components/schemas/VendorResearchResponse"
         "503":
           description: Orchestrator not initialized
-  /api/v1/projects/{project_id}/compliance/research:
+  /v1/projects/{project_id}/compliance/research:
     post:
       summary: Monitor regulatory updates with external sources
       parameters:

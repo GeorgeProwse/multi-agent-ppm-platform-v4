@@ -12,7 +12,7 @@ paths:
       responses:
         "200":
           description: OK
-  /documents:
+  /v1/documents:
     get:
       summary: List documents
       responses:
@@ -40,7 +40,7 @@ paths:
       responses:
         "200":
           description: Document stored
-  /documents/{document_id}:
+  /v1/documents/{document_id}:
     get:
       summary: Get document
       parameters:

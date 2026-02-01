@@ -13,7 +13,7 @@
     "classification": "internal"
   },
   "context": {
-    "path": "/api/v1/projects/proj-1",
+    "path": "/v1/projects/proj-1",
     "method": "GET"
   }
 }

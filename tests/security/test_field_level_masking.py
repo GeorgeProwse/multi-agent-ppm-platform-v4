@@ -45,7 +45,7 @@ def test_field_masking_blocks_restricted_fields(monkeypatch) -> None:
 
     with patch("api.main.orchestrator", mock_orchestrator):
         response = client.post(
-            "/api/v1/query",
+            "/v1/query",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
             json={"query": "status", "classification": "internal"},
         )
@@ -76,7 +76,7 @@ def test_field_masking_allows_privileged_fields(monkeypatch) -> None:
 
     with patch("api.main.orchestrator", mock_orchestrator):
         response = client.post(
-            "/api/v1/query",
+            "/v1/query",
             headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
             json={"query": "status", "classification": "internal"},
         )

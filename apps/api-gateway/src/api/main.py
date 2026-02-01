@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -46,6 +46,7 @@ for path_root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT):
     if str(path_root) not in sys.path:
         sys.path.insert(0, str(path_root))
 
+from packages.version import API_VERSION  # noqa: E402
 from observability.logging import configure_logging  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
@@ -61,15 +62,17 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Multi-Agent PPM Platform",
     description="AI-native Project Portfolio Management platform with 25 specialized agents",
-    version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    version=API_VERSION,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_prefix="/v1",
 )
 
 
 def _version_payload() -> dict[str, str]:
     return {
         "service": "multi-agent-ppm-api",
+        "api_version": API_VERSION,
         "version": os.getenv("APP_VERSION", app.version),
         "build_sha": os.getenv("BUILD_SHA", "unknown"),
     }
@@ -174,6 +177,7 @@ async def healthz():
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "version": os.getenv("APP_VERSION", app.version),
+        "api_version": API_VERSION,
     }
 
 
@@ -190,13 +194,15 @@ async def root():
     """Root endpoint - API information."""
     return {
         "name": "Multi-Agent PPM Platform API",
-        "version": "1.0.0",
+        "version": API_VERSION,
         "status": "operational",
-        "documentation": "/api/docs",
+        "documentation": "/v1/docs",
     }
 
+api_v1 = APIRouter(prefix="/v1")
 
-@app.get("/api/v1/status")
+
+@api_v1.get("/status")
 async def get_status():
     """Get platform status."""
     return {
@@ -207,21 +213,22 @@ async def get_status():
 
 
 # Include routers
-app.include_router(agents.router, prefix="/api/v1", tags=["agents"])
-app.include_router(health.router, prefix="/api/v1", tags=["health"])
-app.include_router(agent_config.router, prefix="/api/v1", tags=["agent-config"])
-app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
-app.include_router(connectors.router, prefix="/api/v1", tags=["connectors"])
-app.include_router(certifications.router, prefix="/api/v1", tags=["certifications"])
-app.include_router(workflows.router, prefix="/api/v1", tags=["workflows"])
-app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
-app.include_router(lineage.router, prefix="/api/v1", tags=["lineage"])
-app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
-app.include_router(scope_research.router, prefix="/api/v1", tags=["scope-research"])
-app.include_router(risk_research.router, prefix="/api/v1", tags=["risk-research"])
-app.include_router(vendor_research.router, prefix="/api/v1", tags=["vendor-research"])
-app.include_router(vendor_management.router, prefix="/api/v1", tags=["vendor-management"])
-app.include_router(compliance_research.router, prefix="/api/v1", tags=["compliance-research"])
+api_v1.include_router(agents.router, tags=["agents"])
+api_v1.include_router(health.router, tags=["health"])
+api_v1.include_router(agent_config.router, tags=["agent-config"])
+api_v1.include_router(analytics.router, tags=["analytics"])
+api_v1.include_router(connectors.router, tags=["connectors"])
+api_v1.include_router(certifications.router, tags=["certifications"])
+api_v1.include_router(workflows.router, tags=["workflows"])
+api_v1.include_router(audit.router, tags=["audit"])
+api_v1.include_router(lineage.router, tags=["lineage"])
+api_v1.include_router(documents.router, tags=["documents"])
+api_v1.include_router(scope_research.router, tags=["scope-research"])
+api_v1.include_router(risk_research.router, tags=["risk-research"])
+api_v1.include_router(vendor_research.router, tags=["vendor-research"])
+api_v1.include_router(vendor_management.router, tags=["vendor-management"])
+api_v1.include_router(compliance_research.router, tags=["compliance-research"])
+app.include_router(api_v1)
 
 
 # Global exception handler

@@ -8,7 +8,7 @@ Enumerate auditable evidence sources and how to collect them for compliance revi
 
 | Evidence type | Source | Validation steps |
 | --- | --- | --- |
-| Audit log events | `services/audit-log` storage | Query `/audit/events/{id}` and verify retention metadata. |
+| Audit log events | `services/audit-log` storage | Query `/v1/audit/events/{id}` and verify retention metadata. |
 | Retention policies | `config/retention/policies.yaml` | Confirm retention durations and storage class. |
 | Data classification | `config/data-classification/levels.yaml` | Validate classification-to-retention mappings. |
 | RBAC configuration | `config/rbac/*.yaml` | Review roles, permissions, and field masking rules. |
@@ -37,7 +37,7 @@ Enumerate auditable evidence sources and how to collect them for compliance revi
 ## Implementation status
 
 - **Implemented:** Audit log service, retention policies, RBAC configuration.
-- **Implemented:** Automated evidence pack export via `/audit/evidence/export` and web console trigger.
+- **Implemented:** Automated evidence pack export via `/v1/audit/evidence/export` and web console trigger.
 
 ## Related docs
 

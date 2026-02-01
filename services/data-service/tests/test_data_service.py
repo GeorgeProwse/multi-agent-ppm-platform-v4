@@ -48,7 +48,7 @@ def test_schema_registration_and_entity_storage(monkeypatch, tmp_path) -> None:
 
     with TestClient(module.app) as client:
         response = client.post(
-            "/schemas",
+            "/v1/schemas",
             json={"name": "demo", "schema": schema_payload},
             headers=_auth_headers(monkeypatch),
         )
@@ -57,7 +57,7 @@ def test_schema_registration_and_entity_storage(monkeypatch, tmp_path) -> None:
         assert first_version == 1
 
         response = client.post(
-            "/schemas",
+            "/v1/schemas",
             json={"name": "demo", "schema": schema_payload},
             headers=_auth_headers(monkeypatch),
         )
@@ -65,12 +65,12 @@ def test_schema_registration_and_entity_storage(monkeypatch, tmp_path) -> None:
         second_version = response.json()["version"]
         assert second_version == 2
 
-        response = client.get("/schemas/demo/versions", headers=_auth_headers(monkeypatch))
+        response = client.get("/v1/schemas/demo/versions", headers=_auth_headers(monkeypatch))
         assert response.status_code == 200
         versions = [item["version"] for item in response.json()]
         assert versions == [1, 2]
 
-        response = client.get("/schemas/demo/latest", headers=_auth_headers(monkeypatch))
+        response = client.get("/v1/schemas/demo/latest", headers=_auth_headers(monkeypatch))
         assert response.status_code == 200
         assert response.json()["version"] == 2
 

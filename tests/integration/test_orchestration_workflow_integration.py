@@ -64,7 +64,7 @@ async def test_orchestration_service_starts_workflow_via_engine() -> None:
 
     assert response["run_id"] == "run-42"
     assert captured["method"] == "POST"
-    assert captured["path"] == "/workflows/start"
+    assert captured["path"] == "/v1/workflows/start"
     assert captured["json"]["workflow_id"] == "intake-triage"
     assert captured["json"]["tenant_id"] == "tenant-alpha"
     assert captured["headers"]["x-tenant-id"] == "tenant-alpha"

@@ -86,7 +86,7 @@ spec:
             {{- end }}
           readinessProbe:
             httpGet:
-              path: /api/v1/health/ready
+              path: /v1/health/ready
               port: {{ .Values.service.port }}
             initialDelaySeconds: 5
             periodSeconds: 10

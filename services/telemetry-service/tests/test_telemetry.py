@@ -32,6 +32,6 @@ def test_ingest_telemetry(monkeypatch) -> None:
         "type": "trace",
         "payload": {"event": "test"},
     }
-    response = client.post("/telemetry/ingest", json=payload)
+    response = client.post("/v1/telemetry/ingest", json=payload)
     assert response.status_code == 200
     assert response.json()["ingested"] is True

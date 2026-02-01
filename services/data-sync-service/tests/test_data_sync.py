@@ -41,7 +41,7 @@ def test_run_sync_creates_status(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("DATA_SYNC_STATUS_PATH", str(status_path))
 
     response = client.post(
-        "/sync/run",
+        "/v1/sync/run",
         json={"connector": "jira", "dry_run": True},
         headers=_auth_headers(monkeypatch),
     )
@@ -50,7 +50,7 @@ def test_run_sync_creates_status(monkeypatch, tmp_path) -> None:
     assert payload["status"] == "queued"
 
     status_response = client.get(
-        f"/sync/status/{payload['job_id']}", headers=_auth_headers(monkeypatch)
+        f"/v1/sync/status/{payload['job_id']}", headers=_auth_headers(monkeypatch)
     )
     assert status_response.status_code == 200
     assert status_response.json()["status"] == "queued"

@@ -10,16 +10,17 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
@@ -105,8 +106,9 @@ class CoeditSession:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
-app = FastAPI(title="Realtime Coedit Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Realtime Coedit Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("realtime-coedit-service")
 configure_metrics("realtime-coedit-service")
 app.add_middleware(TraceMiddleware, service_name="realtime-coedit-service")
@@ -186,7 +188,16 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-@app.post("/sessions", response_model=SessionResponse)
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "realtime-coedit-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.post("/sessions", response_model=SessionResponse)
 async def start_session(request: SessionCreateRequest, http_request: Request) -> SessionResponse:
     session_id = str(uuid4())
     created_at = _now()
@@ -213,7 +224,7 @@ async def start_session(request: SessionCreateRequest, http_request: Request) ->
     return _serialize_session(session)
 
 
-@app.get("/sessions/{session_id}", response_model=SessionResponse)
+@api_router.get("/sessions/{session_id}", response_model=SessionResponse)
 async def get_session(session_id: str, http_request: Request) -> SessionResponse:
     session = _sessions.get(session_id)
     if not session:
@@ -223,7 +234,7 @@ async def get_session(session_id: str, http_request: Request) -> SessionResponse
     return _serialize_session(session)
 
 
-@app.post("/sessions/{session_id}/stop", response_model=SessionStopResponse)
+@api_router.post("/sessions/{session_id}/stop", response_model=SessionStopResponse)
 async def stop_session(session_id: str, http_request: Request) -> SessionStopResponse:
     session = _sessions.pop(session_id, None)
     if not session:
@@ -239,7 +250,7 @@ async def stop_session(session_id: str, http_request: Request) -> SessionStopRes
     )
 
 
-@app.post("/sessions/{session_id}/persist", response_model=PersistResponse)
+@api_router.post("/sessions/{session_id}/persist", response_model=PersistResponse)
 async def persist_session(
     session_id: str, request: PersistRequest, http_request: Request
 ) -> PersistResponse:
@@ -259,12 +270,12 @@ async def persist_session(
     )
 
 
-@app.get("/documents/{document_id}/history", response_model=list[DocumentHistoryEntry])
+@api_router.get("/documents/{document_id}/history", response_model=list[DocumentHistoryEntry])
 async def document_history(document_id: str) -> list[DocumentHistoryEntry]:
     return _document_history.get(document_id, [])
 
 
-@app.websocket("/ws/documents/{document_id}")
+@api_router.websocket("/ws/documents/{document_id}")
 async def coedit_socket(
     websocket: WebSocket,
     document_id: str,
@@ -392,3 +403,6 @@ async def coedit_socket(
                 ],
             },
         )
+
+
+app.include_router(api_router)

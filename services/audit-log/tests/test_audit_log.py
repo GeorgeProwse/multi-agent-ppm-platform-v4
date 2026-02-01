@@ -70,11 +70,11 @@ def test_ingest_and_fetch_event(monkeypatch) -> None:
         "correlation_id": "corr-1",
     }
 
-    response = client.post("/audit/events", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/audit/events", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
     assert response.json()["event"]["id"] == "evt-123"
 
-    fetch = client.get("/audit/events/evt-123", headers=_auth_headers(monkeypatch))
+    fetch = client.get("/v1/audit/events/evt-123", headers=_auth_headers(monkeypatch))
     assert fetch.status_code == 200
     assert fetch.json()["action"] == "project.create"
 
@@ -114,8 +114,8 @@ def test_immutable_audit_event(monkeypatch) -> None:
         "classification": "internal",
     }
 
-    response = client.post("/audit/events", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/audit/events", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
 
-    duplicate = client.post("/audit/events", json=payload, headers=_auth_headers(monkeypatch))
+    duplicate = client.post("/v1/audit/events", json=payload, headers=_auth_headers(monkeypatch))
     assert duplicate.status_code == 409

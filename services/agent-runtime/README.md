@@ -18,15 +18,15 @@ passing, and exposes orchestration + connector integration endpoints for the pla
 | Endpoint | Description |
 | --- | --- |
 | `GET /healthz` | Health check. |
-| `GET /agents` | List registered agents. |
-| `POST /agents/{agent_id}/execute` | Execute a specific agent with payload. |
-| `GET /orchestration/config` | Read orchestration configuration. |
-| `PUT /orchestration/config` | Update orchestration configuration. |
-| `POST /orchestration/run` | Run orchestration using routing configuration. |
-| `GET /connectors` | List connector registry entries. |
-| `POST /connectors/{connector_id}/actions` | Execute a connector-backed action. |
-| `POST /events/publish` | Publish an event to the runtime event bus. |
-| `GET /events` | Inspect recent event bus activity. |
+| `GET /v1/agents` | List registered agents. |
+| `POST /v1/agents/{agent_id}/execute` | Execute a specific agent with payload. |
+| `GET /v1/orchestration/config` | Read orchestration configuration. |
+| `PUT /v1/orchestration/config` | Update orchestration configuration. |
+| `POST /v1/orchestration/run` | Run orchestration using routing configuration. |
+| `GET /v1/connectors` | List connector registry entries. |
+| `POST /v1/connectors/{connector_id}/actions` | Execute a connector-backed action. |
+| `POST /v1/events/publish` | Publish an event to the runtime event bus. |
+| `GET /v1/events` | Inspect recent event bus activity. |
 
 ## Configuration
 

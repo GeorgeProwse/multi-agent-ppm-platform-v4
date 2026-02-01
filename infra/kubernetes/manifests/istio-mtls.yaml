@@ -73,7 +73,7 @@ spec:
   rules:
     - to:
         - operation:
-            paths: ["/healthz", "/api/v1/health/*"]
+            paths: ["/healthz", "/v1/health/*"]
             methods: ["GET"]
 ---
 # Service-specific authorization: API Gateway can reach all services

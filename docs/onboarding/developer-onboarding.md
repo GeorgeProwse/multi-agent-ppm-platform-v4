@@ -71,11 +71,11 @@ locally, understand core services, and start contributing safely.
 
 - API Gateway: `http://localhost:8000`
   - `GET /healthz`
-  - `POST /api/v1/query`
-  - `GET /api/v1/status`
+  - `POST /v1/query`
+  - `GET /v1/status`
 - Workflow Engine: `http://localhost:8080`
-  - `POST /workflows/start`
-  - `GET /workflows/{run_id}`
+  - `POST /v1/workflows/start`
+  - `GET /v1/workflows/{run_id}`
 - Web Console: `http://localhost:8501`
 
 ## Development workflow
@@ -91,6 +91,18 @@ locally, understand core services, and start contributing safely.
    make test
    ```
 4. **Update docs** when you add new endpoints, schemas, or runbooks.
+
+## Versioning updates
+
+When you change API behavior, update the shared API version and changelog:
+
+1. **Edit `packages/version.py`** to bump `API_VERSION` using semantic versioning.
+2. **Update `CHANGELOG.md`** under `Unreleased`:
+   - Add a **Breaking** section for breaking changes (e.g., removed endpoints, renamed fields).
+   - Use **Added**, **Changed**, and **Fixed** for non-breaking updates.
+3. **Keep `/v1` routes stable** unless you are intentionally shipping a breaking change.
+
+CI enforces major version bumps when breaking changes are recorded in the changelog.
 
 ## Configuration tips
 

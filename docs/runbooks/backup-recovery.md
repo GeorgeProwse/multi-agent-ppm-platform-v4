@@ -264,7 +264,7 @@ For a complete site failure, follow this order:
 
 ### Critical Services
 - [ ] API Gateway `/healthz` responds with `200`
-- [ ] API Gateway `/api/v1/health/ready` responds with `200`
+- [ ] API Gateway `/v1/health/ready` responds with `200`
 - [ ] Workflow engine can resume workflows
 - [ ] Orchestration service accepts new requests
 

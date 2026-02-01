@@ -1,7 +1,7 @@
 [
   {
     "name": "api-gateway-health",
-    "target_url": "/api/v1/health",
+    "target_url": "/v1/health",
     "profiles": {
       "ci": {
         "total_requests": 150,

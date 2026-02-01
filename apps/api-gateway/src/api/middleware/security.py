@@ -45,17 +45,17 @@ def _role_permissions(roles_cfg: dict[str, Any]) -> dict[str, set[str]]:
 def _required_permission(request: Request) -> str:
     path = request.url.path
     method = request.method
-    if path.startswith("/api/v1/audit"):
+    if path.startswith("/v1/audit"):
         return "audit.read" if method == "GET" else "audit.write"
-    if path.startswith("/api/v1/agents/config") or "/agents/config" in path:
+    if path.startswith("/v1/agents/config") or "/agents/config" in path:
         return "config.write" if method in {"POST", "PUT", "PATCH", "DELETE"} else "config.read"
-    if path.startswith("/api/v1/connectors"):
+    if path.startswith("/v1/connectors"):
         return "config.write" if method in {"POST", "PUT", "PATCH", "DELETE"} else "config.read"
-    if path.startswith("/api/v1/query"):
+    if path.startswith("/v1/query"):
         return "workflow.execute"
-    if path.startswith("/api/v1/documents"):
+    if path.startswith("/v1/documents"):
         return "document.coedit"
-    if path.startswith("/api/v1/agents"):
+    if path.startswith("/v1/agents"):
         return "workflow.read"
     if method in {"POST", "PUT", "PATCH", "DELETE"}:
         return "project.write"
@@ -395,15 +395,15 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
             "/",
             "/healthz",
             "/version",
-            "/api/v1/health",
-            "/api/v1/health/ready",
-            "/api/v1/health/live",
+            "/v1/health",
+            "/v1/health/ready",
+            "/v1/health/live",
         }
         if request.url.path in exempt_paths:
             return await call_next(request)
         if (
             request.method == "POST"
-            and request.url.path.startswith("/api/v1/connectors/")
+            and request.url.path.startswith("/v1/connectors/")
             and request.url.path.endswith("/webhook")
         ):
             return await call_next(request)

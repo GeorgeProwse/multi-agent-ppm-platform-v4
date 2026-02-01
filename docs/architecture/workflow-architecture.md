@@ -22,10 +22,10 @@ Workflows are the backbone for stage-gate execution, approvals, and multi-step o
 
 ## Workflow lifecycle
 
-1. **Start**: Clients POST to `/workflows/start` with a workflow ID and payload.
+1. **Start**: Clients POST to `/v1/workflows/start` with a workflow ID and payload.
 2. **Persist**: The workflow engine stores a `run_id`, `workflow_id`, `tenant_id`, status, and payload in PostgreSQL (or another external database).
 3. **Distribute**: Workflow tasks are enqueued to a shared message queue for worker nodes.
-4. **Resume**: Orchestration services call `/workflows/resume/{run_id}` or workers resume from persisted state after failures.
+4. **Resume**: Orchestration services call `/v1/workflows/resume/{run_id}` or workers resume from persisted state after failures.
 5. **Audit**: Workflow changes are emitted to the audit log for retention and compliance.
 
 ## Workflow definitions and fields
@@ -36,7 +36,7 @@ Workflow definitions live in `apps/workflow-engine/workflows/definitions/*.workf
 | --- | --- |
 | `apiVersion` | Workflow API version (currently `ppm.workflows/v1`). |
 | `kind` | Resource kind (`Workflow`). |
-| `metadata.name` | Workflow identifier used by `/workflows/start`. |
+| `metadata.name` | Workflow identifier used by `/v1/workflows/start`. |
 | `metadata.version` | Version string for the workflow. |
 | `metadata.owner` | Owning service or agent. |
 | `metadata.description` | Human-readable description. |

@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 import jwt
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from jwt import InvalidTokenError
 from pydantic import BaseModel
@@ -21,10 +21,11 @@ from pydantic import BaseModel
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from saml import (  # noqa: E402
@@ -94,7 +95,8 @@ JWKS_CACHE = JwksCache()
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCIM_DB_PATH = SERVICE_ROOT / "storage" / "scim.db"
 
-app = FastAPI(title="Identity Access Service", version="0.1.0")
+app = FastAPI(title="Identity Access Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
 configure_tracing("identity-access")
 configure_metrics("identity-access")
 app.add_middleware(TraceMiddleware, service_name="identity-access")
@@ -111,9 +113,11 @@ scim_store = ScimStore(Path(os.getenv("SCIM_DB_PATH", DEFAULT_SCIM_DB_PATH)))
 
 @app.middleware("http")
 async def auth_tenant_middleware(request: Request, call_next):
-    if request.url.path in {"/healthz", "/auth/validate"} or request.url.path.startswith("/scim/"):
+    if request.url.path in {"/healthz", "/version", "/v1/auth/validate"} or request.url.path.startswith(
+        "/v1/scim/"
+    ):
         return await call_next(request)
-    if request.url.path.startswith("/auth/saml/"):
+    if request.url.path.startswith("/v1/auth/saml/"):
         return await call_next(request)
     try:
         auth_context = await authenticate_request(request)
@@ -126,6 +130,15 @@ async def auth_tenant_middleware(request: Request, call_next):
 @app.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return HealthResponse()
+
+
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "identity-access",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
 
 
 def _get_env(name: str) -> str | None:
@@ -182,7 +195,7 @@ def _parse_user_filter(filter_value: str | None) -> str | None:
     raise HTTPException(status_code=400, detail="Unsupported SCIM filter")
 
 
-@app.post("/auth/validate", response_model=AuthValidateResponse)
+@api_router.post("/auth/validate", response_model=AuthValidateResponse)
 async def validate_token(request: AuthValidateRequest) -> AuthValidateResponse:
     jwt_secret = _get_env("IDENTITY_JWT_SECRET")
     jwks_url = _get_env("IDENTITY_JWKS_URL")
@@ -211,7 +224,7 @@ async def validate_token(request: AuthValidateRequest) -> AuthValidateResponse:
     return AuthValidateResponse(active=True, subject=claims.get("sub"), claims=claims)
 
 
-@app.get("/auth/saml/metadata")
+@api_router.get("/auth/saml/metadata")
 async def saml_metadata() -> Response:
     try:
         config = load_saml_config()
@@ -225,7 +238,7 @@ async def saml_metadata() -> Response:
     return Response(content=metadata, media_type="application/xml")
 
 
-@app.get("/auth/saml/login")
+@api_router.get("/auth/saml/login")
 async def saml_login(request: Request) -> RedirectResponse:
     try:
         config = load_saml_config()
@@ -238,7 +251,7 @@ async def saml_login(request: Request) -> RedirectResponse:
     return RedirectResponse(url=redirect_url)
 
 
-@app.post("/auth/saml/acs", response_model=SamlTokenResponse)
+@api_router.post("/auth/saml/acs", response_model=SamlTokenResponse)
 async def saml_acs(request: Request) -> SamlTokenResponse:
     try:
         config = load_saml_config()
@@ -277,7 +290,7 @@ async def saml_acs(request: Request) -> SamlTokenResponse:
     return SamlTokenResponse(token=token, subject=subject, attributes=attributes)
 
 
-@app.post("/scim/v2/Users", status_code=201)
+@api_router.post("/scim/v2/Users", status_code=201)
 async def scim_create_user(
     payload: ScimUserCreate, tenant_id: str = Depends(_require_scim_context)
 ) -> dict[str, Any]:
@@ -298,7 +311,7 @@ async def scim_create_user(
     return _scim_user_payload(user)
 
 
-@app.get("/scim/v2/Users")
+@api_router.get("/scim/v2/Users")
 async def scim_list_users(
     filter: str | None = None, tenant_id: str = Depends(_require_scim_context)
 ) -> dict[str, Any]:
@@ -314,7 +327,7 @@ async def scim_list_users(
     ).model_dump(by_alias=True)
 
 
-@app.get("/scim/v2/Users/{user_id}")
+@api_router.get("/scim/v2/Users/{user_id}")
 async def scim_get_user(
     user_id: str, tenant_id: str = Depends(_require_scim_context)
 ) -> dict[str, Any]:
@@ -325,7 +338,7 @@ async def scim_get_user(
     return _scim_user_payload(user)
 
 
-@app.patch("/scim/v2/Users/{user_id}")
+@api_router.patch("/scim/v2/Users/{user_id}")
 async def scim_patch_user(
     user_id: str,
     payload: PatchRequest,
@@ -379,7 +392,7 @@ async def scim_patch_user(
     return _scim_user_payload(user)
 
 
-@app.post("/scim/v2/Groups", status_code=201)
+@api_router.post("/scim/v2/Groups", status_code=201)
 async def scim_create_group(
     payload: ScimGroupCreate, tenant_id: str = Depends(_require_scim_context)
 ) -> dict[str, Any]:
@@ -399,7 +412,7 @@ async def scim_create_group(
     return _scim_group_payload(group)
 
 
-@app.get("/scim/v2/Groups")
+@api_router.get("/scim/v2/Groups")
 async def scim_list_groups(tenant_id: str = Depends(_require_scim_context)) -> dict[str, Any]:
     groups = scim_store.list_groups(tenant_id)
     resources = [_scim_group_payload(group) for group in groups]
@@ -412,7 +425,7 @@ async def scim_list_groups(tenant_id: str = Depends(_require_scim_context)) -> d
     ).model_dump(by_alias=True)
 
 
-@app.patch("/scim/v2/Groups/{group_id}")
+@api_router.patch("/scim/v2/Groups/{group_id}")
 async def scim_patch_group(
     group_id: str,
     payload: PatchRequest,
@@ -456,7 +469,7 @@ async def scim_patch_group(
     return _scim_group_payload(group)
 
 
-@app.get("/scim/internal/roles/{user_id}")
+@api_router.get("/scim/internal/roles/{user_id}")
 async def scim_get_roles(
     user_id: str, tenant_id: str = Depends(_require_scim_context)
 ) -> dict[str, Any]:
@@ -493,6 +506,9 @@ def _verify_with_jwks(
         issuer=issuer,
         options={"verify_aud": bool(audience), "verify_iss": bool(issuer)},
     )
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
-  /auth/validate:
+  /v1/auth/validate:
     post:
       summary: Validate a JWT
       requestBody:

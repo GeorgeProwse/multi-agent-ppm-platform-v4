@@ -7,7 +7,7 @@ Define the Notification Service service responsibilities and how it integrates w
 ## Key endpoints
 
 - `GET /healthz`: Service health check.
-- `POST /notifications/send`: Send a notification payload.
+- `POST /v1/notifications/send`: Send a notification payload.
 
 **Default port:** `8080`
 

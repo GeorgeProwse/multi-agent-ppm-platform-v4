@@ -52,7 +52,7 @@ async def _run() -> None:
 
         async with httpx.AsyncClient(app=api_app, base_url="http://api") as api_client:
             api_response = await api_client.post(
-                "/api/v1/query",
+                "/v1/query",
                 headers={"X-Tenant-ID": "dev-tenant"},
                 json=request_payload,
             )

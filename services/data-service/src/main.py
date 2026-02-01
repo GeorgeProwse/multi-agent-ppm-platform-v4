@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from jsonschema import Draft202012Validator, FormatChecker, SchemaError
@@ -34,6 +34,7 @@ from storage import (  # noqa: E402
     SchemaRecord,
     to_async_database_url,
 )
+from packages.version import API_VERSION
 
 logger = logging.getLogger("data-service")
 logging.basicConfig(level=logging.INFO)
@@ -115,8 +116,9 @@ class RetentionStatusResponse(BaseModel):
     last_pruned_count: int
 
 
-app = FastAPI(title="Data Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Data Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("data-service")
 configure_metrics("data-service")
 app.add_middleware(TraceMiddleware, service_name="data-service")
@@ -162,7 +164,16 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-@app.get("/retention/status", response_model=RetentionStatusResponse)
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "data-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.get("/retention/status", response_model=RetentionStatusResponse)
 async def retention_status() -> RetentionStatusResponse:
     scheduler = get_retention_scheduler()
     if not scheduler:
@@ -176,7 +187,7 @@ async def retention_status() -> RetentionStatusResponse:
     )
 
 
-@app.post("/schemas", response_model=SchemaResponse)
+@api_router.post("/schemas", response_model=SchemaResponse)
 async def register_schema(
     request: SchemaRegistrationRequest, store: DataServiceStore = Depends(get_store)
 ) -> SchemaResponse:
@@ -193,13 +204,13 @@ async def register_schema(
     return _schema_response(record)
 
 
-@app.get("/schemas", response_model=list[SchemaSummaryResponse])
+@api_router.get("/schemas", response_model=list[SchemaSummaryResponse])
 async def list_schemas(store: DataServiceStore = Depends(get_store)) -> list[SchemaSummaryResponse]:
     summaries = await store.list_schema_summaries()
     return [SchemaSummaryResponse(**summary.__dict__) for summary in summaries]
 
 
-@app.get("/schemas/{schema_name}/versions", response_model=list[SchemaResponse])
+@api_router.get("/schemas/{schema_name}/versions", response_model=list[SchemaResponse])
 async def list_schema_versions(
     schema_name: str, store: DataServiceStore = Depends(get_store)
 ) -> list[SchemaResponse]:
@@ -207,7 +218,7 @@ async def list_schema_versions(
     return [_schema_response(record) for record in records]
 
 
-@app.get("/schemas/{schema_name}/latest", response_model=SchemaResponse)
+@api_router.get("/schemas/{schema_name}/latest", response_model=SchemaResponse)
 async def get_latest_schema(
     schema_name: str, store: DataServiceStore = Depends(get_store)
 ) -> SchemaResponse:
@@ -217,7 +228,7 @@ async def get_latest_schema(
     return _schema_response(record)
 
 
-@app.get("/schemas/{schema_name}/versions/{version}", response_model=SchemaResponse)
+@api_router.get("/schemas/{schema_name}/versions/{version}", response_model=SchemaResponse)
 async def get_schema_version(
     schema_name: str, version: int, store: DataServiceStore = Depends(get_store)
 ) -> SchemaResponse:
@@ -227,7 +238,7 @@ async def get_schema_version(
     return _schema_response(record)
 
 
-@app.get("/schemas/{schema_name}/promotions", response_model=list[SchemaPromotionResponse])
+@api_router.get("/schemas/{schema_name}/promotions", response_model=list[SchemaPromotionResponse])
 async def list_schema_promotions(
     schema_name: str, store: DataServiceStore = Depends(get_store)
 ) -> list[SchemaPromotionResponse]:
@@ -235,7 +246,7 @@ async def list_schema_promotions(
     return [SchemaPromotionResponse(**promo.__dict__) for promo in promotions]
 
 
-@app.post(
+@api_router.post(
     "/schemas/{schema_name}/versions/{version}/promote",
     response_model=SchemaPromotionResponse,
 )
@@ -252,7 +263,7 @@ async def promote_schema_version(
     return SchemaPromotionResponse(**promotion.__dict__)
 
 
-@app.post("/entities/{schema_name}", response_model=EntityResponse)
+@api_router.post("/entities/{schema_name}", response_model=EntityResponse)
 async def ingest_entity(
     schema_name: str,
     request: EntityIngestRequest,
@@ -271,7 +282,7 @@ async def ingest_entity(
     return _entity_response(stored)
 
 
-@app.get("/entities/{schema_name}/{entity_id}", response_model=EntityResponse)
+@api_router.get("/entities/{schema_name}/{entity_id}", response_model=EntityResponse)
 async def get_entity(
     schema_name: str, entity_id: str, store: DataServiceStore = Depends(get_store)
 ) -> EntityResponse:
@@ -281,7 +292,7 @@ async def get_entity(
     return _entity_response(record)
 
 
-@app.get("/entities/{schema_name}", response_model=list[EntityResponse])
+@api_router.get("/entities/{schema_name}", response_model=list[EntityResponse])
 async def list_entities(
     schema_name: str,
     tenant_id: str | None = Query(None),
@@ -293,7 +304,7 @@ async def list_entities(
     return [_entity_response(record) for record in records]
 
 
-@app.post("/ingest/connector", response_model=ConnectorIngestResponse)
+@api_router.post("/ingest/connector", response_model=ConnectorIngestResponse)
 async def ingest_connector(
     request: ConnectorIngestRequest, store: DataServiceStore = Depends(get_store)
 ) -> ConnectorIngestResponse:
@@ -420,6 +431,9 @@ def _group_records_by_schema(records: list[dict[str, Any]]) -> dict[str, list[di
             continue
         grouped[schema_name].append(record)
     return grouped
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

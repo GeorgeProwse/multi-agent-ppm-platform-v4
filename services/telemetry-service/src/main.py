@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from otel import PIPELINE
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (SECURITY_ROOT, OBSERVABILITY_ROOT):
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
@@ -45,8 +47,9 @@ class TelemetryResponse(BaseModel):
     stored_at: datetime
 
 
-app = FastAPI(title="Telemetry Service", version="0.1.0")
-app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz"})
+app = FastAPI(title="Telemetry Service", version=API_VERSION, openapi_prefix="/v1")
+api_router = APIRouter(prefix="/v1")
+app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 configure_tracing("telemetry-service")
 configure_metrics("telemetry-service")
 app.add_middleware(TraceMiddleware, service_name="telemetry-service")
@@ -64,7 +67,16 @@ async def healthz() -> HealthResponse:
     return HealthResponse()
 
 
-@app.post("/telemetry/ingest", response_model=TelemetryResponse)
+@app.get("/version")
+async def version() -> dict[str, str]:
+    return {
+        "service": "telemetry-service",
+        "api_version": API_VERSION,
+        "build_sha": os.getenv("BUILD_SHA", "unknown"),
+    }
+
+
+@api_router.post("/telemetry/ingest", response_model=TelemetryResponse)
 async def ingest(payload: TelemetryEnvelope) -> TelemetryResponse:
     correlation_id = payload.correlation_id or str(uuid4())
     timestamp = payload.timestamp or datetime.now(timezone.utc)
@@ -86,6 +98,9 @@ async def ingest(payload: TelemetryEnvelope) -> TelemetryResponse:
         correlation_id=correlation_id,
         stored_at=datetime.now(timezone.utc),
     )
+
+
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

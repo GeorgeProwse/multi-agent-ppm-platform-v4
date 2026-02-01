@@ -68,7 +68,7 @@ def test_policy_evaluate_allow(monkeypatch) -> None:
         ],
     }
     response = client.post(
-        "/policies/evaluate", json={"bundle": bundle}, headers=_auth_headers(monkeypatch)
+        "/v1/policies/evaluate", json={"bundle": bundle}, headers=_auth_headers(monkeypatch)
     )
     assert response.status_code == 200
     payload = response.json()
@@ -82,7 +82,7 @@ def test_rbac_evaluate_allow(monkeypatch) -> None:
         "permission": "project.read",
         "classification": "internal",
     }
-    response = client.post("/rbac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/rbac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
     assert response.json()["decision"] == "allow"
 
@@ -93,9 +93,9 @@ def test_abac_evaluate_allow(monkeypatch) -> None:
         "subject": {"sub": "user-123", "business_unit": "finance"},
         "action": "project.read",
         "resource": {"id": "proj-1", "business_unit": "finance", "classification": "internal"},
-        "context": {"path": "/api/v1/projects/proj-1"},
+        "context": {"path": "/v1/projects/proj-1"},
     }
-    response = client.post("/abac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/abac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
     assert response.json()["decision"] == "allow"
 
@@ -107,6 +107,6 @@ def test_abac_evaluate_deny(monkeypatch) -> None:
         "action": "project.read",
         "resource": {"id": "proj-1", "classification": "restricted"},
     }
-    response = client.post("/abac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
+    response = client.post("/v1/abac/evaluate", json=payload, headers=_auth_headers(monkeypatch))
     assert response.status_code == 200
     assert response.json()["decision"] == "deny"
