@@ -2,6 +2,13 @@ import importlib.util
 from pathlib import Path
 import sys
 
+REPO_ROOT = Path(__file__).resolve().parents[4]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
+if OBSERVABILITY_ROOT.exists() and str(OBSERVABILITY_ROOT) not in sys.path:
+    sys.path.insert(0, str(OBSERVABILITY_ROOT))
+
 import pytest
 
 from services.integration.analytics import (
@@ -16,15 +23,20 @@ MODULE_PATH = (
     / "src"
     / "system_health_agent.py"
 )
-REPO_ROOT = Path(__file__).resolve().parents[4]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 spec = importlib.util.spec_from_file_location("system_health_agent", MODULE_PATH)
 health_module = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
 spec.loader.exec_module(health_module)
 
 SystemHealthAgent = health_module.SystemHealthAgent
+
+
+class DummyEventBus:
+    def __init__(self) -> None:
+        self.published: list[tuple[str, dict]] = []
+
+    async def publish(self, topic: str, payload: dict) -> None:
+        self.published.append((topic, payload))
 
 
 def test_parse_prometheus_metrics() -> None:
@@ -84,6 +96,72 @@ async def test_anomaly_detection_detects_outlier() -> None:
     ]
     anomalies = await agent._apply_anomaly_detection(metrics)
     assert any(anomaly["metric"] == "error_rate" for anomaly in anomalies)
+
+
+@pytest.mark.anyio
+async def test_collect_metrics_triggers_alert(tmp_path) -> None:
+    agent = SystemHealthAgent(
+        config={
+            "alert_threshold_error_rate": 0.01,
+            "alert_store_path": tmp_path / "alerts.json",
+            "incident_store_path": tmp_path / "incidents.json",
+        }
+    )
+    response = await agent._collect_metrics(
+        "tenant-a",
+        "api",
+        {"error_rate": 0.2, "response_time_ms": 250},
+    )
+    assert response["alerts_triggered"]
+    assert agent.alerts
+
+
+@pytest.mark.anyio
+async def test_health_status_events_are_published(tmp_path) -> None:
+    event_bus = DummyEventBus()
+    agent = SystemHealthAgent(
+        config={
+            "event_bus": event_bus,
+            "alert_store_path": tmp_path / "alerts.json",
+            "incident_store_path": tmp_path / "incidents.json",
+        }
+    )
+    await agent._publish_health_status({"api": {"healthy": True}})
+    await agent._publish_health_status({"api": {"healthy": False}})
+    topics = [topic for topic, _ in event_bus.published]
+    assert "system.health.ok" in topics
+    assert "system.health.alert" in topics
+    assert "system.health.updated" in topics
+
+
+@pytest.mark.anyio
+async def test_environment_health_blocks_on_critical_alert(tmp_path) -> None:
+    agent = SystemHealthAgent(
+        config={
+            "alert_store_path": tmp_path / "alerts.json",
+            "incident_store_path": tmp_path / "incidents.json",
+        }
+    )
+    await agent._create_alert(
+        "tenant-a",
+        {
+            "name": "API error rate spike",
+            "description": "error rate exceeded",
+            "severity": "critical",
+            "service_name": "api",
+            "condition": "error_rate",
+            "threshold": 0.05,
+        },
+    )
+    health = await agent._get_environment_health("production")
+    assert health["block_deployment"] is True
+
+
+@pytest.mark.anyio
+async def test_grafana_dashboard_payload() -> None:
+    agent = SystemHealthAgent(config={})
+    payload = await agent._get_grafana_dashboard()
+    assert payload["dashboard"]["title"] == "System Health Overview"
 
 
 @pytest.mark.anyio

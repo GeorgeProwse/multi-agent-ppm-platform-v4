@@ -25,7 +25,7 @@ from observability.metrics import build_kpi_handles, configure_metrics
 from observability.tracing import configure_tracing, start_agent_span
 from services.integration.analytics import AnalyticsClient
 
-from agents.runtime import BaseAgent
+from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
 _HAS_AZURE = importlib.util.find_spec("azure") is not None
@@ -326,6 +326,22 @@ class SystemHealthAgent(BaseAgent):
         self.analytics_client = config.get("analytics_client") if config else None
         if not self.analytics_client:
             self.analytics_client = AnalyticsClient()
+        self.event_bus = config.get("event_bus") if config else None
+        if self.event_bus is None:
+            try:
+                self.event_bus = get_event_bus()
+            except ValueError:
+                self.event_bus = None
+        self.grafana_datasource = (
+            config.get("grafana_datasource", os.getenv("GRAFANA_DATASOURCE", "Prometheus"))
+            if config
+            else os.getenv("GRAFANA_DATASOURCE", "Prometheus")
+        )
+        self.grafana_folder = (
+            config.get("grafana_folder", os.getenv("GRAFANA_FOLDER", "System Health"))
+            if config
+            else os.getenv("GRAFANA_FOLDER", "System Health")
+        )
 
     async def initialize(self) -> None:
         """Initialize monitoring infrastructure and integrations."""
@@ -373,6 +389,8 @@ class SystemHealthAgent(BaseAgent):
             "resolve_incident",
             "get_health_dashboard",
             "get_postmortem_report",
+            "get_environment_health",
+            "get_grafana_dashboard",
         ]
 
         if action not in valid_actions:
@@ -509,6 +527,14 @@ class SystemHealthAgent(BaseAgent):
 
         elif action == "get_postmortem_report":
             return await self._get_postmortem_report(tenant_id, input_data.get("time_range", {}))
+
+        elif action == "get_environment_health":
+            return await self._get_environment_health(
+                input_data.get("environment") or input_data.get("service_name")
+            )
+
+        elif action == "get_grafana_dashboard":
+            return await self._get_grafana_dashboard()
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -1546,13 +1572,26 @@ class SystemHealthAgent(BaseAgent):
 
     async def _publish_health_status(self, services: dict[str, dict[str, Any]]) -> None:
         timestamp = datetime.utcnow().isoformat()
+        total_services = len(services)
+        unhealthy = sum(1 for result in services.values() if not result.get("healthy", False))
+        overall_status = "healthy" if unhealthy == 0 else "degraded"
+        health_score = (total_services - unhealthy) / total_services if total_services else 1.0
+        event_name = "system.health.ok" if unhealthy == 0 else "system.health.alert"
         payload = {
             "type": "health",
+            "event_name": event_name,
             "timestamp": timestamp,
             "services": services,
+            "overall_status": overall_status,
+            "health_score": health_score,
+            "total_services": total_services,
+            "unhealthy_services": unhealthy,
         }
         self.health_checks["latest"] = payload
         await self._emit_event_hub_event(payload)
+        if self.event_bus:
+            await self.event_bus.publish("system.health.updated", payload)
+            await self.event_bus.publish(event_name, payload)
 
     async def _update_prometheus_metrics(self, service_name: str, result: dict[str, Any]) -> None:
         if not self._prometheus_metrics:
@@ -1894,11 +1933,13 @@ class SystemHealthAgent(BaseAgent):
     async def _check_all_services_health(self) -> dict[str, dict[str, Any]]:
         """Check health of all services."""
         if not self.health_endpoints:
-            return {
+            services = {
                 "api_gateway": {"healthy": True, "response_time_ms": 45},
                 "database": {"healthy": True, "response_time_ms": 10},
                 "cache": {"healthy": True, "response_time_ms": 5},
             }
+            await self._publish_health_status(services)
+            return services
 
         services: dict[str, dict[str, Any]] = {}
         for endpoint in self.health_endpoints:
@@ -1911,6 +1952,34 @@ class SystemHealthAgent(BaseAgent):
 
         await self._publish_health_status(services)
         return services
+
+    async def _get_environment_health(self, environment: str | None) -> dict[str, Any]:
+        system_status = await self._get_system_status()
+        services_health = system_status.get("services_health", {})
+        total_services = len(services_health)
+        unhealthy_count = sum(
+            1 for result in services_health.values() if not result.get("healthy", False)
+        )
+        health_score = (
+            (total_services - unhealthy_count) / total_services if total_services else 1.0
+        )
+        overall_status = system_status.get("overall_status", "unknown")
+        block_deployment = system_status.get("critical_alerts", 0) > 0 or system_status.get(
+            "critical_incidents", 0
+        ) > 0
+
+        return {
+            "environment": environment,
+            "status": overall_status,
+            "health_score": health_score,
+            "critical_alerts": system_status.get("critical_alerts", 0),
+            "critical_incidents": system_status.get("critical_incidents", 0),
+            "active_alerts": system_status.get("active_alerts", 0),
+            "open_incidents": system_status.get("open_incidents", 0),
+            "services_health": services_health,
+            "block_deployment": block_deployment,
+            "checked_at": system_status.get("checked_at"),
+        }
 
     async def _get_service_metrics(
         self, service_name: str, time_range: dict[str, Any]
@@ -1940,6 +2009,12 @@ class SystemHealthAgent(BaseAgent):
         return {
             "total_endpoints": len(self.health_endpoints),
             "endpoints": self.health_endpoints,
+        }
+
+    async def _get_grafana_dashboard(self) -> dict[str, Any]:
+        return {
+            "folder": self.grafana_folder,
+            "dashboard": self._build_grafana_dashboard(),
         }
 
     async def _query_historical_metrics(
@@ -2291,6 +2366,73 @@ class SystemHealthAgent(BaseAgent):
             ),
         }
 
+    def _build_grafana_dashboard(self) -> dict[str, Any]:
+        return {
+            "title": "System Health Overview",
+            "tags": ["system-health", "ops"],
+            "timezone": "browser",
+            "schemaVersion": 39,
+            "version": 1,
+            "refresh": "30s",
+            "panels": [
+                {
+                    "type": "stat",
+                    "title": "Service Health",
+                    "datasource": self.grafana_datasource,
+                    "targets": [
+                        {
+                            "expr": "service_health_status",
+                            "legendFormat": "{{service}}",
+                        }
+                    ],
+                },
+                {
+                    "type": "timeseries",
+                    "title": "CPU Usage",
+                    "datasource": self.grafana_datasource,
+                    "targets": [
+                        {
+                            "expr": "cpu_usage",
+                            "legendFormat": "{{service}}",
+                        }
+                    ],
+                },
+                {
+                    "type": "timeseries",
+                    "title": "Memory Usage",
+                    "datasource": self.grafana_datasource,
+                    "targets": [
+                        {
+                            "expr": "memory_usage",
+                            "legendFormat": "{{service}}",
+                        }
+                    ],
+                },
+                {
+                    "type": "timeseries",
+                    "title": "Request Latency (ms)",
+                    "datasource": self.grafana_datasource,
+                    "targets": [
+                        {
+                            "expr": "request_latency_ms",
+                            "legendFormat": "{{service}}",
+                        }
+                    ],
+                },
+                {
+                    "type": "timeseries",
+                    "title": "Error Rate",
+                    "datasource": self.grafana_datasource,
+                    "targets": [
+                        {
+                            "expr": "error_rate",
+                            "legendFormat": "{{service}}",
+                        }
+                    ],
+                },
+            ],
+        }
+
     def _recommend_actions_for_anomaly(self, anomaly: dict[str, Any]) -> list[str]:
         metric = anomaly.get("metric", "")
         recommendations = []
@@ -2327,6 +2469,10 @@ class SystemHealthAgent(BaseAgent):
     async def get_baseline(self, deployment_plan: dict[str, Any]) -> dict[str, Any]:
         """Expose baseline metrics for deployment workflows."""
         return await self._get_deployment_baseline(deployment_plan)
+
+    async def get_environment_health(self, environment: str) -> dict[str, Any]:
+        """Expose health status for deployment workflows."""
+        return await self._get_environment_health(environment)
 
     def _sanitize_text(self, value: str) -> str:
         """Redact PII-like patterns from loggable strings."""
@@ -2365,4 +2511,6 @@ class SystemHealthAgent(BaseAgent):
             "dashboard_creation",
             "postmortem_reporting",
             "deployment_health_gate",
+            "grafana_dashboard",
+            "environment_health_query",
         ]
