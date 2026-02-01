@@ -6,6 +6,7 @@
  */
 
 import type { CanvasType } from '@ppm/canvas-engine';
+import type { IconSemantic } from '@/components/icon/iconMap';
 
 /**
  * Status of a stage or activity
@@ -51,7 +52,7 @@ export interface MethodologyActivity {
   alwaysAccessible?: boolean;
 
   /** Optional icon name */
-  icon?: string;
+  icon?: IconSemantic;
 
   /** Order within the stage */
   order: number;
@@ -83,7 +84,7 @@ export interface MethodologyStage {
   alwaysAccessible?: boolean;
 
   /** Optional icon name */
-  icon?: string;
+  icon?: IconSemantic;
 
   /** Order in the methodology */
   order: number;
@@ -135,23 +136,23 @@ export interface ProjectMethodology {
 /**
  * Icon mapping for status display
  */
-export const STATUS_ICONS: Record<MethodologyStatus, string> = {
-  not_started: '○',   // Empty circle
-  in_progress: '◐',   // Half-filled circle
-  complete: '✓',      // Check mark
-  blocked: '⚠',       // Warning
-  locked: '🔒',       // Lock
+export const STATUS_ICONS: Record<MethodologyStatus, IconSemantic> = {
+  not_started: 'status.notStarted',
+  in_progress: 'status.inProgress',
+  complete: 'status.success',
+  blocked: 'status.warning',
+  locked: 'status.locked',
 };
 
 /**
  * Color mapping for status display
  */
 export const STATUS_COLORS: Record<MethodologyStatus, string> = {
-  not_started: 'var(--color-neutral-400)',
-  in_progress: 'var(--color-primary-500)',
-  complete: 'var(--color-success)',
-  blocked: 'var(--color-warning)',
-  locked: 'var(--color-neutral-300)',
+  not_started: 'var(--color-neutral-grey-400)',
+  in_progress: 'var(--color-neutral-grey-500)',
+  complete: 'var(--color-state-success-fg)',
+  blocked: 'var(--color-state-warning-fg)',
+  locked: 'var(--color-neutral-grey-300)',
 };
 
 /**

@@ -287,7 +287,7 @@ The following pages extend the product specification for governance-heavy workfl
 **UI Wireframe (Document Search)**
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Document Search [Search bar..............................................🔍] │
+│ Document Search [Search bar...........................................Search] │
 ├───────────────┬───────────────────────────────────────────┬─────────────────┤
 │ Filters       │ Results                                   │ Preview Panel   │
 │ • Project     │ ┌───────────────────────────────────────┐ │ Document summary│

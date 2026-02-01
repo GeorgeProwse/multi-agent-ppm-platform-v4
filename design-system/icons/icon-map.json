@@ -1,0 +1,122 @@
+{
+  "name": "icon-map",
+  "version": "1.0.0",
+  "library": "lucide-react",
+  "defaults": {
+    "sizePx": {
+      "sm": 14,
+      "md": 16,
+      "lg": 20
+    },
+    "colorTokens": {
+      "accent": "tokens.color.brand.orange500",
+      "secondary": "tokens.color.neutral.grey500",
+      "primaryText": "tokens.color.text.primary",
+      "success": "tokens.color.state.success.fg",
+      "warning": "tokens.color.state.warning.fg",
+      "error": "tokens.color.state.error.fg",
+      "info": "tokens.color.state.info.fg"
+    }
+  },
+  "rules": {
+    "noEmojiInUiText": true,
+    "iconMustHaveTextOrTooltip": true,
+    "doNotUseColorAloneToConveyMeaning": true,
+    "loadersMayAnimate": true,
+    "otherIconsShouldNotAnimate": true
+  },
+  "categories": {
+    "ai": {
+      "assistantIdentity": { "icon": "Sparkles", "color": "accent", "size": "md" },
+      "thinking": { "icon": "Loader2", "color": "secondary", "size": "md", "animate": "spin" },
+      "streaming": { "icon": "Activity", "color": "secondary", "size": "md" },
+      "toolUse": { "icon": "Wrench", "color": "secondary", "size": "md" },
+      "automation": { "icon": "Cpu", "color": "secondary", "size": "md" },
+      "explainability": { "icon": "Brain", "color": "secondary", "size": "md" },
+      "suggestion": { "icon": "Lightbulb", "color": "accent", "size": "md" },
+      "highConfidence": { "icon": "CheckCircle", "color": "success", "size": "md" },
+      "uncertain": { "icon": "HelpCircle", "color": "warning", "size": "md" },
+      "refusalOrBlocked": { "icon": "Ban", "color": "error", "size": "md" }
+    },
+    "status": {
+      "success": { "icon": "CheckCircle", "color": "success", "size": "md" },
+      "warning": { "icon": "AlertTriangle", "color": "warning", "size": "md" },
+      "error": { "icon": "XCircle", "color": "error", "size": "md" },
+      "info": { "icon": "Info", "color": "info", "size": "md" },
+      "inProgress": { "icon": "Clock", "color": "secondary", "size": "md" },
+      "pausedAwaitingInput": { "icon": "PauseCircle", "color": "secondary", "size": "md" },
+      "notStarted": { "icon": "Circle", "color": "secondary", "size": "md" },
+      "locked": { "icon": "Lock", "color": "secondary", "size": "md" },
+      "unlocked": { "icon": "Unlock", "color": "secondary", "size": "md" }
+    },
+    "actions": {
+      "confirmApply": { "icon": "Check", "color": "primaryText", "size": "md" },
+      "cancelDismiss": { "icon": "X", "color": "secondary", "size": "md" },
+      "edit": { "icon": "Edit3", "color": "primaryText", "size": "md" },
+      "regenerateRefresh": { "icon": "RefreshCw", "color": "secondary", "size": "md" },
+      "preview": { "icon": "Eye", "color": "secondary", "size": "md" },
+      "diffCompare": { "icon": "GitCompare", "color": "secondary", "size": "md" },
+      "undoRevert": { "icon": "Undo2", "color": "secondary", "size": "md" },
+      "settings": { "icon": "Settings", "color": "secondary", "size": "md" },
+      "moreOptions": { "icon": "MoreHorizontal", "color": "secondary", "size": "md" },
+      "help": { "icon": "HelpCircle", "color": "secondary", "size": "md" },
+      "search": { "icon": "Search", "color": "secondary", "size": "md" }
+    },
+    "navigation": {
+      "expand": { "icon": "ChevronDown", "color": "secondary", "size": "md" },
+      "collapse": { "icon": "ChevronRight", "color": "secondary", "size": "md" },
+      "next": { "icon": "ArrowRight", "color": "secondary", "size": "md" },
+      "back": { "icon": "ArrowLeft", "color": "secondary", "size": "md" },
+      "externalLink": { "icon": "ExternalLink", "color": "secondary", "size": "md" }
+    },
+    "provenance": {
+      "evidenceSource": { "icon": "FileText", "color": "secondary", "size": "md" },
+      "link": { "icon": "Link2", "color": "secondary", "size": "md" },
+      "historyVersion": { "icon": "History", "color": "secondary", "size": "md" },
+      "auditLog": { "icon": "ClipboardList", "color": "secondary", "size": "md" },
+      "timestamp": { "icon": "Clock", "color": "secondary", "size": "md" },
+      "downloadExport": { "icon": "Download", "color": "secondary", "size": "md" }
+    },
+    "communication": {
+      "user": { "icon": "User", "color": "secondary", "size": "md" },
+      "assistant": { "icon": "Sparkles", "color": "accent", "size": "md" },
+      "message": { "icon": "MessageSquare", "color": "secondary", "size": "md" },
+      "attachment": { "icon": "Paperclip", "color": "secondary", "size": "md" },
+      "voiceInput": { "icon": "Mic", "color": "secondary", "size": "md" },
+      "notifications": { "icon": "Bell", "color": "secondary", "size": "md" },
+      "send": { "icon": "Send", "color": "secondary", "size": "md" }
+    },
+    "domain": {
+      "core": { "icon": "Settings", "color": "secondary", "size": "md" },
+      "portfolio": { "icon": "BarChart3", "color": "secondary", "size": "md" },
+      "delivery": { "icon": "Rocket", "color": "secondary", "size": "md" },
+      "operations": { "icon": "Wrench", "color": "secondary", "size": "md" },
+      "platform": { "icon": "Server", "color": "secondary", "size": "md" },
+      "governance": { "icon": "Shield", "color": "secondary", "size": "md" },
+      "program": { "icon": "Layers", "color": "secondary", "size": "md" },
+      "project": { "icon": "Folder", "color": "secondary", "size": "md" },
+      "budget": { "icon": "DollarSign", "color": "secondary", "size": "md" }
+    },
+    "artifact": {
+      "document": { "icon": "FileText", "color": "secondary", "size": "md" },
+      "tree": { "icon": "GitBranch", "color": "secondary", "size": "md" },
+      "timeline": { "icon": "Calendar", "color": "secondary", "size": "md" },
+      "spreadsheet": { "icon": "Table", "color": "secondary", "size": "md" },
+      "dashboard": { "icon": "LayoutDashboard", "color": "secondary", "size": "md" },
+      "folder": { "icon": "Folder", "color": "secondary", "size": "md" },
+      "sheet": { "icon": "Table", "color": "secondary", "size": "md" },
+      "milestone": { "icon": "Flag", "color": "secondary", "size": "md" },
+      "note": { "icon": "StickyNote", "color": "secondary", "size": "md" },
+      "package": { "icon": "Package", "color": "secondary", "size": "md" }
+    },
+    "connectors": {
+      "jira": { "icon": "ClipboardList", "color": "secondary", "size": "md" },
+      "azure": { "icon": "Server", "color": "secondary", "size": "md" },
+      "slack": { "icon": "MessageSquare", "color": "secondary", "size": "md" },
+      "teams": { "icon": "User", "color": "secondary", "size": "md" },
+      "sharepoint": { "icon": "Folder", "color": "secondary", "size": "md" },
+      "cpuChip": { "icon": "Cpu", "color": "secondary", "size": "md" },
+      "default": { "icon": "Link2", "color": "secondary", "size": "md" }
+    }
+  }
+}

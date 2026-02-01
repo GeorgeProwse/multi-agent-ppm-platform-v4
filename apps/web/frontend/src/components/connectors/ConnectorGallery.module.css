@@ -248,9 +248,9 @@
 }
 
 .iconSvg {
-  width: 24px;
-  height: 24px;
-  color: var(--color-text-secondary, #6b7280);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .connectorTitle {
@@ -798,8 +798,9 @@
 }
 
 .testResultIcon {
-  font-size: 1.25rem;
-  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .testResultContent {

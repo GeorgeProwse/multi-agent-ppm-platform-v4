@@ -3,7 +3,7 @@
  *
  * Features:
  * - Collapsible stages with activities
- * - Status icons (✓, ◐, ○, ⚠️, 🔒) and progress bar per stage
+ * - Status icons and progress bar per stage
  * - Stage-gate logic: locked stages/activities shown but not actionable
  * - "Monitoring & Controlling" section always accessible
  * - Clicking activity updates current activity and opens relevant canvas
@@ -17,13 +17,14 @@ import { useCanvasStore } from '@/store/useCanvasStore';
 import { useAssistantStore } from '@/store/assistant';
 import {
   STATUS_ICONS,
-  STATUS_COLORS,
   type MethodologyActivity,
   type MethodologyStage,
   type MethodologyStatus,
 } from '@/store/methodology';
 import type { PrerequisiteInfo } from '@/store/assistant';
 import { createArtifact, createEmptyContent, type CanvasType } from '@ppm/canvas-engine';
+import { Icon } from '@/components/icon/Icon';
+import type { IconSemantic } from '@/components/icon/iconMap';
 import styles from './MethodologyNav.module.css';
 
 interface MethodologyNavProps {
@@ -355,17 +356,14 @@ interface StatusIconProps {
 
 function StatusIcon({ status, small = false }: StatusIconProps) {
   const icon = STATUS_ICONS[status];
-  const color = STATUS_COLORS[status];
 
   return (
-    <span
+    <Icon
+      semantic={icon}
+      label={status.replace('_', ' ')}
       className={`${styles.statusIcon} ${small ? styles.small : ''}`}
-      style={{ color }}
-      aria-label={status.replace('_', ' ')}
-      role="img"
-    >
-      {icon}
-    </span>
+      size={small ? 'sm' : 'md'}
+    />
   );
 }
 
@@ -374,18 +372,21 @@ interface CanvasTypeIconProps {
 }
 
 function CanvasTypeIcon({ canvasType }: CanvasTypeIconProps) {
-  const iconMap: Record<CanvasType, string> = {
-    document: '📄',
-    tree: '🌳',
-    timeline: '📅',
-    spreadsheet: '📊',
-    dashboard: '📈',
+  const iconMap: Record<CanvasType, IconSemantic> = {
+    document: 'artifact.document',
+    tree: 'artifact.tree',
+    timeline: 'artifact.timeline',
+    spreadsheet: 'artifact.spreadsheet',
+    dashboard: 'artifact.dashboard',
   };
 
   return (
-    <span className={styles.canvasTypeIcon} aria-hidden="true">
-      {iconMap[canvasType]}
-    </span>
+    <Icon
+      semantic={iconMap[canvasType]}
+      decorative
+      className={styles.canvasTypeIcon}
+      size="sm"
+    />
   );
 }
 

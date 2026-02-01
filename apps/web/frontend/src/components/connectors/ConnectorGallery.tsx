@@ -19,6 +19,8 @@ import {
 } from '@/store/connectors';
 import { useAppStore } from '@/store';
 import { canManageConfig } from '@/auth/permissions';
+import { Icon } from '@/components/icon/Icon';
+import type { IconSemantic } from '@/components/icon/iconMap';
 import { SyncStatusPanel } from './SyncStatusPanel';
 import styles from './ConnectorGallery.module.css';
 
@@ -177,8 +179,9 @@ export function ConnectorGallery() {
               className={styles.clearSearch}
               onClick={() => setFilter({ search: '' })}
               title="Clear search"
+              aria-label="Clear search"
             >
-              x
+              <Icon semantic="actions.cancelDismiss" label="Clear search" size="sm" />
             </button>
           )}
         </div>
@@ -457,46 +460,37 @@ function ConnectorCard({
  * Simple icon component for connectors
  */
 function ConnectorIcon({ name }: { name: string }) {
-  // Simple SVG icons for each connector
-  const icons: Record<string, JSX.Element> = {
-    jira: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M11.53 2c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35V2.84a.84.84 0 00-.84-.84H11.53zM6.77 6.8a4.362 4.362 0 004.34 4.38h1.8v1.7c0 2.4 1.93 4.34 4.34 4.35V7.66a.84.84 0 00-.85-.85H6.77zM2 11.6c0 2.4 1.95 4.34 4.35 4.35h1.78v1.7c.01 2.39 1.95 4.34 4.35 4.35v-9.57a.84.84 0 00-.85-.84H2z"/>
-      </svg>
-    ),
-    azure: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M13.05 4.24L6.56 18.05h2.22l1.47-3.26h5.5l.47 3.26h2.22L13.05 4.24zm.91 8.55H10.7l2.1-5.01 1.16 5.01z"/>
-      </svg>
-    ),
-    slack: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M6 15a2 2 0 01-2 2 2 2 0 01-2-2 2 2 0 012-2h2v2zm1 0a2 2 0 012-2 2 2 0 012 2v5a2 2 0 01-2 2 2 2 0 01-2-2v-5zm2-8a2 2 0 01-2-2 2 2 0 012-2 2 2 0 012 2v2H9zm0 1a2 2 0 012 2 2 2 0 01-2 2H4a2 2 0 01-2-2 2 2 0 012-2h5zm8 2a2 2 0 012-2 2 2 0 012 2 2 2 0 01-2 2h-2v-2zm-1 0a2 2 0 01-2 2 2 2 0 01-2-2V5a2 2 0 012-2 2 2 0 012 2v5zm-2 8a2 2 0 012 2 2 2 0 01-2 2 2 2 0 01-2-2v-2h2zm0-1a2 2 0 01-2-2 2 2 0 012-2h5a2 2 0 012 2 2 2 0 01-2 2h-5z"/>
-      </svg>
-    ),
-    teams: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M19.19 8.77a2.49 2.49 0 01-.69-.28 2.5 2.5 0 10-3.49 2.37v4.75a3.39 3.39 0 01-3.39 3.39H6.77a3.4 3.4 0 01-3.4-3.4V9.1a3.4 3.4 0 013.4-3.4h5.85a3.39 3.39 0 013.06 1.94 2.5 2.5 0 003.51 1.13zM8 12.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3z"/>
-      </svg>
-    ),
-    sharepoint: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M12 4a8 8 0 100 16 8 8 0 000-16zm0 2a6 6 0 110 12 6 6 0 010-12zm-1 3v6h2v-6h-2zm-2 2v2h6v-2H9z"/>
-      </svg>
-    ),
-    'cpu-chip': (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M9 3h6v2h2v2h2v6h-2v2h-2v2H9v-2H7v-2H5V7h2V5h2V3zm0 4v8h6V7H9z"/>
-      </svg>
-    ),
-    default: (
-      <svg viewBox="0 0 24 24" fill="currentColor" className={styles.iconSvg}>
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-      </svg>
-    ),
+  const iconMap: Record<string, IconSemantic> = {
+    jira: 'connectors.jira',
+    azure: 'connectors.azure',
+    planview: 'domain.portfolio',
+    slack: 'connectors.slack',
+    teams: 'connectors.teams',
+    sharepoint: 'connectors.sharepoint',
+    sap: 'domain.platform',
+    workday: 'communication.user',
+    servicenow: 'provenance.auditLog',
+    'shield-check': 'domain.governance',
+    'cpu-chip': 'connectors.cpuChip',
+    'chart-bar': 'domain.portfolio',
+    'clipboard-list': 'provenance.auditLog',
+    folder: 'artifact.folder',
+    'building-office': 'domain.platform',
+    users: 'communication.user',
+    'chat-bubble-left-right': 'communication.message',
+    default: 'connectors.default',
   };
 
-  return icons[name] || icons.default;
+  const resolved = name.includes('.') ? (name as IconSemantic) : (iconMap[name] ?? iconMap.default);
+
+  return (
+    <Icon
+      semantic={resolved}
+      decorative
+      className={styles.iconSvg}
+      size="lg"
+    />
+  );
 }
 
 /**
@@ -572,8 +566,12 @@ function ConnectorConfigModal({
             <ConnectorIcon name={connector.icon} />
             <h2 className={styles.modalTitle}>{connector.name} Configuration</h2>
           </div>
-          <button className={styles.modalClose} onClick={onClose}>
-            x
+          <button
+            className={styles.modalClose}
+            onClick={onClose}
+            aria-label="Close connector configuration"
+          >
+            <Icon semantic="actions.cancelDismiss" label="Close connector configuration" />
           </button>
         </div>
 
@@ -712,7 +710,11 @@ function ConnectorConfigModal({
             {testResult && (
               <div className={`${styles.testResult} ${styles[testResult.status]}`}>
                 <span className={styles.testResultIcon}>
-                  {testResult.status === 'connected' ? '✓' : '✗'}
+                  <Icon
+                    semantic={testResult.status === 'connected' ? 'status.success' : 'status.error'}
+                    decorative
+                    size="sm"
+                  />
                 </span>
                 <div className={styles.testResultContent}>
                   <strong>{testResult.status === 'connected' ? 'Connected' : 'Failed'}</strong>
@@ -830,8 +832,12 @@ function CertificationModal({
             <ConnectorIcon name={connector.icon} />
             <h2 className={styles.modalTitle}>{connector.name} Certification Evidence</h2>
           </div>
-          <button className={styles.modalClose} onClick={onClose}>
-            x
+          <button
+            className={styles.modalClose}
+            onClick={onClose}
+            aria-label="Close certification evidence"
+          >
+            <Icon semantic="actions.cancelDismiss" label="Close certification evidence" />
           </button>
         </div>
         <div className={styles.modalBody}>

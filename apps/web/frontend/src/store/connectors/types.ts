@@ -3,6 +3,7 @@
  *
  * Types for connector configuration, categories, and state management.
  */
+import type { IconSemantic } from '@/components/icon/iconMap';
 
 /**
  * Connector categories for organization
@@ -158,7 +159,7 @@ export interface ConnectionTestResult {
 export interface CategoryInfo {
   value: ConnectorCategory;
   label: string;
-  icon: string;
+  icon: IconSemantic;
   description: string;
   connector_count: number;
   enabled_connector: string | null;
@@ -171,55 +172,55 @@ export const CATEGORY_INFO: Record<ConnectorCategory, Omit<CategoryInfo, 'connec
   ppm: {
     value: 'ppm',
     label: 'PPM Tools',
-    icon: 'chart-bar',
+    icon: 'domain.portfolio',
     description: 'Portfolio and Project Management platforms',
   },
   pm: {
     value: 'pm',
     label: 'PM Tools',
-    icon: 'clipboard-list',
+    icon: 'provenance.auditLog',
     description: 'Project management and work tracking tools',
   },
   doc_mgmt: {
     value: 'doc_mgmt',
     label: 'Document Management',
-    icon: 'folder',
+    icon: 'artifact.folder',
     description: 'Document storage and collaboration platforms',
   },
   erp: {
     value: 'erp',
     label: 'ERP Systems',
-    icon: 'building-office',
+    icon: 'domain.platform',
     description: 'Enterprise resource planning systems',
   },
   hris: {
     value: 'hris',
     label: 'HRIS',
-    icon: 'users',
+    icon: 'communication.user',
     description: 'Human resource information systems',
   },
   collaboration: {
     value: 'collaboration',
     label: 'Collaboration',
-    icon: 'chat-bubble-left-right',
+    icon: 'communication.message',
     description: 'Team communication and collaboration tools',
   },
   grc: {
     value: 'grc',
     label: 'GRC',
-    icon: 'shield-check',
+    icon: 'domain.governance',
     description: 'Governance, Risk, and Compliance platforms',
   },
   compliance: {
     value: 'compliance',
     label: 'Compliance',
-    icon: 'shield-check',
+    icon: 'domain.governance',
     description: 'Specialised regulatory compliance platforms',
   },
   iot: {
     value: 'iot',
     label: 'IoT Integrations',
-    icon: 'cpu-chip',
+    icon: 'connectors.cpuChip',
     description: 'Custom hardware and sensor integrations',
   },
 };

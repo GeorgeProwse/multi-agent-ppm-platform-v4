@@ -12,6 +12,7 @@ import { useEffect, useMemo } from 'react';
 import { useAgentConfigStore, CATEGORY_INFO, type AgentConfig, type AgentCategory } from '@/store/agentConfig';
 import { useAppStore } from '@/store';
 import { canManageConfig } from '@/auth/permissions';
+import { Icon } from '@/components/icon/Icon';
 import styles from './AgentGallery.module.css';
 
 interface AgentGalleryProps {
@@ -265,7 +266,12 @@ function CategorySection({
   return (
     <section className={styles.categorySection}>
       <div className={styles.categoryHeader}>
-        <span className={styles.categoryIcon}>{info.icon}</span>
+        <Icon
+          semantic={info.icon}
+          decorative
+          className={styles.categoryIcon}
+          size="lg"
+        />
         <div className={styles.categoryInfo}>
           <h2 className={styles.categoryTitle}>{info.label}</h2>
           <p className={styles.categoryDescription}>{info.description}</p>

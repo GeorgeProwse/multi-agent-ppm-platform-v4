@@ -136,7 +136,7 @@ const renderWorkspaceShell = () => {
             <div class="connector-modal-header">
               <h4 id="connector-modal-title">Add connector</h4>
               <button type="button" class="connector-modal-close" id="connector-modal-close">
-                ✕
+                Close
               </button>
             </div>
             <form id="connector-modal-form">
@@ -166,7 +166,7 @@ const renderWorkspaceShell = () => {
             <div class="agent-modal-header">
               <h4 id="agent-modal-title">Configure agent</h4>
               <button type="button" class="agent-modal-close" id="agent-modal-close">
-                ✕
+                Close
               </button>
             </div>
             <div class="agent-modal-body">
@@ -283,10 +283,10 @@ const initWorkspace = () => {
         const activitiesMarkup = stage.activities
           .map((activity) => {
             const statusIcon = activity.completed
-              ? "✅"
+              ? "Complete"
               : activity.access.allowed
-                ? "🔓"
-                : "🔒";
+                ? "Available"
+                : "Locked";
             const isSelected = activity.id === currentActivityId;
             return `
               <li>
@@ -329,7 +329,7 @@ const initWorkspace = () => {
               data-activity-id="${activity.id}"
               data-canvas-tab="${activity.recommended_canvas_tab}"
             >
-              🔓 ${activity.name}
+              Available ${activity.name}
             </button>
           </li>
         `;
@@ -515,11 +515,11 @@ const initWorkspace = () => {
       const hasChildren = childrenByParent.has(node.node_id);
       const isCollapsed = treeState.collapsed.has(node.node_id);
       const iconMap = {
-        folder: "📁",
-        document: "📄",
-        sheet: "📊",
-        milestone: "🗓️",
-        note: "📝",
+        folder: "Folder",
+        document: "Document",
+        sheet: "Sheet",
+        milestone: "Milestone",
+        note: "Note",
       };
       const toggle = node.type === "folder"
         ? `<button type=\"button\" class=\"tree-toggle\" data-action=\"toggle\" aria-label=\"Toggle\" data-node-id=\"${node.node_id}\">
@@ -536,7 +536,7 @@ const initWorkspace = () => {
         <li class=\"tree-node\" data-node-id=\"${node.node_id}\" style=\"--tree-depth: ${depth};\">
           <div class=\"tree-node-row\">
             ${toggle}
-            <span class=\"tree-icon\">${iconMap[node.type] || "📦"}</span>
+            <span class=\"tree-icon\">${iconMap[node.type] || "Package"}</span>
             <div class=\"tree-title-group\">
               ${titleButton}
               <span class=\"tree-meta\">${node.type}</span>

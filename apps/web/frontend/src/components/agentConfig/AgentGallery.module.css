@@ -204,7 +204,9 @@
 }
 
 .categoryIcon {
-  font-size: var(--font-size-2xl);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .categoryInfo {
