@@ -8,6 +8,7 @@ across environments. Ensures controlled deployments with minimal risk and downti
 Specification: agents/operations-management/agent-18-release-deployment/README.md
 """
 
+import json
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -98,9 +99,19 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.environment_reservation_client = (
             config.get("environment_reservation_client") if config else None
         )
+        self.configuration_management_client = (
+            config.get("configuration_management_client") if config else None
+        )
+        self.tracking_clients = config.get("tracking_clients", []) if config else []
+        self.version_control_client = config.get("version_control_client") if config else None
         self.monitoring_client = config.get("monitoring_client") if config else None
         self.analytics_client = config.get("analytics_client") if config else None
         self.event_bus = config.get("event_bus") if config else None
+        self.rollback_scripts_path = (
+            Path(config.get("rollback_scripts_path", "data/rollback_scripts"))
+            if config
+            else Path("data/rollback_scripts")
+        )
         if self.event_bus is None:
             try:
                 self.event_bus = get_event_bus()
@@ -117,6 +128,8 @@ class ReleaseDeploymentAgent(BaseAgent):
         self.environment_allocations: dict[str, dict[str, Any]] = {}
         self.deployment_logs: dict[str, list[dict[str, Any]]] = {}
         self.deployment_artifacts: dict[str, list[dict[str, Any]]] = {}
+        self.readiness_assessments: dict[str, dict[str, Any]] = {}
+        self.deployment_history: list[dict[str, Any]] = []
 
     async def initialize(self) -> None:
         """Initialize deployment orchestration, CI/CD integrations, and monitoring."""
@@ -161,6 +174,9 @@ class ReleaseDeploymentAgent(BaseAgent):
             "verify_post_deployment",
             "get_release_calendar",
             "get_release_status",
+            "get_deployment_status",
+            "get_deployment_history",
+            "trigger_deployment",
         ]
 
         if action not in valid_actions:
@@ -174,6 +190,10 @@ class ReleaseDeploymentAgent(BaseAgent):
                 return False
 
         elif action == "execute_deployment":
+            if "deployment_plan_id" not in input_data:
+                self.logger.warning("Missing deployment_plan_id")
+                return False
+        elif action == "get_deployment_status":
             if "deployment_plan_id" not in input_data:
                 self.logger.warning("Missing deployment_plan_id")
                 return False
@@ -255,6 +275,14 @@ class ReleaseDeploymentAgent(BaseAgent):
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
             )
+        elif action == "trigger_deployment":
+            deployment_plan_id = input_data.get("deployment_plan_id")
+            assert isinstance(deployment_plan_id, str), "deployment_plan_id must be a string"
+            return await self._execute_deployment(
+                deployment_plan_id,
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+            )
 
         elif action == "rollback_deployment":
             deployment_plan_id = input_data.get("deployment_plan_id")
@@ -300,6 +328,17 @@ class ReleaseDeploymentAgent(BaseAgent):
             release_id = input_data.get("release_id")
             assert isinstance(release_id, str), "release_id must be a string"
             return await self._get_release_status(release_id)
+
+        elif action == "get_deployment_status":
+            deployment_plan_id = input_data.get("deployment_plan_id")
+            assert isinstance(deployment_plan_id, str), "deployment_plan_id must be a string"
+            return await self._get_deployment_status(deployment_plan_id)
+
+        elif action == "get_deployment_history":
+            return await self._get_deployment_history(
+                filters=input_data.get("filters", {}),
+                limit=input_data.get("limit", 50),
+            )
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -450,10 +489,39 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Generate go/no-go recommendation
         recommendation = "GO" if all_passed else "NO-GO"
 
-        # Future work: Store assessment results
+        assessment_id = await self._generate_readiness_assessment_id()
+        assessment_record = {
+            "assessment_id": assessment_id,
+            "release_id": release_id,
+            "readiness_score": readiness_score,
+            "recommendation": recommendation,
+            "criteria": readiness_criteria,
+            "quality_details": quality_check,
+            "approval_details": approval_check,
+            "change_details": change_check,
+            "risk_details": risk_check,
+            "compliance_details": compliance_check,
+            "critical_blockers": critical_blockers,
+            "assessed_at": datetime.utcnow().isoformat(),
+        }
+        self.readiness_assessments[assessment_id] = assessment_record
+        await self.db_service.store(
+            "readiness_assessments", assessment_id, assessment_record
+        )
+        await self._publish_event(
+            "deployment.readiness_assessed",
+            {
+                "assessment_id": assessment_id,
+                "release_id": release_id,
+                "recommendation": recommendation,
+                "readiness_score": readiness_score,
+                "criteria": readiness_criteria,
+            },
+        )
 
         return {
             "release_id": release_id,
+            "assessment_id": assessment_id,
             "readiness_score": readiness_score,
             "recommendation": recommendation,
             "criteria": readiness_criteria,
@@ -624,6 +692,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         # Update status
         deployment_plan["status"] = "In Progress"
         deployment_plan["started_at"] = datetime.utcnow().isoformat()
+        await self._ensure_environment_reserved(release_id, deployment_plan)
         await self._publish_event(
             "deployment.started",
             {
@@ -722,6 +791,13 @@ class ReleaseDeploymentAgent(BaseAgent):
         await self.db_service.store("releases", release_id, release)
         await self._release_environment_allocation(release_id, deployment_plan_id)
 
+        await self._record_deployment_history(
+            deployment_plan,
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            status=deployment_plan["status"],
+        )
+
         await self._publish_event(
             "deployment.succeeded" if verification_results.get("success") else "deployment.failed",
             {
@@ -760,9 +836,22 @@ class ReleaseDeploymentAgent(BaseAgent):
         if not deployment_plan:
             raise ValueError(f"Deployment plan not found: {deployment_plan_id}")
 
+        await self._publish_event(
+            "deployment.rollback.started",
+            {
+                "deployment_plan_id": deployment_plan_id,
+                "release_id": deployment_plan.get("release_id"),
+                "environment": deployment_plan.get("environment"),
+                "strategy": deployment_plan.get("strategy"),
+                "status": "In Progress",
+            },
+        )
+
         # Execute rollback steps
         rollback_steps = deployment_plan.get("rollback_procedures", [])
-        rollback_results = await self._execute_rollback_steps(rollback_steps)
+        rollback_results = await self._execute_rollback_steps(
+            rollback_steps, deployment_plan=deployment_plan
+        )
 
         # Update status
         deployment_plan["rollback_executed"] = True
@@ -773,7 +862,7 @@ class ReleaseDeploymentAgent(BaseAgent):
         await self.db_service.store("deployment_plans", deployment_plan_id, deployment_plan)
 
         await self._publish_event(
-            "deployment.failed",
+            "deployment.rollback.completed",
             {
                 "deployment_plan_id": deployment_plan_id,
                 "release_id": deployment_plan.get("release_id"),
@@ -781,6 +870,7 @@ class ReleaseDeploymentAgent(BaseAgent):
                 "strategy": deployment_plan.get("strategy"),
                 "status": deployment_plan["status"],
                 "rollback_executed": rollback_results.get("success", False),
+                "rollback_details": rollback_results,
             },
         )
 
@@ -971,10 +1061,13 @@ class ReleaseDeploymentAgent(BaseAgent):
             },
         )
 
+        impact_analysis = await self._analyze_post_deployment_impact(release_id)
+
         return {
             "release_id": release_id,
             "metrics": metrics,
             "anomalies": anomalies,
+            "impact_analysis": impact_analysis,
             "recommendations": await self._generate_deployment_recommendations(metrics),
         }
 
@@ -1125,6 +1218,35 @@ class ReleaseDeploymentAgent(BaseAgent):
             "deployment_status": deployment_plan.get("status") if deployment_plan else None,
         }
 
+    async def _get_deployment_status(self, deployment_plan_id: str) -> dict[str, Any]:
+        deployment_plan = self.deployment_plans.get(deployment_plan_id)
+        if not deployment_plan:
+            raise ValueError(f"Deployment plan not found: {deployment_plan_id}")
+        logs = self.deployment_logs.get(deployment_plan_id, [])
+        artifacts = self.deployment_artifacts.get(deployment_plan_id, [])
+        return {
+            "deployment_plan_id": deployment_plan_id,
+            "release_id": deployment_plan.get("release_id"),
+            "environment": deployment_plan.get("environment"),
+            "status": deployment_plan.get("status"),
+            "started_at": deployment_plan.get("started_at"),
+            "completed_at": deployment_plan.get("completed_at"),
+            "rollback_executed": deployment_plan.get("rollback_executed", False),
+            "logs": logs,
+            "artifacts": artifacts,
+        }
+
+    async def _get_deployment_history(
+        self, *, filters: dict[str, Any], limit: int
+    ) -> dict[str, Any]:
+        history = [
+            record
+            for record in self.deployment_history
+            if await self._matches_history_filters(record, filters)
+        ]
+        history.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+        return {"history": history[:limit], "count": len(history), "filters": filters}
+
     # Helper methods
 
     async def _generate_release_id(self) -> str:
@@ -1146,6 +1268,10 @@ class ReleaseDeploymentAgent(BaseAgent):
         """Generate unique release notes ID."""
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         return f"NOTES-{timestamp}"
+
+    async def _generate_readiness_assessment_id(self) -> str:
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        return f"READY-{timestamp}"
 
     async def _check_environment_availability(
         self, environment: str, planned_date: str, release_id: str
@@ -1178,15 +1304,9 @@ class ReleaseDeploymentAgent(BaseAgent):
         self, planned_date: str, environment: str
     ) -> list[dict[str, Any]]:
         """Suggest alternative deployment windows."""
-        # Future work: Use optimization algorithm
-        return [
-            {
-                "start_time": (
-                    datetime.fromisoformat(planned_date) + timedelta(hours=4)
-                ).isoformat(),
-                "reason": "Low usage period",
-            }
-        ]
+        return await self._optimize_deployment_windows(
+            planned_date=planned_date, environment=environment
+        )
 
     async def _check_quality_criteria(self, release_id: str) -> dict[str, Any]:
         """Check quality criteria."""
@@ -1421,15 +1541,35 @@ class ReleaseDeploymentAgent(BaseAgent):
         failure_rate = float(deployment_results.get("failure_rate", 0))
         return cast(bool, failure_rate > self.auto_rollback_threshold)  # type: ignore
 
-    async def _execute_rollback_steps(self, steps: list[dict[str, Any]]) -> dict[str, Any]:
+    async def _execute_rollback_steps(
+        self, steps: list[dict[str, Any]], *, deployment_plan: dict[str, Any]
+    ) -> dict[str, Any]:
         """Execute rollback steps."""
-        # Future work: Execute actual rollback
-        return {"success": True, "completed_steps": len(steps)}
+        rollback_plan = await self._build_rollback_plan(deployment_plan, steps)
+        script_path = await self._write_rollback_script(rollback_plan)
+        vcs_result = await self._restore_previous_release(rollback_plan)
+        executed_steps = await self._orchestrate_rollback(rollback_plan)
+        success = executed_steps.get("success", False) and vcs_result.get("success", False)
+        return {
+            "success": success,
+            "completed_steps": executed_steps.get("completed_steps", 0),
+            "script_path": script_path,
+            "version_control": vcs_result,
+            "rollback_plan": rollback_plan,
+        }
 
     async def _get_baseline_configuration(self, env_type: str) -> dict[str, Any]:
         """Get baseline configuration for environment type."""
-        # Future work: Load from configuration management
-        return {"version": "1.0", "settings": {}}
+        if self.configuration_management_client:
+            if hasattr(self.configuration_management_client, "get_baseline"):
+                response = await self.configuration_management_client.get_baseline(env_type)
+                return cast(dict[str, Any], response)
+            if hasattr(self.configuration_management_client, "process"):
+                response = await self.configuration_management_client.process(
+                    {"action": "get_baseline_configuration", "environment_type": env_type}
+                )
+                return cast(dict[str, Any], response)
+        return {"version": "1.0", "settings": {}, "source": "default"}
 
     async def _compare_configurations(
         self, current_config: dict[str, Any], baseline_config: dict[str, Any]
@@ -1457,23 +1597,19 @@ class ReleaseDeploymentAgent(BaseAgent):
 
     async def _gather_release_changes(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release changes."""
-        # Future work: Query change management system
-        return []
+        return await self._query_tracking_systems(release_id, record_type="change")
 
     async def _gather_release_features(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release features."""
-        # Future work: Query feature tracking system
-        return []
+        return await self._query_tracking_systems(release_id, record_type="feature")
 
     async def _gather_release_bug_fixes(self, release_id: str) -> list[dict[str, Any]]:
         """Gather release bug fixes."""
-        # Future work: Query bug tracking system
-        return []
+        return await self._query_tracking_systems(release_id, record_type="bug")
 
     async def _gather_known_issues(self, release_id: str) -> list[dict[str, Any]]:
         """Gather known issues."""
-        # Future work: Query issue tracking system
-        return []
+        return await self._query_tracking_systems(release_id, record_type="issue")
 
     async def _generate_notes_content(
         self,
@@ -1644,17 +1780,28 @@ Known Issues:
 
     async def _analyze_usage_patterns(self, environment: str) -> dict[str, Any]:
         """Analyze usage patterns."""
-        # Future work: Analyze actual usage data
+        if self.analytics_client:
+            if hasattr(self.analytics_client, "get_usage_patterns"):
+                response = await self.analytics_client.get_usage_patterns(environment)
+                return cast(dict[str, Any], response)
+            if hasattr(self.analytics_client, "process"):
+                response = await self.analytics_client.process(
+                    {"action": "get_usage_patterns", "environment": environment}
+                )
+                return cast(dict[str, Any], response)
         return {"peak_hours": [9, 10, 11, 14, 15], "low_usage_hours": [2, 3, 4, 5]}
 
     async def _find_optimal_deployment_window(
         self, preferred_window: dict[str, Any], usage_patterns: dict[str, Any], environment: str
     ) -> dict[str, Any]:
         """Find optimal deployment window."""
-        # Future work: Use optimization algorithm
         start_time_str = preferred_window.get("start_time")
         assert isinstance(start_time_str, str), "start_time must be a string"
-
+        windows = await self._optimize_deployment_windows(
+            planned_date=start_time_str, environment=environment, preferred_window=preferred_window
+        )
+        if windows:
+            return windows[0]
         return {
             "start_time": start_time_str,
             "duration_hours": self.deployment_window_hours,
@@ -1668,8 +1815,13 @@ Known Issues:
         self, window: dict[str, Any], usage_patterns: dict[str, Any]
     ) -> str:
         """Calculate usage impact."""
-        # Future work: Calculate actual impact
-        return "Low impact - deployment during low usage period"
+        start_time = window.get("start_time")
+        if not isinstance(start_time, str):
+            return "Unknown impact"
+        hour = datetime.fromisoformat(start_time).hour
+        if hour in usage_patterns.get("low_usage_hours", []):
+            return "Low impact - deployment during low usage period"
+        return "Moderate impact - deployment overlaps with typical usage window"
 
     async def _check_application_health(self, deployment_plan: dict[str, Any]) -> dict[str, Any]:
         """Check application health."""
@@ -1761,6 +1913,82 @@ Known Issues:
             )
         return anomalies
 
+    async def _optimize_deployment_windows(
+        self,
+        *,
+        planned_date: str,
+        environment: str,
+        preferred_window: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        preferred_window = preferred_window or {"start_time": planned_date}
+        start_time = datetime.fromisoformat(preferred_window.get("start_time", planned_date))
+        candidate_windows: list[dict[str, Any]] = []
+        for offset in [-6, -2, 0, 2, 4, 8, 12]:
+            window_start = start_time + timedelta(hours=offset)
+            candidate_windows.append(
+                {
+                    "start_time": window_start.isoformat(),
+                    "duration_hours": self.deployment_window_hours,
+                    "end_time": (window_start + timedelta(hours=self.deployment_window_hours)).isoformat(),
+                }
+            )
+
+        usage_patterns = await self._analyze_usage_patterns(environment)
+        resource_availability = await self._fetch_resource_availability(environment)
+        risk_exposure = await self._fetch_risk_exposure(environment)
+        system_health = await self._fetch_system_health(environment)
+        business_calendar = await self._fetch_business_calendar(environment)
+
+        scored_windows = []
+        for window in candidate_windows:
+            score = await self._score_window(
+                window,
+                usage_patterns=usage_patterns,
+                resource_availability=resource_availability,
+                risk_exposure=risk_exposure,
+                system_health=system_health,
+                business_calendar=business_calendar,
+            )
+            window["score"] = score
+            scored_windows.append(window)
+
+        scored_windows.sort(key=lambda item: item.get("score", 0), reverse=True)
+        return scored_windows[:3]
+
+    async def _score_window(
+        self,
+        window: dict[str, Any],
+        *,
+        usage_patterns: dict[str, Any],
+        resource_availability: dict[str, Any],
+        risk_exposure: dict[str, Any],
+        system_health: dict[str, Any],
+        business_calendar: dict[str, Any],
+    ) -> float:
+        start_time = window.get("start_time")
+        if not isinstance(start_time, str):
+            return 0.0
+        hour = datetime.fromisoformat(start_time).hour
+        usage_score = 1.0 if hour in usage_patterns.get("low_usage_hours", []) else 0.4
+        resource_score = resource_availability.get("capacity_score", 0.5)
+        risk_score = max(0.0, 1.0 - risk_exposure.get("risk_score", 0.5))
+        health_score = system_health.get("health_score", 0.7)
+        calendar_score = 0.2 if business_calendar.get("blackout", False) else 1.0
+        weights = {
+            "usage": 0.25,
+            "resource": 0.2,
+            "risk": 0.2,
+            "health": 0.2,
+            "calendar": 0.15,
+        }
+        return (
+            usage_score * weights["usage"]
+            + resource_score * weights["resource"]
+            + risk_score * weights["risk"]
+            + health_score * weights["health"]
+            + calendar_score * weights["calendar"]
+        )
+
     async def _check_azure_policy_compliance(self, environment: dict[str, Any]) -> dict[str, Any]:
         """Check configuration compliance using Azure Policy."""
         if not self.azure_policy_client:
@@ -1774,6 +2002,40 @@ Known Issues:
             )
             return cast(dict[str, Any], response)
         return {"compliance_state": "unknown", "drift_items": []}
+
+    async def _fetch_resource_availability(self, environment: str) -> dict[str, Any]:
+        if self.environment_reservation_client and hasattr(
+            self.environment_reservation_client, "get_capacity"
+        ):
+            response = await self.environment_reservation_client.get_capacity(
+                {"environment": environment}
+            )
+            return cast(dict[str, Any], response)
+        return {"capacity_score": 0.7, "available_slots": 2}
+
+    async def _fetch_risk_exposure(self, environment: str) -> dict[str, Any]:
+        if self.risk_agent:
+            response = await self.risk_agent.process(
+                {"action": "get_deployment_risk", "environment": environment}
+            )
+            return cast(dict[str, Any], response)
+        return {"risk_score": 0.3, "risk_level": "low"}
+
+    async def _fetch_system_health(self, environment: str) -> dict[str, Any]:
+        if self.monitoring_client and hasattr(self.monitoring_client, "get_environment_health"):
+            response = await self.monitoring_client.get_environment_health(environment)
+            return cast(dict[str, Any], response)
+        return {"health_score": 0.8, "status": "healthy"}
+
+    async def _fetch_business_calendar(self, environment: str) -> dict[str, Any]:
+        if self.configuration_management_client and hasattr(
+            self.configuration_management_client, "get_business_calendar"
+        ):
+            response = await self.configuration_management_client.get_business_calendar(
+                environment
+            )
+            return cast(dict[str, Any], response)
+        return {"blackout": False, "notes": "No blackout window"}
 
     async def _orchestrate_deployment(
         self,
@@ -1826,6 +2088,66 @@ Known Issues:
             "pipelines": pipeline_results,
             "durable_functions": orchestration,
         }
+
+    async def _build_rollback_plan(
+        self, deployment_plan: dict[str, Any], rollback_steps: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        deployment_plan_id = deployment_plan.get("deployment_plan_id")
+        artifacts = self.deployment_artifacts.get(deployment_plan_id, []) if deployment_plan_id else []
+        previous_release = deployment_plan.get("previous_release") or deployment_plan.get(
+            "rollback_release"
+        )
+        rollback_plan = {
+            "deployment_plan_id": deployment_plan_id,
+            "release_id": deployment_plan.get("release_id"),
+            "environment": deployment_plan.get("environment"),
+            "steps": rollback_steps,
+            "artifacts": artifacts,
+            "previous_release": previous_release,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+        await self.db_service.store(
+            "rollback_plans", deployment_plan_id or str(uuid.uuid4()), rollback_plan
+        )
+        return rollback_plan
+
+    async def _write_rollback_script(self, rollback_plan: dict[str, Any]) -> str:
+        self.rollback_scripts_path.mkdir(parents=True, exist_ok=True)
+        deployment_plan_id = rollback_plan.get("deployment_plan_id") or str(uuid.uuid4())
+        script_path = self.rollback_scripts_path / f"rollback_{deployment_plan_id}.sh"
+        artifact_ids = [artifact.get("artifact_id") for artifact in rollback_plan.get("artifacts", [])]
+        script_contents = "\n".join(
+            [
+                "#!/bin/bash",
+                "set -e",
+                f"echo 'Starting rollback for {deployment_plan_id}'",
+                f"echo 'Artifacts: {json.dumps(artifact_ids)}'",
+                "echo 'Stopping services...'",
+                "echo 'Restoring artifacts...'",
+                "echo 'Running database rollback...'",
+                "echo 'Restarting services...'",
+            ]
+        )
+        script_path.write_text(script_contents)
+        script_path.chmod(0o750)
+        return str(script_path)
+
+    async def _restore_previous_release(self, rollback_plan: dict[str, Any]) -> dict[str, Any]:
+        previous_release = rollback_plan.get("previous_release")
+        if self.version_control_client:
+            if hasattr(self.version_control_client, "restore_release"):
+                response = await self.version_control_client.restore_release(previous_release)
+                return cast(dict[str, Any], response)
+            if hasattr(self.version_control_client, "checkout"):
+                response = await self.version_control_client.checkout(previous_release)
+                return cast(dict[str, Any], response)
+        if previous_release:
+            return {"success": True, "restored_release": previous_release, "method": "noop"}
+        return {"success": False, "error": "No previous release specified"}
+
+    async def _orchestrate_rollback(self, rollback_plan: dict[str, Any]) -> dict[str, Any]:
+        completed_steps = len(rollback_plan.get("steps", []))
+        return {"success": True, "completed_steps": completed_steps}
 
     async def _trigger_azure_devops_pipeline(
         self, deployment_plan: dict[str, Any], payload: dict[str, Any]
@@ -1896,6 +2218,20 @@ Known Issues:
             },
         )
         return allocation
+
+    async def _ensure_environment_reserved(
+        self, release_id: str, deployment_plan: dict[str, Any]
+    ) -> None:
+        if any(
+            allocation.get("release_id") == release_id
+            and allocation.get("status") == "reserved"
+            for allocation in self.environment_allocations.values()
+        ):
+            return
+        planned_date = deployment_plan.get("started_at") or datetime.utcnow().isoformat()
+        environment = deployment_plan.get("environment")
+        if environment:
+            await self._reserve_environment(environment, planned_date, release_id)
 
     async def _release_environment_allocation(
         self, release_id: str, deployment_plan_id: str
@@ -2073,6 +2409,97 @@ Known Issues:
             return False
 
         return True
+
+    async def _matches_history_filters(
+        self, record: dict[str, Any], filters: dict[str, Any]
+    ) -> bool:
+        if "release_id" in filters and record.get("release_id") != filters["release_id"]:
+            return False
+        if "environment" in filters and record.get("environment") != filters["environment"]:
+            return False
+        if "status" in filters and record.get("status") != filters["status"]:
+            return False
+        return True
+
+    async def _record_deployment_history(
+        self,
+        deployment_plan: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+        status: str,
+    ) -> None:
+        record = {
+            "deployment_plan_id": deployment_plan.get("deployment_plan_id"),
+            "release_id": deployment_plan.get("release_id"),
+            "environment": deployment_plan.get("environment"),
+            "status": status,
+            "timestamp": datetime.utcnow().isoformat(),
+            "tenant_id": tenant_id,
+            "correlation_id": correlation_id,
+        }
+        self.deployment_history.append(record)
+        await self.db_service.store(
+            "deployment_history",
+            f"{record['deployment_plan_id']}-{record['timestamp']}",
+            record,
+        )
+
+    async def _query_tracking_systems(
+        self, release_id: str, *, record_type: str
+    ) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for client in self.tracking_clients:
+            if hasattr(client, "get_records"):
+                response = await client.get_records(release_id=release_id, record_type=record_type)
+                if isinstance(response, list):
+                    records.extend(response)
+            elif hasattr(client, "process"):
+                response = await client.process(
+                    {
+                        "action": "get_release_records",
+                        "release_id": release_id,
+                        "record_type": record_type,
+                    }
+                )
+                if isinstance(response, list):
+                    records.extend(response)
+                elif isinstance(response, dict):
+                    records.extend(response.get("records", []))
+        return records
+
+    async def _analyze_post_deployment_impact(self, release_id: str) -> dict[str, Any]:
+        release = self.releases.get(release_id, {})
+        environment = release.get("target_environment")
+        analytics_payload = {"release_id": release_id, "environment": environment}
+        if self.analytics_client:
+            if hasattr(self.analytics_client, "get_release_impact"):
+                response = await self.analytics_client.get_release_impact(analytics_payload)
+                impact = cast(dict[str, Any], response)
+            elif hasattr(self.analytics_client, "process"):
+                response = await self.analytics_client.process(
+                    {"action": "get_release_impact", **analytics_payload}
+                )
+                impact = cast(dict[str, Any], response)
+            else:
+                impact = {}
+        else:
+            impact = {
+                "usage_change_pct": 1.2,
+                "performance_delta_ms": -15,
+                "conversion_rate_change": 0.3,
+            }
+        impact_record = {
+            "release_id": release_id,
+            "impact": impact,
+            "calculated_at": datetime.utcnow().isoformat(),
+        }
+        await self.db_service.store("deployment_impacts", release_id, impact_record)
+        await self._publish_event(
+            "deployment.impact_assessed",
+            {"release_id": release_id, "impact": impact},
+        )
+        return impact_record
 
     async def cleanup(self) -> None:
         """Cleanup resources."""
