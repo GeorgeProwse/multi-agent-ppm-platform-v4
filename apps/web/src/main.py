@@ -59,7 +59,12 @@ from pipeline_models import (  # noqa: E402
 from pipeline_store import PipelineStore  # noqa: E402
 from lineage_proxy import LineageServiceClient  # noqa: E402
 from llm.client import LLMClient, LLMProviderError  # noqa: E402
-from methodologies import available_methodologies, get_methodology_map  # noqa: E402
+from methodologies import (  # noqa: E402
+    METHODOLOGY_STORAGE_PATH,
+    available_methodologies,
+    get_default_methodology_map,
+    get_methodology_map,
+)
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from oidc_client import OIDCClient  # noqa: E402
@@ -141,6 +146,7 @@ AGENT_SETTINGS_PATH = STORAGE_DIR / "agent_settings.json"
 INTAKE_REQUESTS_PATH = STORAGE_DIR / "intake_requests.json"
 PIPELINE_STATE_PATH = STORAGE_DIR / "pipeline_state.json"
 CONNECTOR_REGISTRY_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
+METHODOLOGY_DOCS_ROOT = REPO_ROOT / "docs" / "methodology"
 
 SESSION_COOKIE = "ppm_session"
 STATE_COOKIE = "ppm_oidc_state"
@@ -237,6 +243,42 @@ class MethodologyMapSummary(BaseModel):
     description: str
     stages: list[StageSummary]
     monitoring: list[ActivitySummary]
+
+
+class MethodologyActivityEditor(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    prerequisites: list[str] = Field(default_factory=list)
+    category: str = Field(default="methodology")
+    recommended_canvas_tab: CanvasTab = "document"
+
+
+class MethodologyStageEditor(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    exit_criteria: list[str] = Field(default_factory=list)
+    activities: list[MethodologyActivityEditor] = Field(default_factory=list)
+
+
+class MethodologyGateCriteriaEditor(BaseModel):
+    id: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    evidence: str | None = None
+    check: str | None = None
+
+
+class MethodologyGateEditor(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    stage: str = Field(min_length=1)
+    criteria: list[MethodologyGateCriteriaEditor] = Field(default_factory=list)
+
+
+class MethodologyEditorPayload(BaseModel):
+    methodology_id: str = Field(min_length=1)
+    stages: list[MethodologyStageEditor] = Field(default_factory=list)
+    gates: list[MethodologyGateEditor] = Field(default_factory=list)
 
 
 class GatingSummary(BaseModel):
@@ -950,6 +992,111 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def _load_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle) or {}
+
+
+def _load_methodology_storage() -> dict[str, Any]:
+    return _load_json(METHODOLOGY_STORAGE_PATH, {"methodologies": {}})
+
+
+def _load_exit_criteria_from_yaml(methodology_id: str) -> list[list[str]]:
+    payload = _load_yaml(METHODOLOGY_DOCS_ROOT / methodology_id / "map.yaml")
+    stages = payload.get("stages", [])
+    return [stage.get("exit_criteria", []) for stage in stages if isinstance(stage, dict)]
+
+
+def _load_gates_from_yaml(methodology_id: str) -> list[dict[str, Any]]:
+    payload = _load_yaml(METHODOLOGY_DOCS_ROOT / methodology_id / "gates.yaml")
+    gates = payload.get("gates", [])
+    return [gate for gate in gates if isinstance(gate, dict)]
+
+
+def _build_methodology_editor_payload(methodology_id: str) -> MethodologyEditorPayload:
+    storage = _load_methodology_storage()
+    stored_entry = storage.get("methodologies", {}).get(methodology_id, {})
+    stored_map = stored_entry.get("map") if isinstance(stored_entry, dict) else None
+    stored_gates = stored_entry.get("gates") if isinstance(stored_entry, dict) else None
+
+    methodology_map = stored_map or get_default_methodology_map(methodology_id)
+    gates = stored_gates or _load_gates_from_yaml(methodology_id)
+    exit_criteria_defaults = _load_exit_criteria_from_yaml(methodology_id)
+
+    stages: list[MethodologyStageEditor] = []
+    for index, stage in enumerate(methodology_map.get("stages", [])):
+        exit_criteria = stage.get("exit_criteria")
+        if exit_criteria is None:
+            exit_criteria = (
+                exit_criteria_defaults[index] if index < len(exit_criteria_defaults) else []
+            )
+        activities: list[MethodologyActivityEditor] = []
+        for activity in stage.get("activities", []):
+            activities.append(
+                MethodologyActivityEditor(
+                    id=activity.get("id", ""),
+                    name=activity.get("name", ""),
+                    description=activity.get("description", ""),
+                    prerequisites=activity.get("prerequisites", []),
+                    category=activity.get("category", "methodology"),
+                    recommended_canvas_tab=activity.get("recommended_canvas_tab", "document"),
+                )
+            )
+        stages.append(
+            MethodologyStageEditor(
+                id=stage.get("id", ""),
+                name=stage.get("name", ""),
+                exit_criteria=exit_criteria,
+                activities=activities,
+            )
+        )
+
+    gates_payload = [
+        MethodologyGateEditor(
+            id=gate.get("id", ""),
+            name=gate.get("name", ""),
+            stage=gate.get("stage", ""),
+            criteria=[
+                MethodologyGateCriteriaEditor(
+                    id=criterion.get("id", ""),
+                    description=criterion.get("description", ""),
+                    evidence=criterion.get("evidence"),
+                    check=criterion.get("check"),
+                )
+                for criterion in gate.get("criteria", [])
+                if isinstance(criterion, dict)
+            ],
+        )
+        for gate in gates
+        if isinstance(gate, dict)
+    ]
+
+    return MethodologyEditorPayload(
+        methodology_id=methodology_id,
+        stages=stages,
+        gates=gates_payload,
+    )
+
+
+def _validate_methodology_prereqs(stages: list[MethodologyStageEditor]) -> None:
+    activity_ids = {
+        activity.id for stage in stages for activity in stage.activities if activity.id
+    }
+    invalid: list[str] = []
+    for stage in stages:
+        for activity in stage.activities:
+            for prereq in activity.prerequisites:
+                if prereq not in activity_ids:
+                    invalid.append(f"{activity.id}:{prereq}")
+    if invalid:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid prerequisites: " + ", ".join(sorted(invalid)),
+        )
+
+
 def _load_templates() -> list[TemplateDefinition]:
     payload = _load_json(TEMPLATES_PATH, {"templates": []})
     return [TemplateDefinition.model_validate(item) for item in payload.get("templates", [])]
@@ -1379,6 +1526,83 @@ async def api_status(request: Request) -> dict[str, Any]:
         )
         response.raise_for_status()
         return response.json()
+
+
+@api_router.get("/api/methodology/editor", response_model=MethodologyEditorPayload)
+async def get_methodology_editor(
+    request: Request, methodology_id: str | None = None
+) -> MethodologyEditorPayload:
+    _require_roles(
+        request,
+        {"PMO_ADMIN", "tenant_owner", "portfolio_admin"},
+    )
+    available = available_methodologies()
+    if not methodology_id:
+        methodology_id = (
+            "hybrid" if "hybrid" in available else (available[0] if available else "agile")
+        )
+    if methodology_id not in available:
+        raise HTTPException(status_code=404, detail="Methodology not found")
+    return _build_methodology_editor_payload(methodology_id)
+
+
+@api_router.post("/api/methodology/editor", response_model=MethodologyEditorPayload)
+async def update_methodology_editor(
+    payload: MethodologyEditorPayload, request: Request
+) -> MethodologyEditorPayload:
+    _require_roles(
+        request,
+        {"PMO_ADMIN", "tenant_owner", "portfolio_admin"},
+    )
+    _validate_methodology_prereqs(payload.stages)
+
+    existing_map = get_methodology_map(payload.methodology_id)
+    activity_lookup: dict[str, dict[str, Any]] = {}
+    for stage in existing_map.get("stages", []):
+        for activity in stage.get("activities", []):
+            activity_lookup[activity.get("id")] = activity
+
+    stages_payload: list[dict[str, Any]] = []
+    for stage in payload.stages:
+        stage_activities: list[dict[str, Any]] = []
+        for activity in stage.activities:
+            existing_activity = activity_lookup.get(activity.id, {})
+            stage_activities.append(
+                {
+                    "id": activity.id,
+                    "name": activity.name,
+                    "description": activity.description,
+                    "assistant_prompts": existing_activity.get("assistant_prompts", []),
+                    "prerequisites": activity.prerequisites,
+                    "category": activity.category or "methodology",
+                    "recommended_canvas_tab": activity.recommended_canvas_tab or "document",
+                }
+            )
+        stages_payload.append(
+            {
+                "id": stage.id,
+                "name": stage.name,
+                "activities": stage_activities,
+                "exit_criteria": stage.exit_criteria,
+            }
+        )
+
+    map_payload = {
+        "id": existing_map.get("id", payload.methodology_id),
+        "name": existing_map.get("name", payload.methodology_id),
+        "description": existing_map.get("description", ""),
+        "stages": stages_payload,
+        "monitoring": existing_map.get("monitoring", []),
+    }
+
+    storage = _load_methodology_storage()
+    storage.setdefault("methodologies", {})
+    storage["methodologies"][payload.methodology_id] = {
+        "map": map_payload,
+        "gates": [gate.model_dump() for gate in payload.gates],
+    }
+    _write_json(METHODOLOGY_STORAGE_PATH, storage)
+    return _build_methodology_editor_payload(payload.methodology_id)
 
 
 @api_router.get("/api/intake", response_model=list[IntakeRequest])

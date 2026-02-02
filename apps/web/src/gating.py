@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from methodologies import get_methodology_map
 from workspace_state import WorkspaceState
+
+
+def _resolve_methodology_map(
+    methodology_map: dict[str, Any] | None, methodology_id: str | None
+) -> dict[str, Any]:
+    if methodology_map is None:
+        return get_methodology_map(methodology_id)
+    return methodology_map
 
 
 def _iter_methodology_activities(methodology_map: dict[str, Any]):
@@ -34,10 +43,12 @@ def _missing_prereqs(activity: dict[str, Any], state: WorkspaceState) -> list[st
 
 
 def evaluate_activity_access(
-    methodology_map: dict[str, Any],
+    methodology_map: dict[str, Any] | None,
     state: WorkspaceState,
     activity_id: str,
+    methodology_id: str | None = None,
 ) -> dict[str, Any]:
+    methodology_map = _resolve_methodology_map(methodology_map, methodology_id)
     lookup = _activity_lookup(methodology_map)
     activity = lookup.get(activity_id)
     if not activity:
@@ -59,9 +70,11 @@ def evaluate_activity_access(
 
 
 def next_required_activity(
-    methodology_map: dict[str, Any],
+    methodology_map: dict[str, Any] | None,
     state: WorkspaceState,
+    methodology_id: str | None = None,
 ) -> str | None:
+    methodology_map = _resolve_methodology_map(methodology_map, methodology_id)
     if not state.current_activity_id and not state.current_stage_id:
         return None
 
@@ -94,10 +107,12 @@ def next_required_activity(
 
 
 def stage_progress(
-    methodology_map: dict[str, Any],
+    methodology_map: dict[str, Any] | None,
     state: WorkspaceState,
     stage_id: str,
+    methodology_id: str | None = None,
 ) -> dict[str, Any]:
+    methodology_map = _resolve_methodology_map(methodology_map, methodology_id)
     stage = next(
         (item for item in methodology_map.get("stages", []) if item.get("id") == stage_id),
         None,
