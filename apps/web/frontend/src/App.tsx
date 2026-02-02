@@ -8,6 +8,7 @@ import {
   WorkflowMonitoringPage,
   DocumentSearchPage,
   LessonsLearnedPage,
+  GlobalSearchPage,
   AuditLogPage,
   ConnectorMarketplacePage,
   IntakeFormPage,
@@ -74,6 +75,7 @@ export function App() {
         {/* Knowledge pages */}
         <Route path="/knowledge/documents" element={<DocumentSearchPage />} />
         <Route path="/knowledge/lessons" element={<LessonsLearnedPage />} />
+        <Route path="/search" element={<GlobalSearchPage />} />
 
         {/* Admin pages */}
         <Route path="/admin/audit" element={<AuditLogPage />} />

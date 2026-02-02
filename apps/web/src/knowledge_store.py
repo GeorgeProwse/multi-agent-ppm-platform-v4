@@ -24,6 +24,11 @@ class DocumentSummaryRecord:
 
 
 @dataclass
+class DocumentSearchRecord(DocumentSummaryRecord):
+    content: str
+
+
+@dataclass
 class DocumentVersionRecord:
     document_id: str
     document_key: str
@@ -128,6 +133,21 @@ class KnowledgeStore:
             latest_status=row["latest_status"],
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
+    def _serialize_document_search(self, row: sqlite3.Row) -> DocumentSearchRecord:
+        return DocumentSearchRecord(
+            document_id=row["document_id"],
+            document_key=row["document_key"],
+            project_id=row["project_id"],
+            name=row["name"],
+            doc_type=row["doc_type"],
+            classification=row["classification"],
+            latest_version=row["latest_version"],
+            latest_status=row["latest_status"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+            content=row["content"],
         )
 
     def _serialize_version(self, row: sqlite3.Row) -> DocumentVersionRecord:
@@ -253,14 +273,19 @@ class KnowledgeStore:
         )
 
     def list_documents(
-        self, project_id: str, query: str | None = None
+        self, project_id: str | None = None, query: str | None = None
     ) -> list[DocumentSummaryRecord]:
-        search_clause = ""
-        params: list[Any] = [project_id]
+        filters: list[str] = []
+        params: list[Any] = []
+        if project_id:
+            filters.append("documents.project_id = ?")
+            params.append(project_id)
         if query:
-            search_clause = " AND (documents.name LIKE ? OR latest_versions.content LIKE ?)"
+            filters.append("(documents.name LIKE ? OR latest_versions.content LIKE ?)")
             like = f"%{query}%"
             params.extend([like, like])
+
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
 
         sql = f"""
             SELECT
@@ -285,13 +310,61 @@ class KnowledgeStore:
                 )
             ) AS latest_versions
             ON documents.document_id = latest_versions.document_id
-            WHERE documents.project_id = ?{search_clause}
+            {where_clause}
             ORDER BY documents.updated_at DESC
         """
 
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [self._serialize_document_summary(row) for row in rows]
+
+    def search_documents(
+        self, query: str | None = None, project_ids: list[str] | None = None
+    ) -> list[DocumentSearchRecord]:
+        filters: list[str] = []
+        params: list[Any] = []
+        if project_ids:
+            placeholders = ", ".join(["?"] * len(project_ids))
+            filters.append(f"documents.project_id IN ({placeholders})")
+            params.extend(project_ids)
+        if query:
+            filters.append("(documents.name LIKE ? OR latest_versions.content LIKE ?)")
+            like = f"%{query}%"
+            params.extend([like, like])
+
+        where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
+
+        sql = f"""
+            SELECT
+                documents.document_id,
+                documents.document_key,
+                documents.project_id,
+                documents.name,
+                documents.doc_type,
+                documents.classification,
+                documents.created_at,
+                documents.updated_at,
+                latest_versions.version_number AS latest_version,
+                latest_versions.status AS latest_status,
+                latest_versions.content AS content
+            FROM documents
+            JOIN (
+                SELECT document_id, version_number, status, content
+                FROM document_versions
+                WHERE (document_id, version_number) IN (
+                    SELECT document_id, MAX(version_number)
+                    FROM document_versions
+                    GROUP BY document_id
+                )
+            ) AS latest_versions
+            ON documents.document_id = latest_versions.document_id
+            {where_clause}
+            ORDER BY documents.updated_at DESC
+        """
+
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [self._serialize_document_search(row) for row in rows]
 
     def list_versions(self, document_id: str) -> list[DocumentVersionRecord]:
         with self._connect() as conn:
@@ -418,16 +491,21 @@ class KnowledgeStore:
 
     def list_lessons(
         self,
-        project_id: str,
+        project_id: str | None = None,
         query: str | None = None,
         tags: list[str] | None = None,
         topics: list[str] | None = None,
     ) -> list[LessonRecord]:
         with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM lessons WHERE project_id = ? ORDER BY updated_at DESC",
-                (project_id,),
-            ).fetchall()
+            if project_id:
+                rows = conn.execute(
+                    "SELECT * FROM lessons WHERE project_id = ? ORDER BY updated_at DESC",
+                    (project_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM lessons ORDER BY updated_at DESC",
+                ).fetchall()
         lessons = [self._serialize_lesson(row) for row in rows]
 
         if query:

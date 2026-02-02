@@ -30,6 +30,20 @@ class SpreadsheetStore:
         sheets_raw = project_bucket.get("sheets", [])
         return [Sheet.model_validate(item) for item in sheets_raw]
 
+    def list_tenant_sheet_details(self, tenant_id: str) -> list[SheetDetail]:
+        payload = self._load()
+        tenant_bucket = payload.get(tenant_id, {})
+        details: list[SheetDetail] = []
+        for project_bucket in tenant_bucket.values():
+            sheets_raw = project_bucket.get("sheets", [])
+            rows_bucket = project_bucket.get("rows", {})
+            for sheet_raw in sheets_raw:
+                sheet = Sheet.model_validate(sheet_raw)
+                rows_raw = rows_bucket.get(sheet.sheet_id, [])
+                rows = [Row.model_validate(item) for item in rows_raw]
+                details.append(SheetDetail(sheet=sheet, rows=rows))
+        return details
+
     def create_sheet(self, tenant_id: str, project_id: str, payload: SheetCreate) -> Sheet:
         store = self._load()
         tenant_bucket = store.setdefault(tenant_id, {})
