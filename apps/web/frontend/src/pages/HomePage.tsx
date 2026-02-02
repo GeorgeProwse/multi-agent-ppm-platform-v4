@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useCanvasStore, SAMPLE_ARTIFACT_IDS } from '@/store/useCanvasStore';
 import { Icon } from '@/components/icon/Icon';
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import type { IconSemantic } from '@/components/icon/iconMap';
 import styles from './HomePage.module.css';
 
@@ -78,14 +79,15 @@ export function HomePage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <OnboardingTour />
+      <header className={styles.header} data-tour="home-header">
         <h1 className={styles.title}>Welcome to PPM Platform</h1>
         <p className={styles.subtitle}>
           Multi-agent project, program, and portfolio management
         </p>
       </header>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-tour="home-canvas">
         <h2 className={styles.sectionTitle}>Open Canvas</h2>
         <p className={styles.sectionDescription}>
           Try the new Canvas framework with multi-tab management
@@ -124,7 +126,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-tour="home-quick-access">
         <h2 className={styles.sectionTitle}>Quick Access</h2>
         <div className={styles.cardGrid}>
           {quickLinks.map((link) => (
@@ -139,7 +141,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className={styles.section}>
+      <section className={styles.section} data-tour="home-configuration">
         <h2 className={styles.sectionTitle}>Configuration</h2>
         <div className={styles.linkList}>
           {configLinks.map((link) => (
