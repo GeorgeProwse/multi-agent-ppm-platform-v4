@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useTour } from '@/components/tours';
 import { Icon } from '@/components/icon/Icon';
@@ -42,15 +42,24 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string): Breadcrum
 
 export function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { session } = useAppStore();
   const { startTour } = useTour();
   const { t, locale, setLocale } = useTranslation();
   const { mode, setMode } = useTheme();
   const breadcrumbs = getBreadcrumbs(location.pathname, t);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const menuRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuId = 'user-settings-menu';
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (location.pathname === '/search') {
+      setSearchQuery(params.get('q') ?? '');
+    }
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -78,6 +87,13 @@ export function Header() {
   }, [menuOpen]);
 
   const toggleMenu = () => setMenuOpen((prev) => !prev);
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!searchQuery.trim()) {
+      return;
+    }
+    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+  };
 
   return (
     <header className={styles.header}>
@@ -108,6 +124,19 @@ export function Header() {
           </ol>
         </nav>
       </div>
+
+      <form className={styles.searchForm} onSubmit={handleSearchSubmit}>
+        <input
+          className={styles.searchInput}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search across portfolios"
+          aria-label="Global search"
+        />
+        <button className={styles.searchButton} type="submit">
+          Search
+        </button>
+      </form>
 
       <div className={styles.right}>
         <button

@@ -73,6 +73,7 @@ from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
 from security.audit_log import build_event, get_audit_log_store  # noqa: E402
 from security.prompt_safety import evaluate_prompt  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
+from search_service import SearchService  # noqa: E402
 from spreadsheet_models import (  # noqa: E402
     ColumnCreate,
     DeleteResult,
@@ -484,6 +485,25 @@ class LessonRecommendationRequest(BaseModel):
     limit: int = 5
 
 
+class SearchResult(BaseModel):
+    id: str
+    type: Literal["document", "work_item", "risk", "lesson"]
+    title: str
+    summary: str
+    project_id: str | None = None
+    updated_at: str | None = None
+    highlights: dict[str, str] | None = None
+    payload: dict[str, Any] = {}
+
+
+class SearchResponse(BaseModel):
+    query: str
+    offset: int
+    limit: int
+    total: int
+    results: list[SearchResult]
+
+
 class DocumentCanvasRequest(BaseModel):
     name: str
     content: str
@@ -545,6 +565,10 @@ def _get_knowledge_store() -> KnowledgeStore:
     if knowledge_store is None:
         knowledge_store = KnowledgeStore(KNOWLEDGE_DB_PATH)
     return knowledge_store
+
+
+def _get_search_service() -> SearchService:
+    return SearchService(_get_knowledge_store(), spreadsheet_store)
 
 
 def _document_client() -> DocumentServiceClient:
@@ -2887,7 +2911,7 @@ async def create_document_version(
 
 @api_router.get("/api/knowledge/documents", response_model=list[DocumentSummaryResponse])
 async def list_documents(
-    project_id: str, query: str | None = None
+    project_id: str | None = None, query: str | None = None
 ) -> list[DocumentSummaryResponse]:
     store = _get_knowledge_store()
     records = store.list_documents(project_id=project_id, query=query)
@@ -2997,7 +3021,7 @@ async def delete_lesson(lesson_id: str) -> dict[str, Any]:
 
 @api_router.get("/api/knowledge/lessons", response_model=list[LessonResponse])
 async def list_lessons(
-    project_id: str,
+    project_id: str | None = None,
     query: str | None = None,
     tags: str | None = None,
     topics: str | None = None,
@@ -3052,6 +3076,51 @@ async def recommend_lessons(payload: LessonRecommendationRequest) -> list[Lesson
         )
         for record in records
     ]
+
+
+@api_router.get("/api/search", response_model=SearchResponse)
+async def search_global(
+    request: Request,
+    query: str,
+    types: str | None = None,
+    project_ids: str | None = None,
+    offset: int = 0,
+    limit: int = 20,
+) -> SearchResponse:
+    session = _require_session(request)
+    search_service = _get_search_service()
+    type_list = [entry.strip() for entry in types.split(",")] if types else []
+    selected_types = type_list or ["document", "work_item", "risk", "lesson"]
+    project_id_set = {
+        entry.strip() for entry in project_ids.split(",") if entry.strip()
+    } if project_ids else None
+    results, total = search_service.search(
+        query=query,
+        types=selected_types,
+        project_ids=project_id_set,
+        tenant_id=session.get("tenant_id"),
+        offset=max(offset, 0),
+        limit=min(max(limit, 1), 100),
+    )
+    return SearchResponse(
+        query=query,
+        offset=max(offset, 0),
+        limit=min(max(limit, 1), 100),
+        total=total,
+        results=[
+            SearchResult(
+                id=item.id,
+                type=item.result_type,
+                title=item.title,
+                summary=item.summary,
+                project_id=item.project_id,
+                updated_at=item.updated_at.isoformat() if item.updated_at else None,
+                highlights=item.highlights,
+                payload=item.payload,
+            )
+            for item in results
+        ],
+    )
 
 
 @api_router.get("/api/dashboard/{project_id}/health")

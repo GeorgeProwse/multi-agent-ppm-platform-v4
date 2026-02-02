@@ -5,6 +5,7 @@ export { ApprovalsPage } from './ApprovalsPage';
 export { WorkflowMonitoringPage } from './WorkflowMonitoringPage';
 export { DocumentSearchPage } from './DocumentSearchPage';
 export { LessonsLearnedPage } from './LessonsLearnedPage';
+export { GlobalSearchPage } from './GlobalSearch';
 export { AuditLogPage } from './AuditLogPage';
 export { ConnectorMarketplacePage } from './ConnectorMarketplacePage';
 export { IntakeFormPage } from './IntakeFormPage';
