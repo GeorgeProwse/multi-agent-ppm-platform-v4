@@ -16,6 +16,7 @@ import {
   LoginPage,
   PromptManager,
   AnalyticsDashboard,
+  MethodologyEditor,
 } from '@/pages';
 
 export function App() {
@@ -75,6 +76,7 @@ export function App() {
 
         {/* Admin pages */}
         <Route path="/admin/audit" element={<AuditLogPage />} />
+        <Route path="/admin/methodology" element={<MethodologyEditor />} />
 
         {/* Analytics */}
         <Route path="/analytics/dashboard" element={<AnalyticsDashboard />} />

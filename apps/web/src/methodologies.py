@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
+
+METHODOLOGY_STORAGE_PATH = Path(__file__).resolve().parents[1] / "storage" / "methodology_definitions.json"
 
 METHODOLOGY_MAPS: dict[str, dict[str, Any]] = {
     "agile": {
@@ -693,11 +697,31 @@ METHODOLOGY_MAPS: dict[str, dict[str, Any]] = {
 }
 
 
+def _load_methodology_overrides() -> dict[str, Any]:
+    if not METHODOLOGY_STORAGE_PATH.exists():
+        return {"methodologies": {}}
+    with METHODOLOGY_STORAGE_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def available_methodologies() -> list[str]:
-    return list(METHODOLOGY_MAPS.keys())
+    overrides = _load_methodology_overrides().get("methodologies", {})
+    keys = set(METHODOLOGY_MAPS.keys())
+    keys.update(overrides.keys())
+    return sorted(keys)
 
 
-def get_methodology_map(methodology_id: str | None) -> dict[str, Any]:
+def get_default_methodology_map(methodology_id: str | None) -> dict[str, Any]:
     if methodology_id and methodology_id in METHODOLOGY_MAPS:
         return METHODOLOGY_MAPS[methodology_id]
     return METHODOLOGY_MAPS["agile"]
+
+
+def get_methodology_map(methodology_id: str | None) -> dict[str, Any]:
+    selected_id = methodology_id if methodology_id in METHODOLOGY_MAPS else "agile"
+    overrides = _load_methodology_overrides().get("methodologies", {})
+    override_payload = overrides.get(selected_id, {})
+    override_map = override_payload.get("map") if isinstance(override_payload, dict) else None
+    if override_map:
+        return override_map
+    return get_default_methodology_map(selected_id)
