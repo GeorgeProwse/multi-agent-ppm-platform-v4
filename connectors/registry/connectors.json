@@ -284,6 +284,7 @@
     "certification": "not-started",
     "category": "collaboration",
     "supported_sync_directions": [
+      "inbound",
       "outbound",
       "bidirectional"
     ]

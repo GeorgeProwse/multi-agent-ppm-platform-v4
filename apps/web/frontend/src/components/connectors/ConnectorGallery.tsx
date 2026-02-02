@@ -517,6 +517,8 @@ function ConnectorConfigModal({
 }: ConnectorConfigModalProps) {
   const customFields = connector.custom_fields ?? {};
   const isIoT = connector.category === 'iot';
+  const isSlack = connector.connector_id === 'slack';
+  const isWorkday = connector.connector_id === 'workday';
   const [instanceUrl, setInstanceUrl] = useState(connector.instance_url || '');
   const [projectKey, setProjectKey] = useState(connector.project_key || '');
   const [deviceEndpoint, setDeviceEndpoint] = useState(
@@ -524,6 +526,22 @@ function ConnectorConfigModal({
   );
   const [authToken, setAuthToken] = useState((customFields.auth_token as string) || '');
   const [sensorTypes, setSensorTypes] = useState((customFields.sensor_types as string) || '');
+  const [slackBotToken, setSlackBotToken] = useState((customFields.slack_bot_token as string) || '');
+  const [slackSigningSecret, setSlackSigningSecret] = useState(
+    (customFields.slack_signing_secret as string) || ''
+  );
+  const [slackDefaultChannel, setSlackDefaultChannel] = useState(
+    (customFields.default_channel as string) || ''
+  );
+  const [workdayTenant, setWorkdayTenant] = useState((customFields.tenant as string) || '');
+  const [workdayClientId, setWorkdayClientId] = useState((customFields.client_id as string) || '');
+  const [workdayClientSecret, setWorkdayClientSecret] = useState(
+    (customFields.client_secret as string) || ''
+  );
+  const [workdayRefreshToken, setWorkdayRefreshToken] = useState(
+    (customFields.refresh_token as string) || ''
+  );
+  const [workdayTokenUrl, setWorkdayTokenUrl] = useState((customFields.token_url as string) || '');
   const [syncDirection, setSyncDirection] = useState(connector.sync_direction);
   const [syncFrequency, setSyncFrequency] = useState(connector.sync_frequency);
   const [saving, setSaving] = useState(false);
@@ -533,18 +551,30 @@ function ConnectorConfigModal({
     setSaving(true);
     try {
       const effectiveInstanceUrl = isIoT ? deviceEndpoint : instanceUrl;
+      const customPayload: Record<string, unknown> = {};
+      if (isIoT) {
+        customPayload.device_endpoint = deviceEndpoint;
+        customPayload.auth_token = authToken;
+        customPayload.sensor_types = sensorTypes;
+      }
+      if (isSlack) {
+        customPayload.slack_bot_token = slackBotToken;
+        customPayload.slack_signing_secret = slackSigningSecret;
+        customPayload.default_channel = slackDefaultChannel;
+      }
+      if (isWorkday) {
+        customPayload.tenant = workdayTenant;
+        customPayload.client_id = workdayClientId;
+        customPayload.client_secret = workdayClientSecret;
+        customPayload.refresh_token = workdayRefreshToken;
+        customPayload.token_url = workdayTokenUrl;
+      }
       await onSave(connector.connector_id, {
         instance_url: effectiveInstanceUrl,
         project_key: projectKey,
         sync_direction: syncDirection,
         sync_frequency: syncFrequency,
-        custom_fields: isIoT
-          ? {
-              device_endpoint: deviceEndpoint,
-              auth_token: authToken,
-              sensor_types: sensorTypes,
-            }
-          : undefined,
+        custom_fields: Object.keys(customPayload).length ? customPayload : undefined,
       });
       onClose();
     } finally {
@@ -627,6 +657,114 @@ function ConnectorConfigModal({
                   />
                   <span className={styles.fieldHint}>
                     Comma-separated sensor types for ingestion routing
+                  </span>
+                </div>
+              </>
+            )}
+
+            {isSlack && (
+              <>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Slack Bot Token</label>
+                  <input
+                    type="password"
+                    className={styles.fieldInput}
+                    placeholder="xoxb-..."
+                    value={slackBotToken}
+                    onChange={(e) => setSlackBotToken(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Used to authenticate API requests and send outbound messages.
+                  </span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Signing Secret</label>
+                  <input
+                    type="password"
+                    className={styles.fieldInput}
+                    placeholder="Signing secret"
+                    value={slackSigningSecret}
+                    onChange={(e) => setSlackSigningSecret(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Required to validate Slack events and webhook signatures.
+                  </span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Default Channel</label>
+                  <input
+                    type="text"
+                    className={styles.fieldInput}
+                    placeholder="e.g., #project-updates"
+                    value={slackDefaultChannel}
+                    onChange={(e) => setSlackDefaultChannel(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Optional channel used when no target is provided by the sync job.
+                  </span>
+                </div>
+              </>
+            )}
+
+            {isWorkday && (
+              <>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Tenant</label>
+                  <input
+                    type="text"
+                    className={styles.fieldInput}
+                    placeholder="e.g., acme"
+                    value={workdayTenant}
+                    onChange={(e) => setWorkdayTenant(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Workday tenant identifier used for API routing.
+                  </span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Client ID</label>
+                  <input
+                    type="text"
+                    className={styles.fieldInput}
+                    placeholder="Client ID"
+                    value={workdayClientId}
+                    onChange={(e) => setWorkdayClientId(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>OAuth2 client identifier.</span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Client Secret</label>
+                  <input
+                    type="password"
+                    className={styles.fieldInput}
+                    placeholder="Client secret"
+                    value={workdayClientSecret}
+                    onChange={(e) => setWorkdayClientSecret(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>OAuth2 client secret used to fetch tokens.</span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Refresh Token</label>
+                  <input
+                    type="password"
+                    className={styles.fieldInput}
+                    placeholder="Refresh token"
+                    value={workdayRefreshToken}
+                    onChange={(e) => setWorkdayRefreshToken(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>Used to refresh access tokens for Workday.</span>
+                </div>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>Token URL (Optional)</label>
+                  <input
+                    type="url"
+                    className={styles.fieldInput}
+                    placeholder="https://wd3-impl-services1.workday.com/ccx/oauth2/token"
+                    value={workdayTokenUrl}
+                    onChange={(e) => setWorkdayTokenUrl(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Override the default token URL when using a custom Workday environment.
                   </span>
                 </div>
               </>
