@@ -3,13 +3,16 @@ version: "1.0.0"
 name: "Workday"
 description: "Sync resource capacity and workforce data from Workday."
 owner: "integration-team"
-category: "hr"
+category: "hris"
 auth:
-  type: "basic"
+  type: "oauth2"
+  token_url: "https://wd3-impl-services1.workday.com/ccx/oauth2/token"
   fields:
-    - "username"
-    - "password"
-    - "instance_url"
+    - "api_url"
+    - "client_id"
+    - "client_secret"
+    - "refresh_token"
+    - "token_url"
 sync:
   modes:
     - "full"
@@ -21,3 +24,6 @@ mappings:
   - source: "project"
     target: "project"
     mapping_file: "mappings/project.yaml"
+  - source: "resource"
+    target: "resource"
+    mapping_file: "mappings/resource.yaml"

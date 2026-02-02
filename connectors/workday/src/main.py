@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -137,6 +138,70 @@ def _fetch_projects(client: HttpClient, token_manager: OAuth2TokenManager) -> li
     return projects
 
 
+def _normalize_status(raw_status: str | None) -> str:
+    if not raw_status:
+        return "active"
+    normalized = raw_status.lower()
+    if normalized in {"terminated", "inactive", "separated"}:
+        return "inactive"
+    if normalized in {"leave", "on_leave"}:
+        return "on_leave"
+    return "active"
+
+
+def _iso_from_date(value: str | None) -> str:
+    if not value:
+        return "1970-01-01T00:00:00Z"
+    try:
+        if "T" in value:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc).isoformat()
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc).isoformat()
+    except ValueError:
+        return "1970-01-01T00:00:00Z"
+
+
+def _extract_items(data: Any) -> list[dict[str, Any]]:
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("data", "items", "workers"):
+            items = data.get(key)
+            if isinstance(items, list):
+                return items
+    return []
+
+
+def _fetch_workers(client: HttpClient, token_manager: OAuth2TokenManager) -> list[dict[str, Any]]:
+    endpoint = resolve_secret(os.getenv("WORKDAY_WORKERS_ENDPOINT")) or "/ccx/api/v1/workers"
+    response = _request_with_refresh(client, token_manager, "GET", endpoint, params={"limit": 200})
+    data = response.json()
+    workers = _extract_items(data)
+    records: list[dict[str, Any]] = []
+    for worker in workers:
+        name = (
+            worker.get("name")
+            or worker.get("display_name")
+            or worker.get("full_name")
+            or worker.get("worker_name")
+        )
+        records.append(
+            {
+                "source": "resource",
+                "id": worker.get("id") or worker.get("worker_id") or worker.get("employee_id"),
+                "name": name,
+                "role": worker.get("job_title") or worker.get("position") or "employee",
+                "location": worker.get("location") or worker.get("work_location"),
+                "status": _normalize_status(worker.get("status") or worker.get("worker_status")),
+                "created_at": _iso_from_date(worker.get("hire_date") or worker.get("created_at")),
+                "metadata": {
+                    "email": worker.get("email"),
+                    "department": worker.get("department"),
+                },
+            }
+        )
+    return records
+
+
 def run_sync(
     fixture_path: Path | None,
     tenant_id: str,
@@ -157,6 +222,7 @@ def run_sync(
     token_manager = token_manager or _build_token_manager(config)
     client = client or _build_client(config, token_manager)
     records = _fetch_projects(client, token_manager)
+    records.extend(_fetch_workers(client, token_manager))
     return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
 
 

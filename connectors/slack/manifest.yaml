@@ -5,16 +5,11 @@ description: "Sync collaboration metadata and notifications from Slack."
 owner: "integration-team"
 category: "collaboration"
 auth:
-  type: "oauth2"
-  token_url: "https://slack.com/api/oauth.v2.access"
-  scopes:
-    - "channels:read"
-    - "users:read"
+  type: "api_key"
   fields:
-    - "client_id"
-    - "client_secret"
-    - "refresh_token"
-    - "workspace_id"
+    - "bot_token"
+    - "signing_secret"
+    - "default_channel"
 sync:
   modes:
     - "full"
@@ -26,3 +21,6 @@ mappings:
   - source: "project"
     target: "project"
     mapping_file: "mappings/project.yaml"
+  - source: "resource"
+    target: "resource"
+    mapping_file: "mappings/resource.yaml"
