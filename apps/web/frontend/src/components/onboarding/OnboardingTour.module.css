@@ -1,0 +1,94 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 20, 38, 0.6);
+}
+
+.tooltip {
+  position: absolute;
+  max-width: 360px;
+  background: #fff;
+  color: #1b1f2a;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(10, 20, 38, 0.3);
+  pointer-events: auto;
+}
+
+.stepCount {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5c6370;
+  margin: 0 0 8px;
+}
+
+.title {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+
+.body {
+  font-size: 14px;
+  margin: 0 0 16px;
+  color: #3a4252;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.navigationButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.primaryButton {
+  border: none;
+  border-radius: 999px;
+  background: #2e5bff;
+  color: #fff;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  border: 1px solid #c9ced8;
+  border-radius: 999px;
+  background: #fff;
+  color: #1b1f2a;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+:global(.onboarding-highlight) {
+  position: relative;
+  z-index: 41;
+  outline: 3px solid #2e5bff;
+  border-radius: 16px;
+  box-shadow: 0 0 0 6px rgba(46, 91, 255, 0.25);
+}
+
+@media (max-width: 720px) {
+  .tooltip {
+    max-width: calc(100% - 32px);
+    left: 16px !important;
+    right: 16px;
+  }
+}
