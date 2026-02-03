@@ -40,9 +40,10 @@ from api.routes import (
 from api.runtime_bootstrap import bootstrap_runtime_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+COMMON_ROOT = REPO_ROOT / "packages" / "common" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
-for path_root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT):
+for path_root in (REPO_ROOT, COMMON_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT):
     if str(path_root) not in sys.path:
         sys.path.insert(0, str(path_root))
 
@@ -52,6 +53,11 @@ from observability.metrics import RequestMetricsMiddleware, configure_metrics  #
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
+from common.exceptions import (  # noqa: E402
+    PPMPlatformError,
+    ValidationError,
+    exception_to_http_status,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -92,7 +98,7 @@ allowed_origins = (
     else [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
 )
 if "*" in allowed_origins and environment not in {"dev", "development", "local", "test"}:
-    raise RuntimeError("Wildcard CORS origins are not permitted outside development environments.")
+    raise ValidationError("Wildcard CORS origins are not permitted outside development environments.")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -233,6 +239,21 @@ api_v1.include_router(vendor_research.router, tags=["vendor-research"])
 api_v1.include_router(vendor_management.router, tags=["vendor-management"])
 api_v1.include_router(compliance_research.router, tags=["compliance-research"])
 app.include_router(api_v1)
+
+
+@app.exception_handler(PPMPlatformError)
+async def platform_exception_handler(request, exc):
+    """Handle platform-specific exceptions."""
+    status_code = exception_to_http_status(exc)
+    logger.warning("Platform exception: %s", exc, exc_info=True)
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": exc.__class__.__name__,
+            "message": str(exc),
+            "details": getattr(exc, "details", {}),
+        },
+    )
 
 
 # Global exception handler
