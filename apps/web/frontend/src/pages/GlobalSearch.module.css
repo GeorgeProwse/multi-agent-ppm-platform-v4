@@ -18,6 +18,17 @@
   flex-wrap: wrap;
 }
 
+.visuallyHidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
 .searchInput {
   flex: 1;
   min-width: 260px;
@@ -147,6 +158,13 @@
 }
 
 .excerpt mark {
+  background: var(--color-primary-100);
+  color: var(--color-text-primary);
+  padding: 0 0.15rem;
+  border-radius: 4px;
+}
+
+.resultCard mark {
   background: var(--color-primary-100);
   color: var(--color-text-primary);
   padding: 0 0.15rem;

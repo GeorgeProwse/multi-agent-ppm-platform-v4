@@ -32,6 +32,7 @@ import {
   validatePromptFields,
   type PromptFieldErrors,
 } from '@/utils/prompts';
+import { formatAssistantResponse } from '@/utils/assistantResponses';
 import styles from './AssistantPanel.module.css';
 
 type ScopeResearchStatus = 'pending' | 'accepted' | 'rejected';
@@ -676,23 +677,14 @@ export function AssistantPanel() {
     setAiState('thinking');
     setAssistantError(null);
 
-    const promptPayload = selectedPrompt
-      ? {
-          prompt_id: selectedPrompt.id,
-          prompt_description: selectedPrompt.description,
-          prompt_tags: selectedPrompt.tags,
-        }
-      : null;
-
     if (context?.projectId) {
       try {
-        const response = await fetch('/api/assistant/send', {
+        const response = await fetch('/api/assistant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             project_id: context.projectId,
-            message: messageText,
-            ...(promptPayload ?? {}),
+            query: messageText,
           }),
         });
 
@@ -702,10 +694,7 @@ export function AssistantPanel() {
         }
 
         const data = await response.json();
-        const responseText =
-          typeof data.response === 'string'
-            ? data.response
-            : JSON.stringify(data.response ?? data, null, 2);
+        const responseText = formatAssistantResponse(data);
         addAssistantMessage(responseText);
         setAiState('completed');
       } catch (error) {
@@ -1111,6 +1100,9 @@ export function AssistantPanel() {
           </p>
         )}
         <div className={styles.inputRow}>
+          <label className={styles.visuallyHidden} htmlFor="assistant-chat-input">
+            AI assistant chat input
+          </label>
           <input
             type="text"
             className={styles.input}
@@ -1118,6 +1110,7 @@ export function AssistantPanel() {
             value={inputValue}
             onChange={handleInputChange}
             ref={inputRef}
+            id="assistant-chat-input"
           />
           <button
             type="submit"

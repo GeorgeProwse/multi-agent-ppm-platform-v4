@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +14,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 import yaml
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -82,7 +83,7 @@ from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
 from security.prompt_safety import evaluate_prompt  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
-from search_service import SearchService  # noqa: E402
+from search_service import SearchService, _match_score  # noqa: E402
 from spreadsheet_models import (  # noqa: E402
     ColumnCreate,
     DeleteResult,
@@ -590,7 +591,7 @@ class LessonRecommendationRequest(BaseModel):
 
 class SearchResult(BaseModel):
     id: str
-    type: Literal["document", "work_item", "risk", "lesson"]
+    type: Literal["document", "project", "knowledge", "approval", "workflow"]
     title: str
     summary: str
     project_id: str | None = None
@@ -605,6 +606,17 @@ class SearchResponse(BaseModel):
     limit: int
     total: int
     results: list[SearchResult]
+
+
+class AssistantQueryRequest(BaseModel):
+    query: str
+    project_id: str | None = None
+
+
+class AssistantQueryResponse(BaseModel):
+    query: str
+    summary: str
+    items: list[str] = Field(default_factory=list)
 
 
 class DocumentCanvasRequest(BaseModel):
@@ -730,6 +742,90 @@ def _load_demo_dashboard_payload(filename: str) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     return payload
+
+
+def _load_demo_search_payload(filename: str) -> dict[str, Any] | None:
+    payload = _load_demo_dashboard_payload(filename)
+    if not payload:
+        return None
+    results = payload.get("results")
+    if not isinstance(results, list):
+        return None
+    return payload
+
+
+def _load_demo_assistant_payload(filename: str) -> dict[str, Any] | None:
+    payload = _load_demo_dashboard_payload(filename)
+    if not payload:
+        return None
+    if not isinstance(payload.get("responses"), list):
+        return None
+    if not isinstance(payload.get("default"), dict):
+        return None
+    return payload
+
+
+def _highlight_query(query: str, text: str) -> str | None:
+    needle = query.lower().strip()
+    if not needle:
+        return None
+    lowered = text.lower()
+    if needle not in lowered:
+        return None
+    pattern = re.compile(re.escape(needle), re.IGNORECASE)
+    return pattern.sub(lambda value: f"<mark>{value.group(0)}</mark>", text)
+
+
+def _approval_payload() -> dict[str, Any]:
+    return {
+        "pending_count": 24,
+        "queues": [
+            {"id": "stage-gates", "label": "Stage Gates", "count": 12},
+            {"id": "budget", "label": "Budget Changes", "count": 6},
+            {"id": "vendor", "label": "Vendor Reviews", "count": 4},
+            {"id": "compliance", "label": "Compliance", "count": 2},
+        ],
+        "items": [
+            {
+                "id": "app-1024",
+                "title": "Gate: Phase 2 Exit",
+                "project": "Phoenix",
+                "risk": "Medium",
+                "due_in": "2d",
+                "sla": "On track",
+                "approvers": [
+                    {"name": "A. Lee", "role": "Primary"},
+                    {"name": "S. Ortiz", "role": "Delegate"},
+                ],
+            },
+            {
+                "id": "app-1025",
+                "title": "Budget Change +12%",
+                "project": "Orion",
+                "risk": "High",
+                "due_in": "8h",
+                "sla": "At risk",
+                "approvers": [
+                    {"name": "S. Patel", "role": "Finance"},
+                    {"name": "M. Chung", "role": "Portfolio"},
+                ],
+            },
+        ],
+        "history": [
+            {
+                "timestamp": "09:32",
+                "action": "Gate Exit Approval",
+                "actor": "A. Lee",
+                "evidence": "Evidence pack attached",
+            },
+            {
+                "timestamp": "09:14",
+                "action": "Budget Review Delegated",
+                "actor": "S. Patel",
+                "evidence": "SLA met",
+            },
+        ],
+    }
 
 
 _demo_wbs_state: dict[str, list[WbsItem]] = {}
@@ -2409,55 +2505,7 @@ async def audit_log_page() -> FileResponse:
 
 @api_router.get("/api/approvals")
 async def approvals_feed() -> dict[str, Any]:
-    return {
-        "pending_count": 24,
-        "queues": [
-            {"id": "stage-gates", "label": "Stage Gates", "count": 12},
-            {"id": "budget", "label": "Budget Changes", "count": 6},
-            {"id": "vendor", "label": "Vendor Reviews", "count": 4},
-            {"id": "compliance", "label": "Compliance", "count": 2},
-        ],
-        "items": [
-            {
-                "id": "app-1024",
-                "title": "Gate: Phase 2 Exit",
-                "project": "Phoenix",
-                "risk": "Medium",
-                "due_in": "2d",
-                "sla": "On track",
-                "approvers": [
-                    {"name": "A. Lee", "role": "Primary"},
-                    {"name": "S. Ortiz", "role": "Delegate"},
-                ],
-            },
-            {
-                "id": "app-1025",
-                "title": "Budget Change +12%",
-                "project": "Orion",
-                "risk": "High",
-                "due_in": "8h",
-                "sla": "At risk",
-                "approvers": [
-                    {"name": "S. Patel", "role": "Finance"},
-                    {"name": "M. Chung", "role": "Portfolio"},
-                ],
-            },
-        ],
-        "history": [
-            {
-                "timestamp": "09:32",
-                "action": "Gate Exit Approval",
-                "actor": "A. Lee",
-                "evidence": "Evidence pack attached",
-            },
-            {
-                "timestamp": "09:14",
-                "action": "Budget Review Delegated",
-                "actor": "S. Patel",
-                "evidence": "SLA met",
-            },
-        ],
-    }
+    return _approval_payload()
 
 
 @api_router.get("/api/workflow-monitoring")
@@ -3165,6 +3213,58 @@ async def send_assistant_message(payload: AssistantSendRequest, request: Request
             "received_at": datetime.now(timezone.utc).isoformat(),
         },
     )
+
+
+@api_router.post("/api/assistant", response_model=AssistantQueryResponse)
+async def assistant_query(
+    payload: AssistantQueryRequest, request: Request
+) -> AssistantQueryResponse:
+    _require_session(request)
+    query_text = payload.query.strip()
+    if _demo_mode_enabled():
+        demo_payload = _load_demo_assistant_payload("assistant-responses.json")
+        if demo_payload:
+            lowered = query_text.lower()
+            for entry in demo_payload.get("responses", []):
+                matches = entry.get("match") or []
+                if any(match.lower() in lowered for match in matches):
+                    return AssistantQueryResponse(
+                        query=query_text,
+                        summary=str(entry.get("summary", "")),
+                        items=list(entry.get("items") or []),
+                    )
+            default_payload = demo_payload.get("default", {})
+            return AssistantQueryResponse(
+                query=query_text,
+                summary=str(default_payload.get("summary", "")),
+                items=list(default_payload.get("items") or []),
+            )
+    lowered = query_text.lower()
+    if "risk" in lowered:
+        approvals = _approval_payload().get("items", [])
+        items = [
+            f"{item.get('project', 'Unknown')} — {item.get('risk', 'Risk')} ({item.get('title', '')})"
+            for item in approvals
+            if item.get("project")
+        ]
+        summary = "Projects with elevated risk exposure:"
+        return AssistantQueryResponse(query=query_text, summary=summary, items=items)
+    if "workflow" in lowered or "automation" in lowered:
+        workflows = workflow_definition_store.list_summaries()
+        items = [
+            f"{workflow.name} — {workflow.description or 'Workflow definition'}"
+            for workflow in workflows
+        ]
+        summary = "Workflow health summary:"
+        return AssistantQueryResponse(query=query_text, summary=summary, items=items)
+    if "approval" in lowered:
+        approvals = _approval_payload().get("items", [])
+        items = [item.get("title", "Approval review") for item in approvals]
+        summary = "Pending approvals to review:"
+        return AssistantQueryResponse(query=query_text, summary=summary, items=items)
+    projects = _load_projects()
+    summary = f"Tracking {len(projects)} active projects. Ask about risks, approvals, or workflows for details."
+    return AssistantQueryResponse(query=query_text, summary=summary, items=[])
 
 
 @api_router.post("/api/assistant/suggestions", response_model=AssistantSuggestionResponse)
@@ -4029,45 +4129,195 @@ async def recommend_lessons(payload: LessonRecommendationRequest) -> list[Lesson
 @api_router.get("/api/search", response_model=SearchResponse)
 async def search_global(
     request: Request,
-    query: str,
+    q: str | None = Query(default=None, alias="q"),
+    query: str | None = None,
     types: str | None = None,
     project_ids: str | None = None,
     offset: int = 0,
     limit: int = 20,
 ) -> SearchResponse:
     session = _require_session(request)
-    search_service = _get_search_service()
     type_list = [entry.strip() for entry in types.split(",")] if types else []
-    selected_types = type_list or ["document", "work_item", "risk", "lesson"]
+    selected_types = type_list or [
+        "document",
+        "project",
+        "knowledge",
+        "approval",
+        "workflow",
+    ]
     project_id_set = {
         entry.strip() for entry in project_ids.split(",") if entry.strip()
     } if project_ids else None
-    results, total = search_service.search(
-        query=query,
-        types=selected_types,
+    resolved_query = (q or query or "").strip()
+    if _demo_mode_enabled():
+        demo_payload = _load_demo_search_payload("global-search.json")
+        if demo_payload:
+            results_payload = demo_payload.get("results", [])
+            return SearchResponse(
+                query=resolved_query,
+                offset=0,
+                limit=min(max(limit, 1), 100),
+                total=len(results_payload),
+                results=[SearchResult.model_validate(item) for item in results_payload],
+            )
+    search_service = _get_search_service()
+    search_results, _ = search_service.search(
+        query=resolved_query,
+        types=[entry for entry in selected_types if entry in {"document", "knowledge", "lesson"}],
         project_ids=project_id_set,
         tenant_id=session.get("tenant_id"),
-        offset=max(offset, 0),
-        limit=min(max(limit, 1), 100),
+        offset=0,
+        limit=200,
     )
+    results: list[SearchResult] = [
+        SearchResult(
+            id=item.id,
+            type=item.result_type,
+            title=item.title,
+            summary=item.summary,
+            project_id=item.project_id,
+            updated_at=item.updated_at.isoformat() if item.updated_at else None,
+            highlights=item.highlights,
+            payload=item.payload,
+        )
+        for item in search_results
+    ]
+
+    if "project" in selected_types:
+        for project in _load_projects():
+            if project_id_set and project.id not in project_id_set:
+                continue
+            text = f"{project.name} {project.template_id} {project.methodology.get('name', '')}"
+            score = _match_score(resolved_query, text)
+            if score < 0.6:
+                continue
+            summary = f"Template {project.template_id}"
+            methodology_name = project.methodology.get("name")
+            if methodology_name:
+                summary = f"{summary} · Methodology {methodology_name}"
+            results.append(
+                SearchResult(
+                    id=project.id,
+                    type="project",
+                    title=project.name,
+                    summary=summary,
+                    project_id=project.id,
+                    updated_at=project.created_at,
+                    highlights={
+                        key: value
+                        for key, value in {
+                            "title": _highlight_query(resolved_query, project.name),
+                            "summary": _highlight_query(resolved_query, summary),
+                        }.items()
+                        if value
+                    } or None,
+                    payload={
+                        "projectId": project.id,
+                        "name": project.name,
+                        "templateId": project.template_id,
+                        "methodology": project.methodology,
+                        "createdAt": project.created_at,
+                    },
+                )
+            )
+
+    if "approval" in selected_types:
+        approvals_payload = (
+            _load_demo_dashboard_payload("approvals.json")
+            if _demo_mode_enabled()
+            else _approval_payload()
+        )
+        approvals = approvals_payload.get("approvals") or approvals_payload.get("items") or []
+        for index, approval in enumerate(approvals):
+            title = approval.get("title") or approval.get("name") or "Approval"
+            meta = approval.get("meta") or []
+            summary = " · ".join(meta) if isinstance(meta, list) else str(meta)
+            if not summary:
+                summary = " · ".join(
+                    value
+                    for value in [
+                        approval.get("project"),
+                        approval.get("risk"),
+                        approval.get("due_in"),
+                    ]
+                    if value
+                )
+            combined = f"{title} {summary}"
+            score = _match_score(resolved_query, combined)
+            if score < 0.6:
+                continue
+            results.append(
+                SearchResult(
+                    id=str(approval.get("id") or f"approval-{index}"),
+                    type="approval",
+                    title=title,
+                    summary=summary,
+                    project_id=approval.get("project"),
+                    highlights={
+                        key: value
+                        for key, value in {
+                            "title": _highlight_query(resolved_query, title),
+                            "summary": _highlight_query(resolved_query, summary),
+                        }.items()
+                        if value
+                    } or None,
+                    payload=approval,
+                )
+            )
+
+    if "workflow" in selected_types:
+        if _demo_mode_enabled():
+            workflow_payload = _load_demo_dashboard_payload("workflow-monitoring.json") or {}
+            workflows = workflow_payload.get("runs", [])
+        else:
+            workflows = [
+                workflow.model_dump()
+                for workflow in workflow_definition_store.list_summaries()
+            ]
+        for index, workflow in enumerate(workflows):
+            title = workflow.get("name") or workflow.get("title") or "Workflow"
+            summary = workflow.get("description")
+            if not summary:
+                summary = " · ".join(
+                    value
+                    for value in [
+                        workflow.get("status"),
+                        workflow.get("run_id") or workflow.get("id"),
+                        workflow.get("owner") or workflow.get("agent"),
+                    ]
+                    if value
+                )
+            combined = f"{title} {summary}"
+            score = _match_score(resolved_query, combined)
+            if score < 0.6:
+                continue
+            results.append(
+                SearchResult(
+                    id=str(workflow.get("workflow_id") or workflow.get("run_id") or workflow.get("id") or f"workflow-{index}"),
+                    type="workflow",
+                    title=title,
+                    summary=summary,
+                    updated_at=workflow.get("updated_at"),
+                    highlights={
+                        key: value
+                        for key, value in {
+                            "title": _highlight_query(resolved_query, title),
+                            "summary": _highlight_query(resolved_query, summary),
+                        }.items()
+                        if value
+                    } or None,
+                    payload=workflow,
+                )
+            )
+    total = len(results)
+    results.sort(key=lambda item: (item.updated_at or ""), reverse=True)
+    trimmed_results = results[max(offset, 0) : max(offset, 0) + min(max(limit, 1), 100)]
     return SearchResponse(
-        query=query,
+        query=resolved_query,
         offset=max(offset, 0),
         limit=min(max(limit, 1), 100),
         total=total,
-        results=[
-            SearchResult(
-                id=item.id,
-                type=item.result_type,
-                title=item.title,
-                summary=item.summary,
-                project_id=item.project_id,
-                updated_at=item.updated_at.isoformat() if item.updated_at else None,
-                highlights=item.highlights,
-                payload=item.payload,
-            )
-            for item in results
-        ],
+        results=trimmed_results,
     )
 
 

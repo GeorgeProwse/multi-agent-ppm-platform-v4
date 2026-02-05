@@ -10,16 +10,18 @@ import styles from './GlobalSearch.module.css';
 
 const TYPE_LABELS: Record<SearchResultType, string> = {
   document: 'Documents',
-  work_item: 'Work Items',
-  risk: 'Risks',
-  lesson: 'Lessons Learned',
+  project: 'Projects',
+  knowledge: 'Knowledge Base',
+  approval: 'Approvals',
+  workflow: 'Workflows',
 };
 
 const DEFAULT_TYPES: SearchResultType[] = [
   'document',
-  'work_item',
-  'risk',
-  'lesson',
+  'project',
+  'knowledge',
+  'approval',
+  'workflow',
 ];
 
 const PAGE_SIZE = 12;
@@ -50,9 +52,10 @@ export function GlobalSearchPage() {
   const groupedResults = useMemo(() => {
     const groups: Record<SearchResultType, SearchResult[]> = {
       document: [],
-      work_item: [],
-      risk: [],
-      lesson: [],
+      project: [],
+      knowledge: [],
+      approval: [],
+      workflow: [],
     };
     results.forEach((result) => {
       groups[result.type].push(result);
@@ -164,7 +167,7 @@ export function GlobalSearchPage() {
     );
   };
 
-  const renderLessonCard = (result: SearchResult) => {
+  const renderKnowledgeCard = (result: SearchResult) => {
     const payload = result.payload as LessonRecord;
     return (
       <li key={result.id} className={styles.resultCard}>
@@ -176,7 +179,14 @@ export function GlobalSearchPage() {
             </p>
           </div>
         </div>
-        <p className={styles.lessonDescription}>{payload.description}</p>
+        {result.highlights?.excerpt ? (
+          <p
+            className={styles.lessonDescription}
+            dangerouslySetInnerHTML={{ __html: result.highlights.excerpt }}
+          />
+        ) : (
+          <p className={styles.lessonDescription}>{payload.description}</p>
+        )}
         <div className={styles.chipRow}>
           {payload.tags.map((tag) => (
             <span key={`tag-${payload.lessonId}-${tag}`} className={styles.chip}>
@@ -196,16 +206,25 @@ export function GlobalSearchPage() {
     );
   };
 
+  const renderHighlightedText = (text: string, highlight?: string | null) => {
+    if (!highlight) {
+      return <span>{text}</span>;
+    }
+    return <span dangerouslySetInnerHTML={{ __html: highlight }} />;
+  };
+
   const renderGenericCard = (result: SearchResult) => {
     return (
       <li key={result.id} className={styles.resultCard}>
         <div className={styles.cardHeader}>
           <div>
-            <h3>{result.title}</h3>
+            <h3>{renderHighlightedText(result.title, result.highlights?.title)}</h3>
             <p>Project {result.projectId ?? 'N/A'}</p>
           </div>
         </div>
-        <p className={styles.lessonDescription}>{result.summary}</p>
+        <p className={styles.lessonDescription}>
+          {renderHighlightedText(result.summary, result.highlights?.summary)}
+        </p>
       </li>
     );
   };
@@ -215,19 +234,29 @@ export function GlobalSearchPage() {
       <header className={styles.header}>
         <div>
           <h1>Global Search</h1>
-          <p>Search documents, work items, risks, and lessons across portfolios.</p>
+          <p>
+            Search documents, projects, knowledge, approvals, and workflows across
+            portfolios.
+          </p>
         </div>
-        <div className={styles.searchControls}>
+        <form className={styles.searchControls} onSubmit={(event) => {
+          event.preventDefault();
+          handleSearch();
+        }}>
+          <label className={styles.visuallyHidden} htmlFor="global-search-input">
+            Global search query
+          </label>
           <input
+            id="global-search-input"
             className={styles.searchInput}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search across the portfolio"
           />
-          <button className={styles.primaryButton} onClick={handleSearch}>
+          <button className={styles.primaryButton} type="submit">
             Search
           </button>
-        </div>
+        </form>
         <div className={styles.filterRow}>
           <div className={styles.filterGroup}>
             {DEFAULT_TYPES.map((type) => (
@@ -277,8 +306,8 @@ export function GlobalSearchPage() {
                   if (result.type === 'document') {
                     return renderDocumentCard(result);
                   }
-                  if (result.type === 'lesson') {
-                    return renderLessonCard(result);
+                  if (result.type === 'knowledge') {
+                    return renderKnowledgeCard(result);
                   }
                   return renderGenericCard(result);
                 })}

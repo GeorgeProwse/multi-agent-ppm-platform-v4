@@ -1,4 +1,9 @@
-export type SearchResultType = 'document' | 'work_item' | 'risk' | 'lesson';
+export type SearchResultType =
+  | 'document'
+  | 'project'
+  | 'knowledge'
+  | 'approval'
+  | 'workflow';
 
 export interface SearchResult {
   id: string;
@@ -40,7 +45,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function fetchGlobalSearch(
   filters: SearchFilters
 ): Promise<SearchResponse> {
-  const params = new URLSearchParams({ query: filters.query });
+  const params = new URLSearchParams({ q: filters.query });
   if (filters.types?.length) {
     params.set('types', filters.types.join(','));
   }
