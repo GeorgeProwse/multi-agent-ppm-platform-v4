@@ -126,7 +126,11 @@ export function Header() {
       </div>
 
       <form className={styles.searchForm} onSubmit={handleSearchSubmit}>
+        <label className={styles.visuallyHidden} htmlFor="global-header-search">
+          Global search
+        </label>
         <input
+          id="global-header-search"
           className={styles.searchInput}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}

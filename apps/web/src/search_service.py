@@ -52,7 +52,7 @@ class SearchService:
         if "document" in type_set:
             results.extend(self._search_documents(query, project_ids))
 
-        if "lesson" in type_set:
+        if "knowledge" in type_set or "lesson" in type_set:
             results.extend(self._search_lessons(query, project_ids))
 
         if tenant_id and {"work_item", "risk"}.intersection(type_set):
@@ -88,7 +88,10 @@ class SearchService:
                     project_id=record.project_id,
                     updated_at=record.updated_at,
                     score=score,
-                    highlights={"excerpt": excerpt} if excerpt else None,
+                    highlights=_merge_highlights(
+                        _highlight_text(query, record.name),
+                        excerpt,
+                    ),
                     payload={
                         "documentId": record.document_id,
                         "documentKey": record.document_key,
@@ -118,13 +121,16 @@ class SearchService:
             results.append(
                 SearchResultItem(
                     id=lesson.lesson_id,
-                    result_type="lesson",
+                    result_type="knowledge",
                     title=lesson.title,
                     summary=lesson.description,
                     project_id=lesson.project_id,
                     updated_at=lesson.updated_at,
                     score=score,
-                    highlights=None,
+                    highlights=_merge_highlights(
+                        _highlight_text(query, lesson.title),
+                        _build_excerpt(lesson.description, query),
+                    ),
                     payload={
                         "lessonId": lesson.lesson_id,
                         "projectId": lesson.project_id,
@@ -240,3 +246,23 @@ def _build_excerpt(content: str, query: str) -> str | None:
     snippet = content[start:end].strip()
     pattern = re.compile(re.escape(needle), re.IGNORECASE)
     return pattern.sub(lambda value: f"<mark>{value.group(0)}</mark>", snippet)
+
+
+def _highlight_text(query: str, text: str) -> str | None:
+    needle = query.lower().strip()
+    if not needle:
+        return None
+    lowered = text.lower()
+    if needle not in lowered:
+        return None
+    pattern = re.compile(re.escape(needle), re.IGNORECASE)
+    return pattern.sub(lambda value: f"<mark>{value.group(0)}</mark>", text)
+
+
+def _merge_highlights(title: str | None, excerpt: str | None) -> dict[str, str] | None:
+    highlights: dict[str, str] = {}
+    if title:
+        highlights["title"] = title
+    if excerpt:
+        highlights["excerpt"] = excerpt
+    return highlights or None

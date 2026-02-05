@@ -1,0 +1,103 @@
+{
+  "results": [
+    {
+      "id": "doc-1101",
+      "type": "document",
+      "title": "Risk Register Q2",
+      "summary": "Risk register · Confidential",
+      "project_id": "phoenix",
+      "updated_at": "2024-06-18T14:12:00Z",
+      "highlights": {
+        "excerpt": "Review the <mark>risk</mark> exposure for Q2."
+      },
+      "payload": {
+        "documentId": "doc-1101",
+        "documentKey": "risk-q2",
+        "projectId": "phoenix",
+        "name": "Risk Register Q2",
+        "docType": "Risk register",
+        "classification": "Confidential",
+        "latestVersion": 3,
+        "latestStatus": "Approved",
+        "createdAt": "2024-05-12T09:25:00Z",
+        "updatedAt": "2024-06-18T14:12:00Z"
+      }
+    },
+    {
+      "id": "project-phoenix",
+      "type": "project",
+      "title": "Project Phoenix",
+      "summary": "Template modernization · Methodology Hybrid",
+      "project_id": "phoenix",
+      "updated_at": "2024-06-10T10:00:00Z",
+      "highlights": {
+        "title": "Project <mark>Phoenix</mark>"
+      },
+      "payload": {
+        "projectId": "phoenix",
+        "name": "Project Phoenix",
+        "templateId": "modernization",
+        "methodology": {
+          "name": "Hybrid"
+        },
+        "createdAt": "2024-03-01T10:00:00Z"
+      }
+    },
+    {
+      "id": "lesson-882",
+      "type": "knowledge",
+      "title": "Vendor onboarding delays",
+      "summary": "Compliance review slowed vendor onboarding by two weeks.",
+      "project_id": "orion",
+      "updated_at": "2024-06-16T08:30:00Z",
+      "highlights": {
+        "excerpt": "<mark>Compliance</mark> review slowed vendor onboarding by two weeks."
+      },
+      "payload": {
+        "lessonId": "lesson-882",
+        "projectId": "orion",
+        "stageId": "execution",
+        "stageName": "Execution",
+        "title": "Vendor onboarding delays",
+        "description": "Compliance review slowed vendor onboarding by two weeks.",
+        "tags": ["vendor", "compliance"],
+        "topics": ["risk", "procurement"],
+        "createdAt": "2024-05-20T12:00:00Z",
+        "updatedAt": "2024-06-16T08:30:00Z"
+      }
+    },
+    {
+      "id": "approval-1025",
+      "type": "approval",
+      "title": "Budget Change +12%",
+      "summary": "Orion · Risk: High · Due in 8h",
+      "project_id": "orion",
+      "updated_at": "2024-06-19T07:45:00Z",
+      "highlights": {
+        "summary": "Orion · <mark>Risk</mark>: High · Due in 8h"
+      },
+      "payload": {
+        "id": "approval-1025",
+        "project": "Orion",
+        "risk": "High",
+        "due_in": "8h"
+      }
+    },
+    {
+      "id": "workflow-2042",
+      "type": "workflow",
+      "title": "Approval Escalation",
+      "summary": "Run WF-2042 · Failed · Agent: Governance",
+      "project_id": null,
+      "updated_at": "2024-06-19T06:55:00Z",
+      "highlights": {
+        "summary": "Run WF-2042 · <mark>Failed</mark> · Agent: Governance"
+      },
+      "payload": {
+        "run_id": "WF-2042",
+        "status": "Failed",
+        "owner": "Agent: Governance"
+      }
+    }
+  ]
+}

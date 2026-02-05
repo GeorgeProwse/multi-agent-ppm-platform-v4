@@ -1,0 +1,30 @@
+{
+  "responses": [
+    {
+      "match": ["highest risk", "risk exposure", "risk"],
+      "summary": "The highest risk exposure sits with Phoenix and Orion based on recent approvals.",
+      "items": [
+        "Phoenix — gate exit approval flagged Medium risk",
+        "Orion — budget change approval flagged High risk",
+        "Lyra — compliance review pending with schedule impact"
+      ]
+    },
+    {
+      "match": ["workflow", "automation"],
+      "summary": "Workflow monitoring shows one failed run and two warnings.",
+      "items": [
+        "Approval Escalation — failed, reroute to alternate approver",
+        "Document Sync — warning, increase connector concurrency",
+        "Intake Routing — healthy, no action required"
+      ]
+    }
+  ],
+  "default": {
+    "summary": "Here is the latest portfolio snapshot from the assistant.",
+    "items": [
+      "Portfolio risk trending moderate",
+      "2 approvals need attention",
+      "Workflow backlog within SLA"
+    ]
+  }
+}
