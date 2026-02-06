@@ -7,6 +7,8 @@ from typing import Any
 from connectors.sdk.src.runtime import ConnectorRuntime
 from connectors.sdk.src.secrets import resolve_secret
 
+from .mappers import map_to_clarity
+
 from .clarity_connector import ClarityConnector, create_clarity_connector
 CONNECTOR_ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,9 +64,10 @@ def send_to_external_system(records: list[dict[str, object]], tenant_id: str, *,
         include_schema: Whether the mapped records include schema metadata.
     """
     import logging
+    mapped_payload = map_to_clarity(records)
     logging.getLogger(__name__).info(
         "Outbound payload for Clarity tenant %s (include_schema=%s): %s",
         tenant_id,
         include_schema,
-        records,
+        mapped_payload,
     )
