@@ -98,6 +98,9 @@ class ConnectorConfig:
     instance_url: str = ""
     project_key: str = ""  # For project-based connectors like Jira
     custom_fields: dict[str, Any] = field(default_factory=dict)
+
+    # Outbound API configuration (unused for inbound-only connectors).
+    # These fields can store API endpoints, versions or default resources.
     api_endpoint: str = ""
     api_version: str = ""
     resource: str = ""
