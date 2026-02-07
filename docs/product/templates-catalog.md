@@ -23,6 +23,7 @@ cost, quality, resource, communications, risk, procurement, and stakeholder mana
 | Variance report | Track schedule/cost variance. | Agent 10 (Schedule & Planning) | [docs/templates/shared/variance-report.md](../templates/shared/variance-report.md) |
 | Status report | Provide project status, metrics, and decisions. | Agent 21 (Stakeholder Comms) | [docs/templates/shared/status-report.md](../templates/shared/status-report.md) |
 | Risk report | Report top risks and exposure trends. | Agent 15 (Risk & Issue Management) | [docs/templates/shared/risk-report.md](../templates/shared/risk-report.md) |
+| Schedule risk analysis | Quantify schedule risk exposure and confidence-based completion dates. | Agent 10 (Schedule & Planning), Agent 15 (Risk & Issue Management) | [docs/templates/shared/schedule-risk-analysis.md](../templates/shared/schedule-risk-analysis.md) |
 | Quality report | Report quality performance and defects. | Agent 14 (Quality Assurance) | [docs/templates/shared/quality-report.md](../templates/shared/quality-report.md) |
 | Change request | Submit changes for approval. | Agent 17 (Change & Configuration) | [docs/templates/shared/change-request.md](../templates/shared/change-request.md) |
 | Change impact assessment | Analyze change impacts. | Agent 17 (Change & Configuration) | [docs/templates/shared/change-impact-assessment.md](../templates/shared/change-impact-assessment.md) |
@@ -40,6 +41,7 @@ cost, quality, resource, communications, risk, procurement, and stakeholder mana
 | Project schedule template | Capture activity-level schedule detail, milestones, and baselines. | Agent 10 (Schedule & Planning) | [docs/templates/shared/project-schedule-template.md](../templates/shared/project-schedule-template.md) |
 | Release management workflow | Execute and validate releases end-to-end. | Agent 14 (Release Management) | [docs/templates/shared/release-management-workflow.md](../templates/shared/release-management-workflow.md) |
 | Cost management plan | Define cost estimation, baseline, and control. | Agent 12 (Financial Management) | [docs/templates/shared/cost-management-plan.md](../templates/shared/cost-management-plan.md) |
+| Financial risk management plan | Define financial risk identification, assessment, and response. | Agent 12 (Financial Management), Agent 15 (Risk & Issue Management) | [docs/templates/shared/financial-risk-management-plan.md](../templates/shared/financial-risk-management-plan.md) |
 | Quality management plan | Define QA/QC standards and processes. | Agent 14 (Quality Assurance) | [docs/templates/shared/quality-management-plan.md](../templates/shared/quality-management-plan.md) |
 | Resource management plan | Define resource estimation and acquisition. | Agent 11 (Resource & Capacity) | [docs/templates/shared/resource-management-plan.md](../templates/shared/resource-management-plan.md) |
 | Risk management plan | Define risk governance and analysis methods. | Agent 15 (Risk & Issue Management) | [docs/templates/shared/risk-management-plan.md](../templates/shared/risk-management-plan.md) |
@@ -50,6 +52,7 @@ cost, quality, resource, communications, risk, procurement, and stakeholder mana
 | Risk breakdown structure | Categorize risks for consistent analysis. | Agent 15 (Risk & Issue Management) | [docs/templates/shared/risk-breakdown-structure.yaml](../templates/shared/risk-breakdown-structure.yaml) |
 | Product breakdown structure | Decompose product components and features. | Agent 08 (Project Definition) | [docs/templates/shared/product-breakdown-structure.yaml](../templates/shared/product-breakdown-structure.yaml) |
 | Communications plan | Plan stakeholder communications. | Agent 21 (Stakeholder Comms) | [docs/templates/shared/communications-plan.md](../templates/shared/communications-plan.md) |
+| Template customization guide | Guide consistent tailoring and governance of templates. | Agent 09 (Lifecycle & Governance) | [docs/templates/shared/template-customization-guide.md](../templates/shared/template-customization-guide.md) |
 | Stakeholder register | Track stakeholder influence and engagement. | Agent 21 (Stakeholder Comms) | [docs/templates/shared/stakeholder-register.xlsx](../templates/shared/stakeholder-register.xlsx) |
 | RFP template | Request vendor proposals. | Agent 13 (Vendor Procurement) | [docs/templates/shared/rfp-template.md](../templates/shared/rfp-template.md) |
 | Vendor evaluation scorecard | Score vendors consistently. | Agent 13 (Vendor Procurement) | [docs/templates/shared/vendor-evaluation-scorecard.xlsx](../templates/shared/vendor-evaluation-scorecard.xlsx) |

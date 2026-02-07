@@ -7,7 +7,9 @@ agile, and hybrid delivery practices.
 
 ## What's inside
 - `docs/templates/shared`: Cross-methodology plans, logs, reports, and baselines (scope, schedule,
-  cost, quality, risk, procurement, resource, communications, and stakeholder artefacts).
+  cost, quality, risk, procurement, resource, communications, and stakeholder artefacts), plus
+  specialized guidance such as schedule risk analysis, financial risk management, and template
+  customization governance.
 
 ## How it's used
 Templates are referenced by methodology maps and the cross-methodology template catalog. Tailor
