@@ -614,6 +614,7 @@ class McpServerToolsResponse(BaseModel):
 class ProjectMcpConfigRequest(BaseModel):
     mcp_server_url: AnyHttpUrl
     mcp_server_id: str | None = None
+    mcp_tools: list[str] | None = None
     mcp_tool_map: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("mcp_server_url", mode="before")
@@ -628,6 +629,21 @@ class ProjectMcpConfigRequest(BaseModel):
     @classmethod
     def _validate_mcp_tool_map(cls, value: Any) -> dict[str, Any]:
         return _normalize_tool_map(value)
+
+    @field_validator("mcp_tools", mode="before")
+    @classmethod
+    def _validate_mcp_tools(cls, value: Any) -> list[str] | None:
+        if value in (None, ""):
+            return None
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ValueError("mcp_tools must be a list of strings")
+        return value
+
+    @model_validator(mode="after")
+    def _normalize_tools(self) -> "ProjectMcpConfigRequest":
+        if not self.mcp_tool_map and self.mcp_tools:
+            self.mcp_tool_map = {tool: tool for tool in self.mcp_tools}
+        return self
 
 
 class ProjectMcpConfigResponse(BaseModel):
