@@ -12,7 +12,8 @@ Methodology YAML files define stages and deliverables. The Approval Workflow age
 
 - `map.yaml`: ordered stages, required deliverables, and ownership.
 - `gates.yaml`: gate criteria, approvals, and evidence requirements.
-- `templates/`: document templates for stage deliverables.
+- `docs/templates/`: document templates for stage deliverables, organized by shared and
+  methodology-specific subfolders.
 
 ## YAML schema (v1)
 

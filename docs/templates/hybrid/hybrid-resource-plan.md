@@ -8,8 +8,8 @@ coordination between traditional governance and agile execution.
 Project Manager, Resource Manager, Delivery Leads, PMO.
 
 ## Inputs
-- Milestone plan (`docs/methodology/hybrid/templates/milestone-plan.xlsx`).
-- Sprint/iteration plans (`docs/methodology/agile/templates/iteration-plan.md`).
+- Milestone plan (`docs/templates/hybrid/milestone-plan.xlsx`).
+- Sprint/iteration plans (`docs/templates/agile/iteration-plan.md`).
 - Shared resource plan (`docs/templates/shared/resource-management-plan.md`).
 
 ## 1. Phase-based resource allocation

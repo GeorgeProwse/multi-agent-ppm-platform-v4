@@ -10,6 +10,7 @@ Describe the methodology documentation set and link the narrative to the repo as
 - `docs/methodology/hybrid`: Subdirectory containing hybrid assets for this area.
 - `docs/methodology/waterfall`: Subdirectory containing waterfall assets for this area.
 - `docs/methodology/overview.md`: Markdown documentation for this area.
+- `docs/templates`: Centralized template library referenced by the methodology maps and gates.
 
 ## How it's used
 

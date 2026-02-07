@@ -7,7 +7,7 @@ Document, prioritize, and resolve active issues (materialized risks, defects, bl
 Project Manager, Risk & Issue Manager, Delivery Leads, PMO, Functional Owners.
 
 ## Inputs
-- Risk register (`docs/methodology/waterfall/templates/risk-register.xlsx`).
+- Risk register (`docs/templates/waterfall/risk-register.xlsx`).
 - Status reports (`docs/templates/shared/status-report.md`).
 - Change log (`docs/templates/shared/change-log.md`).
 

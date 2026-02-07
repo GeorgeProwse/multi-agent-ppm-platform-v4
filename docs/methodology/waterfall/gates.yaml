@@ -9,7 +9,7 @@ gates:
         template: docs/templates/shared/business-case.md
         evidence: Approved business case.
       - name: Project charter
-        template: docs/methodology/waterfall/templates/project-charter.md
+        template: docs/templates/waterfall/project-charter.md
         evidence: Signed charter.
     criteria:
       - id: init-1
@@ -32,16 +32,16 @@ gates:
     stage: planning
     required_artefacts:
       - name: Work breakdown structure
-        template: docs/methodology/waterfall/templates/wbs.yaml
+        template: docs/templates/waterfall/wbs.yaml
         evidence: WBS signed off.
       - name: Schedule baseline
-        template: docs/methodology/waterfall/templates/schedule-baseline.xlsx
+        template: docs/templates/waterfall/schedule-baseline.xlsx
         evidence: Baseline schedule approved.
       - name: Risk register
-        template: docs/methodology/waterfall/templates/risk-register.xlsx
+        template: docs/templates/waterfall/risk-register.xlsx
         evidence: Initial risk register completed.
       - name: QA checklist
-        template: docs/methodology/waterfall/templates/qa-checklist.xlsx
+        template: docs/templates/waterfall/qa-checklist.xlsx
         evidence: Quality plan reviewed.
     criteria:
       - id: plan-1
@@ -97,7 +97,7 @@ gates:
         template: docs/templates/shared/variance-report.md
         evidence: Latest performance report.
       - name: Risk register
-        template: docs/methodology/waterfall/templates/risk-register.xlsx
+        template: docs/templates/waterfall/risk-register.xlsx
         evidence: Updated risk register.
     criteria:
       - id: monitor-1
@@ -120,7 +120,7 @@ gates:
     stage: closure
     required_artefacts:
       - name: Closure report
-        template: docs/methodology/waterfall/templates/closure-report.md
+        template: docs/templates/waterfall/closure-report.md
         evidence: Signed closure report.
       - name: DPIA report
         template: docs/compliance/privacy-dpia-template.md

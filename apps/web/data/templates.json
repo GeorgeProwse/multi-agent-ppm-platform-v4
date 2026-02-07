@@ -649,7 +649,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/daily-standup.md"
+      "path": "docs/templates/agile/daily-standup.md"
     },
     {
       "id": "pi-planning-template",
@@ -658,7 +658,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/pi-planning.md"
+      "path": "docs/templates/agile/pi-planning.md"
     },
     {
       "id": "risk-report",
@@ -740,7 +740,7 @@
         "agile",
         "hybrid"
       ],
-      "path": "docs/methodology/agile/templates/iteration-plan.md"
+      "path": "docs/templates/agile/iteration-plan.md"
     },
     {
       "id": "backlog-management-template",
@@ -749,7 +749,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/backlog-management-template.md"
+      "path": "docs/templates/agile/backlog-management-template.md"
     },
     {
       "id": "backlog-refinement-template",
@@ -758,7 +758,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/backlog-refinement-template.md"
+      "path": "docs/templates/agile/backlog-refinement-template.md"
     },
     {
       "id": "risk-adjusted-backlog",
@@ -767,7 +767,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/risk-adjusted-backlog.csv"
+      "path": "docs/templates/agile/risk-adjusted-backlog.csv"
     },
     {
       "id": "roles-responsibilities-agile",
@@ -777,8 +777,8 @@
       "methodologies": [
         "agile"
       ],
-      "file": "docs/methodology/agile/templates/roles-responsibilities.md",
-      "path": "docs/methodology/agile/templates/roles-responsibilities.md",
+      "file": "docs/templates/agile/roles-responsibilities.md",
+      "path": "docs/templates/agile/roles-responsibilities.md",
       "methodology": "agile",
       "stage": "sprint-0",
       "agents": [
@@ -793,7 +793,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/user-story-template.md"
+      "path": "docs/templates/agile/user-story-template.md"
     },
     {
       "id": "user-story-mapping-template",
@@ -802,7 +802,7 @@
       "methodologies": [
         "agile"
       ],
-      "path": "docs/methodology/agile/templates/user-story-mapping-template.md"
+      "path": "docs/templates/agile/user-story-mapping-template.md"
     },
     {
       "id": "waterfall-risk-management-plan",
@@ -811,7 +811,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/risk-management-plan.md"
+      "path": "docs/templates/shared/risk-management-plan.md"
     },
     {
       "id": "roles-responsibilities-waterfall",
@@ -821,8 +821,8 @@
       "methodologies": [
         "waterfall"
       ],
-      "file": "docs/methodology/waterfall/templates/roles-responsibilities.md",
-      "path": "docs/methodology/waterfall/templates/roles-responsibilities.md",
+      "file": "docs/templates/waterfall/roles-responsibilities.md",
+      "path": "docs/templates/waterfall/roles-responsibilities.md",
       "methodology": "waterfall",
       "stage": "initiation",
       "agents": [
@@ -837,7 +837,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/resource-management-plan.md"
+      "path": "docs/templates/shared/resource-management-plan.md"
     },
     {
       "id": "waterfall-quality-management-plan",
@@ -846,7 +846,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/quality-management-plan.md"
+      "path": "docs/templates/shared/quality-management-plan.md"
     },
     {
       "id": "waterfall-procurement-management-plan",
@@ -855,7 +855,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/procurement-management-plan.md"
+      "path": "docs/templates/shared/procurement-management-plan.md"
     },
     {
       "id": "waterfall-schedule-management-plan",
@@ -864,7 +864,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/schedule-management-plan.md"
+      "path": "docs/templates/shared/schedule-management-plan.md"
     },
     {
       "id": "waterfall-scope-management-plan",
@@ -873,7 +873,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/scope-management-plan.md"
+      "path": "docs/templates/shared/scope-management-plan.md"
     },
     {
       "id": "waterfall-cost-management-plan",
@@ -882,7 +882,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/cost-management-plan.md"
+      "path": "docs/templates/shared/cost-management-plan.md"
     },
     {
       "id": "waterfall-project-management-plan",
@@ -891,7 +891,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/project-management-plan.md"
+      "path": "docs/templates/shared/project-management-plan.md"
     },
     {
       "id": "waterfall-risk-breakdown-structure",
@@ -900,7 +900,7 @@
       "methodologies": [
         "waterfall"
       ],
-      "path": "docs/methodology/waterfall/templates/risk-breakdown-structure.yaml"
+      "path": "docs/templates/shared/risk-breakdown-structure.yaml"
     },
     {
       "id": "hybrid-resource-plan",
@@ -909,7 +909,7 @@
       "methodologies": [
         "hybrid"
       ],
-      "path": "docs/methodology/hybrid/templates/hybrid-resource-plan.md"
+      "path": "docs/templates/hybrid/hybrid-resource-plan.md"
     },
     {
       "id": "roles-responsibilities-hybrid",
@@ -919,8 +919,8 @@
       "methodologies": [
         "hybrid"
       ],
-      "file": "docs/methodology/hybrid/templates/roles-responsibilities.md",
-      "path": "docs/methodology/hybrid/templates/roles-responsibilities.md",
+      "file": "docs/templates/hybrid/roles-responsibilities.md",
+      "path": "docs/templates/hybrid/roles-responsibilities.md",
       "methodology": "hybrid",
       "stage": "initiation",
       "agents": [
@@ -936,7 +936,7 @@
       "methodologies": [
         "hybrid"
       ],
-      "path": "docs/methodology/hybrid/templates/integrated-risk-register.md"
+      "path": "docs/templates/hybrid/integrated-risk-register.md"
     },
     {
       "id": "decision-log-hybrid",
@@ -945,7 +945,7 @@
       "methodologies": [
         "hybrid"
       ],
-      "path": "docs/methodology/hybrid/templates/decision-log.md"
+      "path": "docs/templates/hybrid/decision-log.md"
     }
   ]
 }

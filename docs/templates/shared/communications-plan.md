@@ -202,10 +202,10 @@ Reference the approved repository path for each report template and enforce vers
 ### 7.2 Meeting Templates
 Use the shared meeting templates and agile ceremony templates:
 - `docs/templates/shared/meeting-templates.md`
-- `docs/methodology/agile/templates/daily-standup.md`
-- `docs/methodology/agile/templates/sprint-plan.md`
-- `docs/methodology/agile/templates/sprint-review.md`
-- `docs/methodology/agile/templates/retro-notes.md`
+- `docs/templates/agile/daily-standup.md`
+- `docs/templates/agile/sprint-plan.md`
+- `docs/templates/agile/sprint-review.md`
+- `docs/templates/agile/retro-notes.md`
 
 ---
 

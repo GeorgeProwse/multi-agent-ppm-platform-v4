@@ -38,7 +38,7 @@ stages:
           - Product Owner
         artefacts:
           - name: Product backlog
-            template: docs/methodology/agile/templates/backlog.csv
+            template: docs/templates/agile/backlog.csv
             required: true
     exit_criteria:
       - Demand intake approved and assigned an owner.
@@ -58,7 +58,7 @@ stages:
           - Scrum Master
         artefacts:
           - name: Sprint plan
-            template: docs/methodology/agile/templates/sprint-plan.md
+            template: docs/templates/agile/sprint-plan.md
             required: true
       - id: release-plan
         description: Establish release scope, dependencies, and readiness criteria.
@@ -66,7 +66,7 @@ stages:
           - Product Owner
         artefacts:
           - name: Release plan
-            template: docs/methodology/agile/templates/release-plan.md
+            template: docs/templates/agile/release-plan.md
             required: true
     exit_criteria:
       - Sprint plan approved by the delivery lead.
@@ -85,7 +85,7 @@ stages:
           - Delivery Team
         artefacts:
           - name: Burndown tracking
-            template: docs/methodology/agile/templates/burndown.xlsx
+            template: docs/templates/agile/burndown.xlsx
             required: true
       - id: change-control
         description: Log scope changes and evaluate impacts.
@@ -115,7 +115,7 @@ stages:
           - Product Owner
         artefacts:
           - name: Release readiness updates
-            template: docs/methodology/agile/templates/release-plan.md
+            template: docs/templates/agile/release-plan.md
             required: true
       - id: variance-report
         description: Summarize delivery variance and corrective actions.
@@ -141,7 +141,7 @@ stages:
           - Scrum Master
         artefacts:
           - name: Retrospective notes
-            template: docs/methodology/agile/templates/retro-notes.md
+            template: docs/templates/agile/retro-notes.md
             required: true
     exit_criteria:
       - Improvement actions assigned and tracked.
