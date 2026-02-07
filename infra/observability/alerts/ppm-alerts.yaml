@@ -73,6 +73,22 @@ groups:
         annotations:
           summary: "Agent latency above threshold"
           description: "Agent p95 latency exceeds 2 seconds for 10 minutes."
+      - alert: MCPClientErrorRateHigh
+        expr: sum(rate(mcp_client_requests_total{outcome="error"}[10m])) by (system) / sum(rate(mcp_client_requests_total[10m])) by (system) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP client error rate high"
+          description: "MCP error rate exceeds 10% for 10 minutes for system {{ $labels.system }}."
+      - alert: MCPClientFallbackRateHigh
+        expr: sum(rate(mcp_client_fallback_total[10m])) by (system) / sum(rate(mcp_client_requests_total[10m])) by (system) > 0.2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP client fallback rate high"
+          description: "MCP fallback rate exceeds 20% for 15 minutes for system {{ $labels.system }}."
       - alert: OrchestrationWorkflowStall
         expr: sum(rate(orchestration_workflows_started_total[15m])) == 0
         for: 20m
