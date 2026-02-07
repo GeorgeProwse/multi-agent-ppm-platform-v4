@@ -24,6 +24,7 @@ from http_client import HttpClient, RetryConfig
 from rest_connector import BasicAuthRestConnector
 from secrets import resolve_secret
 from mcp_client import MCPClient, MCPClientError
+from .mappers import map_from_mcp_response, map_to_mcp_params
 
 logger = logging.getLogger(__name__)
 
@@ -101,16 +102,6 @@ class SapConnector(BasicAuthRestConnector):
             return False
         return True
 
-    def _extract_records(self, payload: Any) -> list[dict[str, Any]]:
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            for key in ("records", "items", "values", "data"):
-                value = payload.get(key)
-                if isinstance(value, list):
-                    return value
-        return []
-
     def _list_records_via_mcp(
         self,
         *,
@@ -131,16 +122,19 @@ class SapConnector(BasicAuthRestConnector):
                 resource_type,
             )
             return rest_call()
-        params = {
-            "resource_type": resource_type,
-            "filters": filters or {},
-            "limit": limit,
-            "offset": offset,
-        }
+        params = map_to_mcp_params(
+            "list",
+            {
+                "resource_type": resource_type,
+                "filters": filters or {},
+                "limit": limit,
+                "offset": offset,
+            },
+        )
         try:
             client = self._build_mcp_client()
             payload = self._run_mcp(client.invoke_tool(tool_name, params))
-            return self._extract_records(payload)
+            return map_from_mcp_response("list", payload)
         except (MCPClientError, ValueError) as exc:
             logger.warning(
                 "MCP %s failed for SAP connector; falling back to REST. Error: %s",

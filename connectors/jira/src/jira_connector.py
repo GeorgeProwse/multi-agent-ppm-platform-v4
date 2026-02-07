@@ -47,7 +47,7 @@ from mcp_client.errors import (
     MCPToolNotFoundError,
     MCPTransportError,
 )
-from .mcp_mapping import map_from_mcp_response, map_to_mcp_params
+from .mappers import map_from_mcp_response, map_to_mcp_params
 from secrets import resolve_secret
 
 logger = logging.getLogger(__name__)

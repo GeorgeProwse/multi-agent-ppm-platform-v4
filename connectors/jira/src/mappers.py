@@ -1,4 +1,4 @@
-"""Jira MCP mapping helpers.
+"""Jira mapping helpers for MCP tool parameters and responses.
 
 Canonical payloads exchanged with the connector are intentionally stable and
 converted to the MCP tool schema here. These helpers document the Jira MCP

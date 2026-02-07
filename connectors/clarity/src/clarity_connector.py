@@ -33,6 +33,7 @@ from base_connector import (
 from http_client import HttpClient, HttpClientError, RetryConfig
 from mcp_client import MCPClient, MCPClientError
 from secrets import fetch_keyvault_secret, resolve_secret
+from .mappers import map_from_mcp_response, map_to_mcp_params
 
 DEFAULT_TOKEN_URL = "https://clarity.example.com/oauth/token"
 
@@ -180,16 +181,6 @@ class ClarityConnector(BaseConnector):
             return False
         return True
 
-    def _extract_records(self, payload: Any) -> list[dict[str, Any]]:
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            for key in ("records", "items", "values", "data"):
-                value = payload.get(key)
-                if isinstance(value, list):
-                    return value
-        return []
-
     def _normalize_project_record(self, record: dict[str, Any]) -> dict[str, Any]:
         return {
             "id": record.get("id"),
@@ -224,16 +215,19 @@ class ClarityConnector(BaseConnector):
                 tool_key,
             )
             return rest_call()
-        params = {
-            "resource_type": "projects",
-            "filters": filters or {},
-            "limit": limit,
-            "offset": offset,
-        }
+        params = map_to_mcp_params(
+            "list",
+            {
+                "resource_type": "projects",
+                "filters": filters or {},
+                "limit": limit,
+                "offset": offset,
+            },
+        )
         try:
             client = self._build_mcp_client()
             payload = self._run_mcp(client.invoke_tool(tool_name, params))
-            records = self._extract_records(payload)
+            records = map_from_mcp_response("list", payload)
             return [self._normalize_project_record(record) for record in records]
         except (MCPClientError, ValueError) as exc:
             logger.warning(
