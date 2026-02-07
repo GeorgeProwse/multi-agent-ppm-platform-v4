@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 class M365Connector(OAuth2RestConnector):
     CONNECTOR_ID = "m365"
     CONNECTOR_NAME = "Microsoft 365"
-    CONNECTOR_VERSION = "1.0.0"
+    CONNECTOR_VERSION = "1.1.0"
     CONNECTOR_CATEGORY = ConnectorCategory.COLLABORATION
     SUPPORTS_WRITE = False
 
@@ -83,6 +83,14 @@ class M365Connector(OAuth2RestConnector):
         "power_bi": ["powerbi_reports", "powerbi_dashboards"],
         "viva": ["viva_learning"],
     }
+
+    WORKLOAD_DATA_TABLE_TYPES = (
+        "user_list",
+        "last_activity",
+        "subscription_data",
+        "cost_data",
+        "last_login",
+    )
 
     MCP_SUPPORTED_RESOURCES = {"teams", "channels", "messages", "events", "mail", "drive_items"}
 
@@ -147,7 +155,13 @@ class M365Connector(OAuth2RestConnector):
     def _build_mcp_client(self) -> MCPClient:
         if getattr(self, "_mcp_client", None):
             return self._mcp_client
-        self._mcp_client = MCPClient(self.config)
+        if not self.config.mcp_server_url:
+            raise ValueError("M365 MCP server URL is required")
+        self._mcp_client = MCPClient(
+            mcp_server_id=self.config.mcp_server_id or self.CONNECTOR_ID,
+            mcp_server_url=self.config.mcp_server_url,
+            config=self.config,
+        )
         return self._mcp_client
 
     def _load_tool_map(self) -> dict[str, Any]:
@@ -287,6 +301,24 @@ class M365Connector(OAuth2RestConnector):
             return []
         return self._read_rest_endpoint(endpoint, params)
 
+    def read_data_table(
+        self,
+        workload: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, list[dict[str, Any]]]:
+        table: dict[str, list[dict[str, Any]]] = {}
+        for data_type in self.WORKLOAD_DATA_TABLE_TYPES:
+            table[data_type] = self.read_data_type(
+                workload,
+                data_type,
+                filters=filters,
+                limit=limit,
+                offset=offset,
+            )
+        return table
+
     def read_workloads(
         self,
         filters: dict[str, Any] | None = None,
@@ -306,13 +338,23 @@ class M365Connector(OAuth2RestConnector):
         for workload in workloads:
             workload_results: dict[str, list[dict[str, Any]]] = {}
             if data_type:
-                workload_results[data_type] = self.read_data_type(
-                    workload,
-                    data_type,
-                    filters=working_filters,
-                    limit=limit,
-                    offset=offset,
-                )
+                if data_type == "data_table":
+                    workload_results.update(
+                        self.read_data_table(
+                            workload,
+                            filters=working_filters,
+                            limit=limit,
+                            offset=offset,
+                        )
+                    )
+                else:
+                    workload_results[data_type] = self.read_data_type(
+                        workload,
+                        data_type,
+                        filters=working_filters,
+                        limit=limit,
+                        offset=offset,
+                    )
             else:
                 for resource_type in self.WORKLOAD_RESOURCE_MAP.get(workload, []):
                     if self._should_use_mcp_for_resource(resource_type):

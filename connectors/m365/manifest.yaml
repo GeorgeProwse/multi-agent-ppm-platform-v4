@@ -1,5 +1,5 @@
 id: "m365"
-version: "1.0.0"
+version: "1.1.0"
 name: "Microsoft 365"
 description: "Sync Microsoft 365 workloads (Teams, Exchange, SharePoint, Planner, OneDrive, Power BI, Viva) via Microsoft Graph and MCP."
 owner: "integration-team"
