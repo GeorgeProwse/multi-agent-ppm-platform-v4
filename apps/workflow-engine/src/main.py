@@ -21,7 +21,7 @@ WORKFLOW_ROOT = Path(__file__).resolve().parent
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
 WORKFLOW_PACKAGE_ROOT = REPO_ROOT / "packages" / "workflow" / "src"
-EVENT_BUS_ROOT = REPO_ROOT / "packages" / "event_bus" / "src"
+EVENT_BUS_ROOT = REPO_ROOT / "packages" / "event-bus" / "src"
 for root in (
     REPO_ROOT,
     WORKFLOW_ROOT,

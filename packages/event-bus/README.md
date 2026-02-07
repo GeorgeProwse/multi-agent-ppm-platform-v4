@@ -10,7 +10,7 @@ Provide shared event bus implementations for agent and service communication.
 
 ## How to use
 
-Import the package in services or agents after adding `packages/event_bus/src` to `PYTHONPATH`:
+Import the package in services or agents after adding `packages/event-bus/src` to `PYTHONPATH`:
 
 ```python
 from event_bus import ServiceBusEventBus

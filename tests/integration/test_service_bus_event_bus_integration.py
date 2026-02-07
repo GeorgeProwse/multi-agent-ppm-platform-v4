@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-EVENT_BUS_SRC = Path(__file__).resolve().parents[2] / "packages" / "event_bus" / "src"
+EVENT_BUS_SRC = Path(__file__).resolve().parents[2] / "packages" / "event-bus" / "src"
 if str(EVENT_BUS_SRC) not in sys.path:
     sys.path.insert(0, str(EVENT_BUS_SRC))
 
