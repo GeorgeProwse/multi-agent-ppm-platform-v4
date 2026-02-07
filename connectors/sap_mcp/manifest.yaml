@@ -1,0 +1,34 @@
+id: "sap_mcp"
+version: "1.0.0"
+name: "SAP (MCP)"
+description: "Sync SAP ERP data via MCP-backed OData services."
+owner: "integration-team"
+category: "erp"
+auth:
+  type: "mcp"
+  fields:
+    - "server_url"
+    - "server_id"
+    - "tool_map"
+mcp:
+  server_url: "https://mcp.example.com"
+  server_id: "sap"
+  tool_map:
+    list_invoices: "sap.listInvoices"
+    list_goods_receipts: "sap.listGoodsReceipts"
+    list_purchase_orders: "sap.listPurchaseOrders"
+    list_suppliers: "sap.listSuppliers"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "15 */6 * * *"
+  supports_webhooks: false
+  rate_limit_per_minute: 300
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"
+  - source: "purchase_order"
+    target: "purchase-order"
+    mapping_file: "mappings/purchase-order.yaml"

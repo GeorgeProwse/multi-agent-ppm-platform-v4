@@ -253,6 +253,17 @@
     ]
   },
   {
+    "id": "sap_mcp",
+    "name": "SAP (MCP)",
+    "manifest_path": "connectors/sap_mcp/manifest.yaml",
+    "status": "beta",
+    "certification": "not-started",
+    "category": "erp",
+    "supported_sync_directions": [
+      "inbound"
+    ]
+  },
+  {
     "id": "sap_successfactors",
     "name": "SAP SuccessFactors",
     "manifest_path": "connectors/sap_successfactors/manifest.yaml",
@@ -365,6 +376,17 @@
     "id": "workday",
     "name": "Workday",
     "manifest_path": "connectors/workday/manifest.yaml",
+    "status": "beta",
+    "certification": "not-started",
+    "category": "hris",
+    "supported_sync_directions": [
+      "inbound"
+    ]
+  },
+  {
+    "id": "workday_mcp",
+    "name": "Workday (MCP)",
+    "manifest_path": "connectors/workday_mcp/manifest.yaml",
     "status": "beta",
     "certification": "not-started",
     "category": "hris",
