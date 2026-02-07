@@ -1,0 +1,29 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: mcp-cross-system-sync
+  version: "1.0.0"
+  owner: examples
+  description: Example workflow that chains MCP-enabled connectors across systems.
+steps:
+  - id: pull-jira-work-items
+    type: task
+    next: sync-planview-portfolio
+    config:
+      agent: jira_sync_agent
+      action: list_work_items
+      connector: jira_mcp
+  - id: sync-planview-portfolio
+    type: task
+    next: notify-slack
+    config:
+      agent: planview_sync_agent
+      action: upsert_portfolio_items
+      connector: planview_mcp
+  - id: notify-slack
+    type: notification
+    next: null
+    config:
+      channel: slack
+      connector: slack_mcp
+      template: mcp-cross-system-summary

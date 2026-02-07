@@ -21,6 +21,7 @@ This directory provides example artifacts that demonstrate how to use platform a
 | [portfolio-intake-request.json](./portfolio-intake-request.json) | Sample portfolio intake request payload |
 | [abac-evaluation.json](./abac-evaluation.json) | Sample ABAC evaluation request payload |
 | [integration_demo.py](./integration_demo.py) | Integration demo script |
+| [mcp_cross_system_demo.py](./mcp_cross_system_demo.py) | MCP client demo script for cross-system workflows |
 
 ## How to run / develop / test
 
