@@ -1,8 +1,8 @@
-# Sprint Plan
+# Sprint Planning Template
 
 ## Purpose
-Define the sprint goal, scope, capacity, and delivery commitments so the team can execute with a
-clear plan and measurable outcomes.
+Capture the outcomes of sprint planning so the team leaves with a shared sprint goal, confirmed
+capacity, committed backlog, and a clear plan for delivery.
 
 ## Audience
 Scrum Master, Product Owner, Delivery Team, QA Lead, Stakeholders.
@@ -10,71 +10,139 @@ Scrum Master, Product Owner, Delivery Team, QA Lead, Stakeholders.
 ## Inputs
 - Prioritized backlog (`docs/methodology/agile/templates/backlog.csv`).
 - Release plan (`docs/methodology/agile/templates/release-plan.md`).
-- Capacity data and availability commitments.
+- Capacity data, holidays, and availability commitments.
+- Previous sprint metrics and retrospective actions.
 
 ## Definitions
 - **Sprint goal:** The business outcome the team commits to deliver in the sprint.
-- **Capacity:** Total available effort for the sprint after accounting for leave and support work.
+- **Capacity:** Total available effort after accounting for leave, support, and ceremonies.
 - **Commitment:** The set of stories the team agrees to deliver.
 
 ## Methodology Gate Alignment
 - Agile gate: Sprint Planning Gate (`docs/methodology/agile/gates.yaml`).
 
 ## Required Sections
-- Sprint metadata
-- Sprint goal
+- Sprint metadata and meeting details
+- Sprint goal and success criteria
+- Capacity planning
 - Backlog commitments
-- Capacity & availability
-- Risks & dependencies
-- Definition of Done
-- Sprint ceremonies
+- Task breakdown and ownership
+- Risks, dependencies, and mitigations
+- Definition of Done and Definition of Ready checks
+- Sprint ceremonies and communication plan
 - Approval and sign-off
 
+---
+
 ## Sprint Metadata
+- **Product / project:**
 - **Sprint name / number:**
-- **Sprint goal:**
-- **Start date:**
-- **End date:**
+- **Sprint dates:**
+- **Duration:**
 - **Team / squad:**
 - **Product owner:**
 - **Scrum master:**
+- **Last updated:**
+
+## Planning Meeting Details
+- **Date / time:**
+- **Location / platform:**
+- **Participants:**
+- **Timebox:**
 
 ## Sprint Goal
-Describe the outcome the team commits to deliver by the end of the sprint, including measurable
-success criteria.
+Describe the outcome the team commits to deliver by the end of the sprint.
 
-## Backlog Commitments
-| Story / ID | Description | Estimate (pts) | Owner | Acceptance Criteria | Definition of Done | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |
+### Success Criteria
+- [ ]
+- [ ]
+- [ ]
 
-## Capacity & Availability
-| Team Member | Availability (days) | Planned Focus | Notes |
+### Value Statement
+Explain how this sprint delivers value to users or stakeholders.
+
+## Capacity Planning
+### Availability
+| Team Member | Role | Days Available | Focus Factor (%) | Adjusted Capacity (hrs) | Notes |
+| --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |
+
+### Velocity Reference
+| Sprint | Committed Points | Completed Points | Notes |
 | --- | --- | --- | --- |
 |  |  |  |  |
 
-## Risks & Dependencies
-- **Dependencies:**
-- **Risks:**
-- **Mitigation plan:**
+### Capacity Summary
+- **Adjusted team capacity:**
+- **Target story points:**
+- **Buffer reserved (% / points):**
+
+## Backlog Commitments
+### Selection Criteria
+- Aligns with sprint goal and release milestones.
+- Meets Definition of Ready checks.
+- Dependencies identified and feasible within sprint.
+- Balanced mix of features, defects, and technical debt.
+
+### Selected Items
+| Story / ID | Description | Estimate (pts) | Owner | Acceptance Criteria | Dependencies | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |
+
+### Deferred Items
+| Story / ID | Reason for Deferral | Next Review |
+| --- | --- | --- |
+|  |  |  |
+
+## Task Breakdown & Ownership
+Break selected stories into executable tasks (4–8 hour increments where possible).
+
+| Task ID | Story / ID | Description | Estimate (hrs) | Owner | Dependencies | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |
+
+## Definition of Ready Checklist
+- [ ] User story format and business value are clear.
+- [ ] Acceptance criteria are testable and agreed.
+- [ ] Dependencies are identified and resolved or planned.
+- [ ] Story is sized by the team.
+- [ ] Data, design, or research inputs are available.
 
 ## Definition of Done
 - Code reviewed and merged.
 - Tests passing and quality checks complete.
 - Documentation updated where needed.
 - Stakeholders notified of delivered outcomes.
+- Deployed to agreed environment.
+
+## Risks & Dependencies
+### Dependencies
+| Dependency | Owner | Due Date | Status | Mitigation |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
+
+### Risks
+| Risk | Probability | Impact | Mitigation Plan | Owner |
+| --- | --- | --- | --- | --- |
+|  |  |  |  |  |
 
 ## Retrospective Carry-Over Actions
-List actions from the prior retrospective that must be addressed in this sprint.
 | Action | Owner | Due Date | Status |
 | --- | --- | --- | --- |
 |  |  |  |  |
 
-## Sprint Ceremonies
+## Sprint Ceremonies & Communication
 - **Daily stand-up cadence:**
 - **Backlog refinement cadence:**
 - **Review/demo schedule:**
 - **Retrospective schedule:**
+- **Stakeholder update cadence:**
+
+## Sprint Commitment
+Summarize the agreed commitment and any assumptions.
+- **Total story points:**
+- **Capacity utilization:**
+- **Key assumptions / constraints:**
 
 ## Approval & Sign-off
 | Name | Role | Decision | Date |
@@ -82,7 +150,7 @@ List actions from the prior retrospective that must be addressed in this sprint.
 |  |  |  |  |
 
 ## Completion Checklist
-- [ ] Sprint goal aligns with prioritized backlog.
+- [ ] Sprint goal aligns with prioritized backlog and release plan.
 - [ ] Capacity and availability are confirmed.
 - [ ] Dependencies and risks documented with owners.
 - [ ] Stakeholder expectations communicated.
