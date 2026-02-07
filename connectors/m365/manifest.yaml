@@ -4,6 +4,7 @@ name: "Microsoft 365"
 description: "Sync Microsoft 365 workloads (Teams, Exchange, SharePoint, Planner, OneDrive, Power BI, Viva) via Microsoft Graph and MCP."
 owner: "integration-team"
 category: "collaboration"
+tool_map: "tool_map.yaml"
 auth:
   type: "oauth2"
   token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
