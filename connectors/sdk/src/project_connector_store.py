@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,15 +21,20 @@ class ProjectConnectorConfig(ConnectorConfig):
     """Configuration for a connector scoped to a PPM project."""
 
     ppm_project_id: str = ""
+    mcp_tools: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data["ppm_project_id"] = self.ppm_project_id
+        data["mcp_tools"] = self.mcp_tools
         return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "ProjectConnectorConfig":
         base = ConnectorConfig.from_dict(data)
+        mcp_tools = data.get("mcp_tools")
+        if not mcp_tools:
+            mcp_tools = list((data.get("mcp_tool_map") or {}).keys())
         return cls(
             connector_id=base.connector_id,
             name=base.name,
@@ -62,6 +67,7 @@ class ProjectConnectorConfig(ConnectorConfig):
             last_sync_at=base.last_sync_at,
             health_status=base.health_status,
             ppm_project_id=data.get("ppm_project_id", ""),
+            mcp_tools=mcp_tools or [],
         )
 
 
@@ -104,7 +110,16 @@ class ProjectConnectorConfigStore:
         configs = self._load_all()
         project_configs = configs.setdefault(config.ppm_project_id, {})
         config.updated_at = datetime.now(timezone.utc)
-        project_configs[config.connector_id] = config.to_dict()
+        config_data = config.to_dict()
+        if config_data.get("mcp_tools") and not config_data.get("mcp_tool_map"):
+            config_data["mcp_tool_map"] = {tool: tool for tool in config_data["mcp_tools"]}
+        if config_data.get("mcp_tool_map") and not config_data.get("mcp_tools"):
+            config_data["mcp_tools"] = list(config_data["mcp_tool_map"].keys())
+        if not self._fernet:
+            for field in ("mcp_client_secret", "mcp_api_key", "client_secret"):
+                if config_data.get(field):
+                    config_data[field] = ""
+        project_configs[config.connector_id] = config_data
         configs[config.ppm_project_id] = project_configs
         self._save_all(configs)
 
