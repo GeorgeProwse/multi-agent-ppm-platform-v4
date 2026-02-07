@@ -60,3 +60,4 @@ The authoritative registry list lives in `connectors/registry/connectors.json`.
 - [Connector Overview](overview.md)
 - [Connector Certification](certification.md)
 - [Connector Data Mapping](data-mapping.md)
+- [MCP Coverage Matrix](mcp-coverage-matrix.md)
