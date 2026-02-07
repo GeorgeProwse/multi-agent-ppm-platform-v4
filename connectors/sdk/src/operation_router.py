@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Callable
 
 from base_connector import ConnectorConfig, normalize_mcp_operation
 from connectors.mcp_client.client import MCPClient
 from connectors.mcp_client.errors import MCPClientError, MCPToolNotFoundError
+from observability.metrics import build_mcp_fallback_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +18,17 @@ class OperationRouter:
     ) -> None:
         self.config = config
         self._mcp_client = mcp_client
+        service_name = os.getenv("MCP_SERVICE_NAME", "mcp-client")
+        self._fallback_metrics = build_mcp_fallback_metrics(service_name)
+
+    def _record_fallback(self, operation: str, reason: str) -> None:
+        attributes = {
+            "service": os.getenv("MCP_SERVICE_NAME", "mcp-client"),
+            "system": self.config.mcp_server_id or self.config.connector_id,
+            "operation": operation,
+            "reason": reason,
+        }
+        self._fallback_metrics.fallbacks.add(1, attributes)
 
     def should_use_mcp(self, operation: str) -> bool:
         if not self.config.prefer_mcp:
@@ -48,6 +61,7 @@ class OperationRouter:
         rest_call: Callable[[], Any],
     ) -> Any:
         if not self.should_use_mcp(operation):
+            self._record_fallback(operation, "disabled_or_unmapped")
             return rest_call()
         try:
             return mcp_call()
@@ -57,6 +71,7 @@ class OperationRouter:
                 operation,
                 exc,
             )
+            self._record_fallback(operation, "tool_not_found")
             return rest_call()
         except MCPClientError as exc:
             logger.warning(
@@ -64,6 +79,7 @@ class OperationRouter:
                 operation,
                 exc,
             )
+            self._record_fallback(operation, "client_error")
             return rest_call()
         except ValueError as exc:
             logger.warning(
@@ -71,6 +87,7 @@ class OperationRouter:
                 operation,
                 exc,
             )
+            self._record_fallback(operation, "invalid_config")
             return rest_call()
 
     def run_mcp(self, coroutine: Any) -> Any:

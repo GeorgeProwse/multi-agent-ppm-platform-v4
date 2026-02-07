@@ -36,6 +36,11 @@ class MCPClientMetrics:
     latency: Any
 
 
+@dataclass(frozen=True)
+class MCPFallbackMetrics:
+    fallbacks: Any
+
+
 class RequestMetricsMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, service_name: str) -> None:
         super().__init__(app)
@@ -122,6 +127,16 @@ def build_mcp_client_metrics(service_name: str) -> MCPClientMetrics:
     return MCPClientMetrics(requests=requests, latency=latency)
 
 
+def build_mcp_fallback_metrics(service_name: str) -> MCPFallbackMetrics:
+    meter = configure_metrics(service_name)
+    fallbacks = meter.create_counter(
+        name="mcp_client_fallback_total",
+        description="Total MCP client fallbacks to REST",
+        unit="1",
+    )
+    return MCPFallbackMetrics(fallbacks=fallbacks)
+
+
 agent_request_count = Counter(
     "agent_requests_total",
     "Total number of agent invocations",
@@ -139,8 +154,10 @@ __all__ = [
     "configure_metrics",
     "build_kpi_handles",
     "build_mcp_client_metrics",
+    "build_mcp_fallback_metrics",
     "KPIHandles",
     "MCPClientMetrics",
+    "MCPFallbackMetrics",
     "RequestMetricsMiddleware",
     "agent_request_count",
     "agent_request_latency",

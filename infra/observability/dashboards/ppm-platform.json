@@ -93,6 +93,36 @@
     },
     {
       "type": "timeseries",
+      "title": "MCP Call Volume by System",
+      "targets": [
+        {
+          "expr": "sum(rate(mcp_client_requests_total[5m])) by (system)",
+          "legendFormat": "{{system}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "MCP Error Rate by System",
+      "targets": [
+        {
+          "expr": "sum(rate(mcp_client_requests_total{outcome=\"error\"}[5m])) by (system) / sum(rate(mcp_client_requests_total[5m])) by (system)",
+          "legendFormat": "{{system}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "MCP Fallback Rate by System",
+      "targets": [
+        {
+          "expr": "sum(rate(mcp_client_fallback_total[5m])) by (system) / sum(rate(mcp_client_requests_total[5m])) by (system)",
+          "legendFormat": "{{system}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
       "title": "MCP Client Latency (p95)",
       "targets": [
         {

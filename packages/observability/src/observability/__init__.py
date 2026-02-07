@@ -1,7 +1,9 @@
 from observability.logging import configure_logging
 from observability.metrics import (
     KPIHandles,
+    MCPFallbackMetrics,
     build_kpi_handles,
+    build_mcp_fallback_metrics,
     build_mcp_client_metrics,
     configure_metrics,
 )
@@ -23,5 +25,7 @@ __all__ = [
     "configure_metrics",
     "build_kpi_handles",
     "build_mcp_client_metrics",
+    "build_mcp_fallback_metrics",
     "KPIHandles",
+    "MCPFallbackMetrics",
 ]
