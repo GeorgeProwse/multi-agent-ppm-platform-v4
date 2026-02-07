@@ -19,6 +19,13 @@ This mapping aligns M365 workloads with required data types and identifies the p
 | Power BI | MCP: `users.list` / REST: `/users` | MCP: `power_bi.last_activity` / REST: `/reports/getPowerBIActivityUserDetail` | MCP: `subscriptions.list` / REST: `/subscribedSkus` | MCP: `billing.costs` / REST: `/reports/getOffice365ActivationCounts` | MCP: `signins.list` / REST: `/auditLogs/signIns` |
 | Viva | MCP: `users.list` / REST: `/users` | MCP: `viva.last_activity` / REST: `/reports/getOffice365ActiveUserDetail` | MCP: `subscriptions.list` / REST: `/subscribedSkus` | MCP: `billing.costs` / REST: `/reports/getOffice365ActivationCounts` | MCP: `signins.list` / REST: `/auditLogs/signIns` |
 
+## Data table aggregation
+
+The M365 connector supports requesting `data_table` for a workload, which expands into the
+five data types above (`user_list`, `last_activity`, `subscription_data`, `cost_data`,
+and `last_login`). The MCP tool key and Graph REST endpoint mappings for each data type
+are defined in `connectors/m365/tool_map.yaml`.
+
 ## File references
 - YAML mapping file: `connectors/m365/tool_map.yaml`
 - Connector manifest: `connectors/m365/manifest.yaml`
