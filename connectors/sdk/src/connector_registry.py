@@ -130,6 +130,21 @@ PLANVIEW_CONNECTOR = ConnectorDefinition(
     ],
 )
 
+PLANVIEW_MCP_CONNECTOR = ConnectorDefinition(
+    connector_id="planview_mcp",
+    system="planview",
+    name="Planview (MCP)",
+    description="Sync portfolio and project data from Planview via an MCP server.",
+    category=ConnectorCategory.PPM,
+    status=ConnectorStatus.BETA,
+    icon="planview",
+    supported_sync_directions=[SyncDirection.INBOUND, SyncDirection.BIDIRECTIONAL],
+    auth_type="mcp",
+    mcp_server_id="planview",
+    supported_operations=["list", "create"],
+    mcp_preferred=True,
+)
+
 CLARITY_CONNECTOR = ConnectorDefinition(
     connector_id="clarity",
     name="Clarity PPM",
@@ -150,6 +165,21 @@ CLARITY_CONNECTOR = ConnectorDefinition(
         "CLARITY_CLIENT_SECRET",
         "CLARITY_REFRESH_TOKEN",
     ],
+)
+
+CLARITY_MCP_CONNECTOR = ConnectorDefinition(
+    connector_id="clarity_mcp",
+    system="clarity",
+    name="Clarity PPM (MCP)",
+    description="Sync Clarity projects and work items via an MCP server.",
+    category=ConnectorCategory.PPM,
+    status=ConnectorStatus.BETA,
+    icon="clarity",
+    supported_sync_directions=[SyncDirection.INBOUND, SyncDirection.BIDIRECTIONAL],
+    auth_type="mcp",
+    mcp_server_id="clarity",
+    supported_operations=["list", "create"],
+    mcp_preferred=True,
 )
 
 MS_PROJECT_SERVER_CONNECTOR = ConnectorDefinition(
@@ -258,6 +288,20 @@ ASANA_CONNECTOR = ConnectorDefinition(
     env_vars=["ASANA_ACCESS_TOKEN"],
 )
 
+ASANA_MCP_CONNECTOR = ConnectorDefinition(
+    connector_id="asana_mcp",
+    system="asana",
+    name="Asana (MCP)",
+    description="Sync Asana projects and tasks via an MCP server.",
+    category=ConnectorCategory.PM,
+    status=ConnectorStatus.BETA,
+    icon="asana",
+    supported_sync_directions=[SyncDirection.INBOUND, SyncDirection.BIDIRECTIONAL],
+    auth_type="mcp",
+    mcp_server_id="asana",
+    supported_operations=["list", "create"],
+    mcp_preferred=True,
+)
 # Document Management Category
 SHAREPOINT_CONNECTOR = ConnectorDefinition(
     connector_id="sharepoint",
@@ -735,7 +779,9 @@ IOT_CONNECTOR = ConnectorDefinition(
 ALL_CONNECTORS: list[ConnectorDefinition] = [
     # PPM
     PLANVIEW_CONNECTOR,
+    PLANVIEW_MCP_CONNECTOR,
     CLARITY_CONNECTOR,
+    CLARITY_MCP_CONNECTOR,
     MS_PROJECT_SERVER_CONNECTOR,
     # PM
     JIRA_CONNECTOR,
@@ -743,6 +789,7 @@ ALL_CONNECTORS: list[ConnectorDefinition] = [
     AZURE_DEVOPS_CONNECTOR,
     MONDAY_CONNECTOR,
     ASANA_CONNECTOR,
+    ASANA_MCP_CONNECTOR,
     # Doc Management
     SHAREPOINT_CONNECTOR,
     CONFLUENCE_CONNECTOR,

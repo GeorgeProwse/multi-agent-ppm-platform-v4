@@ -7,6 +7,8 @@ from typing import Any
 from connectors.sdk.src.runtime import ConnectorRuntime
 from connectors.sdk.src.secrets import resolve_secret
 
+from connectors.integration import IntegrationAuthType, IntegrationConfig, ClarityMcpConnector
+
 from .mappers import map_to_clarity
 
 from .clarity_connector import ClarityConnector, create_clarity_connector
@@ -29,12 +31,49 @@ def run_sync(
     if fixture_path and not live:
         return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
+    if live and _should_use_mcp():
+        mcp_connector = _build_mcp_connector()
+        records = mcp_connector.list_projects()
+        return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
+
     if connector is None:
         instance_url = resolve_secret(os.getenv("CLARITY_INSTANCE_URL")) or ""
         connector = create_clarity_connector(instance_url=instance_url)
 
     records = _ensure_source(connector.read("projects"), "project")
     return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
+
+
+def _build_mcp_connector() -> ClarityMcpConnector:
+    tool_map = {
+        "list_projects": "clarity.listProjects",
+        "create_work_item": "clarity.createWorkItem",
+    }
+    config = IntegrationConfig(
+        system="clarity",
+        base_url=resolve_secret(os.getenv("CLARITY_INSTANCE_URL")) or "",
+        auth_type=IntegrationAuthType.NONE,
+        mcp_server_url=resolve_secret(os.getenv("CLARITY_MCP_SERVER_URL")),
+        mcp_server_id=resolve_secret(os.getenv("CLARITY_MCP_SERVER_ID")) or "clarity",
+        mcp_client_id=resolve_secret(os.getenv("CLARITY_MCP_CLIENT_ID")),
+        mcp_client_secret=resolve_secret(os.getenv("CLARITY_MCP_CLIENT_SECRET")),
+        mcp_scope=resolve_secret(os.getenv("CLARITY_MCP_SCOPE")),
+        mcp_api_key=resolve_secret(os.getenv("CLARITY_MCP_API_KEY")),
+        mcp_api_key_header=resolve_secret(os.getenv("CLARITY_MCP_API_KEY_HEADER")),
+        mcp_oauth_token=resolve_secret(os.getenv("CLARITY_MCP_OAUTH_TOKEN")),
+        mcp_tool_map=tool_map,
+        prefer_mcp=True,
+    )
+    return ClarityMcpConnector(config)
+
+
+def _should_use_mcp() -> bool:
+    prefer = (resolve_secret(os.getenv("CLARITY_PREFER_MCP")) or "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return bool(prefer and resolve_secret(os.getenv("CLARITY_MCP_SERVER_URL")))
 
 
 if __name__ == "__main__":
@@ -64,7 +103,13 @@ def send_to_external_system(records: list[dict[str, object]], tenant_id: str, *,
         include_schema: Whether the mapped records include schema metadata.
     """
     import logging
+
     mapped_payload = map_to_clarity(records)
+    if _should_use_mcp():
+        connector = _build_mcp_connector()
+        for payload in mapped_payload:
+            connector.create_work_item(payload)
+        return
     logging.getLogger(__name__).info(
         "Outbound payload for Clarity tenant %s (include_schema=%s): %s",
         tenant_id,

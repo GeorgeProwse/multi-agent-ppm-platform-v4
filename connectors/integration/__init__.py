@@ -16,12 +16,20 @@ from connectors.integration.framework import (
     ServiceNowConnector,
     SmartsheetConnector,
 )
+from connectors.integration.mcp_connectors import (
+    AsanaMcpConnector,
+    ClarityMcpConnector,
+    PlanviewMcpConnector,
+    SlackMcpConnector,
+    TeamsMcpConnector,
+)
 
 __all__ = [
     "AzureCommunicationConnector",
     "AzureDevOpsConnector",
     "BaseIntegrationConnector",
     "ClarityConnector",
+    "ClarityMcpConnector",
     "ConnectorRegistry",
     "ConnectorSettings",
     "GoogleCalendarConnector",
@@ -30,6 +38,10 @@ __all__ = [
     "JiraConnector",
     "OutlookConnector",
     "PlanviewConnector",
+    "PlanviewMcpConnector",
     "ServiceNowConnector",
+    "SlackMcpConnector",
     "SmartsheetConnector",
+    "TeamsMcpConnector",
+    "AsanaMcpConnector",
 ]

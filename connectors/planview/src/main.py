@@ -10,6 +10,8 @@ from connectors.sdk.src.http_client import HttpClient, HttpClientError
 from connectors.sdk.src.runtime import ConnectorRuntime
 from connectors.sdk.src.secrets import fetch_keyvault_secret, resolve_secret
 
+from connectors.integration import IntegrationAuthType, IntegrationConfig, PlanviewMcpConnector
+
 from .mappers import map_to_planview
 
 CONNECTOR_ROOT = Path(__file__).resolve().parents[1]
@@ -159,6 +161,12 @@ def run_sync(
     if fixture_path and not live:
         return runtime.run_sync(fixture_path, tenant_id, include_schema=include_schema)
 
+    use_mcp = _should_use_mcp()
+    if live and use_mcp:
+        mcp_connector = _build_mcp_connector()
+        records = mcp_connector.list_projects()
+        return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
+
     rate_limit = runtime.manifest.sync.get("rate_limit_per_minute", 200)
     config = config or PlanviewConfig.from_env(rate_limit)
     auth_config = runtime.manifest.auth
@@ -176,6 +184,38 @@ def run_sync(
         client.set_header("Authorization", f"Bearer {token_manager.get_access_token()}")
     records = _fetch_projects(client, token_manager)
     return runtime.apply_mappings(records, tenant_id, include_schema=include_schema)
+
+
+def _build_mcp_connector() -> PlanviewMcpConnector:
+    tool_map = {
+        "list_projects": "planview.listProjects",
+        "create_work_item": "planview.createWorkItem",
+    }
+    config = IntegrationConfig(
+        system="planview",
+        base_url=resolve_secret(os.getenv("PLANVIEW_INSTANCE_URL")) or "",
+        auth_type=IntegrationAuthType.NONE,
+        mcp_server_url=resolve_secret(os.getenv("PLANVIEW_MCP_SERVER_URL")),
+        mcp_server_id=resolve_secret(os.getenv("PLANVIEW_MCP_SERVER_ID")) or "planview",
+        mcp_client_id=resolve_secret(os.getenv("PLANVIEW_MCP_CLIENT_ID")),
+        mcp_client_secret=resolve_secret(os.getenv("PLANVIEW_MCP_CLIENT_SECRET")),
+        mcp_scope=resolve_secret(os.getenv("PLANVIEW_MCP_SCOPE")),
+        mcp_api_key=resolve_secret(os.getenv("PLANVIEW_MCP_API_KEY")),
+        mcp_api_key_header=resolve_secret(os.getenv("PLANVIEW_MCP_API_KEY_HEADER")),
+        mcp_oauth_token=resolve_secret(os.getenv("PLANVIEW_MCP_OAUTH_TOKEN")),
+        mcp_tool_map=tool_map,
+        prefer_mcp=True,
+    )
+    return PlanviewMcpConnector(config)
+
+
+def _should_use_mcp() -> bool:
+    prefer = (resolve_secret(os.getenv("PLANVIEW_PREFER_MCP")) or "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    return bool(prefer and resolve_secret(os.getenv("PLANVIEW_MCP_SERVER_URL")))
 
 
 if __name__ == "__main__":
@@ -205,7 +245,13 @@ def send_to_external_system(records: list[dict[str, object]], tenant_id: str, *,
         include_schema: Whether the mapped records include schema metadata.
     """
     import logging
+
     mapped_payload = map_to_planview(records)
+    if _should_use_mcp():
+        connector = _build_mcp_connector()
+        for payload in mapped_payload:
+            connector.create_work_item(payload)
+        return
     logging.getLogger(__name__).info(
         "Outbound payload for Planview tenant %s (include_schema=%s): %s",
         tenant_id,

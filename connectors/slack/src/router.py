@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, HTTPException
 
 from connectors.sdk.src.base_connector import (
@@ -12,6 +14,8 @@ from pathlib import Path
 
 from connectors.sdk.src.runtime import ConnectorRuntime
 from connectors.sdk.src.sync_router import InboundSyncRequest, OutboundSyncRequest, map_records
+
+from connectors.integration import IntegrationAuthType, IntegrationConfig, SlackMcpConnector
 
 from .slack_connector import SlackConnector
 
@@ -33,6 +37,34 @@ def _build_connector() -> SlackConnector:
     )
     return SlackConnector(config)
 
+def _build_mcp_connector() -> SlackMcpConnector:
+    tool_map = {
+        "list_projects": "slack.listChannels",
+        "send_message": "slack.postMessage",
+        "list_users": "slack.listUsers",
+    }
+    config = IntegrationConfig(
+        system="slack",
+        base_url=os.getenv("SLACK_API_URL", ""),
+        auth_type=IntegrationAuthType.NONE,
+        mcp_server_url=os.getenv("SLACK_MCP_SERVER_URL"),
+        mcp_server_id=os.getenv("SLACK_MCP_SERVER_ID") or "slack",
+        mcp_client_id=os.getenv("SLACK_MCP_CLIENT_ID"),
+        mcp_client_secret=os.getenv("SLACK_MCP_CLIENT_SECRET"),
+        mcp_scope=os.getenv("SLACK_MCP_SCOPE"),
+        mcp_api_key=os.getenv("SLACK_MCP_API_KEY"),
+        mcp_api_key_header=os.getenv("SLACK_MCP_API_KEY_HEADER"),
+        mcp_oauth_token=os.getenv("SLACK_MCP_OAUTH_TOKEN"),
+        mcp_tool_map=tool_map,
+        prefer_mcp=True,
+    )
+    return SlackMcpConnector(config)
+
+
+def _should_use_mcp() -> bool:
+    prefer = os.getenv("SLACK_PREFER_MCP", "").lower() in {"1", "true", "yes"}
+    return bool(prefer and os.getenv("SLACK_MCP_SERVER_URL"))
+
 
 @router.post("/sync/inbound")
 def sync_inbound(request: InboundSyncRequest) -> list[dict[str, object]]:
@@ -45,8 +77,12 @@ def sync_inbound(request: InboundSyncRequest) -> list[dict[str, object]]:
         )
     if not request.live:
         raise HTTPException(status_code=400, detail="Either records or live=true is required")
-    connector = _build_connector()
-    channels = connector.read("channels")
+    if _should_use_mcp():
+        connector = _build_mcp_connector()
+        channels = connector.list_projects()
+    else:
+        connector = _build_connector()
+        channels = connector.read("channels")
     records = [
         {
             "source": "project",
@@ -70,6 +106,16 @@ def sync_outbound(request: OutboundSyncRequest) -> dict[str, object]:
         include_schema=request.include_schema,
     )
     if request.live:
+        if _should_use_mcp():
+            connector = _build_mcp_connector()
+            responses = []
+            for record in request.records:
+                payload = {
+                    "channel": record.get("channel") or record.get("id"),
+                    "text": record.get("text") or record.get("message") or record.get("name"),
+                }
+                responses.append(connector.send_message(payload))
+            return {"status": "sent", "records": responses}
         connector = _build_connector()
         response = connector.write("messages", request.records)
         return {"status": "sent", "records": response}

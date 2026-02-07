@@ -13,6 +13,7 @@ except Exception:
     Fernet = None  # type: ignore
 
 from .base_connector import ConnectorCategory, ConnectorConfig
+from .connector_registry import get_connector_definition
 
 
 @dataclass
@@ -126,13 +127,18 @@ class ProjectConnectorConfigStore:
         config = self.get(project_id, connector_id)
         if not config:
             return False
+        definition = get_connector_definition(connector_id)
+        system = definition.system if definition else None
 
         for other in self.list_project(project_id):
-            if (
-                other.category == config.category
-                and other.connector_id != connector_id
-                and other.enabled
-            ):
+            if other.connector_id == connector_id or not other.enabled:
+                continue
+            other_definition = get_connector_definition(other.connector_id)
+            if system and other_definition and other_definition.system == system:
+                other.enabled = False
+                self.save(other)
+                continue
+            if other.category == config.category:
                 other.enabled = False
                 self.save(other)
 

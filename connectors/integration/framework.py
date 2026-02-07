@@ -39,6 +39,16 @@ class IntegrationConfig:
     password: Optional[str] = None
     scopes: list[str] = field(default_factory=list)
     extra: Dict[str, Any] = field(default_factory=dict)
+    mcp_server_url: Optional[str] = None
+    mcp_server_id: Optional[str] = None
+    mcp_client_id: Optional[str] = None
+    mcp_client_secret: Optional[str] = None
+    mcp_scope: Optional[str] = None
+    mcp_api_key: Optional[str] = None
+    mcp_api_key_header: Optional[str] = None
+    mcp_oauth_token: Optional[str] = None
+    mcp_tool_map: Dict[str, str] = field(default_factory=dict)
+    prefer_mcp: bool = False
 
 
 class BaseIntegrationConnector:
@@ -109,23 +119,48 @@ class BaseIntegrationConnector:
             logger.warning("Connector health check failed", extra={"error": str(exc)})
             return False
 
+    def list_projects(self, filters: Dict[str, Any] | None = None) -> list[Dict[str, Any]]:
+        raise NotImplementedError
+
+    def create_work_item(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def send_message(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        raise NotImplementedError
+
 
 class ConnectorRegistry:
     """Registry for external connectors."""
 
     def __init__(self) -> None:
-        self._registry: Dict[str, Type[BaseIntegrationConnector]] = {}
+        self._registry: Dict[str, Dict[str, Type[BaseIntegrationConnector]]] = {}
 
-    def register(self, system: str, connector: Type[BaseIntegrationConnector]) -> None:
-        self._registry[system] = connector
+    def register(
+        self,
+        system: str,
+        connector: Type[BaseIntegrationConnector],
+        *,
+        variant: str = "rest",
+    ) -> None:
+        self._registry.setdefault(system, {})[variant] = connector
 
     def create(
         self, system: str, config: IntegrationConfig, settings: Optional[ConnectorSettings] = None
     ) -> BaseIntegrationConnector:
-        connector_cls = self._registry.get(system)
+        connector_cls = self._registry.get(system, {})
         if not connector_cls:
             raise ValueError(f"Unknown connector system: {system}")
-        return connector_cls(config, settings=settings)
+        prefer_mcp = bool(config.prefer_mcp and config.mcp_server_url)
+        if prefer_mcp and "mcp" in connector_cls:
+            rest_connector = None
+            if "rest" in connector_cls:
+                rest_connector = connector_cls["rest"](config, settings=settings)
+            return connector_cls["mcp"](config, settings=settings, rest_connector=rest_connector)
+        if "rest" in connector_cls:
+            return connector_cls["rest"](config, settings=settings)
+        if "mcp" in connector_cls:
+            return connector_cls["mcp"](config, settings=settings)
+        raise ValueError(f"No connector variants registered for {system}")
 
     def list_systems(self) -> list[str]:
         return sorted(self._registry.keys())
@@ -169,15 +204,28 @@ class AzureCommunicationConnector(BaseIntegrationConnector):
 
 def default_registry() -> ConnectorRegistry:
     registry = ConnectorRegistry()
-    registry.register(PlanviewConnector.system_name, PlanviewConnector)
-    registry.register(ClarityConnector.system_name, ClarityConnector)
-    registry.register(JiraConnector.system_name, JiraConnector)
-    registry.register(AzureDevOpsConnector.system_name, AzureDevOpsConnector)
-    registry.register(SmartsheetConnector.system_name, SmartsheetConnector)
-    registry.register(OutlookConnector.system_name, OutlookConnector)
-    registry.register(GoogleCalendarConnector.system_name, GoogleCalendarConnector)
-    registry.register(ServiceNowConnector.system_name, ServiceNowConnector)
-    registry.register(AzureCommunicationConnector.system_name, AzureCommunicationConnector)
+    from connectors.integration.mcp_connectors import (
+        AsanaMcpConnector,
+        ClarityMcpConnector,
+        PlanviewMcpConnector,
+        SlackMcpConnector,
+        TeamsMcpConnector,
+    )
+
+    registry.register(PlanviewConnector.system_name, PlanviewConnector, variant="rest")
+    registry.register(PlanviewMcpConnector.system_name, PlanviewMcpConnector, variant="mcp")
+    registry.register(ClarityConnector.system_name, ClarityConnector, variant="rest")
+    registry.register(ClarityMcpConnector.system_name, ClarityMcpConnector, variant="mcp")
+    registry.register(JiraConnector.system_name, JiraConnector, variant="rest")
+    registry.register(AzureDevOpsConnector.system_name, AzureDevOpsConnector, variant="rest")
+    registry.register(SmartsheetConnector.system_name, SmartsheetConnector, variant="rest")
+    registry.register(OutlookConnector.system_name, OutlookConnector, variant="rest")
+    registry.register(GoogleCalendarConnector.system_name, GoogleCalendarConnector, variant="rest")
+    registry.register(ServiceNowConnector.system_name, ServiceNowConnector, variant="rest")
+    registry.register(AzureCommunicationConnector.system_name, AzureCommunicationConnector, variant="rest")
+    registry.register(SlackMcpConnector.system_name, SlackMcpConnector, variant="mcp")
+    registry.register(TeamsMcpConnector.system_name, TeamsMcpConnector, variant="mcp")
+    registry.register(AsanaMcpConnector.system_name, AsanaMcpConnector, variant="mcp")
     return registry
 
 
