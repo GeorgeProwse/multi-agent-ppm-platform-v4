@@ -270,6 +270,26 @@
   gap: 6px;
 }
 
+.protocolBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.protocolBadgeMcp {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.protocolBadgeRest {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 .statusBadge {
   display: inline-block;
   padding: 2px 8px;
@@ -430,6 +450,28 @@
 .certBadgeNotStarted {
   background: #e0f2fe;
   color: #0369a1;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.summaryLabel {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary, #6b7280);
+}
+
+.summaryValue {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  margin-top: 4px;
 }
 
 .cardActions {
