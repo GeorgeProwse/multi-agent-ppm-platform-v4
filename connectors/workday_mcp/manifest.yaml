@@ -1,0 +1,34 @@
+id: "workday_mcp"
+version: "1.0.0"
+name: "Workday (MCP)"
+description: "Sync Workday HRIS data via MCP services."
+owner: "integration-team"
+category: "hris"
+auth:
+  type: "mcp"
+  fields:
+    - "server_url"
+    - "server_id"
+    - "tool_map"
+mcp:
+  server_url: "https://mcp.example.com"
+  server_id: "workday"
+  tool_map:
+    list_workers: "workday.listWorkers"
+    list_job_profiles: "workday.listJobProfiles"
+    list_positions: "workday.listPositions"
+    list_organizations: "workday.listOrganizations"
+sync:
+  modes:
+    - "full"
+    - "incremental"
+  default_schedule: "0 */8 * * *"
+  supports_webhooks: false
+  rate_limit_per_minute: 300
+mappings:
+  - source: "project"
+    target: "project"
+    mapping_file: "mappings/project.yaml"
+  - source: "resource"
+    target: "resource"
+    mapping_file: "mappings/resource.yaml"
