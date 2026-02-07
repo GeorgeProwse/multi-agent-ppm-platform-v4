@@ -136,6 +136,38 @@ MCP-enabled connectors can be configured to route requests through an MCP server
 | `twilio` | `TWILIO_MCP_SERVER_URL` | `TWILIO_MCP_CLIENT_ID`, `TWILIO_MCP_CLIENT_SECRET` (only if your MCP server uses OAuth) | Enable with `TWILIO_PREFER_MCP=true`. |
 | `notification_hubs` | `AZURE_NOTIFICATION_HUBS_MCP_SERVER_URL` | `AZURE_NOTIFICATION_HUBS_MCP_CLIENT_ID`, `AZURE_NOTIFICATION_HUBS_MCP_CLIENT_SECRET` (only if your MCP server uses OAuth) | Enable with `AZURE_NOTIFICATION_HUBS_PREFER_MCP=true`. |
 
+### Managing MCP OAuth secrets in Key Vault and Secrets Manager
+
+For production deployments, store MCP OAuth client IDs/secrets in a managed secret store and map them to the runtime environment variables consumed by the connector runtime. Follow the production guidance in [ADR 0010](../docs/architecture/adr/0010-secrets-management.md) for managed secret rotation and local `.env` usage.
+
+**Azure Key Vault**
+
+1. Create Key Vault secrets using the same key names as the env vars (recommended) or document a mapping table.
+2. Use the Kubernetes SecretProviderClass (or your preferred runtime injector) to project those secrets as environment variables.
+
+Example mapping (recommended: keep names identical):
+
+| Key Vault secret name | Runtime env var |
+| --- | --- |
+| `PLANVIEW_MCP_CLIENT_ID` | `PLANVIEW_MCP_CLIENT_ID` |
+| `PLANVIEW_MCP_CLIENT_SECRET` | `PLANVIEW_MCP_CLIENT_SECRET` |
+| `PLANVIEW_MCP_SERVER_URL` | `PLANVIEW_MCP_SERVER_URL` |
+
+**AWS Secrets Manager**
+
+1. Store secrets as either discrete entries (one per env var) or a single JSON secret.
+2. Configure your runtime (ECS task definition, Kubernetes External Secrets, etc.) to map the secret keys to environment variables.
+
+Example mapping (single JSON secret named `mcp/planview`):
+
+| Secrets Manager key | Runtime env var |
+| --- | --- |
+| `PLANVIEW_MCP_CLIENT_ID` | `PLANVIEW_MCP_CLIENT_ID` |
+| `PLANVIEW_MCP_CLIENT_SECRET` | `PLANVIEW_MCP_CLIENT_SECRET` |
+| `PLANVIEW_MCP_SERVER_URL` | `PLANVIEW_MCP_SERVER_URL` |
+
+For local development, continue to use `.env` files that are excluded from source control, and only reference cloud secret managers in shared environments. See [ADR 0010](../docs/architecture/adr/0010-secrets-management.md) for the production versus local development split.
+
 ### `config/environments/*.yaml`
 
 Environment-specific endpoints, secrets, and feature toggles.
