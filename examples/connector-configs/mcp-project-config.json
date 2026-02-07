@@ -1,0 +1,50 @@
+{
+  "ppm-123": {
+    "jira_mcp": {
+      "connector_id": "jira_mcp",
+      "name": "Jira (MCP)",
+      "category": "delivery",
+      "enabled": true,
+      "ppm_project_id": "ppm-123",
+      "instance_url": "https://jira.example.com",
+      "project_key": "PPM",
+      "mcp_server_url": "https://mcp.example.com/jira",
+      "mcp_server_id": "jira",
+      "mcp_client_id": "jira-client-id",
+      "mcp_client_secret": "<redacted>",
+      "mcp_scope": "read:jira write:jira",
+      "mcp_tool_map": {
+        "list_records": "jira.listIssues",
+        "create_record": "jira.createIssue",
+        "update_record": "jira.updateIssue"
+      },
+      "prefer_mcp": true,
+      "mcp_enabled": true,
+      "mcp_enabled_operations": ["list_records", "create_record", "update_record"],
+      "mcp_disabled_operations": [],
+      "custom_fields": {
+        "record_type": "issue"
+      }
+    },
+    "slack_mcp": {
+      "connector_id": "slack_mcp",
+      "name": "Slack (MCP)",
+      "category": "collaboration",
+      "enabled": true,
+      "ppm_project_id": "ppm-123",
+      "mcp_server_url": "https://mcp.example.com/slack",
+      "mcp_server_id": "slack",
+      "mcp_api_key": "<redacted>",
+      "mcp_api_key_header": "X-API-Key",
+      "mcp_tool_map": {
+        "send_message": "slack.postMessage",
+        "list_channels": "slack.listChannels"
+      },
+      "prefer_mcp": true,
+      "mcp_enabled": true,
+      "custom_fields": {
+        "channel": "#ppm-updates"
+      }
+    }
+  }
+}

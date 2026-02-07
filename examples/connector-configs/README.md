@@ -7,6 +7,7 @@ Provide connector configs examples that demonstrate how to use the platform asse
 ## What's inside
 
 - `README.md`: Documentation for this directory.
+- `mcp-project-config.json`: Sample project-level MCP connector configuration.
 
 ## How it's used
 
