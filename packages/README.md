@@ -2,6 +2,11 @@
 
 Shared packages imported by apps, services, and agents across the repository.
 
+## Naming convention
+
+Package folders under `packages/` use **kebab-case** (for example, `event-bus/`).
+Package identifiers in `package.json` or `pyproject.toml` remain unchanged.
+
 ## Directory structure
 
 | Folder | Description |
@@ -11,7 +16,7 @@ Shared packages imported by apps, services, and agents across the repository.
 | [contracts/](./contracts/) | Service contracts and schema artifacts (auth, data, events, models) |
 | [crypto/](./crypto/) | Cryptographic utilities |
 | [data-quality/](./data-quality/) | Data quality rules, remediation, and schema validation |
-| [event_bus/](./event_bus/) | Event bus with Azure Service Bus support |
+| [event-bus/](./event-bus/) | Event bus with Azure Service Bus support |
 | [feature-flags/](./feature-flags/) | Feature flag management |
 | [llm/](./llm/) | LLM client, prompts, and CLI |
 | [methodology-engine/](./methodology-engine/) | Project methodology engine |

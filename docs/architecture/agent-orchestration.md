@@ -26,7 +26,7 @@ Agent orchestration sits between the experience layer (`apps/`) and domain agent
 
 Agent coordination relies on an event bus abstraction that can publish/subscribe to orchestration
 topics. Production deployments use Azure Service Bus topics via the shared
-`packages/event_bus` package, which exposes an async API for publishing messages and listening on
+`packages/event-bus` package, which exposes an async API for publishing messages and listening on
 subscriptions. The in-memory bus remains available for local development and unit testing.
 
 ## Sequence diagram (example flow)
