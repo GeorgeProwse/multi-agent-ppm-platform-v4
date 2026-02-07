@@ -859,7 +859,10 @@ const updateProjectMcpState = (
       ? {
           ...c,
           ...updates,
-          connector_type: updates.mcp_enabled ? 'mcp' : c.connector_type,
+          connector_type:
+            updates.mcp_enabled && (connector.mcp_feature_enabled ?? true)
+              ? 'mcp'
+              : c.connector_type,
         }
       : c
   );
@@ -884,7 +887,10 @@ const mapConnectorResponses = (connectors: Connector[]): Connector[] =>
   normalizeMcpDuplicates(
     connectors.map((connector) => ({
       ...connector,
-      connector_type: connector.connector_type ?? (connector.mcp_preferred ? 'mcp' : 'rest'),
+      connector_type:
+        connector.mcp_feature_enabled ?? true
+          ? connector.connector_type ?? (connector.mcp_preferred ? 'mcp' : 'rest')
+          : 'rest',
       certification_status: normalizeCertificationStatus(
         (connector as { certification_status?: string; certification?: string }).certification_status ??
           (connector as { certification?: string }).certification ??

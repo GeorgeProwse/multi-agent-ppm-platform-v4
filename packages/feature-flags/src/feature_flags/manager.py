@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,15 @@ class FeatureFlag:
     name: str
     enabled: bool
     description: str | None = None
+
+
+MCP_GLOBAL_FLAG = "mcp_global_enabled"
+MCP_SYSTEM_PREFIX = "mcp_system_"
+MCP_PROJECT_PREFIX = "mcp_project_"
+
+
+def _normalize_flag_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
 
 
 def _repo_root() -> Path:
@@ -71,6 +82,46 @@ def load_feature_flags(environment: str | None = None) -> dict[str, FeatureFlag]
         else:
             flags[name] = FeatureFlag(name=name, enabled=enabled)
     return flags
+
+
+def get_flag_state(name: str, *, environment: str | None = None) -> bool | None:
+    flags = load_feature_flags(environment)
+    if name not in flags:
+        return None
+    return flags[name].enabled
+
+
+def mcp_system_flag(system: str) -> str:
+    return f"{MCP_SYSTEM_PREFIX}{_normalize_flag_key(system)}"
+
+
+def mcp_project_flag(project_id: str) -> str:
+    return f"{MCP_PROJECT_PREFIX}{_normalize_flag_key(project_id)}"
+
+
+def is_mcp_feature_enabled(
+    system: str | None = None,
+    *,
+    project_id: str | None = None,
+    environment: str | None = None,
+    default: bool = False,
+) -> bool:
+    resolved_environment = environment or os.getenv("ENVIRONMENT") or None
+
+    if project_id:
+        project_flag = get_flag_state(mcp_project_flag(project_id), environment=resolved_environment)
+        if project_flag is not None:
+            return project_flag
+
+    if system:
+        system_flag = get_flag_state(mcp_system_flag(system), environment=resolved_environment)
+        if system_flag is not None:
+            return system_flag
+
+    global_flag = get_flag_state(MCP_GLOBAL_FLAG, environment=resolved_environment)
+    if global_flag is not None:
+        return global_flag
+    return default
 
 
 def is_feature_enabled(name: str, *, environment: str | None = None, default: bool = False) -> bool:

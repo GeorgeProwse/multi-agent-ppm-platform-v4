@@ -121,6 +121,7 @@ export interface Connector extends ConnectorDefinition {
   mcp_tool_map?: Record<string, unknown>;
   mcp_scopes?: string[];
   mcp_enabled?: boolean;
+  mcp_feature_enabled?: boolean;
   mcp_enabled_operations?: string[];
   mcp_disabled_operations?: string[];
   client_id?: string;
