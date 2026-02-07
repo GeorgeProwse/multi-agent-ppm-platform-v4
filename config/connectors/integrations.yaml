@@ -10,7 +10,9 @@ planview:
   client_id: "${PLANVIEW_MCP_CLIENT_ID}"
   client_secret: "${PLANVIEW_MCP_CLIENT_SECRET}"
   scope: "${PLANVIEW_MCP_SCOPE}"
-  tool_map: {}
+  tool_map:
+    list_projects: "planview.listProjects"
+    create_work_item: "planview.createWorkItem"
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -22,6 +24,28 @@ planview:
       - projects
       - resources
       - financials
+
+# Clarity PPM
+clarity:
+  enabled: false
+  base_url: "${CLARITY_INSTANCE_URL}"
+  mcp_server_url: "${CLARITY_MCP_SERVER_URL}"
+  mcp_server_id: "${CLARITY_MCP_SERVER_ID}"
+  client_id: "${CLARITY_MCP_CLIENT_ID}"
+  client_secret: "${CLARITY_MCP_CLIENT_SECRET}"
+  scope: "${CLARITY_MCP_SCOPE}"
+  tool_map:
+    list_projects: "clarity.listProjects"
+    create_work_item: "clarity.createWorkItem"
+  prefer_mcp: false
+  auth:
+    type: "oauth2"
+    token: "${CLARITY_REFRESH_TOKEN}"
+  sync:
+    enabled: true
+    interval_minutes: 30
+    entities:
+      - projects
 
 jira:
   enabled: false
@@ -111,7 +135,10 @@ slack:
   client_id: "${SLACK_MCP_CLIENT_ID}"
   client_secret: "${SLACK_MCP_CLIENT_SECRET}"
   scope: "${SLACK_MCP_SCOPE}"
-  tool_map: {}
+  tool_map:
+    list_projects: "slack.listChannels"
+    send_message: "slack.postMessage"
+    list_users: "slack.listUsers"
   prefer_mcp: false
   auth:
     type: "bot_token"
@@ -128,7 +155,10 @@ teams:
   client_id: "${TEAMS_MCP_CLIENT_ID}"
   client_secret: "${TEAMS_MCP_CLIENT_SECRET}"
   scope: "${TEAMS_MCP_SCOPE}"
-  tool_map: {}
+  tool_map:
+    list_projects: "teams.listTeams"
+    send_message: "teams.postMessage"
+    list_channels: "teams.listChannels"
   prefer_mcp: false
   auth:
     type: "app_credentials"
@@ -299,3 +329,20 @@ integration_defaults:
       enabled: true
       failure_threshold: 5
       timeout_seconds: 60
+# Asana
+asana:
+  enabled: false
+  base_url: "${ASANA_INSTANCE_URL}"
+  mcp_server_url: "${ASANA_MCP_SERVER_URL}"
+  mcp_server_id: "${ASANA_MCP_SERVER_ID}"
+  client_id: "${ASANA_MCP_CLIENT_ID}"
+  client_secret: "${ASANA_MCP_CLIENT_SECRET}"
+  scope: "${ASANA_MCP_SCOPE}"
+  tool_map:
+    list_projects: "asana.listProjects"
+    create_work_item: "asana.createTask"
+    send_message: "asana.addComment"
+  prefer_mcp: false
+  auth:
+    type: "api_token"
+    token: "${ASANA_ACCESS_TOKEN}"
