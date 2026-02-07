@@ -17,6 +17,8 @@ import {
   type CertificationRecord,
   type Connector,
   type ConnectorCategory,
+  type ConnectorConfigUpdate,
+  type ConnectorType,
 } from '@/store/connectors';
 import { useAppStore } from '@/store';
 import { canManageConfig } from '@/auth/permissions';
@@ -463,6 +465,9 @@ function ConnectorCard({
   const certStatus = connector.certification_status ?? certification?.compliance_status ?? 'not_started';
   const certLabel = CERTIFICATION_LABELS[certStatus];
   const certBadgeClass = CERTIFICATION_BADGE_CLASSES[certStatus];
+  const connectorTypeLabel = connector.connector_type === 'mcp' ? 'MCP' : 'REST';
+  const connectorTypeClass =
+    connector.connector_type === 'mcp' ? styles.protocolBadgeMcp : styles.protocolBadgeRest;
 
   return (
     <div
@@ -479,6 +484,7 @@ function ConnectorCard({
           <div className={styles.badgeRow}>
             <span className={`${styles.statusBadge} ${statusClassName}`}>{statusLabel}</span>
             <span className={`${styles.certificationBadge} ${certBadgeClass}`}>{certLabel}</span>
+            <span className={`${styles.protocolBadge} ${connectorTypeClass}`}>{connectorTypeLabel}</span>
           </div>
         </div>
         <label
@@ -589,7 +595,7 @@ function ConnectorIcon({ name }: { name: string }) {
 interface ConnectorConfigModalProps {
   connector: Connector;
   onClose: () => void;
-  onSave: (connectorId: string, config: { instance_url?: string; project_key?: string; sync_direction?: string; sync_frequency?: string; custom_fields?: Record<string, unknown> }) => Promise<void>;
+  onSave: (connectorId: string, config: ConnectorConfigUpdate) => Promise<void>;
   onTestConnection: (connectorId: string, instanceUrl?: string, projectKey?: string) => Promise<{ status: string; message: string }>;
   testingConnection: boolean;
   testResult: { status: string; message: string; details: Record<string, unknown> } | null;
@@ -609,6 +615,12 @@ function ConnectorConfigModal({
   const isIoT = connector.category === 'iot';
   const isSlack = connector.connector_id === 'slack';
   const isWorkday = connector.connector_id === 'workday';
+  const [connectorType, setConnectorType] = useState<ConnectorType>(connector.connector_type ?? 'rest');
+  const [mcpServerId, setMcpServerId] = useState(connector.mcp_server_id ?? '');
+  const [mcpServerUrl, setMcpServerUrl] = useState(connector.mcp_server_url ?? '');
+  const initialTool = connector.mcp_tool_map ? Object.keys(connector.mcp_tool_map)[0] : '';
+  const [mcpTool, setMcpTool] = useState(initialTool);
+  const [mcpScopes, setMcpScopes] = useState<string[]>(connector.mcp_scopes ?? []);
   const [instanceUrl, setInstanceUrl] = useState(connector.instance_url || '');
   const [projectKey, setProjectKey] = useState(connector.project_key || '');
   const [deviceEndpoint, setDeviceEndpoint] = useState(
@@ -635,7 +647,17 @@ function ConnectorConfigModal({
   const [syncDirection, setSyncDirection] = useState(connector.sync_direction);
   const [syncFrequency, setSyncFrequency] = useState(connector.sync_frequency);
   const [saving, setSaving] = useState(false);
-  const connectionTarget = isIoT ? deviceEndpoint : instanceUrl;
+  const connectionTarget =
+    connectorType === 'mcp' ? mcpServerUrl : isIoT ? deviceEndpoint : instanceUrl;
+  const mcpServerOptions = [
+    { id: 'mcp-core', label: 'Core MCP Server' },
+    { id: 'mcp-analytics', label: 'Analytics MCP Server' },
+    { id: 'mcp-integrations', label: 'Integrations MCP Server' },
+  ];
+  const toolOptions = connector.supported_operations.length
+    ? connector.supported_operations
+    : ['projects.read', 'projects.write', 'resources.read'];
+  const scopeOptions = ['projects:read', 'projects:write', 'resources:read', 'portfolio:read'];
 
   const handleSave = async () => {
     setSaving(true);
@@ -662,6 +684,11 @@ function ConnectorConfigModal({
       await onSave(connector.connector_id, {
         instance_url: effectiveInstanceUrl,
         project_key: projectKey,
+        connector_type: connectorType,
+        mcp_server_id: connectorType === 'mcp' ? mcpServerId : undefined,
+        mcp_server_url: connectorType === 'mcp' ? mcpServerUrl : undefined,
+        mcp_tool_map: connectorType === 'mcp' && mcpTool ? { [mcpTool]: true } : undefined,
+        mcp_scopes: connectorType === 'mcp' && mcpScopes.length ? mcpScopes : undefined,
         sync_direction: syncDirection,
         sync_frequency: syncFrequency,
         custom_fields: Object.keys(customPayload).length ? customPayload : undefined,
@@ -674,7 +701,8 @@ function ConnectorConfigModal({
 
   const handleTestConnection = async () => {
     clearTestResult();
-    const effectiveInstanceUrl = isIoT ? deviceEndpoint : instanceUrl;
+    const effectiveInstanceUrl =
+      connectorType === 'mcp' ? mcpServerUrl : isIoT ? deviceEndpoint : instanceUrl;
     await onTestConnection(connector.connector_id, effectiveInstanceUrl, projectKey);
   };
 
@@ -700,6 +728,101 @@ function ConnectorConfigModal({
 
           <div className={styles.configSection}>
             <h3 className={styles.sectionTitle}>Connection Settings</h3>
+
+            <div className={styles.formField}>
+              <label className={styles.fieldLabel}>Integration Type</label>
+              <select
+                className={styles.fieldSelect}
+                value={connectorType}
+                onChange={(e) => setConnectorType(e.target.value as ConnectorType)}
+              >
+                <option value="rest">REST</option>
+                <option value="mcp">MCP</option>
+              </select>
+              <span className={styles.fieldHint}>
+                Choose whether to connect via REST or the managed MCP runtime.
+              </span>
+            </div>
+
+            {connectorType === 'mcp' && (
+              <>
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>MCP Server</label>
+                  <select
+                    className={styles.fieldSelect}
+                    value={mcpServerId}
+                    onChange={(e) => setMcpServerId(e.target.value)}
+                  >
+                    <option value="">Select a server</option>
+                    {mcpServerOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                    {connector.mcp_server_id && !mcpServerOptions.some((option) => option.id === connector.mcp_server_id) && (
+                      <option value={connector.mcp_server_id}>Current: {connector.mcp_server_id}</option>
+                    )}
+                  </select>
+                  <span className={styles.fieldHint}>
+                    Target MCP server for this connector.
+                  </span>
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>MCP Server URL</label>
+                  <input
+                    type="url"
+                    className={styles.fieldInput}
+                    placeholder="https://mcp.example.com"
+                    value={mcpServerUrl}
+                    onChange={(e) => setMcpServerUrl(e.target.value)}
+                  />
+                  <span className={styles.fieldHint}>
+                    Override the MCP endpoint when using a custom server.
+                  </span>
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>MCP Tool</label>
+                  <select
+                    className={styles.fieldSelect}
+                    value={mcpTool}
+                    onChange={(e) => setMcpTool(e.target.value)}
+                  >
+                    <option value="">Select a tool</option>
+                    {toolOptions.map((tool) => (
+                      <option key={tool} value={tool}>
+                        {tool}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={styles.fieldHint}>
+                    Choose the primary MCP tool used for sync operations.
+                  </span>
+                </div>
+
+                <div className={styles.formField}>
+                  <label className={styles.fieldLabel}>MCP Scopes</label>
+                  <select
+                    className={styles.fieldSelect}
+                    multiple
+                    value={mcpScopes}
+                    onChange={(e) =>
+                      setMcpScopes(Array.from(e.target.selectedOptions, (option) => option.value))
+                    }
+                  >
+                    {scopeOptions.map((scope) => (
+                      <option key={scope} value={scope}>
+                        {scope}
+                      </option>
+                    ))}
+                  </select>
+                  <span className={styles.fieldHint}>
+                    Select scopes that the MCP runtime can access.
+                  </span>
+                </div>
+              </>
+            )}
 
             <div className={styles.formField}>
               <label className={styles.fieldLabel}>
@@ -883,6 +1006,38 @@ function ConnectorConfigModal({
                   <li key={envVar}><code>{envVar}</code></li>
                 ))}
               </ul>
+            </div>
+          </div>
+
+          <div className={styles.configSection}>
+            <h3 className={styles.sectionTitle}>Configuration Summary</h3>
+            <div className={styles.summaryGrid}>
+              <div>
+                <span className={styles.summaryLabel}>Transport</span>
+                <span className={styles.summaryValue}>{connectorType === 'mcp' ? 'MCP' : 'REST'}</span>
+              </div>
+              <div>
+                <span className={styles.summaryLabel}>MCP Server</span>
+                <span className={styles.summaryValue}>
+                  {connectorType === 'mcp' ? mcpServerId || 'Not set' : 'REST'}
+                </span>
+              </div>
+              <div>
+                <span className={styles.summaryLabel}>MCP Tool</span>
+                <span className={styles.summaryValue}>
+                  {connectorType === 'mcp' ? mcpTool || 'Not set' : 'REST'}
+                </span>
+              </div>
+              <div>
+                <span className={styles.summaryLabel}>MCP Scopes</span>
+                <span className={styles.summaryValue}>
+                  {connectorType === 'mcp'
+                    ? mcpScopes.length
+                      ? mcpScopes.join(', ')
+                      : 'Not set'
+                    : 'REST'}
+                </span>
+              </div>
             </div>
           </div>
 

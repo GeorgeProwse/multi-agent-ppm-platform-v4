@@ -15,6 +15,7 @@ export type {
   ConnectorDefinition,
   ConnectorFilterState,
   ConnectorStatus,
+  ConnectorType,
   ConnectionTestResult,
   ConnectionTestStatus,
   HealthStatus,

@@ -25,6 +25,11 @@ export type ConnectorCategory =
 export type ConnectorStatus = 'available' | 'coming_soon' | 'beta' | 'production';
 
 /**
+ * Connector transport type
+ */
+export type ConnectorType = 'mcp' | 'rest';
+
+/**
  * Sync direction options
  */
 export type SyncDirection = 'inbound' | 'outbound' | 'bidirectional';
@@ -85,6 +90,7 @@ export interface ConnectorDefinition {
   description: string;
   category: ConnectorCategory;
   system: string;
+  connector_type: ConnectorType;
   mcp_server_id: string;
   supported_operations: string[];
   mcp_preferred: boolean;
@@ -112,6 +118,7 @@ export interface Connector extends ConnectorDefinition {
   custom_fields?: Record<string, unknown>;
   mcp_server_url?: string;
   mcp_tool_map?: Record<string, unknown>;
+  mcp_scopes?: string[];
   client_id?: string;
   client_secret?: string;
   scope?: string;
@@ -153,10 +160,12 @@ export interface ConnectorConfigUpdate {
   project_key?: string;
   mcp_server_url?: string;
   mcp_server_id?: string;
+  connector_type?: ConnectorType;
   client_id?: string;
   client_secret?: string;
   scope?: string;
   mcp_tool_map?: Record<string, unknown>;
+  mcp_scopes?: string[];
   prefer_mcp?: boolean;
   sync_direction?: SyncDirection;
   sync_frequency?: SyncFrequency;
