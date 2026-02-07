@@ -24,6 +24,7 @@ from base_connector import ConnectorCategory, ConnectorConfig
 from mcp_client import MCPClient, MCPClientError
 from rest_connector import OAuth2RestConnector
 from secrets import fetch_keyvault_secret, resolve_secret
+from .mappers import map_from_mcp_response, map_to_mcp_params
 
 DEFAULT_TEAMS_URL = "https://graph.microsoft.com/v1.0"
 
@@ -139,34 +140,6 @@ class TeamsConnector(OAuth2RestConnector):
             return False
         return True
 
-    def _extract_mcp_records(self, resource_type: str, payload: Any) -> list[dict[str, Any]]:
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            items_path = self.RESOURCE_PATHS.get(resource_type, {}).get("items_path")
-            if items_path:
-                current: Any = payload
-                for key in items_path.split("."):
-                    if not isinstance(current, dict):
-                        current = None
-                        break
-                    current = current.get(key)
-                if isinstance(current, list):
-                    return current
-            for key in ("records", "items", "values", "data", "value"):
-                value = payload.get(key)
-                if isinstance(value, list):
-                    return value
-            return [payload]
-        return []
-
-    def _normalize_write_response(self, payload: Any) -> list[dict[str, Any]]:
-        if isinstance(payload, list):
-            return payload
-        if isinstance(payload, dict):
-            return [payload]
-        return []
-
     def _try_mcp_then_rest(
         self,
         *,
@@ -211,17 +184,20 @@ class TeamsConnector(OAuth2RestConnector):
         rest_call = lambda: super().read(resource_type, filters=filters, limit=limit, offset=offset)
         if not tool_key:
             return rest_call()
-        params = {
-            "resource_type": resource_type,
-            "filters": filters or {},
-            "limit": limit,
-            "offset": offset,
-        }
+        params = map_to_mcp_params(
+            "list",
+            {
+                "resource_type": resource_type,
+                "filters": filters or {},
+                "limit": limit,
+                "offset": offset,
+            },
+        )
         return self._try_mcp_then_rest(
             tool_key=tool_key,
             params=params,
             rest_call=rest_call,
-            response_mapper=lambda payload: self._extract_mcp_records(resource_type, payload),
+            response_mapper=lambda payload: map_from_mcp_response("list", payload),
         )
 
     def write(
@@ -236,10 +212,10 @@ class TeamsConnector(OAuth2RestConnector):
         rest_call = lambda: super().write(resource_type, data)
         if not tool_key:
             return rest_call()
-        params = {"resource_type": resource_type, "records": data}
+        params = map_to_mcp_params("write", {"resource_type": resource_type, "records": data})
         return self._try_mcp_then_rest(
             tool_key=tool_key,
             params=params,
             rest_call=rest_call,
-            response_mapper=self._normalize_write_response,
+            response_mapper=lambda payload: map_from_mcp_response("write", payload),
         )
