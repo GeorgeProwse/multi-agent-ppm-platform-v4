@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 SDK_PATH = Path(__file__).resolve().parents[2] / "sdk" / "src"
 if str(SDK_PATH) not in sys.path:
     sys.path.insert(0, str(SDK_PATH))
@@ -47,6 +49,7 @@ class M365Connector(OAuth2RestConnector):
     REFRESH_TOKEN_SECRET_ENV = "M365_REFRESH_TOKEN_SECRET"
     CLIENT_SECRET_SECRET_ENV = "M365_CLIENT_SECRET_SECRET"
     CLIENT_ID_SECRET_ENV = "M365_CLIENT_ID_SECRET"
+    TOOL_MAP_PATH = Path(__file__).resolve().parents[1] / "tool_map.yaml"
 
     AUTH_TEST_ENDPOINT = "/me"
     AUTH_TEST_PARAMS = {"$select": "id"}
@@ -147,6 +150,49 @@ class M365Connector(OAuth2RestConnector):
         self._mcp_client = MCPClient(self.config)
         return self._mcp_client
 
+    def _load_tool_map(self) -> dict[str, Any]:
+        if self._data_type_tool_map is not None:
+            return self._data_type_tool_map
+        path = self.TOOL_MAP_PATH
+        if not path.exists():
+            logger.warning("M365 tool map file not found at %s", path)
+            self._data_type_tool_map = {}
+            return self._data_type_tool_map
+        try:
+            payload = yaml.safe_load(path.read_text()) or {}
+        except Exception as exc:
+            logger.warning("Failed to load M365 tool map: %s", exc)
+            self._data_type_tool_map = {}
+            return self._data_type_tool_map
+        self._data_type_tool_map = payload if isinstance(payload, dict) else {}
+        return self._data_type_tool_map
+
+    def _resolve_data_type_route(self, workload: str, data_type: str) -> dict[str, Any]:
+        tool_map = self._load_tool_map()
+        workloads = tool_map.get("workloads", {})
+        if not isinstance(workloads, dict):
+            return {}
+        workload_map = workloads.get(workload, {})
+        if not isinstance(workload_map, dict):
+            return {}
+        route = workload_map.get(data_type, {})
+        return route if isinstance(route, dict) else {}
+
+    def _should_use_mcp_for_data_type(self, workload: str, data_type: str) -> tuple[bool, str | None]:
+        route = self._resolve_data_type_route(workload, data_type)
+        tool_key = route.get("mcp_tool_key")
+        if not tool_key:
+            return False, None
+        if not self.config.prefer_mcp:
+            return False, tool_key
+        if not self.config.is_mcp_enabled_for(tool_key):
+            return False, tool_key
+        if not self.config.mcp_server_url:
+            return False, tool_key
+        if not (self.config.mcp_tool_map or {}).get(tool_key):
+            return False, tool_key
+        return True, tool_key
+
     def _extract_mcp_records(self, resource_type: str, payload: Any) -> list[dict[str, Any]]:
         if isinstance(payload, list):
             return payload
@@ -168,6 +214,27 @@ class M365Connector(OAuth2RestConnector):
             return [payload]
         return []
 
+    def _extract_rest_records(self, payload: Any) -> list[dict[str, Any]]:
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, dict):
+            for key in ("value", "records", "items", "values", "data"):
+                value = payload.get(key)
+                if isinstance(value, list):
+                    return value
+            return [payload]
+        return []
+
+    def _read_rest_endpoint(
+        self,
+        endpoint: str,
+        params: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        if not self._authenticated and not self.authenticate():
+            raise RuntimeError("Failed to authenticate with connector")
+        response = self._request("GET", endpoint, params=params or {})
+        return self._extract_rest_records(response.json())
+
     def _read_via_mcp(
         self,
         resource_type: str,
@@ -184,46 +251,100 @@ class M365Connector(OAuth2RestConnector):
         payload = client.call_tool(resource_type, params)
         return self._extract_mcp_records(resource_type, payload)
 
+    def read_data_type(
+        self,
+        workload: str,
+        data_type: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        route = self._resolve_data_type_route(workload, data_type)
+        params = {"limit": limit, "offset": offset}
+        if filters:
+            params.update(filters)
+        use_mcp, tool_key = self._should_use_mcp_for_data_type(workload, data_type)
+        if use_mcp and tool_key:
+            try:
+                payload = self._build_mcp_client().call_tool(tool_key, params)
+                return self._extract_mcp_records(tool_key, payload)
+            except MCPToolNotFoundError:
+                logger.info(
+                    "MCP tool mapping missing for %s/%s; falling back to Graph REST",
+                    workload,
+                    data_type,
+                )
+            except MCPClientError as exc:
+                logger.warning(
+                    "MCP request failed for %s/%s; falling back to Graph REST: %s",
+                    workload,
+                    data_type,
+                    exc,
+                )
+        endpoint = route.get("rest_endpoint")
+        if not endpoint:
+            logger.warning("No REST endpoint mapping for %s/%s", workload, data_type)
+            return []
+        return self._read_rest_endpoint(endpoint, params)
+
     def read_workloads(
         self,
         filters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        working_filters = dict(filters or {})
+        data_type = working_filters.pop("data_type", None)
+        requested_workload = working_filters.pop("workload", None)
         workloads = self._get_enabled_workloads()
+        if requested_workload:
+            if isinstance(requested_workload, list):
+                workloads = [item for item in requested_workload if item in workloads]
+            elif isinstance(requested_workload, str) and requested_workload in workloads:
+                workloads = [requested_workload]
         results: dict[str, dict[str, list[dict[str, Any]]]] = {}
         for workload in workloads:
             workload_results: dict[str, list[dict[str, Any]]] = {}
-            for resource_type in self.WORKLOAD_RESOURCE_MAP.get(workload, []):
-                if self._should_use_mcp_for_resource(resource_type):
-                    try:
-                        workload_results[resource_type] = self._read_via_mcp(
-                            resource_type,
-                            filters=filters,
-                            limit=limit,
-                            offset=offset,
-                        )
-                        continue
-                    except MCPToolNotFoundError:
-                        logger.info(
-                            "MCP tool mapping missing for %s; falling back to Graph REST",
-                            resource_type,
-                        )
-                    except MCPClientError as exc:
-                        logger.warning(
-                            "MCP request failed for %s; falling back to Graph REST: %s",
-                            resource_type,
-                            exc,
-                        )
-                workload_results[resource_type] = self.read(
-                    resource_type,
-                    filters=filters,
+            if data_type:
+                workload_results[data_type] = self.read_data_type(
+                    workload,
+                    data_type,
+                    filters=working_filters,
                     limit=limit,
                     offset=offset,
                 )
+            else:
+                for resource_type in self.WORKLOAD_RESOURCE_MAP.get(workload, []):
+                    if self._should_use_mcp_for_resource(resource_type):
+                        try:
+                            workload_results[resource_type] = self._read_via_mcp(
+                                resource_type,
+                                filters=working_filters,
+                                limit=limit,
+                                offset=offset,
+                            )
+                            continue
+                        except MCPToolNotFoundError:
+                            logger.info(
+                                "MCP tool mapping missing for %s; falling back to Graph REST",
+                                resource_type,
+                            )
+                        except MCPClientError as exc:
+                            logger.warning(
+                                "MCP request failed for %s; falling back to Graph REST: %s",
+                                resource_type,
+                                exc,
+                            )
+                    workload_results[resource_type] = self.read(
+                        resource_type,
+                        filters=working_filters,
+                        limit=limit,
+                        offset=offset,
+                    )
             results[workload] = workload_results
         return results
 
     def __init__(self, config: ConnectorConfig, **kwargs: object) -> None:
         super().__init__(config, **kwargs)
         self._mcp_client: MCPClient | None = None
+        self._data_type_tool_map: dict[str, Any] | None = None
