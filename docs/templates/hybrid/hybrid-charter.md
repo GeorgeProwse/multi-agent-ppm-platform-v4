@@ -136,7 +136,7 @@ Describe how iterative delivery aligns with stage-gate milestones.
 ## 7. Hybrid Governance Structure
 ### 7.1 Governance Framework
 Describe governance forums, cadence, and decision rights. Align with the governance charter
-(`docs/methodology/hybrid/templates/governance-pack.md`).
+(`docs/templates/hybrid/governance-pack.md`).
 
 ### 7.2 Key Roles & Responsibilities
 | Role | Name | Responsibilities | Methodology Context |

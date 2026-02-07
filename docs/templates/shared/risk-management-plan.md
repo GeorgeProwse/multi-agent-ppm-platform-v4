@@ -7,8 +7,8 @@ Define how risks will be identified, assessed, responded to, and monitored acros
 Project Manager, Risk & Issue Manager, PMO, Delivery Leads, Sponsors.
 
 ## Inputs
-- Project charter (`docs/methodology/waterfall/templates/project-charter.md`).
-- Risk register (`docs/methodology/waterfall/templates/risk-register.xlsx`).
+- Project charter (`docs/templates/waterfall/project-charter.md`).
+- Risk register (`docs/templates/waterfall/risk-register.xlsx`).
 - Risk breakdown structure (`docs/templates/shared/risk-breakdown-structure.yaml`).
 
 ## 1. Risk Management Approach
@@ -47,7 +47,7 @@ Define when risks must be escalated to governance or sponsors.
 ## 8. Monitoring & Reporting
 - Risk review cadence and reporting audiences.
 - Link to risk report (`docs/templates/shared/risk-report.md`).
-- Update frequency for the risk register (`docs/methodology/waterfall/templates/risk-register.xlsx`).
+- Update frequency for the risk register (`docs/templates/waterfall/risk-register.xlsx`).
 
 ## Completion Checklist
 - [ ] Roles and escalation thresholds agreed.

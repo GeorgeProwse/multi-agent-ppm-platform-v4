@@ -7,7 +7,7 @@ Summarize schedule, cost, and scope variance against the baseline and document c
 PMO Lead, Project Manager, Finance Partner, Executive Sponsor.
 
 ## Inputs
-- Baseline schedule (`docs/methodology/waterfall/templates/schedule-baseline.xlsx`).
+- Baseline schedule (`docs/templates/waterfall/schedule-baseline.xlsx`).
 - Performance data (actuals, forecasts).
 - Risk register updates.
 

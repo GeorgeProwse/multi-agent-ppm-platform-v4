@@ -304,4 +304,4 @@ comparison to actual results. Document the baseline approval as follows:
 | **Cost Management Plan** | Activity durations and resource assignments drive cost estimates. |
 | **Risk Register** | Schedule risks identified in Risk Register may require buffer or contingency time. |
 | **Change Control Log** | Approved schedule changes are tracked and reflected in the baseline. |
-| **Schedule Baseline** | Use `docs/methodology/waterfall/templates/schedule-baseline.xlsx` for the time-phased baseline. |
+| **Schedule Baseline** | Use `docs/templates/waterfall/schedule-baseline.xlsx` for the time-phased baseline. |

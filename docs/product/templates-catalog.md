@@ -6,9 +6,9 @@ or consume them. The catalog aligns with PMBOK focus areas such as integration, 
 cost, quality, resource, communications, risk, procurement, and stakeholder management.
 
 ## Methodology Template Index
-- Agile templates: [docs/methodology/agile/templates/README.md](../methodology/agile/templates/README.md)
-- Waterfall templates: [docs/methodology/waterfall/templates/README.md](../methodology/waterfall/templates/README.md)
-- Hybrid templates: [docs/methodology/hybrid/templates/README.md](../methodology/hybrid/templates/README.md)
+- Agile templates: [docs/templates/agile/README.md](../templates/agile/README.md)
+- Waterfall templates: [docs/templates/waterfall/README.md](../templates/waterfall/README.md)
+- Hybrid templates: [docs/templates/hybrid/README.md](../templates/hybrid/README.md)
 
 ## Shared Template Library
 | Artefact | Purpose | Used by (agent) | Template Path |
@@ -75,39 +75,39 @@ cost, quality, resource, communications, risk, procurement, and stakeholder mana
 ## Methodology Variants
 | Artefact | Agile | Waterfall | Hybrid |
 | --- | --- | --- | --- |
-| Charter |  | [Project charter](../methodology/waterfall/templates/project-charter.md) | [Hybrid charter](../methodology/hybrid/templates/hybrid-charter.md) |
-| Roles & responsibilities matrix | [Roles & responsibilities](../methodology/agile/templates/roles-responsibilities.md) — Defines the key roles and responsibilities for Agile projects (Product Owner, Scrum Master, Team, Stakeholders, etc.). | [Roles & responsibilities](../methodology/waterfall/templates/roles-responsibilities.md) — Defines the key roles and responsibilities for Waterfall projects (Sponsor, PM, BA, Functional Leads, etc.). | [Roles & responsibilities](../methodology/hybrid/templates/roles-responsibilities.md) — Defines hybrid roles and shared responsibilities where governance and Agile delivery overlap. |
-| User story mapping | [User story mapping](../methodology/agile/templates/user-story-mapping-template.md) |  |  |
-| User story template | [User story template](../methodology/agile/templates/user-story-template.md) |  |  |
-| Backlog | [Backlog](../methodology/agile/templates/backlog.csv) |  |  |
-| Backlog management | [Backlog management](../methodology/agile/templates/backlog-management-template.md) |  |  |
-| Backlog refinement | [Backlog refinement](../methodology/agile/templates/backlog-refinement-template.md) |  |  |
-| Risk-adjusted backlog | [Risk-adjusted backlog](../methodology/agile/templates/risk-adjusted-backlog.csv) |  |  |
-| Agile risk board | [Agile risk board](../methodology/agile/templates/agile-risk-board.md) |  |  |
-| Sprint plan | [Sprint plan](../methodology/agile/templates/sprint-plan.md) |  | [Sprint plan](../methodology/agile/templates/sprint-plan.md) |
-| Iteration plan | [Iteration plan](../methodology/agile/templates/iteration-plan.md) |  |  |
-| Release plan | [Release plan](../methodology/agile/templates/release-plan.md) |  | [Release plan](../methodology/agile/templates/release-plan.md) |
-| Burndown | [Burndown](../methodology/agile/templates/burndown.xlsx) |  |  |
-| WBS |  | [WBS](../methodology/waterfall/templates/wbs.yaml) |  |
-| Schedule baseline |  | [Schedule baseline](../methodology/waterfall/templates/schedule-baseline.xlsx) |  |
-| Risk register |  | [Risk register](../methodology/waterfall/templates/risk-register.xlsx) | [Integrated risk register](../methodology/hybrid/templates/integrated-risk-register.xlsx) |
-| Integrated risk register |  |  | [Integrated risk register](../methodology/hybrid/templates/integrated-risk-register.md) |
-| Risk breakdown structure |  | [RBS](../methodology/waterfall/templates/risk-breakdown-structure.yaml) |  |
-| QA checklist |  | [QA checklist](../methodology/waterfall/templates/qa-checklist.xlsx) |  |
-| Milestone plan |  |  | [Milestone plan](../methodology/hybrid/templates/milestone-plan.xlsx) |
-| Governance pack |  |  | [Governance pack](../methodology/hybrid/templates/governance-pack.md) |
-| Decision log |  |  | [Decision log](../methodology/hybrid/templates/decision-log.md) |
-| Hybrid team management |  |  | [Hybrid team management](../methodology/hybrid/templates/hybrid-team-management.md) |
-| Hybrid resource plan |  |  | [Hybrid resource plan](../methodology/hybrid/templates/hybrid-resource-plan.md) |
-| Closure report |  | [Closure report](../methodology/waterfall/templates/closure-report.md) | [Closure report](../methodology/waterfall/templates/closure-report.md) |
-| Project management plan |  | [Waterfall PMP](../methodology/waterfall/templates/project-management-plan.md) |  |
-| Scope management plan |  | [Scope management plan](../methodology/waterfall/templates/scope-management-plan.md) |  |
-| Schedule management plan |  | [Schedule management plan](../methodology/waterfall/templates/schedule-management-plan.md) |  |
-| Cost management plan |  | [Cost management plan](../methodology/waterfall/templates/cost-management-plan.md) |  |
-| Quality management plan |  | [Quality management plan](../methodology/waterfall/templates/quality-management-plan.md) |  |
-| Resource management plan |  | [Resource management plan](../methodology/waterfall/templates/resource-management-plan.md) |  |
-| Risk management plan |  | [Risk management plan](../methodology/waterfall/templates/risk-management-plan.md) |  |
-| Procurement management plan |  | [Procurement management plan](../methodology/waterfall/templates/procurement-management-plan.md) |  |
+| Charter |  | [Project charter](../templates/waterfall/project-charter.md) | [Hybrid charter](../templates/hybrid/hybrid-charter.md) |
+| Roles & responsibilities matrix | [Roles & responsibilities](../templates/agile/roles-responsibilities.md) — Defines the key roles and responsibilities for Agile projects (Product Owner, Scrum Master, Team, Stakeholders, etc.). | [Roles & responsibilities](../templates/waterfall/roles-responsibilities.md) — Defines the key roles and responsibilities for Waterfall projects (Sponsor, PM, BA, Functional Leads, etc.). | [Roles & responsibilities](../templates/hybrid/roles-responsibilities.md) — Defines hybrid roles and shared responsibilities where governance and Agile delivery overlap. |
+| User story mapping | [User story mapping](../templates/agile/user-story-mapping-template.md) |  |  |
+| User story template | [User story template](../templates/agile/user-story-template.md) |  |  |
+| Backlog | [Backlog](../templates/agile/backlog.csv) |  |  |
+| Backlog management | [Backlog management](../templates/agile/backlog-management-template.md) |  |  |
+| Backlog refinement | [Backlog refinement](../templates/agile/backlog-refinement-template.md) |  |  |
+| Risk-adjusted backlog | [Risk-adjusted backlog](../templates/agile/risk-adjusted-backlog.csv) |  |  |
+| Agile risk board | [Agile risk board](../templates/agile/agile-risk-board.md) |  |  |
+| Sprint plan | [Sprint plan](../templates/agile/sprint-plan.md) |  | [Sprint plan](../templates/agile/sprint-plan.md) |
+| Iteration plan | [Iteration plan](../templates/agile/iteration-plan.md) |  |  |
+| Release plan | [Release plan](../templates/agile/release-plan.md) |  | [Release plan](../templates/agile/release-plan.md) |
+| Burndown | [Burndown](../templates/agile/burndown.xlsx) |  |  |
+| WBS |  | [WBS](../templates/waterfall/wbs.yaml) |  |
+| Schedule baseline |  | [Schedule baseline](../templates/waterfall/schedule-baseline.xlsx) |  |
+| Risk register |  | [Risk register](../templates/waterfall/risk-register.xlsx) | [Integrated risk register](../templates/hybrid/integrated-risk-register.xlsx) |
+| Integrated risk register |  |  | [Integrated risk register](../templates/hybrid/integrated-risk-register.md) |
+| Risk breakdown structure |  | [RBS](../templates/shared/risk-breakdown-structure.yaml) |  |
+| QA checklist |  | [QA checklist](../templates/waterfall/qa-checklist.xlsx) |  |
+| Milestone plan |  |  | [Milestone plan](../templates/hybrid/milestone-plan.xlsx) |
+| Governance pack |  |  | [Governance pack](../templates/hybrid/governance-pack.md) |
+| Decision log |  |  | [Decision log](../templates/hybrid/decision-log.md) |
+| Hybrid team management |  |  | [Hybrid team management](../templates/hybrid/hybrid-team-management.md) |
+| Hybrid resource plan |  |  | [Hybrid resource plan](../templates/hybrid/hybrid-resource-plan.md) |
+| Closure report |  | [Closure report](../templates/waterfall/closure-report.md) | [Closure report](../templates/waterfall/closure-report.md) |
+| Project management plan |  | [Project management plan](../templates/shared/project-management-plan.md) |  |
+| Scope management plan |  | [Scope management plan](../templates/shared/scope-management-plan.md) |  |
+| Schedule management plan |  | [Schedule management plan](../templates/shared/schedule-management-plan.md) |  |
+| Cost management plan |  | [Cost management plan](../templates/shared/cost-management-plan.md) |  |
+| Quality management plan |  | [Quality management plan](../templates/shared/quality-management-plan.md) |  |
+| Resource management plan |  | [Resource management plan](../templates/shared/resource-management-plan.md) |  |
+| Risk management plan |  | [Risk management plan](../templates/shared/risk-management-plan.md) |  |
+| Procurement management plan |  | [Procurement management plan](../templates/shared/procurement-management-plan.md) |  |
 
 ## Related Compliance Template
 - DPIA template: [docs/compliance/privacy-dpia-template.md](../compliance/privacy-dpia-template.md)

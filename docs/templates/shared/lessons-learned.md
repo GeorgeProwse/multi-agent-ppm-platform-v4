@@ -7,8 +7,8 @@ Capture outcomes, root causes, and actionable recommendations to improve future 
 Project Manager, PMO, Continuous Improvement Lead, Delivery Teams.
 
 ## Inputs
-- Retrospective notes (`docs/methodology/agile/templates/retro-notes.md`).
-- Closure report (`docs/methodology/waterfall/templates/closure-report.md`).
+- Retrospective notes (`docs/templates/agile/retro-notes.md`).
+- Closure report (`docs/templates/waterfall/closure-report.md`).
 - Status and quality reports.
 
 ## Capture Prompts

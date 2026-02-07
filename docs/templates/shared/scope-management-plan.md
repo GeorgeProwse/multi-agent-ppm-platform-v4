@@ -7,8 +7,8 @@ Define how project scope is defined, validated, and controlled.
 Project Manager, Business Analyst, PMO, Sponsors.
 
 ## Inputs
-- Project charter (`docs/methodology/waterfall/templates/project-charter.md`).
-- WBS (`docs/methodology/waterfall/templates/wbs.yaml`).
+- Project charter (`docs/templates/waterfall/project-charter.md`).
+- WBS (`docs/templates/waterfall/wbs.yaml`).
 
 ## 1. Scope Statement Definition Process
 Describe how scope is documented, reviewed, and approved. Reference the project scope statement

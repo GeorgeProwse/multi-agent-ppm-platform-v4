@@ -7,7 +7,7 @@ Define quality objectives, standards, assurance, and control activities for the 
 Quality Manager, Project Manager, QA Lead, Delivery Teams, Compliance.
 
 ## Inputs
-- QA checklist (`docs/methodology/waterfall/templates/qa-checklist.xlsx`).
+- QA checklist (`docs/templates/waterfall/qa-checklist.xlsx`).
 - Requirements and acceptance criteria.
 
 ## 1. Quality Objectives

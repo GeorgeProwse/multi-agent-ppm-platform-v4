@@ -6,9 +6,22 @@ Describe the waterfall documentation set and link the narrative to the repo asse
 
 ## What's inside
 
-- `docs/methodology/waterfall/templates`: Templates used by the component (deployment or message content).
+- `docs/templates/waterfall`: Waterfall-specific templates for charters, baselines, and closure artefacts.
 - `docs/methodology/waterfall/gates.yaml`: YAML definition or configuration used by this component.
 - `docs/methodology/waterfall/map.yaml`: YAML definition or configuration used by this component.
+
+## Stages & Activities
+
+The waterfall methodology is defined in `docs/methodology/waterfall/map.yaml` and includes:
+
+1. **Initiation**: capture demand, build the business case, and approve the charter.
+2. **Planning**: define scope, schedule, risk, and quality baselines.
+3. **Execution**: deliver scope and manage change control.
+4. **Monitoring & Control**: track performance, risks, and variance reporting.
+5. **Closure**: capture outcomes, handover, and compliance artefacts.
+
+Each stage enumerates tasks, owner roles, required artefacts, and exit criteria. Refer to the map
+for the canonical task list and artefact requirements.
 
 ## How it's used
 

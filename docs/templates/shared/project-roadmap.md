@@ -17,7 +17,7 @@ stakeholders on scope, timeline, and readiness for operational handover.
 Project Sponsor, Project Manager, PMO, Delivery Leads, Operations, Key Stakeholders.
 
 ## Inputs
-- Project charter (`docs/methodology/waterfall/templates/project-charter.md`).
+- Project charter (`docs/templates/waterfall/project-charter.md`).
 - Project management plan (`docs/templates/shared/project-management-plan.md`).
 - Schedule management plan (`docs/templates/shared/schedule-management-plan.md`).
 - Risk management plan (`docs/templates/shared/risk-management-plan.md`).

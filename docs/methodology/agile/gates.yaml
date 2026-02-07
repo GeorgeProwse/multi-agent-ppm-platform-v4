@@ -12,7 +12,7 @@ gates:
         template: docs/templates/shared/business-case.md
         evidence: Approved business case document.
       - name: Product backlog
-        template: docs/methodology/agile/templates/backlog.csv
+        template: docs/templates/agile/backlog.csv
         evidence: Backlog populated with prioritized items.
     criteria:
       - id: intake-1
@@ -35,10 +35,10 @@ gates:
     stage: planning
     required_artefacts:
       - name: Sprint plan
-        template: docs/methodology/agile/templates/sprint-plan.md
+        template: docs/templates/agile/sprint-plan.md
         evidence: Signed plan with capacity.
       - name: Release plan
-        template: docs/methodology/agile/templates/release-plan.md
+        template: docs/templates/agile/release-plan.md
         evidence: Stakeholder-reviewed release plan.
     criteria:
       - id: planning-1
@@ -61,7 +61,7 @@ gates:
     stage: review
     required_artefacts:
       - name: Release plan
-        template: docs/methodology/agile/templates/release-plan.md
+        template: docs/templates/agile/release-plan.md
         evidence: Updated readiness checklist.
       - name: Variance report
         template: docs/templates/shared/variance-report.md
@@ -87,7 +87,7 @@ gates:
     stage: retrospective
     required_artefacts:
       - name: Retrospective notes
-        template: docs/methodology/agile/templates/retro-notes.md
+        template: docs/templates/agile/retro-notes.md
         evidence: Action items logged with owners.
     criteria:
       - id: retro-1
