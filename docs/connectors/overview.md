@@ -81,3 +81,4 @@ Expected output: a JSON entry for Jira with a manifest path.
 - [Connector README](../../connectors/README.md)
 - [Data Model](../data/README.md)
 - [Security Architecture](../architecture/security-architecture.md)
+- [MCP Coverage Matrix](mcp-coverage-matrix.md)
