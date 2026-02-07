@@ -542,11 +542,17 @@ interface McpProjectConfigSectionProps {
   connector: Connector;
   canManage: boolean;
   projectId: string;
-  onToggleMcpEnabled: (projectId: string, connectorId: string, enabled: boolean) => Promise<void>;
+  onToggleMcpEnabled: (
+    projectId: string,
+    connectorId: string,
+    enabled: boolean,
+    payload?: Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id' | 'mcp_tool_map'>
+  ) => Promise<void>;
   onUpdateMcpToolMap: (
     projectId: string,
     connectorId: string,
-    toolMap: Record<string, unknown>
+    toolMap: Record<string, unknown>,
+    payload?: Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id'>
   ) => Promise<void>;
 }
 
@@ -557,7 +563,10 @@ function McpProjectConfigSection({
   onToggleMcpEnabled,
   onUpdateMcpToolMap,
 }: McpProjectConfigSectionProps) {
+  const { mcpToolsBySystem, mcpToolsLoading, mcpToolsError, fetchMcpTools } = useConnectorStore();
   const [mcpEnabled, setMcpEnabled] = useState(connector.mcp_enabled ?? true);
+  const [mcpServerId, setMcpServerId] = useState(connector.mcp_server_id ?? '');
+  const [mcpServerUrl, setMcpServerUrl] = useState(connector.mcp_server_url ?? '');
   const [toolMap, setToolMap] = useState<Record<string, string>>(() =>
     Object.entries(connector.mcp_tool_map ?? {}).reduce<Record<string, string>>(
       (acc, [operation, tool]) => {
@@ -578,6 +587,8 @@ function McpProjectConfigSection({
 
   useEffect(() => {
     setMcpEnabled(connector.mcp_enabled ?? true);
+    setMcpServerId(connector.mcp_server_id ?? '');
+    setMcpServerUrl(connector.mcp_server_url ?? '');
     setToolMap(
       Object.entries(connector.mcp_tool_map ?? {}).reduce<Record<string, string>>(
         (acc, [operation, tool]) => {
@@ -587,35 +598,58 @@ function McpProjectConfigSection({
         {}
       )
     );
-  }, [connector.mcp_enabled, connector.mcp_tool_map]);
+  }, [
+    connector.mcp_enabled,
+    connector.mcp_tool_map,
+    connector.mcp_server_id,
+    connector.mcp_server_url,
+  ]);
+
+  useEffect(() => {
+    fetchMcpTools(connector.system);
+  }, [connector.system, fetchMcpTools]);
 
   const handleToggle = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!canManage) return;
     const nextEnabled = event.target.checked;
     setMcpEnabled(nextEnabled);
-    await onToggleMcpEnabled(projectId, connector.connector_id, nextEnabled);
+    await onToggleMcpEnabled(projectId, connector.connector_id, nextEnabled, {
+      mcp_server_id: mcpServerId,
+      mcp_server_url: mcpServerUrl,
+      mcp_tool_map: buildToolMapPayload(),
+    });
   };
 
   const handleToolChange = (operation: string, value: string) => {
     setToolMap((prev) => ({ ...prev, [operation]: value }));
   };
 
-  const handleSave = async () => {
-    if (!canManage) return;
-    setSaving(true);
-    const payload = Object.entries(toolMap).reduce<Record<string, string>>((acc, [operation, tool]) => {
+  const buildToolMapPayload = () =>
+    Object.entries(toolMap).reduce<Record<string, string>>((acc, [operation, tool]) => {
       const trimmed = tool.trim();
       if (trimmed) {
         acc[operation] = trimmed;
       }
       return acc;
     }, {});
+
+  const handleSave = async () => {
+    if (!canManage) return;
+    setSaving(true);
+    const payload = buildToolMapPayload();
     try {
-      await onUpdateMcpToolMap(projectId, connector.connector_id, payload);
+      await onUpdateMcpToolMap(projectId, connector.connector_id, payload, {
+        mcp_server_id: mcpServerId,
+        mcp_server_url: mcpServerUrl,
+      });
     } finally {
       setSaving(false);
     }
   };
+
+  const toolCatalog = mcpToolsBySystem[connector.system] ?? [];
+  const toolCatalogNames = toolCatalog.map((tool) => tool.name);
+  const canToggleMcp = canManage && (mcpEnabled || Boolean(mcpServerUrl));
 
   return (
     <div className={styles.mcpConfigSection}>
@@ -633,12 +667,47 @@ function McpProjectConfigSection({
               type="checkbox"
               checked={mcpEnabled}
               onChange={handleToggle}
-              disabled={!canManage}
+              disabled={!canToggleMcp}
               aria-label={`Enable MCP for ${connector.name}`}
             />
             <span className={styles.toggleSlider}></span>
           </span>
         </label>
+      </div>
+
+      <div className={styles.formField}>
+        <label className={styles.fieldLabel}>MCP Server</label>
+        <select
+          className={styles.fieldSelect}
+          value={mcpServerId}
+          onChange={(event) => setMcpServerId(event.target.value)}
+          disabled={!canManage}
+        >
+          <option value="">Select a server</option>
+          {MCP_SERVER_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+          {connector.mcp_server_id &&
+            !MCP_SERVER_OPTIONS.some((option) => option.id === connector.mcp_server_id) && (
+              <option value={connector.mcp_server_id}>
+                Current: {connector.mcp_server_id}
+              </option>
+            )}
+        </select>
+      </div>
+
+      <div className={styles.formField}>
+        <label className={styles.fieldLabel}>MCP Server URL</label>
+        <input
+          type="url"
+          className={styles.fieldInput}
+          placeholder="https://mcp.example.com"
+          value={mcpServerUrl}
+          onChange={(event) => setMcpServerUrl(event.target.value)}
+          disabled={!canManage}
+        />
       </div>
 
       <div className={styles.mcpToolMap}>
@@ -654,11 +723,30 @@ function McpProjectConfigSection({
               value={toolMap[operation] ?? ''}
               onChange={(event) => handleToolChange(operation, event.target.value)}
               placeholder="e.g., portfolio.read"
-              disabled={!canManage || !mcpEnabled}
+              disabled={!canManage}
+              list={`${connector.connector_id}-mcp-tool-catalog`}
             />
           </div>
         ))}
       </div>
+      <datalist id={`${connector.connector_id}-mcp-tool-catalog`}>
+        {toolCatalogNames.map((tool) => (
+          <option key={tool} value={tool} />
+        ))}
+      </datalist>
+      {mcpToolsLoading[connector.system] && (
+        <span className={styles.fieldHint}>Loading MCP tool catalog...</span>
+      )}
+      {mcpToolsError[connector.system] && (
+        <span className={styles.fieldHint}>
+          Unable to load MCP tools. You can still enter tool names manually.
+        </span>
+      )}
+      {!mcpServerUrl && (
+        <span className={styles.fieldHint}>
+          Provide an MCP server URL before enabling MCP for this connector.
+        </span>
+      )}
 
       <div className={styles.mcpToolActions}>
         <button
@@ -736,12 +824,14 @@ function ConnectorConfigModal({
   const isIoT = connector.category === 'iot';
   const isSlack = connector.connector_id === 'slack';
   const isWorkday = connector.connector_id === 'workday';
+  const { mcpToolsBySystem, mcpToolsLoading, mcpToolsError, fetchMcpTools } = useConnectorStore();
   const [connectorType, setConnectorType] = useState<ConnectorType>(connector.connector_type ?? 'rest');
   const [mcpServerId, setMcpServerId] = useState(connector.mcp_server_id ?? '');
   const [mcpServerUrl, setMcpServerUrl] = useState(connector.mcp_server_url ?? '');
-  const initialTool = connector.mcp_tool_map ? Object.keys(connector.mcp_tool_map)[0] : '';
-  const [mcpTool, setMcpTool] = useState(initialTool);
   const [mcpScopes, setMcpScopes] = useState<string[]>(connector.mcp_scopes ?? []);
+  const [mcpToolMap, setMcpToolMap] = useState<Record<string, string>>(() =>
+    buildInitialToolMap(connector)
+  );
   const [instanceUrl, setInstanceUrl] = useState(connector.instance_url || '');
   const [projectKey, setProjectKey] = useState(connector.project_key || '');
   const [deviceEndpoint, setDeviceEndpoint] = useState(
@@ -770,15 +860,42 @@ function ConnectorConfigModal({
   const [saving, setSaving] = useState(false);
   const connectionTarget =
     connectorType === 'mcp' ? mcpServerUrl : isIoT ? deviceEndpoint : instanceUrl;
-  const mcpServerOptions = [
-    { id: 'mcp-core', label: 'Core MCP Server' },
-    { id: 'mcp-analytics', label: 'Analytics MCP Server' },
-    { id: 'mcp-integrations', label: 'Integrations MCP Server' },
-  ];
-  const toolOptions = connector.supported_operations.length
-    ? connector.supported_operations
-    : ['projects.read', 'projects.write', 'resources.read'];
+  const toolOptions = useMemo(() => {
+    const preferred = connector.supported_operations.length
+      ? connector.supported_operations
+      : Object.keys(mcpToolMap);
+    const fallback = preferred.length ? preferred : ['projects.read', 'projects.write', 'resources.read'];
+    const extras = Object.keys(mcpToolMap).filter((operation) => !fallback.includes(operation));
+    return [...fallback, ...extras];
+  }, [connector.supported_operations, mcpToolMap]);
+  const toolCatalog = mcpToolsBySystem[connector.system] ?? [];
+  const toolCatalogNames = toolCatalog.map((tool) => tool.name);
   const scopeOptions = ['projects:read', 'projects:write', 'resources:read', 'portfolio:read'];
+  const selectedTools = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          Object.values(mcpToolMap)
+            .map((tool) => tool.trim())
+            .filter(Boolean)
+        )
+      ),
+    [mcpToolMap]
+  );
+
+  useEffect(() => {
+    setConnectorType(connector.connector_type ?? 'rest');
+    setMcpServerId(connector.mcp_server_id ?? '');
+    setMcpServerUrl(connector.mcp_server_url ?? '');
+    setMcpScopes(connector.mcp_scopes ?? []);
+    setMcpToolMap(buildInitialToolMap(connector));
+  }, [connector]);
+
+  useEffect(() => {
+    if (connectorType === 'mcp') {
+      fetchMcpTools(connector.system);
+    }
+  }, [connector.system, connectorType, fetchMcpTools]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -802,13 +919,26 @@ function ConnectorConfigModal({
         customPayload.refresh_token = workdayRefreshToken;
         customPayload.token_url = workdayTokenUrl;
       }
+      const normalizedToolMap = Object.entries(mcpToolMap).reduce<Record<string, string>>(
+        (acc, [operation, tool]) => {
+          const trimmed = tool.trim();
+          if (trimmed) {
+            acc[operation] = trimmed;
+          }
+          return acc;
+        },
+        {}
+      );
       await onSave(connector.connector_id, {
         instance_url: effectiveInstanceUrl,
         project_key: projectKey,
         connector_type: connectorType,
         mcp_server_id: connectorType === 'mcp' ? mcpServerId : undefined,
         mcp_server_url: connectorType === 'mcp' ? mcpServerUrl : undefined,
-        mcp_tool_map: connectorType === 'mcp' && mcpTool ? { [mcpTool]: true } : undefined,
+        mcp_tool_map:
+          connectorType === 'mcp' && Object.keys(normalizedToolMap).length
+            ? normalizedToolMap
+            : undefined,
         mcp_scopes: connectorType === 'mcp' && mcpScopes.length ? mcpScopes : undefined,
         sync_direction: syncDirection,
         sync_frequency: syncFrequency,
@@ -851,17 +981,23 @@ function ConnectorConfigModal({
             <h3 className={styles.sectionTitle}>Connection Settings</h3>
 
             <div className={styles.formField}>
-              <label className={styles.fieldLabel}>Integration Type</label>
-              <select
-                className={styles.fieldSelect}
-                value={connectorType}
-                onChange={(e) => setConnectorType(e.target.value as ConnectorType)}
-              >
-                <option value="rest">REST</option>
-                <option value="mcp">MCP</option>
-              </select>
+              <label className={styles.fieldLabel}>MCP Enabled</label>
+              <label className={styles.mcpToggle}>
+                <span>{connectorType === 'mcp' ? 'MCP enabled' : 'Use REST'}</span>
+                <span className={styles.mcpToggleSwitch}>
+                  <input
+                    type="checkbox"
+                    checked={connectorType === 'mcp'}
+                    onChange={(event) =>
+                      setConnectorType(event.target.checked ? 'mcp' : 'rest')
+                    }
+                    aria-label={`Enable MCP for ${connector.name}`}
+                  />
+                  <span className={styles.toggleSlider}></span>
+                </span>
+              </label>
               <span className={styles.fieldHint}>
-                Choose whether to connect via REST or the managed MCP runtime.
+                Enable MCP to run this connector via the managed runtime instead of REST.
               </span>
             </div>
 
@@ -875,14 +1011,17 @@ function ConnectorConfigModal({
                     onChange={(e) => setMcpServerId(e.target.value)}
                   >
                     <option value="">Select a server</option>
-                    {mcpServerOptions.map((option) => (
+                    {MCP_SERVER_OPTIONS.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.label}
                       </option>
                     ))}
-                    {connector.mcp_server_id && !mcpServerOptions.some((option) => option.id === connector.mcp_server_id) && (
-                      <option value={connector.mcp_server_id}>Current: {connector.mcp_server_id}</option>
-                    )}
+                    {connector.mcp_server_id &&
+                      !MCP_SERVER_OPTIONS.some((option) => option.id === connector.mcp_server_id) && (
+                        <option value={connector.mcp_server_id}>
+                          Current: {connector.mcp_server_id}
+                        </option>
+                      )}
                   </select>
                   <span className={styles.fieldHint}>
                     Target MCP server for this connector.
@@ -904,21 +1043,45 @@ function ConnectorConfigModal({
                 </div>
 
                 <div className={styles.formField}>
-                  <label className={styles.fieldLabel}>MCP Tool</label>
-                  <select
-                    className={styles.fieldSelect}
-                    value={mcpTool}
-                    onChange={(e) => setMcpTool(e.target.value)}
-                  >
-                    <option value="">Select a tool</option>
-                    {toolOptions.map((tool) => (
-                      <option key={tool} value={tool}>
-                        {tool}
-                      </option>
+                  <label className={styles.fieldLabel}>MCP Tool Map</label>
+                  <div className={styles.mcpToolMap}>
+                    {toolOptions.map((operation) => (
+                      <div key={operation} className={styles.mcpToolRow}>
+                        <label className={styles.mcpToolLabel} htmlFor={`${connector.connector_id}-${operation}`}>
+                          {operation}
+                        </label>
+                        <input
+                          id={`${connector.connector_id}-${operation}`}
+                          className={styles.mcpToolInput}
+                          type="text"
+                          value={mcpToolMap[operation] ?? ''}
+                          onChange={(event) =>
+                            setMcpToolMap((prev) => ({
+                              ...prev,
+                              [operation]: event.target.value,
+                            }))
+                          }
+                          placeholder="e.g., portfolio.read"
+                          list={`${connector.connector_id}-mcp-tools`}
+                        />
+                      </div>
                     ))}
-                  </select>
+                  </div>
+                  <datalist id={`${connector.connector_id}-mcp-tools`}>
+                    {toolCatalogNames.map((tool) => (
+                      <option key={tool} value={tool} />
+                    ))}
+                  </datalist>
+                  {mcpToolsLoading[connector.system] && (
+                    <span className={styles.fieldHint}>Loading MCP tool catalog...</span>
+                  )}
+                  {mcpToolsError[connector.system] && (
+                    <span className={styles.fieldHint}>
+                      Unable to load MCP tools. You can still enter tool names manually.
+                    </span>
+                  )}
                   <span className={styles.fieldHint}>
-                    Choose the primary MCP tool used for sync operations.
+                    Map connector operations to MCP tools. Tool suggestions come from the MCP server.
                   </span>
                 </div>
 
@@ -1146,7 +1309,11 @@ function ConnectorConfigModal({
               <div>
                 <span className={styles.summaryLabel}>MCP Tool</span>
                 <span className={styles.summaryValue}>
-                  {connectorType === 'mcp' ? mcpTool || 'Not set' : 'REST'}
+                  {connectorType === 'mcp'
+                    ? selectedTools.length
+                      ? selectedTools.join(', ')
+                      : 'Not set'
+                    : 'REST'}
                 </span>
               </div>
               <div>
@@ -1460,6 +1627,25 @@ function CertificationModal({
 }
 
 export default ProjectConnectorGallery;
+
+const MCP_SERVER_OPTIONS = [
+  { id: 'mcp-core', label: 'Core MCP Server' },
+  { id: 'mcp-analytics', label: 'Analytics MCP Server' },
+  { id: 'mcp-integrations', label: 'Integrations MCP Server' },
+];
+
+const buildInitialToolMap = (connector: Connector): Record<string, string> => {
+  const existing = connector.mcp_tool_map ?? {};
+  const baseOperations = connector.supported_operations.length
+    ? connector.supported_operations
+    : Object.keys(existing);
+  const operations = baseOperations.length ? baseOperations : ['projects.read', 'projects.write'];
+  const allOperations = [...operations, ...Object.keys(existing).filter((op) => !operations.includes(op))];
+  return allOperations.reduce<Record<string, string>>((acc, operation) => {
+    acc[operation] = existing[operation] ? String(existing[operation]) : '';
+    return acc;
+  }, {});
+};
 
 const STATUS_LABELS: Record<Connector['status'], string> = {
   available: 'Available',

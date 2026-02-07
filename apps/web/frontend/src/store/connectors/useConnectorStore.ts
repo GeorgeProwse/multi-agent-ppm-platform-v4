@@ -15,6 +15,7 @@ import type {
   ConnectorConfigUpdate,
   ConnectorFilterState,
   ConnectionTestResult,
+  McpToolSchema,
 } from './types';
 
 // API base URL
@@ -49,11 +50,17 @@ interface ConnectorStoreState {
   testingConnection: boolean;
   testResult: ConnectionTestResult | null;
 
+  // MCP tool catalogs
+  mcpToolsBySystem: Record<string, McpToolSchema[]>;
+  mcpToolsLoading: Record<string, boolean>;
+  mcpToolsError: Record<string, string | null>;
+
   // Actions - Connectors
   fetchConnectors: () => Promise<void>;
   fetchProjectConnectors: (projectId: string) => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchCertifications: () => Promise<void>;
+  fetchMcpTools: (system: string) => Promise<void>;
   getConnector: (connectorId: string) => Connector | undefined;
   getCertification: (connectorId: string) => CertificationRecord | undefined;
   updateConnectorConfig: (connectorId: string, config: ConnectorConfigUpdate) => Promise<void>;
@@ -69,12 +76,14 @@ interface ConnectorStoreState {
   setProjectMcpEnabled: (
     projectId: string,
     connectorId: string,
-    enabled: boolean
+    enabled: boolean,
+    payload?: Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id' | 'mcp_tool_map'>
   ) => Promise<void>;
   updateProjectMcpToolMap: (
     projectId: string,
     connectorId: string,
-    toolMap: Record<string, unknown>
+    toolMap: Record<string, unknown>,
+    payload?: Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id'>
   ) => Promise<void>;
   updateCertification: (
     connectorId: string,
@@ -141,6 +150,9 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
   isModalOpen: false,
   testingConnection: false,
   testResult: null,
+  mcpToolsBySystem: {},
+  mcpToolsLoading: {},
+  mcpToolsError: {},
 
   // Fetch all connectors
   fetchConnectors: async () => {
@@ -240,6 +252,31 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
     }
   },
 
+  fetchMcpTools: async (system) => {
+    if (get().mcpToolsBySystem[system]) return;
+    set((state) => ({
+      mcpToolsLoading: { ...state.mcpToolsLoading, [system]: true },
+      mcpToolsError: { ...state.mcpToolsError, [system]: null },
+    }));
+    try {
+      const response = await fetch(`${API_BASE}/mcp/servers/${system}/tools`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch MCP tools: ${response.statusText}`);
+      }
+      const data = (await response.json()) as { tools: McpToolSchema[] };
+      set((state) => ({
+        mcpToolsBySystem: { ...state.mcpToolsBySystem, [system]: data.tools },
+        mcpToolsLoading: { ...state.mcpToolsLoading, [system]: false },
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      set((state) => ({
+        mcpToolsLoading: { ...state.mcpToolsLoading, [system]: false },
+        mcpToolsError: { ...state.mcpToolsError, [system]: message },
+      }));
+    }
+  },
+
   // Get a specific connector
   getConnector: (connectorId) => {
     return get().connectors.find((c) => c.connector_id === connectorId);
@@ -265,15 +302,7 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
     } catch (error) {
       // Update locally for development
       set((state) => ({
-        connectors: state.connectors.map((c) =>
-          c.connector_id === connectorId
-            ? {
-                ...c,
-                ...config,
-                configured: true,
-              }
-            : c
-        ),
+        connectors: updateConnectorConfigState(state.connectors, connectorId, config),
       }));
     }
   },
@@ -293,14 +322,10 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
       set((state) => ({
         projectConnectors: {
           ...state.projectConnectors,
-          [projectId]: (state.projectConnectors[projectId] || []).map((c) =>
-            c.connector_id === connectorId
-              ? {
-                  ...c,
-                  ...config,
-                  configured: true,
-                }
-              : c
+          [projectId]: updateConnectorConfigState(
+            state.projectConnectors[projectId] || [],
+            connectorId,
+            config
           ),
         },
       }));
@@ -457,42 +482,71 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
     }
   },
 
-  setProjectMcpEnabled: async (projectId, connectorId, enabled) => {
+  setProjectMcpEnabled: async (projectId, connectorId, enabled, payload) => {
     const connector = getProjectConnector(get(), projectId, connectorId);
     if (!connector) return;
-    const payload = buildProjectConnectorConfigPayload(connector, { mcp_enabled: enabled });
     try {
-      const response = await fetch(`/api/projects/${projectId}/connectors/${connectorId}/config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to update MCP status: ${response.statusText}`);
+      if (enabled) {
+        const mcpPayload = buildProjectMcpConfigPayload(connector, payload);
+        const response = await fetch(
+          `${API_BASE}/projects/${projectId}/connectors/${connector.system}/mcp`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mcpPayload),
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`Failed to enable MCP: ${response.statusText}`);
+        }
+      } else {
+        const fallbackPayload = buildProjectConnectorConfigPayload(connector, { mcp_enabled: false });
+        const response = await fetch(`/api/projects/${projectId}/connectors/${connectorId}/config`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fallbackPayload),
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to disable MCP: ${response.statusText}`);
+        }
       }
       await get().fetchProjectConnectors(projectId);
     } catch (error) {
       set((state) => ({
         projectConnectors: {
           ...state.projectConnectors,
-          [projectId]: (state.projectConnectors[projectId] || []).map((c) =>
-            c.connector_id === connectorId ? { ...c, mcp_enabled: enabled } : c
+          [projectId]: updateProjectMcpState(
+            state.projectConnectors[projectId] || [],
+            connector,
+            {
+              mcp_enabled: enabled,
+              mcp_server_id: payload?.mcp_server_id,
+              mcp_server_url: payload?.mcp_server_url,
+              mcp_tool_map: payload?.mcp_tool_map,
+            }
           ),
         },
       }));
     }
   },
 
-  updateProjectMcpToolMap: async (projectId, connectorId, toolMap) => {
+  updateProjectMcpToolMap: async (projectId, connectorId, toolMap, payload) => {
     const connector = getProjectConnector(get(), projectId, connectorId);
     if (!connector) return;
-    const payload = buildProjectConnectorConfigPayload(connector, { mcp_tool_map: toolMap });
     try {
-      const response = await fetch(`/api/projects/${projectId}/connectors/${connectorId}/config`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      const mcpPayload = buildProjectMcpConfigPayload(connector, {
+        mcp_server_id: payload?.mcp_server_id,
+        mcp_server_url: payload?.mcp_server_url,
+        mcp_tool_map: toolMap,
       });
+      const response = await fetch(
+        `${API_BASE}/projects/${projectId}/connectors/${connector.system}/mcp`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mcpPayload),
+        }
+      );
       if (!response.ok) {
         throw new Error(`Failed to update MCP tool map: ${response.statusText}`);
       }
@@ -501,8 +555,14 @@ export const useConnectorStore = create<ConnectorStoreState>((set, get) => ({
       set((state) => ({
         projectConnectors: {
           ...state.projectConnectors,
-          [projectId]: (state.projectConnectors[projectId] || []).map((c) =>
-            c.connector_id === connectorId ? { ...c, mcp_tool_map: toolMap } : c
+          [projectId]: updateProjectMcpState(
+            state.projectConnectors[projectId] || [],
+            connector,
+            {
+              mcp_tool_map: toolMap,
+              mcp_server_id: payload?.mcp_server_id,
+              mcp_server_url: payload?.mcp_server_url,
+            }
           ),
         },
       }));
@@ -755,16 +815,101 @@ const buildProjectConnectorConfigPayload = (
   ...overrides,
 });
 
+const buildProjectMcpConfigPayload = (
+  connector: Connector,
+  overrides?: Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id' | 'mcp_tool_map'>
+): Pick<ConnectorConfigUpdate, 'mcp_server_url' | 'mcp_server_id' | 'mcp_tool_map'> => ({
+  mcp_server_url: connector.mcp_server_url || '',
+  mcp_server_id: connector.mcp_server_id || '',
+  mcp_tool_map: connector.mcp_tool_map || {},
+  ...overrides,
+});
+
+const updateConnectorConfigState = (
+  connectors: Connector[],
+  connectorId: string,
+  config: ConnectorConfigUpdate
+): Connector[] => {
+  const next = connectors.map((c) =>
+    c.connector_id === connectorId
+      ? {
+          ...c,
+          ...config,
+          configured: true,
+        }
+      : c
+  );
+  const updatedConnector = next.find((c) => c.connector_id === connectorId);
+  if (!updatedConnector || updatedConnector.connector_type !== 'mcp') {
+    return next;
+  }
+  return disableRestDuplicates(next, updatedConnector);
+};
+
+const updateProjectMcpState = (
+  connectors: Connector[],
+  connector: Connector,
+  updates: Pick<
+    ConnectorConfigUpdate,
+    'mcp_enabled' | 'mcp_server_id' | 'mcp_server_url' | 'mcp_tool_map'
+  >
+): Connector[] => {
+  const next = connectors.map((c) =>
+    c.connector_id === connector.connector_id
+      ? {
+          ...c,
+          ...updates,
+          connector_type: updates.mcp_enabled ? 'mcp' : c.connector_type,
+        }
+      : c
+  );
+  if (!updates.mcp_enabled) {
+    return next;
+  }
+  return disableRestDuplicates(next, connector);
+};
+
+const disableRestDuplicates = (connectors: Connector[], source: Connector): Connector[] =>
+  connectors.map((c) => {
+    if (c.connector_id === source.connector_id) {
+      return c;
+    }
+    if (c.system === source.system && c.connector_type === 'rest' && c.enabled) {
+      return { ...c, enabled: false };
+    }
+    return c;
+  });
+
 const mapConnectorResponses = (connectors: Connector[]): Connector[] =>
-  connectors.map((connector) => ({
-    ...connector,
-    connector_type: connector.connector_type ?? (connector.mcp_preferred ? 'mcp' : 'rest'),
-    certification_status: normalizeCertificationStatus(
-      (connector as { certification_status?: string; certification?: string }).certification_status ??
-        (connector as { certification?: string }).certification ??
-        connector.certification_status
-    ),
-  }));
+  normalizeMcpDuplicates(
+    connectors.map((connector) => ({
+      ...connector,
+      connector_type: connector.connector_type ?? (connector.mcp_preferred ? 'mcp' : 'rest'),
+      certification_status: normalizeCertificationStatus(
+        (connector as { certification_status?: string; certification?: string }).certification_status ??
+          (connector as { certification?: string }).certification ??
+          connector.certification_status
+      ),
+    }))
+  );
+
+const normalizeMcpDuplicates = (connectors: Connector[]): Connector[] => {
+  const mcpEnabledSystems = new Set(
+    connectors
+      .filter(
+        (connector) =>
+          connector.connector_type === 'mcp' && (connector.enabled || connector.mcp_enabled)
+      )
+      .map((connector) => connector.system)
+  );
+  if (!mcpEnabledSystems.size) return connectors;
+  return connectors.map((connector) => {
+    if (connector.connector_type === 'rest' && mcpEnabledSystems.has(connector.system)) {
+      return { ...connector, enabled: false };
+    }
+    return connector;
+  });
+};
 
 const normalizeCertificationStatus = (status?: string | null): CertificationStatus => {
   if (!status) return 'not_started';

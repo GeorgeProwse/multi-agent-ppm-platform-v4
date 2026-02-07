@@ -191,6 +191,15 @@ export interface ConnectionTestResult {
 }
 
 /**
+ * MCP tool schema metadata.
+ */
+export interface McpToolSchema {
+  name: string;
+  description?: string;
+  input_schema?: Record<string, unknown>;
+}
+
+/**
  * Category information for display
  */
 export interface CategoryInfo {
