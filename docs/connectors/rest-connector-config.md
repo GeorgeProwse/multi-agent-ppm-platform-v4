@@ -54,3 +54,5 @@ OAuth 2.0 connectors support additional optional fields:
 ## MCP monitoring
 
 When a vendor or marketplace announces an MCP server for a REST connector, update the connector classification to add an MCP entry in the registry, mark `mcp_preferred` when appropriate, and keep the REST connector available as a fallback for project-level configurations.
+
+For MCP server auth, scopes, and tool mapping guidance, see [MCP Server Configuration](mcp-server-configuration.md).
