@@ -615,8 +615,11 @@ function ConnectorConfigModal({
   const isIoT = connector.category === 'iot';
   const isSlack = connector.connector_id === 'slack';
   const isWorkday = connector.connector_id === 'workday';
+  const mcpFeatureEnabled = connector.mcp_feature_enabled ?? true;
   const { mcpToolsBySystem, mcpToolsLoading, mcpToolsError, fetchMcpTools } = useConnectorStore();
-  const [connectorType, setConnectorType] = useState<ConnectorType>(connector.connector_type ?? 'rest');
+  const [connectorType, setConnectorType] = useState<ConnectorType>(
+    connector.mcp_feature_enabled === false ? 'rest' : connector.connector_type ?? 'rest'
+  );
   const [mcpServerId, setMcpServerId] = useState(connector.mcp_server_id ?? '');
   const [mcpServerUrl, setMcpServerUrl] = useState(connector.mcp_server_url ?? '');
   const [mcpScopes, setMcpScopes] = useState<string[]>(connector.mcp_scopes ?? []);
@@ -680,7 +683,9 @@ function ConnectorConfigModal({
   );
 
   useEffect(() => {
-    setConnectorType(connector.connector_type ?? 'rest');
+    setConnectorType(
+      connector.mcp_feature_enabled === false ? 'rest' : connector.connector_type ?? 'rest'
+    );
     setMcpServerId(connector.mcp_server_id ?? '');
     setMcpServerUrl(connector.mcp_server_url ?? '');
     setMcpScopes(connector.mcp_scopes ?? []);
@@ -688,10 +693,10 @@ function ConnectorConfigModal({
   }, [connector]);
 
   useEffect(() => {
-    if (connectorType === 'mcp') {
+    if (connectorType === 'mcp' && mcpFeatureEnabled) {
       fetchMcpTools(connector.system);
     }
-  }, [connector.system, connectorType, fetchMcpTools]);
+  }, [connector.system, connectorType, fetchMcpTools, mcpFeatureEnabled]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -787,6 +792,7 @@ function ConnectorConfigModal({
                     onChange={(event) =>
                       setConnectorType(event.target.checked ? 'mcp' : 'rest')
                     }
+                    disabled={!mcpFeatureEnabled}
                     aria-label={`Enable MCP for ${connector.name}`}
                   />
                   <span className={styles.toggleSlider}></span>
@@ -795,6 +801,11 @@ function ConnectorConfigModal({
               <span className={styles.fieldHint}>
                 Enable MCP to run this connector via the managed runtime instead of REST.
               </span>
+              {!mcpFeatureEnabled && (
+                <span className={styles.fieldHint}>
+                  MCP is disabled by feature flag for this system.
+                </span>
+              )}
             </div>
 
             {connectorType === 'mcp' && (

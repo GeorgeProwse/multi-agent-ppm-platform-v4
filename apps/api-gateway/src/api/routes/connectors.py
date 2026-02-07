@@ -29,6 +29,7 @@ from pydantic import AnyHttpUrl, BaseModel, Field, TypeAdapter, field_validator,
 
 from api.circuit_breaker import CircuitBreaker
 from api.connector_loader import get_connector_class
+from feature_flags import is_mcp_feature_enabled
 
 # Add connector SDK to path
 REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -206,6 +207,10 @@ def _ensure_connector_is_available(definition: Any) -> None:
                 f"(status: {definition.status.value})"
             ),
         )
+
+
+def _mcp_feature_enabled(system: str, project_id: str | None = None) -> bool:
+    return is_mcp_feature_enabled(system=system, project_id=project_id)
 
 
 # =============================================================================
@@ -441,6 +446,7 @@ class ConnectorConfigResponse(BaseModel):
     mcp_config: McpConfig | None = None
     prefer_mcp: bool
     mcp_enabled: bool
+    mcp_feature_enabled: bool
     mcp_enabled_operations: list[str]
     mcp_disabled_operations: list[str]
     health_status: str
@@ -516,6 +522,7 @@ class ProjectConnectorConfigResponse(BaseModel):
     mcp_config: McpConfig | None = None
     prefer_mcp: bool
     mcp_enabled: bool
+    mcp_feature_enabled: bool
     mcp_enabled_operations: list[str]
     mcp_disabled_operations: list[str]
     health_status: str
@@ -609,6 +616,7 @@ class ConnectorListItemResponse(BaseModel):
     mcp_tool_map: dict[str, Any] = Field(default_factory=dict)
     prefer_mcp: bool = False
     mcp_enabled: bool = True
+    mcp_feature_enabled: bool = True
     mcp_enabled_operations: list[str] = Field(default_factory=list)
     mcp_disabled_operations: list[str] = Field(default_factory=list)
 
@@ -935,6 +943,7 @@ async def list_connectors(
             mcp_tool_map=config.mcp_tool_map if config else {},
             prefer_mcp=config.prefer_mcp if config else False,
             mcp_enabled=config.mcp_enabled if config else True,
+            mcp_feature_enabled=_mcp_feature_enabled(definition.system),
             mcp_enabled_operations=config.mcp_enabled_operations if config else [],
             mcp_disabled_operations=config.mcp_disabled_operations if config else [],
         )
@@ -1049,6 +1058,7 @@ async def list_project_connectors(
                 mcp_tool_map=project_config.mcp_tool_map if project_config else {},
                 prefer_mcp=project_config.prefer_mcp if project_config else False,
                 mcp_enabled=project_config.mcp_enabled if project_config else True,
+                mcp_feature_enabled=_mcp_feature_enabled(definition.system, project_id),
                 mcp_enabled_operations=(
                     project_config.mcp_enabled_operations if project_config else []
                 ),
@@ -1122,6 +1132,7 @@ async def get_connector(connector_id: str) -> ConnectorListItemResponse:
         mcp_tool_map=config.mcp_tool_map if config else {},
         prefer_mcp=config.prefer_mcp if config else False,
         mcp_enabled=config.mcp_enabled if config else True,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system),
         mcp_enabled_operations=config.mcp_enabled_operations if config else [],
         mcp_disabled_operations=config.mcp_disabled_operations if config else [],
     )
@@ -1221,6 +1232,7 @@ async def update_connector_config(
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system),
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1313,6 +1325,7 @@ async def update_project_connector_config(
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system, project_id),
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1421,6 +1434,7 @@ async def update_regulatory_compliance_config(
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system),
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1535,6 +1549,7 @@ async def enable_connector(connector_id: str, http_request: Request) -> Connecto
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system),
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1551,6 +1566,8 @@ async def disable_connector(connector_id: str, http_request: Request) -> Connect
     """
     store = get_config_store()
     config = store.get(connector_id)
+    definition = get_connector_definition(connector_id)
+    mcp_feature_enabled = _mcp_feature_enabled(definition.system) if definition else True
 
     if not config:
         raise HTTPException(
@@ -1601,6 +1618,7 @@ async def disable_connector(connector_id: str, http_request: Request) -> Connect
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=mcp_feature_enabled,
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1759,6 +1777,7 @@ async def enable_project_connector(
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=_mcp_feature_enabled(definition.system, project_id),
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,
@@ -1780,6 +1799,10 @@ async def disable_project_connector(
     """
     store = get_project_config_store()
     config = store.get(project_id, connector_id)
+    definition = get_connector_definition(connector_id)
+    mcp_feature_enabled = (
+        _mcp_feature_enabled(definition.system, project_id) if definition else True
+    )
     if not config:
         raise HTTPException(
             status_code=404, detail=f"Connector configuration not found: {connector_id}"
@@ -1816,6 +1839,7 @@ async def disable_project_connector(
         mcp_tool_map=config.mcp_tool_map,
         prefer_mcp=config.prefer_mcp,
         mcp_enabled=config.mcp_enabled,
+        mcp_feature_enabled=mcp_feature_enabled,
         mcp_enabled_operations=config.mcp_enabled_operations,
         mcp_disabled_operations=config.mcp_disabled_operations,
         health_status=config.health_status,

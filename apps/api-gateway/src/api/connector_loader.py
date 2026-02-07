@@ -5,6 +5,7 @@ from typing import Any
 
 from base_connector import ConnectorConfig
 from connector_registry import get_all_connectors, get_connector_definition
+from feature_flags import is_mcp_feature_enabled
 from project_connector_store import ProjectConnectorConfig
 
 _CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = {
@@ -63,6 +64,10 @@ def _should_use_mcp(config: ConnectorConfig | ProjectConnectorConfig | None) -> 
         and config.prefer_mcp
         and config.mcp_server_url
         and config.is_mcp_enabled_for(None)
+        and is_mcp_feature_enabled(
+            system=_connector_system(config.connector_id),
+            project_id=getattr(config, "ppm_project_id", None),
+        )
     )
 
 

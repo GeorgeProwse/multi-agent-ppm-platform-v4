@@ -198,6 +198,10 @@ Defines global feature flags. Each entry in `flags` supports:
 | `enabled` | Boolean toggle for the feature. |
 | `description` | Human-readable intent for the flag. |
 
+MCP rollout flags use the naming convention `mcp_global_enabled`, `mcp_system_<system>`,
+and `mcp_project_<project_id>`. Project flags override system flags, and system flags
+override the global default.
+
 ### `config/tenants/default.yaml`
 
 Default tenant bootstrap configuration (see `config/tenants/README.md`).
