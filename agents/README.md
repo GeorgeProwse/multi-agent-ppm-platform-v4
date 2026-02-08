@@ -32,6 +32,22 @@ Agents are discovered by `tools/agent_runner` and referenced by the orchestratio
 python -m tools.agent_runner list-agents
 ```
 
+## Agent metadata generation
+
+The agent catalog markdown and the web UI metadata JSON are generated from the
+individual agent README files. After editing any `agents/**/agent-*/README.md`,
+refresh the outputs with:
+
+```bash
+python scripts/generate_agent_metadata.py
+```
+
+To verify the committed files are up to date (e.g., in CI), run:
+
+```bash
+python scripts/generate_agent_metadata.py --check
+```
+
 ## Configuration
 
 Agent runtime settings live in `.env` (see `.env.example`) and shared config files under `config/`.
