@@ -151,7 +151,7 @@ work characteristics.
 
 ### RACI matrix template
 Use the shared RACI template to define responsibilities across hybrid roles and delivery phases:
-`docs/templates/shared/raci-matrix.md`.
+`docs/templates/shared/governance/raci-matrix.md`.
 
 ### Role interaction guidelines
 1. Establish decision rights between governance and team autonomy.

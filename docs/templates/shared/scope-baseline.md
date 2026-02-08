@@ -7,8 +7,8 @@ Provide the approved scope statement, WBS, and WBS dictionary as a single contro
 Project Manager, PMO, Sponsors, Delivery Leads.
 
 ## Inputs
-- Project charter (`docs/templates/waterfall/project-charter.md`).
-- WBS (`docs/templates/waterfall/wbs.yaml`).
+- Project charter (`docs/templates/waterfall/planning/project-charter.md`).
+- WBS (`docs/templates/waterfall/planning/wbs.yaml`).
 - WBS dictionary (attach or link below).
 
 ## 1. Approved Scope Statement

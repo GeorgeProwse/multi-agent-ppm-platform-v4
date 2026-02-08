@@ -163,4 +163,4 @@ Provide a short overview of the product/feature, target users, and intended outc
 
 ## Related Resources
 - Agile planning: `docs/methodology/agile`
-- Product backlog management: `docs/templates/agile/backlog.csv`
+- Product backlog management: `docs/templates/agile/planning/backlog.csv`

@@ -7,8 +7,8 @@ Plan goals, work items, and delivery commitments for an iteration in Kanban, Lea
 Product Owner, Delivery Team, Scrum Master, Stakeholders.
 
 ## Inputs
-- Risk-adjusted backlog (`docs/templates/agile/risk-adjusted-backlog.csv`).
-- Release plan (`docs/templates/agile/release-plan.md`).
+- Risk-adjusted backlog (`docs/templates/agile/risk/risk-adjusted-backlog.csv`).
+- Release plan (`docs/templates/agile/planning/release-plan.md`).
 - Capacity and WIP limits.
 
 ## 1. Iteration Metadata
