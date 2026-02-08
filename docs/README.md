@@ -11,6 +11,7 @@ This directory contains the canonical documentation set for the multi-agent PPM 
 | [agents/](./agents/) | Agent specifications and catalog |
 | [api/](./api/) | API schemas, OpenAPI specs, and contracts |
 | [architecture/](./architecture/) | Architecture narratives, diagrams, and ADRs |
+| [assets/ui/screenshots/](./assets/ui/screenshots/) | Centralized UI screenshots for documentation |
 | [compliance/](./compliance/) | Compliance guidance, DPIA, threat model |
 | [connectors/](./connectors/) | Connector documentation and integration guides |
 | [data/](./data/) | Data model, quality, and lineage docs |

@@ -34,6 +34,10 @@ The web application consists of:
 - `apps/web/src`: Python backend source
 - `apps/web/static`: Built frontend assets (production)
 
+## UI screenshots
+
+Store new UI screenshots for this app in `docs/assets/ui/screenshots/` so documentation assets stay centralized. See the README in that folder for naming and capture guidance.
+
 ## How to run / develop / test
 
 ### Prerequisites
