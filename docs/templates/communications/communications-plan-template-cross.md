@@ -22,7 +22,7 @@ Project/Program Manager, Communications Lead, PMO, Sponsors, Stakeholders.
 - Stakeholder register (`docs/templates/stakeholders/stakeholder-register-cross.xlsx`).
 - Stakeholder analysis & mapping (`docs/templates/stakeholders/stakeholder-analysis-and-mapping-template-cross.md`).
 - Governance cadence and stage gates.
-- Project management plan (`docs/templates/governance/project-management-plan-cross.md`).
+- Project management plan (`docs/templates/governance/project-management-plan-template-cross.md`).
 
 ## Table of Contents
 1. Communication Strategy & Objectives
@@ -290,5 +290,5 @@ Capture communication successes/failures and apply improvements in future phases
 
 ### Appendix B: References
 - Organizational communication standards.
-- Project management plan (`docs/templates/governance/project-management-plan-cross.md`).
+- Project management plan (`docs/templates/governance/project-management-plan-template-cross.md`).
 - Stakeholder analysis & mapping (`docs/templates/stakeholders/stakeholder-analysis-and-mapping-template-cross.md`).

@@ -151,7 +151,7 @@ Reference the communication plan template: `docs/templates/communications/commun
 |  |  |  |  |  |
 
 Reference change impact assessment and change log:
-- `docs/templates/change/change-impact-assessment-cross.md`
+- `docs/templates/change/change-impact-assessment-template-cross.md`
 - `docs/templates/change/change-log-template-cross.md`
 
 ---

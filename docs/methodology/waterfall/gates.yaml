@@ -71,7 +71,7 @@ gates:
         template: docs/templates/change/change-request-cross-var1.md
         evidence: Change control process documented.
       - name: Variance report
-        template: docs/templates/finance/variance-report-cross.md
+        template: docs/templates/finance/variance-report-template-cross.md
         evidence: Baseline variance report issued.
     criteria:
       - id: exec-1
@@ -94,7 +94,7 @@ gates:
     stage: monitoring
     required_artefacts:
       - name: Variance report
-        template: docs/templates/finance/variance-report-cross.md
+        template: docs/templates/finance/variance-report-template-cross.md
         evidence: Latest performance report.
       - name: Risk register
         template: docs/templates/risk/risk-register-waterfall.xlsx

@@ -64,7 +64,7 @@ gates:
         template: docs/templates/schedule/release-plan-agile.md
         evidence: Updated readiness checklist.
       - name: Variance report
-        template: docs/templates/finance/variance-report-cross.md
+        template: docs/templates/finance/variance-report-template-cross.md
         evidence: Variance summary shared with stakeholders.
     criteria:
       - id: review-1
