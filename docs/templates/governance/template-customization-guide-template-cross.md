@@ -103,7 +103,7 @@ PMO, Project Managers, Process Owners, Template Librarians, Stakeholders.
 
 ## 10. Related Templates
 - Template catalog (`docs/product/templates-catalog.md`).
-- Project management plan (`docs/templates/governance/project-management-plan-cross.md`).
+- Project management plan (`docs/templates/governance/project-management-plan-template-cross.md`).
 - Communications plan (`docs/templates/communications/communications-plan-template-cross.md`).
 
 ## Acceptance Criteria

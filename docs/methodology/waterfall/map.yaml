@@ -96,7 +96,7 @@ stages:
           - Delivery Team
         artefacts:
           - name: Variance report
-            template: docs/templates/finance/variance-report-cross.md
+            template: docs/templates/finance/variance-report-template-cross.md
             required: true
       - id: change-control
         description: Capture change requests and assess impacts.
@@ -107,7 +107,7 @@ stages:
             template: docs/templates/change/change-request-cross-var1.md
             required: true
           - name: Change impact assessment
-            template: docs/templates/change/change-impact-assessment-cross.md
+            template: docs/templates/change/change-impact-assessment-template-cross.md
             required: true
     exit_criteria:
       - Major deliverables completed and accepted.
@@ -126,7 +126,7 @@ stages:
           - PMO Analyst
         artefacts:
           - name: Variance report
-            template: docs/templates/finance/variance-report-cross.md
+            template: docs/templates/finance/variance-report-template-cross.md
             required: true
       - id: risk-review
         description: Review and update the risk register.

@@ -8,7 +8,7 @@ Change Manager, Project Manager, Sponsor, PMO Lead.
 
 ## Inputs
 - Current baseline plans and scope.
-- Impact analysis (`docs/templates/change/change-impact-assessment-cross.md`).
+- Impact analysis (`docs/templates/change/change-impact-assessment-template-cross.md`).
 
 ## Required Sections
 - Change summary

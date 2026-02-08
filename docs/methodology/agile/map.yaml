@@ -96,7 +96,7 @@ stages:
             template: docs/templates/change/change-log-template-cross.md
             required: true
           - name: Change impact assessment
-            template: docs/templates/change/change-impact-assessment-cross.md
+            template: docs/templates/change/change-impact-assessment-template-cross.md
             required: true
     exit_criteria:
       - Sprint commitments completed or re-forecasted.
@@ -123,7 +123,7 @@ stages:
           - Delivery Lead
         artefacts:
           - name: Variance report
-            template: docs/templates/finance/variance-report-cross.md
+            template: docs/templates/finance/variance-report-template-cross.md
             required: true
     exit_criteria:
       - Stakeholders accept delivered scope.

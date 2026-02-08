@@ -8,7 +8,7 @@ Change Manager, Project Manager, PMO Lead, Stakeholders.
 
 ## Inputs
 - Change requests (`docs/templates/change/change-request-cross-var1.md`).
-- Impact assessments (`docs/templates/change/change-impact-assessment-cross.md`).
+- Impact assessments (`docs/templates/change/change-impact-assessment-template-cross.md`).
 
 ## Change Classification Guidance
 Classify each change to support impact analysis and approval routing.
