@@ -14,6 +14,102 @@ Define the responsibilities, workflows, and integration points for Agent 23: Dat
 
 Referenced by the agent runtime and orchestration docs when routing requests, and discovered by `tools/agent_runner` during local execution.
 
+## Scope, responsibilities, and decisioning
+
+### Intended scope
+
+- Govern data synchronization quality for mastered PPM entities (project, resource, vendor, financial, etc.) flowing between source systems and the canonical model.
+- Validate inbound payloads, map them to canonical schemas, and enforce data-quality thresholds before propagation.
+- Detect duplicates/conflicts and resolve or queue them based on configured policies.
+- Emit audit, lineage, and telemetry events for downstream analytics and monitoring.
+
+### Inputs
+
+- **Action payloads** (via agent runner): `sync_data`, `run_sync`, `validate_data`, `detect_conflicts`, `resolve_conflict`, `detect_duplicates`, `merge_duplicates`, `get_quality_report`, `get_retry_queue`, `process_retries`, `reprocess_retry`, `get_dashboard`.
+- **Configuration files** loaded at startup:
+  - `config/agent-23/validation_rules.yaml`
+  - `config/agent-23/pipelines.yaml`
+  - `config/agent-23/schema_registry.yaml`
+  - `config/agent-23/mapping_rules.yaml`
+  - `config/agent-23/quality_thresholds.yaml`
+- **External connectors**: Planview, SAP, Jira, Workday (via Key Vault + connector secrets).
+- **Events**: `sync.start`, `sync.complete`, `conflict.detected` via Service Bus/Event Grid.
+
+### Outputs
+
+- **Canonical master records** persisted to state storage and optional databases.
+- **Sync telemetry**: latency metrics, quality metrics, retry queue entries.
+- **Quality reports**: per-entity summaries of completeness, consistency, timeliness.
+- **Audit/lineage events** emitted to event bus, Log Analytics, and audit stores.
+
+### Decision responsibilities
+
+- **Data quality gating**: accept, reject, or retry a payload based on validation rules and quality thresholds.
+- **Conflict strategy**: apply `last_write_wins`, `timestamp_based`, `authoritative_source`, `prefer_existing`, or `manual`.
+- **Duplicate handling**: flag, merge, or reject based on fuzzy match confidence thresholds.
+- **Retry policy**: determine retry eligibility and backoff based on failure reason and max attempts.
+
+### Must / must-not behaviors
+
+**Must**
+- Enforce schema validation and rule-based validation before master record updates.
+- Record sync logs, quality metrics, and audit events for every sync request.
+- Preserve lineage and trace IDs for downstream observability.
+- Queue failed validations for retry rather than silent drop.
+
+**Must not**
+- Must not overwrite authoritative fields when the source system is not the authority.
+- Must not emit analytics insights (delegated to analytics agents) beyond raw metrics.
+- Must not mutate canonical records without a successful validation pass.
+
+## Overlap, leakage, and handoff boundaries
+
+### Analytics agents (Agent 22 & Agent 25)
+
+- **Overlap risk**: both analytics agents aggregate quality metrics; Agent 23 produces the raw data quality signals and reports only.
+- **Handoff boundary**: Agent 23 publishes quality events/metrics; Agent 22/25 consume, aggregate, and generate dashboards, KPIs, narratives, and forecasting.
+- **Leakage to avoid**: Agent 23 should not compute portfolio-level KPIs, forecasts, or narrative summaries.
+
+### Agent 24: Workflow Process Engine
+
+- **Overlap risk**: Agent 24 can orchestrate retries/compensation workflows. Agent 23 owns data sync quality decisions and retry eligibility.
+- **Handoff boundary**: Agent 23 emits `sync.complete` and `conflict.detected` events and publishes retry queue status; Agent 24 uses these signals to trigger workflows (e.g., human review for manual conflict resolution).
+- **Leakage to avoid**: Agent 23 should not orchestrate complex multi-step workflow routing; defer to Agent 24 for orchestration.
+
+## Functional gaps, inconsistencies, and alignment needs
+
+- **Prompt/tool alignment**: ensure agent runner routes `get_quality_report`, `get_dashboard`, and retry actions to Agent 23 instead of analytics agents.
+- **Template alignment**: add/confirm templates for quality exception review workflows in Agent 24 and dashboards in analytics agents.
+- **Connector alignment**: confirm connector credential availability in Key Vault for Planview/SAP/Jira/Workday and ensure sync mappings exist in `mapping_rules.yaml`.
+- **UI alignment**: dashboards should visualize quality dimensions (completeness, consistency, timeliness) and include retry queue counts and conflict backlog.
+- **Schema versioning**: ensure `schema_registry.yaml` and registered schemas include version metadata to avoid mismatched validation.
+
+## Data quality rules (checkpoint-ready)
+
+Minimum rules and thresholds for execution readiness:
+
+1. **Completeness**: required fields present per schema + validation rules.
+2. **Consistency**: field ranges and referential checks pass; no conflicting authoritative updates.
+3. **Timeliness**: `updated_at` within SLA (`sync_latency_sla_seconds`, default 60s).
+4. **Uniqueness**: duplicate detection confidence below `duplicate_confidence_threshold` (default 0.85).
+5. **Schema compliance**: JSON schema validation passes for entity type.
+6. **Auditability**: sync logs, lineage payload, and audit events recorded for every sync.
+
+## Dependency map entry (checkpoint-ready)
+
+**Upstream dependencies**
+- Source systems: Planview, SAP, Jira, Workday.
+- Schema and rule configs: `config/agent-23/*.yaml`.
+- Event bus: Azure Service Bus / Event Grid.
+
+**Downstream dependencies**
+- Analytics agents (Agent 22/25): quality metrics, reports, and sync telemetry.
+- Agent 24 Workflow Engine: conflict and retry orchestration.
+- Data stores: SQL/Cosmos for master records and audit history.
+
+**Key events**
+- `sync.start`, `sync.complete`, `conflict.detected`.
+
 ## How to run / develop / test
 
 Run the agent locally with the shared runner:
