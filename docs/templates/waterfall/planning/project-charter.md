@@ -124,7 +124,7 @@ Describe the reporting and collaboration structure for the core team.
 
 ### 5.3 RACI Reference
 Complete the RACI assignments using the shared template:
-`docs/templates/shared/raci-matrix.md`.
+`docs/templates/shared/governance/raci-matrix.md`.
 
 ---
 

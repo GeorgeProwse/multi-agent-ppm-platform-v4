@@ -8,8 +8,8 @@ outcomes, risks, and operational readiness.
 Product Owner, Release Manager, Engineering Lead, QA Lead, Operations, Security, Stakeholders.
 
 ## Inputs
-- Sprint plans (`docs/templates/agile/sprint-plan.md`).
-- Backlog priorities (`docs/templates/agile/backlog.csv`).
+- Sprint plans (`docs/templates/agile/planning/sprint-plan.md`).
+- Backlog priorities (`docs/templates/agile/planning/backlog.csv`).
 - Risk and change logs.
 - Architecture and operational runbooks.
 

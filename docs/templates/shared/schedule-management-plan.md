@@ -7,8 +7,8 @@ Define how schedules are developed, baselined, monitored, and controlled.
 Project Manager, Scheduler, PMO, Delivery Leads.
 
 ## Inputs
-- WBS (`docs/templates/waterfall/wbs.yaml`).
-- Schedule baseline (`docs/templates/waterfall/schedule-baseline.xlsx`).
+- WBS (`docs/templates/waterfall/planning/wbs.yaml`).
+- Schedule baseline (`docs/templates/waterfall/planning/schedule-baseline.xlsx`).
 - Activity list (`docs/templates/shared/activity-list.csv`).
 - Project schedule template (`docs/templates/shared/project-schedule-template.md`).
 

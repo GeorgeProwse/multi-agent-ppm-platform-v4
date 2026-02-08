@@ -7,7 +7,7 @@ Ensure daily synchronization, surface impediments quickly, and reinforce sprint 
 Scrum Master, Delivery Team, Product Owner (optional), Stakeholders (observers only).
 
 ## Inputs
-- Sprint plan (`docs/templates/agile/sprint-plan.md`).
+- Sprint plan (`docs/templates/agile/planning/sprint-plan.md`).
 - Sprint backlog and task board.
 - Impediment log or risk register updates.
 

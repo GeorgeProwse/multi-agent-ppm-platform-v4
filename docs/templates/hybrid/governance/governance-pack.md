@@ -8,8 +8,8 @@ structure, escalation paths, and reporting cadence across stage-gate and iterati
 Executive Sponsor, Steering Committee, PMO Lead, Program Manager, Delivery Lead, Compliance Officer.
 
 ## Inputs
-- Hybrid charter (`docs/templates/hybrid/hybrid-charter.md`).
-- Decision log (`docs/templates/hybrid/decision-log.md`).
+- Hybrid charter (`docs/templates/hybrid/governance/hybrid-charter.md`).
+- Decision log (`docs/templates/hybrid/governance/decision-log.md`).
 - Communications plan (`docs/templates/shared/communications-plan.md`).
 - Change request (`docs/templates/shared/change-request.md`).
 
@@ -191,8 +191,8 @@ Cross-functional Delivery Squads
 | Closure | Closure report, handover |  |  |  |
 
 ## Appendix B: Governance Artefacts
-- Decision log (`docs/templates/hybrid/decision-log.md`).
-- Risk register (`docs/templates/hybrid/integrated-risk-register.xlsx`).
+- Decision log (`docs/templates/hybrid/governance/decision-log.md`).
+- Risk register (`docs/templates/hybrid/risk/integrated-risk-register.xlsx`).
 - Communications plan (`docs/templates/shared/communications-plan.md`).
 - Change log (`docs/templates/shared/change-log.md`).
 

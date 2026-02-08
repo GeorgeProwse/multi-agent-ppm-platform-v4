@@ -143,9 +143,9 @@ Maintain a shared calendar with invitations and reminders for all recurring meet
 ### 5.1 Regular Reports
 | Report | Purpose | Audience | Frequency | Format | Owner | Distribution | Template |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Project Status Report | Status update | Steering Committee | Bi-weekly | Slides | PM | Email/meeting | `docs/templates/shared/status-report.md` |
+| Project Status Report | Status update | Steering Committee | Bi-weekly | Slides | PM | Email/meeting | `docs/templates/shared/reports/status-report.md` |
 | Executive Dashboard | Metrics | Executive leadership | Monthly | PDF | Sponsor | Email | [Dashboard link] |
-| Risk & Issue Log | Risk tracking | Project team | Weekly | Spreadsheet | Risk Manager | SharePoint | `docs/templates/shared/risk-report.md` |
+| Risk & Issue Log | Risk tracking | Project team | Weekly | Spreadsheet | Risk Manager | SharePoint | `docs/templates/shared/reports/risk-report.md` |
 
 ### 5.2 Ad-hoc/Special Reports
 | Report | Trigger | Audience | Format | Owner | Turnaround | Approval Required |
@@ -202,10 +202,10 @@ Reference the approved repository path for each report template and enforce vers
 ### 7.2 Meeting Templates
 Use the shared meeting templates and agile ceremony templates:
 - `docs/templates/shared/meeting-templates.md`
-- `docs/templates/agile/daily-standup.md`
-- `docs/templates/agile/sprint-plan.md`
-- `docs/templates/agile/sprint-review.md`
-- `docs/templates/agile/retro-notes.md`
+- `docs/templates/agile/meetings/daily-standup.md`
+- `docs/templates/agile/planning/sprint-plan.md`
+- `docs/templates/agile/reports/sprint-review.md`
+- `docs/templates/agile/reports/retro-notes.md`
 
 ---
 

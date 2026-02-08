@@ -28,7 +28,7 @@ This plan covers:
 - Financial resources (budget allocation and cost controls).
 
 ## Inputs
-- Schedule baseline (`docs/templates/waterfall/schedule-baseline.xlsx`).
+- Schedule baseline (`docs/templates/waterfall/planning/schedule-baseline.xlsx`).
 - Resource assignment matrix (`docs/templates/shared/resource-assignment-matrix.csv`).
 - Risk register and cost baseline (as applicable).
 

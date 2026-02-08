@@ -9,7 +9,7 @@ Scrum Master, Delivery Team, Product Owner, Stakeholders (as invited).
 
 ## Inputs
 - Sprint outcomes and metrics.
-- Burndown or delivery tracking (`docs/templates/agile/burndown.xlsx`).
+- Burndown or delivery tracking (`docs/templates/agile/reports/burndown.xlsx`).
 - Feedback from review or stakeholders.
 - Previous retrospective action items.
 

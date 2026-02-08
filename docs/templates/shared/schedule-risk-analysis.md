@@ -10,7 +10,7 @@ Project Manager, Scheduler, Risk Manager, PMO, Delivery Leads, Sponsors.
 - Schedule management plan (`docs/templates/shared/schedule-management-plan.md`).
 - Project schedule template (`docs/templates/shared/project-schedule-template.md`).
 - Risk management plan (`docs/templates/shared/risk-management-plan.md`).
-- Risk register (`docs/templates/waterfall/risk-register.xlsx` or `docs/templates/hybrid/integrated-risk-register.xlsx`).
+- Risk register (`docs/templates/waterfall/planning/risk-register.xlsx` or `docs/templates/hybrid/risk/integrated-risk-register.xlsx`).
 
 ## 1. Schedule Risk Overview
 Describe the scope of the schedule risk analysis (phases covered, critical milestones, and decision points).
