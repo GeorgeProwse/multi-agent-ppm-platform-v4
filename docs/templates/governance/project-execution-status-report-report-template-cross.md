@@ -2,8 +2,6 @@
 title: "Project Execution Status Report Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT EXECUTION REPORT
@@ -425,4 +423,3 @@ updated: "2025-08-05"
 ---
 
 **Note:** This Project Execution Report provides a comprehensive view of project performance during the execution phase. The information contained should be used by stakeholders to understand current status, identify areas requiring attention, and make informed decisions about project direction and resource allocation.
-

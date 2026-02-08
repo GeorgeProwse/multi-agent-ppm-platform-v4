@@ -2,8 +2,6 @@
 title: "Hybrid Project Charter Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -78,4 +76,3 @@ This hybrid project charter template outlines the foundational elements of a pro
 
 
 *Hybrid project charter balancing traditional and agile approaches*
-

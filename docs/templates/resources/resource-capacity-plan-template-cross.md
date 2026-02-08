@@ -12,4 +12,3 @@ Guidance
 - Traditional: baseline resource allocations at phase plans
 - Agile-at-Scale: plan by PI and team velocity; maintain buffers
 - Hybrid: blend capacity commitments with adaptive rebalancing
-

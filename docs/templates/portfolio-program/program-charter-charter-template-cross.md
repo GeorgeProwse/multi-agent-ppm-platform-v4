@@ -2,8 +2,6 @@
 title: "Program Charter Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROGRAM CHARTER TEMPLATE
@@ -637,4 +635,3 @@ Program Steering Committee
 ---
 
 *This Program Charter template follows industry best practices and can be adapted for programs of various sizes and complexities. Customize sections as appropriate for your organization's needs and governance requirements.*
-

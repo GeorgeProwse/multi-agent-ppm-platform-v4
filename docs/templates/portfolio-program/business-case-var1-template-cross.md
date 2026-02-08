@@ -363,4 +363,3 @@ This business case requests approval for:
 **Approval Required by**: [Date]
 
 *Business case for [Project Name] - Version [X.X]*
-

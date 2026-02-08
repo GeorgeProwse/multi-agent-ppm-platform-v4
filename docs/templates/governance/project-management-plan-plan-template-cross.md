@@ -2,8 +2,6 @@
 title: "Project Management Plan Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT MANAGEMENT PLAN
@@ -747,4 +745,3 @@ Updates to this plan will follow the change control process. The Project Manager
 ---
 
 **Note:** This Project Management Plan and its subsidiary plans provide the framework for managing this project. All project team members and stakeholders should be familiar with the contents of this plan that relate to their areas of responsibility.
-

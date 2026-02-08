@@ -473,4 +473,3 @@ CPI:  1.0  1.1  1.0  0.9  0.8  0.9  1.0  1.0  1.1  1.0  0.9  1.0
 <document_id>4hvGixBTMiDjmnTaT8veGo</document_id>
 </document>
 </citations>
-

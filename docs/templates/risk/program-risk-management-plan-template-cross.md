@@ -9,4 +9,3 @@ Sections
 - Risk Appetite and Escalation
 - Monitoring and Reporting Cadence
 - Tools and Data Sources
-

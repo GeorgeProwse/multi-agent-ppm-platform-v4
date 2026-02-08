@@ -401,4 +401,3 @@ The UAT Feedback Canvas is an Agile tool for capturing, organizing, and acting o
 ---
 
 **Facilitation Note**: This canvas works best when users feel safe to share honest feedback. Create a collaborative environment where all input is valued and acted upon.
-

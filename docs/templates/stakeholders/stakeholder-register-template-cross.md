@@ -47,4 +47,3 @@
 ---
 
 *Comprehensive stakeholder management tool*
-

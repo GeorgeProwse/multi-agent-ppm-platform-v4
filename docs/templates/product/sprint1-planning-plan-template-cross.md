@@ -6,7 +6,7 @@
 **Sprint Dates:** 2025-07-01 to 2025-07-14  
 **Sprint Duration:** *[2 weeks]*  
 **Scrum Master:** ChatGPT Codex  
-**Product Owner:** Michael Richard  
+**Product Owner:** [Name]  
 **Last Updated:** 2025-06-21  
 
 ---
@@ -501,4 +501,3 @@ Focus for Today:
 ---
 
 *Note: This Sprint Planning template aligns with Scrum Guide best practices. Teams should adapt it to their specific context and needs while maintaining the core principles of Scrum.*
-

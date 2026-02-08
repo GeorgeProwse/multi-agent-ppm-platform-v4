@@ -13,4 +13,3 @@ Columns
 Guidance
 - Keep lean, avoid ambiguity
 - Align with organizational policy and compliance needs
-

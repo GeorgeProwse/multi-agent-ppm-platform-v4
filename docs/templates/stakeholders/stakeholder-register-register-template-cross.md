@@ -2,8 +2,6 @@
 title: "Stakeholder Register Template"
 methodology: "universal"
 complexity: "intermediate"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Stakeholder Register Template
@@ -72,4 +70,3 @@ This stakeholder register template provides a comprehensive approach to identify
 ---
 
 *Template follows Traditional Guide stakeholder management best practices*
-

@@ -300,4 +300,3 @@ The Change Vision Canvas is an Agile tool for collaboratively creating a shared 
 ---
 
 **Facilitation Note**: This canvas works best when completed collaboratively in a workshop setting. Consider using a skilled facilitator if the change is complex or involves multiple conflicting stakeholder groups.
-

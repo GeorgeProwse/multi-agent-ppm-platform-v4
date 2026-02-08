@@ -2,8 +2,6 @@
 title: "Handover Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Project Handover Template
@@ -415,4 +413,3 @@ Review Checkpoints:
 - Next Review: [30/60/90 days post-handover]
 
 *This template ensures comprehensive knowledge transfer and smooth operational transition, maintaining service quality and business continuity.*
-

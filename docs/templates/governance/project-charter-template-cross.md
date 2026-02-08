@@ -90,4 +90,3 @@
 ---
 
 *This template follows Industry Standard standards and best practices*
-

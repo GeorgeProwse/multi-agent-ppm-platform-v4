@@ -21,4 +21,3 @@ Usage
 - Traditional: baseline and formally control changes
 - Agile-at-Scale: timebox planning to increments with adaptive updates
 - Hybrid: maintain baselines at phase gates; iterate plans within phases
-

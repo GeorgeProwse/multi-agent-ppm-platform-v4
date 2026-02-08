@@ -296,4 +296,3 @@ Implementing these practices in Microsoft Project, combined with appropriate too
 - [Project Risk Management Plan Template](../../Templates/risk_management_plan.md)
 - [Monte Carlo Simulation Guide](../../Tools/monte_carlo_guide.md)
 - [Microsoft Project Integration Guide](../../Tools/microsoft_project_integration.md)
-

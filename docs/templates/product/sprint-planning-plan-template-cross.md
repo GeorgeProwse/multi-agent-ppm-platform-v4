@@ -2,8 +2,6 @@
 title: "Sprint Planning Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Sprint Planning Template
@@ -174,4 +172,3 @@ updated: "2025-08-05"
 **Next Sprint Planning**: [Date]
 
 *Effective sprint planning for focused team delivery*
-

@@ -2,8 +2,6 @@
 title: "Backlog Refinement Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Backlog Refinement Template
@@ -263,4 +261,3 @@ Based on refinement session:
 **Next Refinement**: [Date]
 
 *Preparing the backlog for successful sprint execution*
-

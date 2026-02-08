@@ -294,4 +294,3 @@ Q{{ current_quarter }} Goals Progress:
 **Last Updated:** {{ current_date }}
 **Dashboard Version:** 3.2
 **Next Review:** {{ next_month }}
-

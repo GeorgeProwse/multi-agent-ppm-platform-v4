@@ -293,4 +293,3 @@ Issues should be escalated when:
 
 ---
 *This Governance Charter establishes the framework for effective project governance and should be reviewed and updated as needed throughout the project lifecycle.*
-

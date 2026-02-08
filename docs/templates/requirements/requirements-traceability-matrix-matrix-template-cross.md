@@ -2,8 +2,6 @@
 title: "Requirements Traceability Matrix Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # REQUIREMENTS TRACEABILITY MATRIX (RTM)
@@ -368,4 +366,3 @@ When requirements changes are proposed, use this section to analyze impact:
 ---
 
 *This Requirements Traceability Matrix is a living document that should be updated throughout the project lifecycle to maintain accurate tracking of all requirements from inception through delivery and acceptance.*
-

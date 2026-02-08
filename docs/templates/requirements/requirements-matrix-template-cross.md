@@ -10,7 +10,6 @@ external_view: true
 confidentiality: "public"
 tags: ["scope","matrix","analysis","automation","machine-readable"]
 description: "Structured matrix for  Requirements Matrix tracking and analysis"
-last_reviewed: "2025-08-19"
 owner_role: "PMO Templates Maintainer"
 automation_ready: true
 dependencies: []

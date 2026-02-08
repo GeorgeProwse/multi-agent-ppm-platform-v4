@@ -277,4 +277,3 @@ Rate each component on a scale of 1-10, then calculate:
 **Next Review**: [Date]
 
 *Data-driven prioritization for maximum product value*
-

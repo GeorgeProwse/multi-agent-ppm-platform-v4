@@ -2,8 +2,6 @@
 title: "Project Closure Report Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT CLOSURE REPORT
@@ -706,4 +704,3 @@ The Project Management Office acknowledges the formal closure of the Enterprise 
 ---
 
 **Note:** This Project Closure Report formally concludes the Enterprise Resource Planning Implementation project. All stakeholders should retain copies of this document for future reference. The success of this project provides a strong foundation for future organizational initiatives and digital transformation efforts.
-

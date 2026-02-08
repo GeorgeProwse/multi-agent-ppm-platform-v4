@@ -7,8 +7,6 @@ industry: "financial"
 role: "pm"
 tags: ["planning", "planning"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "15-30 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "15-30 minutes"
 title: "Resource Management Assessment Template"
 methodology: "universal"
 complexity: "starter"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Resource Management Assessment Template
 

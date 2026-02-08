@@ -2,8 +2,6 @@
 title: "Integrated Change Strategy Template"
 methodology: "hybrid"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Integrated Change Strategy Template
@@ -386,4 +384,3 @@ Operational Level → Tactical Level → Strategic Level
 - [Change Vision Canvas (Agile)](../../Agile/Tools/change_vision_canvas.md)
 - [Progressive Change Roadmap](progressive_change_roadmap_template.md)
 - [Change Governance Framework](change_governance_framework_template.md)
-

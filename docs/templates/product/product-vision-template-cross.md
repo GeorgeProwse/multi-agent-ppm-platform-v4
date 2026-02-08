@@ -2,8 +2,6 @@
 title: "Product Vision Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Product Vision Template
@@ -149,4 +147,3 @@ updated: "2025-08-05"
 **Next Review**: [Date]
 
 *Strategic product direction and inspiration*
-

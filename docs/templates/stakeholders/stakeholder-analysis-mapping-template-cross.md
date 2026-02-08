@@ -9,4 +9,3 @@ Sections
 - Engagement Strategy and Tactics
 - Communication Preferences
 - Success Measures
-

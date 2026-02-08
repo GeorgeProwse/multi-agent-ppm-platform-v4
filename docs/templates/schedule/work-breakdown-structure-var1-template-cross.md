@@ -2,8 +2,6 @@
 title: "Work Breakdown Structure Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # WORK BREAKDOWN STRUCTURE (WBS)
@@ -307,4 +305,3 @@ The WBS integrates with other project planning documents as follows:
 4. **Keep WBS Levels Consistent**
    - Maintain consistent detail level across similar components
    - Avoid over-
-

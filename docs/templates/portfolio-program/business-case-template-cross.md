@@ -10,7 +10,6 @@ external_view: true
 confidentiality: "public"
 tags: ["planning","business-case","justification","roi","automation","machine-readable"]
 description: "Comprehensive business case template for project justification and investment decisions"
-last_reviewed: "2025-08-19"
 owner_role: "PMO Templates Maintainer"
 automation_ready: true
 dependencies: []

@@ -2,8 +2,6 @@
 title: "Communication Plan Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT COMMUNICATION PLAN
@@ -491,4 +489,3 @@ ATTENDEES:
 * *Stakeholder Management Plan v1.0*
 * *Industry Standard Traditional Guide - Sixth Edition*
 * *Organizational Process Assets: Communication Templates*
-

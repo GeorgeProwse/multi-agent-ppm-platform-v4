@@ -2,8 +2,6 @@
 title: "Roi Tracking Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # ROI Tracking Template
@@ -389,4 +387,3 @@ Next Steps:
 - **Knowledge Area:** Project Cost Management
 - **Process Group:** Monitoring and Controlling
 - **Related Processes:** Control Costs, Control Schedule, Monitor and Control Project Work
-

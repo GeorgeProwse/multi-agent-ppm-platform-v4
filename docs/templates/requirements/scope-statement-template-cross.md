@@ -385,4 +385,3 @@ Project Deliverables
 - [Key Stakeholders]
 
 *This scope statement serves as the baseline for project scope and will be used to guide project execution and control scope changes.*
-

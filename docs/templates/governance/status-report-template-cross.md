@@ -127,4 +127,3 @@
 **Distribution**: [Distribution list]
 
 *Regular project communication and transparency*
-

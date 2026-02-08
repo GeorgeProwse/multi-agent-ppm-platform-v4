@@ -2,8 +2,6 @@
 title: "Project Charter Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT CHARTER
@@ -243,4 +241,3 @@ By signing below, I approve this Project Charter and authorize the project to pr
 ---
 
 **Note:** This Project Charter, once approved, is the authorization for the Project Manager to proceed with the project as outlined. Any significant changes to the information contained in this document will require a formal review and re-approval process.
-

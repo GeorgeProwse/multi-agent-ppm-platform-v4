@@ -7,4 +7,3 @@ Quadrants
 - High Influence, Low Interest: Keep Satisfied
 - Low Influence, High Interest: Keep Informed
 - Low Influence, Low Interest: Monitor
-

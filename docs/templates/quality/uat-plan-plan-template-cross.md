@@ -2,8 +2,6 @@
 title: "Uat Plan Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # User Acceptance Testing (UAT) Plan Template
@@ -533,4 +531,3 @@ updated: "2025-08-05"
 - [UAT Execution Report Template](uat_execution_report_template.md)
 - [UAT Sign-off Template](uat_signoff_template.md)
 - [Quality Management Plan](../Process_Groups/Planning/quality_management_plan_template.md)
-

@@ -2,8 +2,6 @@
 title: "Sprint Planning Template"
 methodology: "agile"
 complexity: "intermediate"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # SPRINT PLANNING
@@ -509,4 +507,3 @@ Focus for Today:
 ---
 
 *Note: This Sprint Planning template aligns with Scrum Guide best practices. Teams should adapt it to their specific context and needs while maintaining the core principles of Scrum.*
-

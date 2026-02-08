@@ -281,4 +281,3 @@ Classify stakeholders based on their level of power (influence) and interest in 
 
 ---
 *This stakeholder mapping template follows Industry Standard standards and stakeholder management best practices.*
-

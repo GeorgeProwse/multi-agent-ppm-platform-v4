@@ -2,8 +2,6 @@
 title: "Backlog Management Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Backlog Management Template
@@ -179,4 +177,3 @@ updated: "2025-08-05"
 **Next Review**: [Date]
 
 *Systematic product backlog management for maximum value delivery*
-

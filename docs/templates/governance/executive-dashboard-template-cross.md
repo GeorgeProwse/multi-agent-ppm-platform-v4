@@ -96,4 +96,3 @@
 **Next Update**: [Date]
 
 *Executive-focused project visibility and decision support*
-

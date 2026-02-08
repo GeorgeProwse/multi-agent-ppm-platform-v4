@@ -2,8 +2,6 @@
 title: "Progressive Acceptance Plan Template"
 methodology: "hybrid"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Progressive Acceptance Plan Template
@@ -487,4 +485,3 @@ Sprint Reports (Operational)
 - [UAT Feedback Canvas (Agile)](../../Agile/Tools/uat_feedback_canvas.md)
 - [Integrated Change Strategy](integrated_change_strategy_template.md)
 - [UAT Governance Framework](uat_governance_framework_template.md)
-

@@ -10,7 +10,6 @@ external_view: true
 confidentiality: "public"
 tags: ["execution","checklist","quality","automation","machine-readable"]
 description: "Comprehensive checklist for Code Review Checklist activities and quality gates"
-last_reviewed: "2025-08-19"
 owner_role: "PMO Templates Maintainer"
 automation_ready: true
 dependencies: []

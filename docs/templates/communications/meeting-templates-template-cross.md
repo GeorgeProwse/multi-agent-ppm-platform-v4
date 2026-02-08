@@ -2,8 +2,6 @@
 title: "Meeting Templates"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Meeting Templates Collection
@@ -605,4 +603,3 @@ For each change request:
 - **Next Review**: [Date]
 
 *Effective meetings drive project success. Use these templates to ensure your meetings are purposeful, productive, and valuable for all participants.*
-

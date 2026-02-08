@@ -374,4 +374,3 @@ The stakeholder analysis uses multiple frameworks:
 
 ---
 *This stakeholder analysis should be treated as a living document, updated regularly throughout the project lifecycle to maintain its relevance and effectiveness.*
-

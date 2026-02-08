@@ -256,4 +256,3 @@ The RACI Matrix clearly defines roles and responsibilities for project activitie
 **Next Review Date**: [Date]
 
 *This RACI Matrix is a living document that should be updated regularly to reflect changes in project scope, team composition, or organizational structure.*
-

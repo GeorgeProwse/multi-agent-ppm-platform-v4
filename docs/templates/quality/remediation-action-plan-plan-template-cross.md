@@ -2,8 +2,6 @@
 title: "Remediation Action Plan Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -419,4 +417,3 @@ updated: "2025-08-05"
 - Ensure resource requirements are realistic and approved
 - Regular review and updates are essential for success
 - Use this template in conjunction with Gap Analysis Matrix
-

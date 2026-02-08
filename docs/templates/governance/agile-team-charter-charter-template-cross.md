@@ -2,8 +2,6 @@
 title: "Agile Team Charter Template"
 methodology: "universal"
 complexity: "intermediate"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -75,4 +73,3 @@ This agile team charter template establishes the foundation for effective agile 
 
 
 *Agile team charter following Scrum framework principles*
-

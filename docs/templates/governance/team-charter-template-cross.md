@@ -396,4 +396,3 @@ By signing this charter, all team members commit to:
 - [Risk Register]
 
 *This team charter establishes the foundation for effective collaboration and successful project delivery.*
-

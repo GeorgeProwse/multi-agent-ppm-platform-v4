@@ -2,8 +2,6 @@
 title: "Change Request Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT CHANGE REQUEST FORM
@@ -452,4 +450,3 @@ updated: "2025-08-05"
 *Note: This Change Request Form template aligns with Industry Standard Traditional Guide best practices for integrated change control. Organizations should adapt this template to their specific needs and governance processes.*
 
 *Industry Standard and Traditional are registered marks of the Project Management Community, Inc.*
-

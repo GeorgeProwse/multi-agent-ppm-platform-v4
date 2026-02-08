@@ -2,8 +2,6 @@
 title: "Agile Stakeholder Map Template"
 methodology: "universal"
 complexity: "intermediate"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -179,4 +177,3 @@ This agile stakeholder map template is designed specifically for agile and itera
 **Next Review**: [Date]
 
 *Agile-focused stakeholder engagement for collaborative success*
-

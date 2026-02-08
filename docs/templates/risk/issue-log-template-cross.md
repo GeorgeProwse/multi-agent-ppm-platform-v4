@@ -563,4 +563,3 @@ Common issue types:
 <document_id>4hvGixBTMiDjmnTaT8veGo</document_id>
 </document>
 </citations>
-
