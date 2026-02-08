@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -93,7 +95,44 @@ class AuthContextResponse(BaseModel):
     claims: dict[str, Any]
 
 
-_OIDC_CACHE: dict[str, dict[str, Any]] = {}
+_OIDC_CACHE: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
+
+
+def _oidc_cache_ttl_seconds() -> int:
+    raw_value = _get_env("AUTH_OIDC_CACHE_TTL_SECONDS")
+    if not raw_value:
+        return 300
+    try:
+        return max(0, int(raw_value))
+    except ValueError:
+        logger.warning("Invalid AUTH_OIDC_CACHE_TTL_SECONDS value: %s", raw_value)
+        return 300
+
+
+def _oidc_cache_max_entries() -> int:
+    raw_value = _get_env("AUTH_OIDC_CACHE_MAX_ENTRIES")
+    if not raw_value:
+        return 16
+    try:
+        return max(0, int(raw_value))
+    except ValueError:
+        logger.warning("Invalid AUTH_OIDC_CACHE_MAX_ENTRIES value: %s", raw_value)
+        return 16
+
+
+def _prune_oidc_cache(now: float, ttl_seconds: int, max_entries: int) -> None:
+    if ttl_seconds <= 0 or max_entries <= 0:
+        _OIDC_CACHE.clear()
+        return
+    expired_keys = [
+        discovery_url
+        for discovery_url, entry in _OIDC_CACHE.items()
+        if now - entry["fetched_at"] >= ttl_seconds
+    ]
+    for discovery_url in expired_keys:
+        _OIDC_CACHE.pop(discovery_url, None)
+    while len(_OIDC_CACHE) > max_entries:
+        _OIDC_CACHE.popitem(last=False)
 
 
 def _get_env(name: str, fallback: str | None = None) -> str | None:
@@ -106,13 +145,29 @@ def _get_env(name: str, fallback: str | None = None) -> str | None:
 
 
 async def _load_oidc_config(discovery_url: str) -> dict[str, Any]:
-    if discovery_url in _OIDC_CACHE:
-        return _OIDC_CACHE[discovery_url]
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        response = await client.get(discovery_url)
-        response.raise_for_status()
-        data = response.json()
-    _OIDC_CACHE[discovery_url] = data
+    ttl_seconds = _oidc_cache_ttl_seconds()
+    max_entries = _oidc_cache_max_entries()
+    now = time.monotonic()
+    _prune_oidc_cache(now, ttl_seconds, max_entries)
+    cached = _OIDC_CACHE.get(discovery_url)
+    if cached and now - cached["fetched_at"] < ttl_seconds:
+        _OIDC_CACHE.move_to_end(discovery_url)
+        return cached["data"]
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(discovery_url)
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning(
+            "OIDC discovery failed for %s (%s)",
+            discovery_url,
+            type(exc).__name__,
+        )
+        raise
+    _OIDC_CACHE[discovery_url] = {"data": data, "fetched_at": now}
+    _OIDC_CACHE.move_to_end(discovery_url)
+    _prune_oidc_cache(now, ttl_seconds, max_entries)
     return data
 
 
