@@ -71,6 +71,21 @@ class SyncLogStore:
         recent = data[-limit:]
         return [SyncLogRecord(**item) for item in reversed(recent)]
 
+    def list_recent_for(
+        self,
+        connector: str,
+        entity: str,
+        limit: int = 100,
+    ) -> list[SyncLogRecord]:
+        data = self._load()
+        filtered = [
+            item
+            for item in data
+            if item.get("connector") == connector and item.get("entity") == entity
+        ]
+        recent = filtered[-limit:]
+        return [SyncLogRecord(**item) for item in reversed(recent)]
+
     def summary(self, connector: str | None = None) -> dict[str, Any]:
         data = self._load()
         if connector:
