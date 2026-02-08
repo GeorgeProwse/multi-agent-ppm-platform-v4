@@ -21,6 +21,7 @@ The repository delivers a production-ready, multi-agent PPM platform with valida
 | [data/](./data/) | Canonical JSON schemas, lineage, quality rules, and migration specs |
 | [design-system/](./design-system/) | Design tokens and icon system |
 | [docs/](./docs/) | Architecture, methodology, agent catalog, and solution overview |
+| [docs/assets/ui/screenshots/](./docs/assets/ui/screenshots/) | Centralized UI screenshot assets for documentation |
 | [examples/](./examples/) | Scenario and configuration examples |
 | [ops/infra/](./ops/infra/) | Terraform, Kubernetes, observability, and policy assets |
 | [packages/](./packages/) | Shared Python and TypeScript packages used by apps, services, and agents |
