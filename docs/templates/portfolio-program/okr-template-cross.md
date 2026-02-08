@@ -2,8 +2,6 @@
 title: "Okr Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # OKR Template for Product Owners
@@ -309,4 +307,3 @@ Next Week Focus:
 **Last Updated:** {{ current_date }}
 **Template Version:** 2.3
 **Next Review:** {{ next_quarter }}
-

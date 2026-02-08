@@ -2,8 +2,6 @@
 title: "Project Performance Monitoring Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT PERFORMANCE MONITORING REPORT
@@ -574,4 +572,3 @@ updated: "2025-08-05"
 ---
 
 **Note:** This Project Performance Monitoring Report provides a comprehensive view of project performance against established baselines and targets. The information should be used to identify trends, predict future performance, and implement corrective actions to ensure project success.
-

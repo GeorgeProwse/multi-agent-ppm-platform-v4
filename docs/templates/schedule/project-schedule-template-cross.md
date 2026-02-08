@@ -2,8 +2,6 @@
 title: "Project Schedule Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT SCHEDULE
@@ -315,4 +313,3 @@ The schedule baseline is the approved version of the project schedule that serve
 | **Resource Management Plan** | Resources assigned to activities based on availability in Resource Management Plan |
 | **Cost Management Plan** | Activity durations and resource assignments drive cost estimates |
 | **Risk Register** | Schedule risks identified in Risk Register may require buf
-

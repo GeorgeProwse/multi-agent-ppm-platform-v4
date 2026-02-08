@@ -8,4 +8,3 @@ Sections
 - Dependencies and Risks
 - Upcoming Milestones
 - Executive Summary
-

@@ -360,4 +360,3 @@ Legend:
 - [Procurement Plan]
 
 *This resource plan ensures optimal allocation and management of all project resources to achieve project objectives within approved constraints.*
-

@@ -2,8 +2,6 @@
 title: "User Story Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # User Story Template
@@ -128,4 +126,3 @@ If this story is too large, consider splitting into:
 **Status**: [To Do/In Progress/Testing/Done]
 
 *Comprehensive user story documentation for agile development*
-

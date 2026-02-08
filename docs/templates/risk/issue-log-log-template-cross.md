@@ -2,8 +2,6 @@
 title: "Issue Log Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT ISSUE LOG
@@ -361,4 +359,3 @@ updated: "2025-08-05"
 | *ISS-V-001* | *Vendor delivered training materials with significant quality issues* | *Vendor* | *Training Team* | *YYYY-MM-DD* | *Medium* | *Moderate* | *Training preparation delayed, materials require rework* | *Transfer: Return to vendor for correction with expedited timeline* | *Sarah Williams* | *Resolved* | *YYYY-MM-DD* | *YYYY-MM-DD* | *Vendor redelivered corrected materials, verified by training team.* |
 | *ISS-S-001* | *Reporting requirements were underestimated in initial scope* | *Scope* | *Business Analyst* | *YYYY-MM-DD* | *High* | *Moderate* | *Additional development effort required, potential delay to reporting module* | *Fix: Add required reports, adjust schedule and resources* | *Robert Brown* | *In Progress (30%)* | *YYYY-MM-DD* | | *Impact assessment complete, change request in process for additional resources.* |
 | *ISS-C-001* | *Change Management team not receiving timely information about system changes* | *Communication* | *Change Manager* | *YYYY-MM-DD
-

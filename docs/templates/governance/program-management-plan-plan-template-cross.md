@@ -2,8 +2,6 @@
 title: "Program Management Plan Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROGRAM MANAGEMENT PLAN TEMPLATE
@@ -2325,4 +2323,3 @@ Low Influence, Low Interest: External Partners, Media
 ---
 
 *This Program Management Plan template provides comprehensive guidance for managing complex programs. Customize sections as appropriate for your program's specific needs, complexity, and organizational requirements.*
-

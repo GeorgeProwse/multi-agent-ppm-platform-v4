@@ -10,7 +10,6 @@ external_view: true
 confidentiality: "public"
 tags: ["scope","template","automation","machine-readable"]
 description: "Comprehensive template for FunctionalRequirementsLibraryTemplate management and tracking"
-last_reviewed: "2025-08-19"
 owner_role: "PMO Templates Maintainer"
 automation_ready: true
 dependencies: []

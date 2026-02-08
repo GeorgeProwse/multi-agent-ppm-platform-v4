@@ -2,8 +2,6 @@
 title: "Sprint Review Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # SPRINT REVIEW
@@ -608,4 +606,3 @@ Fallback Plan:
 ---
 
 *Note: This Sprint Review template aligns with Scrum Guide best practices. Teams should adapt it to their specific context and needs while maintaining the core principles of Scrum.*
-

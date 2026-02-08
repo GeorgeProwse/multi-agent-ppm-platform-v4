@@ -722,4 +722,3 @@ By implementing the practices and procedures outlined in this guide, project man
 ---
 
 *This document is part of the PM Tools and Templates Traditional methodology collection. For integration with other project management processes, refer to the complete Traditional process group documentation.*
-

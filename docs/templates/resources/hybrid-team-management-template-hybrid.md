@@ -3,7 +3,6 @@ title: "Hybrid Team Management Template"
 methodology: "hybrid"
 complexity: "advanced"
 owner: "name"
-updated: "2025-08-05"
 ---
 
 # Hybrid Team Management Template

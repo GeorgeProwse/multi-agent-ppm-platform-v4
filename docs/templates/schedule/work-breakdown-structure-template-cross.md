@@ -367,4 +367,3 @@ The Work Breakdown Structure (WBS) is a hierarchical decomposition of the total 
 - [Budget Breakdown]
 
 *This WBS serves as the foundation for project planning, execution, and control activities.*
-

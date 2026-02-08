@@ -2,8 +2,6 @@
 title: "Sprint Retrospective Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Sprint Retrospective Template
@@ -354,4 +352,3 @@ For understanding stakeholder or customer perspective:
 ---
 
 *This template is meant to be customized for your team's specific needs. Adapt the formats, metrics, and exercises as appropriate for your team size, maturity, and specific challenges.*
-

@@ -2,7 +2,6 @@ title: "Project Schedule Template"
 methodology: "waterfall"
 complexity: "advanced"
 owner: "name"
-updated: "2025-08-05"
 ---
 
 # Project Schedule

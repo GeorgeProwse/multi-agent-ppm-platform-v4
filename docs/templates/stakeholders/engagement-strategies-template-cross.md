@@ -9,4 +9,3 @@ Sections
 - Cadence and Touchpoints
 - Responsibilities
 - Feedback and Adaptation
-

@@ -7,8 +7,6 @@ industry: "financial"
 role: "stakeholder"
 tags: ["initiating", "risk-management", "stakeholder-management", "communication", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "30-45 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "30-45 minutes"
 title: "Current State Analysis Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Current State Analysis Template
 
@@ -403,4 +399,3 @@ CEO/Executive Level:
 **Next Review Date:** {{ next_review_date }}
 **Prepared By:** {{ assessment_team }}
 **Approved By:** {{ approver_name }}
-

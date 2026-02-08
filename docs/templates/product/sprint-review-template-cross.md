@@ -2,8 +2,6 @@
 title: "Sprint Review Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Sprint Review Template
@@ -224,4 +222,3 @@ updated: "2025-08-05"
 **Next Sprint Review**: [Date]
 
 *Demonstrating value and gathering feedback for continuous improvement*
-

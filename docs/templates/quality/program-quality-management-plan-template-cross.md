@@ -8,4 +8,3 @@ Sections
 - Reviews and Audits
 - Defect and Nonconformance Handling
 - Continuous Improvement
-

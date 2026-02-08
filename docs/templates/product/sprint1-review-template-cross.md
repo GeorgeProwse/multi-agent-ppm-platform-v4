@@ -7,7 +7,7 @@
 **Review Date and Time:** 2025-07-14, 15:00 - 16:00  
 **Location/Platform:** Virtual  
 **Scrum Master:** ChatGPT Codex  
-**Product Owner:** Michael Richard  
+**Product Owner:** [Name]  
 **Last Updated:** 2025-06-21  
 
 ---
@@ -600,4 +600,3 @@ Fallback Plan:
 ---
 
 *Note: This Sprint Review template aligns with Scrum Guide best practices. Teams should adapt it to their specific context and needs while maintaining the core principles of Scrum.*
-

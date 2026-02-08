@@ -70,4 +70,3 @@
 ---
 
 *Effective project communication framework*
-

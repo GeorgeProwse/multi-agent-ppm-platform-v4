@@ -2,8 +2,6 @@
 title: "Enterprise Stakeholder Analysis Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Enterprise Stakeholder Analysis Template
@@ -259,4 +257,3 @@ updated: "2025-08-05"
 **Next Review**: [Date]
 
 *Comprehensive stakeholder management for enterprise success*
-

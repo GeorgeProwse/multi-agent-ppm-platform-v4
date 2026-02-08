@@ -2,8 +2,6 @@
 title: "Project Roadmap Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PROJECT ROADMAP
@@ -751,4 +749,3 @@ Operations                               █████████████
 * *Training Plan v1.0*
 * *Cutover Plan v1.0*
 * *Support Model Document v1.0*
-

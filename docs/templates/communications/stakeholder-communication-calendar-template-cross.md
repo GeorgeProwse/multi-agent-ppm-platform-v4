@@ -10,4 +10,3 @@ Columns
 - Owner
 - Artifacts/Agenda
 - Feedback Mechanism
-

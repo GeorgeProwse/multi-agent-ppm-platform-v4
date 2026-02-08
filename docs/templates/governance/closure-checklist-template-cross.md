@@ -583,4 +583,3 @@ The Project Closure Checklist ensures systematic and complete project terminatio
 <document_id>4hvGixBTMiDjmnTaT8veGo</document_id>
 </document>
 </citations>
-

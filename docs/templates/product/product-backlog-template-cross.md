@@ -2,8 +2,6 @@
 title: "Product Backlog Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # PRODUCT BACKLOG
@@ -411,4 +409,3 @@ So that [benefit/value]
 ## Size and Scope
 - [ ] Estimated by the team
 - [ ] Can be complete
-

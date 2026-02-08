@@ -465,4 +465,3 @@ Improvement Focus Areas:
 - Approval: [Executive Sponsor/Date]
 
 *This framework provides a comprehensive approach to project governance that ensures effective oversight, clear accountability, and successful project delivery through structured processes and strong leadership.*
-

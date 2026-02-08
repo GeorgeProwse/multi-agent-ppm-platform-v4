@@ -2,8 +2,6 @@
 title: "Daily Standup Template"
 methodology: "agile"
 complexity: "intermediate"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Daily Standup Template
@@ -141,4 +139,3 @@ Each team member answers these three questions:
 **Next Standup**: [Date and Time]
 
 *Daily synchronization for team alignment and progress*
-

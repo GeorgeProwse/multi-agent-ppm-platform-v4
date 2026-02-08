@@ -7,8 +7,6 @@ industry: "financial"
 role: "stakeholder"
 tags: ["traditional", "initiating", "risk-management", "stakeholder-management", "communication", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "60-90 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "60-90 minutes"
 title: "Future State Blueprint Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Future State Blueprint Template
 
@@ -534,4 +530,3 @@ CEO/Executive Level:
 **Prepared By:** {{ blueprint_team }}
 **Approved By:** {{ approver_name }}
 **Executive Sponsor:** {{ executive_sponsor }}
-

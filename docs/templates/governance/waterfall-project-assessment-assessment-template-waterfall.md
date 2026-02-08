@@ -7,8 +7,6 @@ industry: "financial"
 role: "stakeholder"
 tags: ["traditional", "initiating", "stakeholder-management", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "15-30 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "15-30 minutes"
 title: "Waterfall Project Assessment Template"
 methodology: "traditional"
 complexity: "starter"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Waterfall Project Assessment Template
 

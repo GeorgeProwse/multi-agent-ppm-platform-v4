@@ -2,8 +2,6 @@
 title: "Hybrid Release Planning Template"
 methodology: "hybrid"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Hybrid Release Planning Template

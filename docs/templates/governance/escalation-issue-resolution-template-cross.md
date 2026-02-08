@@ -10,4 +10,3 @@ Steps
 - Escalation Criteria and Paths
 - Communication and Status Updates
 - Resolution and Postmortem
-

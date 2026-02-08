@@ -9,4 +9,3 @@ Sections
 - Decision-making and Voting
 - Reporting and Transparency
 - Conflict of Interest and Ethics
-

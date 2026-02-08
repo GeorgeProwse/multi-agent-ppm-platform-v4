@@ -620,4 +620,3 @@
 ---
 
 *This hybrid communication planning document should be customized based on specific project needs, organizational culture, and stakeholder requirements. Regular assessment and adaptation ensure continued effectiveness as the project and organization evolve.*
-

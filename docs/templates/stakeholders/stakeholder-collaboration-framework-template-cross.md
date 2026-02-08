@@ -361,4 +361,3 @@ Low Power, Low Interest: MONITOR
 **Last Updated:** {{ current_date }}
 **Framework Version:** 2.1
 **Next Review:** {{ next_quarter }}
-

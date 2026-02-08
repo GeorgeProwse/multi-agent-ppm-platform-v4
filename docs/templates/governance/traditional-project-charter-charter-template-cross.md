@@ -2,8 +2,6 @@
 title: "Traditional Project Charter Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -94,4 +92,3 @@ This traditional project charter template provides a comprehensive framework for
 
 
 *Template follows Traditional Guide project charter best practices*
-

@@ -9,4 +9,3 @@ Sections
 - Impact Assessment (scope/schedule/cost/benefits/risk)
 - Decision Criteria and Outcomes
 - Communication and Implementation
-

@@ -7,8 +7,6 @@ industry: "financial"
 role: "stakeholder"
 tags: ["traditional", "initiating", "risk-management", "stakeholder-management", "communication", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "30-45 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "30-45 minutes"
 title: "Project Health Assessment Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Project Health Assessment Template
 
@@ -341,4 +337,3 @@ This assessment uses a 1-5 scoring scale where:
 - 3 = Satisfactory (acceptable with minor concerns)
 - 2 = Poor (below expectations, needs improvement)
 - 1 = Critical (unacceptable, immediate action required)
-

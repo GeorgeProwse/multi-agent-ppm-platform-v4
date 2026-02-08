@@ -2,8 +2,6 @@
 title: "Sprint Retrospective Template"
 methodology: "agile"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Sprint Retrospective Template
@@ -273,4 +271,3 @@ updated: "2025-08-05"
 **Next Retrospective**: [Date]
 
 *Continuous improvement through team reflection and learning*
-

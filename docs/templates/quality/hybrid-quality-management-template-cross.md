@@ -2,8 +2,6 @@
 title: "Hybrid Quality Management Template"
 methodology: "hybrid"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 
@@ -912,4 +910,3 @@ A healthcare provider implementing a hybrid quality model for a patient portal:
 ---
 
 *This template is part of the PM Tools and Templates collection. For additional templates and guidance, please refer to the other documents in this repository.*
-

@@ -314,4 +314,3 @@ Definition of Done:
 **Team Training**: [Date of last training]
 
 *Ensuring high-quality user stories for successful product development*
-

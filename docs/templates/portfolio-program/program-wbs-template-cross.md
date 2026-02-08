@@ -12,4 +12,3 @@ Guidance
 - Keep WBS deliverable-oriented
 - Map deliverables to benefits and KPIs
 - Tie WBS to schedule and risk register
-

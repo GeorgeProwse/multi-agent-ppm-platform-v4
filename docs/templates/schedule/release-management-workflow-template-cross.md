@@ -10,7 +10,6 @@ external_view: true
 confidentiality: "public"
 tags: ["release", "management", "workflow", "automation", "runbook"]
 description: "End-to-end release management workflow covering planning, execution, and post-release validation."
-last_reviewed: "2025-08-19"
 owner_role: "Release Management Lead"
 automation_ready: true
 dependencies:

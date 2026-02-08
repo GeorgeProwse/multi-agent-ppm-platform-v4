@@ -7,8 +7,6 @@ industry: "financial"
 role: "stakeholder"
 tags: ["traditional", "initiating", "risk-management", "stakeholder-management", "communication", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "30-45 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "30-45 minutes"
 title: "Gap Analysis Matrix Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Gap Analysis Matrix Template
 
@@ -310,4 +306,3 @@ Systematically identify, analyze, and prioritize gaps between current state and 
 **Next Review Date:** _________________
 
 **Additional Comments:**
-

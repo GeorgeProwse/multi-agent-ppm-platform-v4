@@ -2,8 +2,6 @@
 title: "Business Case Template"
 methodology: "traditional"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 ---
 
 # Business Case Template - Waterfall Methodology
@@ -470,4 +468,3 @@ updated: "2025-08-05"
 - **Process Group:** Initiating
 - **Knowledge Areas:** Project Integration Management, Project Scope Management
 - **Gate Review:** Business Case Approval Gate
-

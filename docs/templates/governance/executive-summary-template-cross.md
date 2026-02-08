@@ -7,8 +7,6 @@ industry: "universal"
 role: "stakeholder"
 tags: ["traditional", "executing", "risk-management", "stakeholder-management", "communication", "planning", "quality"]
 version: "1.0.0"
-owner: "mirichard"
-updated: "2025-08-06"
 estimated_completion_time: "30-45 minutes"
 ---
 
@@ -16,8 +14,6 @@ estimated_completion_time: "30-45 minutes"
 title: "Executive Summary Template"
 methodology: "universal"
 complexity: "advanced"
-owner: "mirichard"
-updated: "2025-08-05"
 
 # Executive Summary Template
 
@@ -311,4 +307,3 @@ updated: "2025-08-05"
 
 
 **Key Message**: *This assessment provides a comprehensive view of project health with specific, actionable recommendations for improvement. Immediate action on critical priorities will significantly improve project outcomes and reduce risk exposure.*
-

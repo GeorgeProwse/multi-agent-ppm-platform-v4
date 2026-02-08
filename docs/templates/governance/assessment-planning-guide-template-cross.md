@@ -423,4 +423,3 @@ For each priority gap:
 ---
 
 **Remember**: The goal is not just to assess, but to drive meaningful improvement. Focus on actionable insights that will help the project succeed.
-
