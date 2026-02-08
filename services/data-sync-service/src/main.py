@@ -298,7 +298,7 @@ async def run_sync_job(connector: str, entity: str, dry_run: bool = False) -> Sy
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     log_store = get_sync_log_store()
-    summary = log_store.list_recent(limit=1)
+    summary = log_store.list_recent_for(connector, entity, limit=1)
     if summary:
         return SyncLogResponse(**summary[0].__dict__)
     return SyncLogResponse(
