@@ -75,5 +75,6 @@ Expected output includes `retention-policy.md` and `threat-model.md`.
 ## Related docs
 
 - [Compliance Controls Mapping](../compliance/controls-mapping.md)
+- [Financial Services Compliance Management Template (Australia)](../compliance/financial-services-compliance-management-template.md)
 - [Retention Policy](../compliance/retention-policy.md)
 - [Threat Model](../compliance/threat-model.md)
