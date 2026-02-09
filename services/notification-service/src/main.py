@@ -21,13 +21,15 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
+FEATURE_FLAGS_ROOT = REPO_ROOT / "packages" / "feature-flags" / "src"
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, FEATURE_FLAGS_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
 from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
@@ -67,6 +69,25 @@ class NotificationResponse(BaseModel):
     rendered: str
     delivered_to: str
     timestamp: datetime
+
+
+class PredictiveAlertLink(BaseModel):
+    label: str
+    url: str
+
+
+class PredictiveAlertNotificationRequest(BaseModel):
+    alert_id: str | None = None
+    project_id: str
+    metric: str
+    percentile: float | None = Field(None, ge=0.0, le=100.0)
+    severity: str | None = None
+    rationale: str
+    mitigations: list[str] = Field(default_factory=list)
+    links: list[PredictiveAlertLink] = Field(default_factory=list)
+    channel: str = "stdout"
+    recipient: str | None = None
+    title: str | None = None
 
 
 app = FastAPI(title="Notification Service", version=API_VERSION, openapi_prefix="/v1")
@@ -139,6 +160,15 @@ def _write_dead_letter(payload: dict[str, Any], error: str) -> None:
     dlq_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
 
 
+class NotificationDeliveryError(RuntimeError):
+    pass
+
+
+def _predictive_alerts_enabled() -> bool:
+    environment = os.getenv("ENVIRONMENT", "dev")
+    return is_feature_enabled("predictive_alerts", environment=environment, default=False)
+
+
 def _parse_channel_priority() -> list[str]:
     configured = os.getenv("NOTIFICATION_CHANNEL_PRIORITY", "teams,slack,acs,stdout")
     channels: list[str] = []
@@ -151,6 +181,71 @@ def _parse_channel_priority() -> list[str]:
 
 def _coerce_recipient_to_target(recipient: str | None, fallback: str | None) -> str | None:
     return recipient or fallback
+
+
+async def _deliver_with_channels(
+    rendered: str, channel: str, recipient: str | None, delivery_id: str
+) -> str:
+    priority = _parse_channel_priority()
+    requested_channel = channel.lower().strip() if channel else ""
+    channels_to_try: list[str] = []
+    if requested_channel and requested_channel != "auto":
+        channels_to_try.append(requested_channel)
+    for candidate in priority:
+        if candidate not in channels_to_try:
+            channels_to_try.append(candidate)
+
+    last_error: Exception | None = None
+    destination = ""
+    for candidate in channels_to_try:
+        try:
+            if candidate == "teams":
+                destination = await _send_teams_notification(rendered, recipient)
+            elif candidate == "slack":
+                destination = await _send_slack_notification(rendered, recipient)
+            elif candidate == "acs":
+                destination = await _send_acs_notification(rendered, recipient)
+            else:
+                destination = _deliver(rendered, recipient, candidate, delivery_id)
+            break
+        except RetryError as exc:
+            last_error = exc
+            logger.warning(
+                "notification_channel_retry_exhausted",
+                extra={"channel": candidate, "error": str(exc), "delivery_id": delivery_id},
+            )
+        except (OSError, ValueError, httpx.HTTPError) as exc:
+            last_error = exc
+            logger.warning(
+                "notification_channel_failed",
+                extra={"channel": candidate, "error": str(exc), "delivery_id": delivery_id},
+            )
+    else:
+        detail = (
+            f"Notification delivery failed: {last_error}" if last_error else "No channel available"
+        )
+        raise NotificationDeliveryError(detail)
+    return destination
+
+
+def _render_predictive_alert(request: PredictiveAlertNotificationRequest) -> str:
+    title = request.title or f"Predictive alert: {request.metric.replace('_', ' ').title()}"
+    lines = [
+        title,
+        f"Project: {request.project_id}",
+    ]
+    if request.severity:
+        lines.append(f"Severity: {request.severity}")
+    if request.percentile is not None:
+        lines.append(f"Percentile: {request.percentile:.1f}")
+    lines.append(f"Rationale: {request.rationale}")
+    if request.mitigations:
+        lines.append("Mitigations:")
+        lines.extend([f"- {item}" for item in request.mitigations])
+    if request.links:
+        lines.append("Links:")
+        lines.extend([f"- {link.label}: {link.url}" for link in request.links])
+    return "\n".join(lines)
 
 
 @http_retry
@@ -298,42 +393,12 @@ async def send_notification(request: NotificationRequest) -> NotificationRespons
         raise HTTPException(status_code=422, detail=f"Missing template variable: {exc}") from exc
 
     delivery_id = str(uuid4())
-    priority = _parse_channel_priority()
-    requested_channel = request.channel.lower().strip() if request.channel else ""
-    channels_to_try: list[str] = []
-    if requested_channel and requested_channel != "auto":
-        channels_to_try.append(requested_channel)
-    for channel in priority:
-        if channel not in channels_to_try:
-            channels_to_try.append(channel)
-
-    last_error: Exception | None = None
-    destination = ""
-    for channel in channels_to_try:
-        try:
-            if channel == "teams":
-                destination = await _send_teams_notification(rendered, request.recipient)
-            elif channel == "slack":
-                destination = await _send_slack_notification(rendered, request.recipient)
-            elif channel == "acs":
-                destination = await _send_acs_notification(rendered, request.recipient)
-            else:
-                destination = _deliver(rendered, request.recipient, channel, delivery_id)
-            break
-        except RetryError as exc:
-            last_error = exc
-            logger.warning(
-                "notification_channel_retry_exhausted",
-                extra={"channel": channel, "error": str(exc), "delivery_id": delivery_id},
-            )
-        except (OSError, ValueError, httpx.HTTPError) as exc:
-            last_error = exc
-            logger.warning(
-                "notification_channel_failed",
-                extra={"channel": channel, "error": str(exc), "delivery_id": delivery_id},
-            )
-    else:
-        detail = f"Notification delivery failed: {last_error}" if last_error else "No channel available"
+    try:
+        destination = await _deliver_with_channels(
+            rendered, request.channel, request.recipient, delivery_id
+        )
+    except NotificationDeliveryError as exc:
+        detail = str(exc)
         try:
             _write_dead_letter(
                 {
@@ -345,10 +410,49 @@ async def send_notification(request: NotificationRequest) -> NotificationRespons
                 },
                 error=detail,
             )
-        except (OSError, TypeError, ValueError) as exc:
-            logger.warning("notification_dlq_write_failed", extra={"error": str(exc)})
-        raise HTTPException(status_code=502, detail=detail)
+        except (OSError, TypeError, ValueError) as err:
+            logger.warning("notification_dlq_write_failed", extra={"error": str(err)})
+        raise HTTPException(status_code=502, detail=detail) from exc
 
+    timestamp = datetime.now(timezone.utc)
+    return NotificationResponse(
+        delivery_id=delivery_id,
+        status="delivered",
+        rendered=rendered,
+        delivered_to=destination,
+        timestamp=timestamp,
+    )
+
+
+@api_router.post("/notifications/predictive-alerts", response_model=NotificationResponse)
+@limiter.limit(RATE_LIMIT)
+async def send_predictive_alert(
+    request: PredictiveAlertNotificationRequest,
+) -> NotificationResponse:
+    if not _predictive_alerts_enabled():
+        raise HTTPException(status_code=404, detail="Predictive alerts are not enabled")
+    rendered = _render_predictive_alert(request)
+    delivery_id = request.alert_id or str(uuid4())
+    try:
+        destination = await _deliver_with_channels(
+            rendered, request.channel, request.recipient, delivery_id
+        )
+    except NotificationDeliveryError as exc:
+        detail = str(exc)
+        try:
+            _write_dead_letter(
+                {
+                    "delivery_id": delivery_id,
+                    "template": "predictive-alert",
+                    "channel": request.channel,
+                    "recipient": request.recipient,
+                    "variables": request.model_dump(),
+                },
+                error=detail,
+            )
+        except (OSError, TypeError, ValueError) as err:
+            logger.warning("notification_dlq_write_failed", extra={"error": str(err)})
+        raise HTTPException(status_code=502, detail=detail) from exc
     timestamp = datetime.now(timezone.utc)
     return NotificationResponse(
         delivery_id=delivery_id,

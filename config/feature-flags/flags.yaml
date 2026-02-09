@@ -20,3 +20,6 @@ flags:
   - name: duplicate_resolution
     enabled: false
     description: Enable duplicate resolution review workflows and audit logging.
+  - name: predictive_alerts
+    enabled: false
+    description: Enable predictive alert ingestion, notifications, and UI surfaces.
