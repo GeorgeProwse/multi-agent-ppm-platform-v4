@@ -804,6 +804,8 @@ class FinancialManagementAgent(BaseAgent):
 
         self.budgets[budget_id] = budget
         self.budget_store.upsert(tenant_id, budget_id, budget)
+        if self.db_service:
+            await self.db_service.store("budgets", budget_id, budget)
 
         self._emit_budget_audit(
             action="budget.updated",

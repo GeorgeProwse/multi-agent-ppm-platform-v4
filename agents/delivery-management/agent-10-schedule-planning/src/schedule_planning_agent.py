@@ -198,6 +198,7 @@ class SchedulePlanningAgent(BaseAgent):
             "manage_baseline",
             "track_variance",
             "sprint_planning",
+            "update_schedule",
             "get_schedule",
         ]
 
@@ -214,6 +215,13 @@ class SchedulePlanningAgent(BaseAgent):
             if "schedule_id" not in input_data:
                 self.logger.warning("Missing schedule_id")
                 return False
+        elif action == "update_schedule":
+            if "schedule_id" not in input_data:
+                self.logger.warning("Missing schedule_id")
+                return False
+            if not input_data.get("updates"):
+                self.logger.warning("Missing updates payload")
+                return False
 
         return True
 
@@ -227,7 +235,7 @@ class SchedulePlanningAgent(BaseAgent):
                           "calculate_critical_path" | "resource_constrained_schedule" |
                           "run_monte_carlo" | "track_milestones" | "optimize_schedule" |
                           "what_if_analysis" | "manage_baseline" | "track_variance" |
-                          "sprint_planning" | "get_schedule",
+                          "sprint_planning" | "update_schedule" | "get_schedule",
                 "project_id": Project ID,
                 "schedule_id": Schedule ID,
                 "wbs": Work breakdown structure,
@@ -252,6 +260,7 @@ class SchedulePlanningAgent(BaseAgent):
             - manage_baseline: Baseline ID and locked schedule
             - track_variance: Schedule variance analysis
             - sprint_planning: Sprint backlog and capacity planning
+            - update_schedule: Updated schedule and status
             - get_schedule: Complete schedule details
         """
         action = input_data.get("action", "create_schedule")
@@ -320,6 +329,14 @@ class SchedulePlanningAgent(BaseAgent):
         elif action == "sprint_planning":
             return await self._sprint_planning(
                 input_data.get("project_id"), input_data.get("sprint_data", {})  # type: ignore
+            )
+
+        elif action == "update_schedule":
+            return await self._update_schedule(
+                input_data.get("schedule_id"),  # type: ignore
+                input_data.get("updates", {}),
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
             )
 
         elif action == "get_schedule":
@@ -1054,6 +1071,53 @@ class SchedulePlanningAgent(BaseAgent):
             "change_request": change_request,
             "delay_event": delay_event,
             "external_updates": external_updates,
+        }
+
+    async def _update_schedule(
+        self,
+        schedule_id: str,
+        updates: dict[str, Any],
+        *,
+        tenant_id: str,
+        correlation_id: str,
+    ) -> dict[str, Any]:
+        """Update schedule details and persist to canonical storage."""
+        self.logger.info(f"Updating schedule: {schedule_id}")
+        schedule = await self._get_schedule_state(tenant_id, schedule_id)
+        if not schedule:
+            raise ValueError(f"Schedule not found: {schedule_id}")
+
+        allowed_updates = {
+            "tasks",
+            "dependencies",
+            "milestones",
+            "status",
+            "start_date",
+            "end_date",
+            "project_duration_days",
+            "resource_assignments",
+        }
+        for key, value in updates.items():
+            if key in allowed_updates:
+                schedule[key] = value
+
+        schedule["updated_at"] = datetime.now(timezone.utc).isoformat()
+        if "dependencies" in updates:
+            self.dependencies[schedule_id] = schedule.get("dependencies", [])
+        if "milestones" in updates:
+            self.milestones[schedule_id] = schedule.get("milestones", [])
+
+        self.schedules[schedule_id] = schedule
+        self.schedule_store.upsert(tenant_id, schedule_id, schedule)
+        if self.enable_persistence:
+            await self._persist_schedule(schedule)
+        await self._publish_schedule_updated(schedule, "schedule.updated")
+        await self._publish_schedule_updated(schedule, "schedule.change.applied")
+
+        return {
+            "schedule_id": schedule_id,
+            "status": schedule.get("status"),
+            "updated_at": schedule.get("updated_at"),
         }
 
     async def _sprint_planning(

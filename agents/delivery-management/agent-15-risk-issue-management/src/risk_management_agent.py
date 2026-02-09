@@ -693,7 +693,9 @@ class RiskManagementAgent(BaseAgent):
 
         elif action == "update_risk_status":
             return await self._update_risk_status(
-                input_data.get("risk_id"), input_data.get("updates", {})  # type: ignore
+                input_data.get("risk_id"),  # type: ignore
+                input_data.get("updates", {}),
+                tenant_id=tenant_id,
             )
 
         elif action == "run_monte_carlo":
@@ -1149,7 +1151,9 @@ class RiskManagementAgent(BaseAgent):
             "triggered_risks": triggered_risks,
         }
 
-    async def _update_risk_status(self, risk_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    async def _update_risk_status(
+        self, risk_id: str, updates: dict[str, Any], *, tenant_id: str
+    ) -> dict[str, Any]:
         """
         Update risk status and details.
 
@@ -1187,6 +1191,8 @@ class RiskManagementAgent(BaseAgent):
 
         risk["last_updated"] = datetime.now(timezone.utc).isoformat()
 
+        validation = await self._validate_risk_record(risk=risk, tenant_id=tenant_id)
+        self.risk_store.upsert(tenant_id, risk_id, risk)
         if self.db_service:
             await self.db_service.store("risks", risk_id, risk)
         await self._store_risk_dataset("risks", [risk], domain="risk_register")
@@ -1200,6 +1206,7 @@ class RiskManagementAgent(BaseAgent):
             "status": risk["status"],
             "score": risk["score"],
             "last_updated": risk["last_updated"],
+            "data_quality": validation,
         }
 
     async def _run_monte_carlo(self, project_id: str, iterations: int = 10000) -> dict[str, Any]:

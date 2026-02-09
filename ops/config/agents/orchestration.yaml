@@ -14,6 +14,11 @@ intent_router:
     - financial_query
     - risk_query
     - resource_query
+    - wbs_update
+    - schedule_update
+    - resource_update
+    - risk_update
+    - budget_update
     - demand_intake
     - compliance_query
     - analytics_query
