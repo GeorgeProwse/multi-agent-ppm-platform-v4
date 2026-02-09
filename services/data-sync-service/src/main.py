@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
+FEATURE_FLAGS_ROOT = REPO_ROOT / "packages" / "feature-flags" / "src"
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, FEATURE_FLAGS_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -23,6 +24,7 @@ from packages.version import API_VERSION  # noqa: E402
 from conflict_store import get_conflict_store  # noqa: E402
 from data_sync_queue import enqueue_sync_job, get_queue_client  # noqa: E402
 from data_sync_status import get_status_store  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
@@ -30,6 +32,7 @@ from security.config import load_yaml  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
 from security.lineage import mask_lineage_payload  # noqa: E402
+from propagation import EntityUpdate, apply_propagation_rules  # noqa: E402
 from sync_log_store import get_sync_log_store  # noqa: E402
 from sync_registry import (  # noqa: E402
     build_default_registry,
@@ -61,6 +64,7 @@ class SyncRule(BaseModel):
     target: str
     mode: str = "merge"
     filters: dict[str, Any] | None = None
+    conflict_strategy: str = "source_of_truth"
 
 
 class SyncRunResponse(BaseModel):
@@ -127,6 +131,34 @@ class ConflictResponse(BaseModel):
     external_updated_at: str | None
     created_at: str
     details: dict[str, Any]
+
+
+class PropagationRequest(BaseModel):
+    entity_type: str
+    entity_id: str
+    source_system: str
+    payload: dict[str, Any]
+    updated_at: str | None = None
+    canonical_updated_at: str | None = None
+    external_id: str | None = None
+    dry_run: bool = True
+
+
+class PropagationActionResponse(BaseModel):
+    rule_id: str
+    target: str
+    mode: str
+    status: str
+    reason: str | None
+    payload: dict[str, Any] | None = None
+
+
+class PropagationResponse(BaseModel):
+    entity_type: str
+    entity_id: str
+    source_system: str
+    actions: list[PropagationActionResponse]
+    dry_run: bool
 
 
 app = FastAPI(title="Data Sync Service", version=API_VERSION, openapi_prefix="/v1")
@@ -378,9 +410,43 @@ async def list_conflicts(
     return sliced
 
 
+@api_router.post("/sync/propagate", response_model=PropagationResponse)
+async def propagate_update(request: PropagationRequest) -> PropagationResponse:
+    _require_feature("canonical_propagation")
+    rules, errors = _load_rules()
+    if errors:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Invalid rule files", "files": errors},
+        )
+    update = EntityUpdate(
+        entity_type=request.entity_type,
+        entity_id=request.entity_id,
+        source_system=request.source_system,
+        payload=request.payload,
+        updated_at=request.updated_at,
+        canonical_updated_at=request.canonical_updated_at,
+        external_id=request.external_id,
+    )
+    actions = apply_propagation_rules(update, rules, dry_run=request.dry_run)
+    return PropagationResponse(
+        entity_type=request.entity_type,
+        entity_id=request.entity_id,
+        source_system=request.source_system,
+        actions=[PropagationActionResponse(**action.__dict__) for action in actions],
+        dry_run=request.dry_run,
+    )
+
+
 def _paginate(items: list[Any], *, offset: int, limit: int) -> tuple[list[Any], int]:
     total = len(items)
     return items[offset : offset + limit], total
+
+
+def _require_feature(flag_name: str) -> None:
+    environment = os.getenv("ENVIRONMENT", "dev")
+    if not is_feature_enabled(flag_name, environment=environment, default=False):
+        raise HTTPException(status_code=403, detail=f"Feature flag '{flag_name}' is disabled")
 
 
 app.include_router(api_router)

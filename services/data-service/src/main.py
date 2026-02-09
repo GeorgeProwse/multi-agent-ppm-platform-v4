@@ -30,6 +30,7 @@ from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E4
 from retention_scheduler import RetentionScheduler  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
 from storage import (  # noqa: E402
@@ -88,6 +89,7 @@ class EntityIngestRequest(BaseModel):
     data: dict[str, Any]
     schema_version: int | None = None
     entity_id: str | None = None
+    connector_name: str | None = None
 
 
 class EntityResponse(BaseModel):
@@ -319,6 +321,8 @@ async def ingest_entity(
 ) -> EntityResponse:
     record = await _resolve_schema(schema_name, request.schema_version, store)
     _validate_payload(record, request.data)
+    if _canonical_propagation_enabled() and request.connector_name:
+        _validate_against_canonical_mapping(schema_name, request.data, request.connector_name)
     entity_id = request.entity_id or request.data.get("id") or str(uuid4())
     stored = await store.store_entity(
         entity_id=entity_id,
@@ -420,12 +424,19 @@ async def ingest_connector(
     )
     grouped = _group_records_by_schema(records)
     schemas: dict[str, int] = {}
+    canonical_mappings = None
+    if _canonical_propagation_enabled():
+        canonical_mappings = _load_canonical_mappings(request.connector_name)
     for schema_name, items in grouped.items():
         schema_record = await _resolve_schema(schema_name, None, store)
         for item in items:
             payload = dict(item)
             payload["tenant_id"] = request.tenant_id
             _validate_payload(schema_record, payload)
+            if canonical_mappings is not None:
+                _validate_against_canonical_mapping(
+                    schema_name, payload, request.connector_name, canonical_mappings
+                )
             await store.store_entity(
                 entity_id=payload.get("id") or str(uuid4()),
                 tenant_id=request.tenant_id,
@@ -471,6 +482,65 @@ def _validate_payload(schema_record: SchemaRecord, payload: dict[str, Any]) -> N
     if errors:
         formatted = "; ".join(error.message for error in errors)
         raise HTTPException(status_code=422, detail=f"Schema validation failed: {formatted}")
+
+
+_CANONICAL_MAPPING_CACHE: dict[str, dict[str, set[str]]] = {}
+
+
+def _load_canonical_mappings(connector_name: str) -> dict[str, set[str]]:
+    if connector_name in _CANONICAL_MAPPING_CACHE:
+        return _CANONICAL_MAPPING_CACHE[connector_name]
+    connector_root = REPO_ROOT / "integrations" / "connectors" / connector_name
+    manifest_path = connector_root / "manifest.yaml"
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail="Connector manifest not found")
+    manifest = load_yaml(manifest_path) or {}
+    mappings = manifest.get("mappings", [])
+    schema_targets: dict[str, set[str]] = {}
+    for mapping in mappings:
+        mapping_file = mapping.get("mapping_file")
+        if not mapping_file:
+            continue
+        mapping_path = (connector_root / mapping_file).resolve()
+        if not mapping_path.exists():
+            raise HTTPException(status_code=422, detail=f"Mapping file not found: {mapping_file}")
+        spec = load_yaml(mapping_path) or {}
+        schema_name = spec.get("schema") or spec.get("target") or mapping.get("target")
+        if not schema_name:
+            continue
+        fields = {
+            entry.get("target")
+            for entry in (spec.get("fields") or [])
+            if entry.get("target")
+        }
+        schema_targets[schema_name] = fields
+    _CANONICAL_MAPPING_CACHE[connector_name] = schema_targets
+    return schema_targets
+
+
+def _validate_against_canonical_mapping(
+    schema_name: str,
+    payload: dict[str, Any],
+    connector_name: str,
+    mapping_targets: dict[str, set[str]] | None = None,
+) -> None:
+    mapping_targets = mapping_targets or _load_canonical_mappings(connector_name)
+    if schema_name not in mapping_targets:
+        raise HTTPException(
+            status_code=422,
+            detail=f"No canonical mapping for schema '{schema_name}' in connector '{connector_name}'",
+        )
+    allowed = mapping_targets[schema_name] | {"tenant_id"}
+    unexpected = set(payload.keys()) - allowed
+    if unexpected:
+        fields = ", ".join(sorted(unexpected))
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Canonical mapping validation failed: "
+                f"fields not mapped for {schema_name}: {fields}"
+            ),
+        )
 
 
 async def _resolve_schema(
@@ -542,6 +612,11 @@ def _require_feature(flag_name: str) -> None:
     environment = os.getenv("ENVIRONMENT", "dev")
     if not is_feature_enabled(flag_name, environment=environment, default=False):
         raise HTTPException(status_code=403, detail=f"Feature flag '{flag_name}' is disabled")
+
+
+def _canonical_propagation_enabled() -> bool:
+    environment = os.getenv("ENVIRONMENT", "dev")
+    return is_feature_enabled("canonical_propagation", environment=environment, default=False)
 
 
 app.include_router(api_router)
