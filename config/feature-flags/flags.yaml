@@ -14,3 +14,6 @@ flags:
   - name: multimodal_intake
     enabled: false
     description: Enable multimodal intake document uploads and extraction flows.
+  - name: canonical_propagation
+    enabled: false
+    description: Enforce canonical propagation rules and mapping validation for entity updates.

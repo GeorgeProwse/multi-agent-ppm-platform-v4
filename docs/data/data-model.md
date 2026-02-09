@@ -60,6 +60,28 @@ ls data/schemas
 
 Expected output: canonical schema JSON files.
 
+## Propagation rules and conflict handling
+
+Canonical entities propagate updates between connectors, agents, and downstream consumers using explicit rules.
+The rules are stored in the data sync service and enforce deterministic conflict resolution.
+
+### Propagation rules
+
+- **Directional propagation:** Updates flow from a declared source system to a target canonical entity.
+- **Mode-aware application:**
+  - **merge:** update only fields present in the incoming payload, preserving existing canonical values.
+  - **replace:** overwrite the canonical payload with the incoming payload.
+  - **enrich:** append non-null fields without overwriting existing canonical values.
+- **Field-level constraints:** only mapped target fields are eligible for propagation.
+- **Lineage requirements:** every propagated update emits lineage metadata with source, target, and transformation steps.
+
+### Conflict handling
+
+- **source_of_truth:** always accept updates from the declared source system.
+- **last_write_wins:** compare `updated_at` timestamps; apply the newer update and skip stale payloads.
+- **manual_required:** record conflicts for review when updates collide or policy requires human approval.
+- **Audit trail:** conflicts are logged with source, target entity, timestamps, and strategy.
+
 ## Implementation status
 
 - **Implemented:** Base schemas in `data/schemas/` and validation in the audit log service.
