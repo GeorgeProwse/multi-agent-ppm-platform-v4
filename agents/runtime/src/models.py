@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,3 +62,64 @@ class AgentValidationError(BaseModel):
 
     error: str
     details: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AgentRunStatus(str, Enum):
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+    canceled = "canceled"
+
+
+class AgentRun(BaseModel):
+    """Track the lifecycle of an agent run."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str
+    tenant_id: str
+    agent_id: str
+    status: AgentRunStatus = AgentRunStatus.queued
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    def transition_to(
+        self,
+        new_status: AgentRunStatus,
+        *,
+        timestamp: datetime | None = None,
+        metadata_update: dict[str, Any] | None = None,
+    ) -> AgentRun:
+        transitions: dict[AgentRunStatus, set[AgentRunStatus]] = {
+            AgentRunStatus.queued: {AgentRunStatus.running, AgentRunStatus.canceled},
+            AgentRunStatus.running: {
+                AgentRunStatus.succeeded,
+                AgentRunStatus.failed,
+                AgentRunStatus.canceled,
+            },
+            AgentRunStatus.succeeded: set(),
+            AgentRunStatus.failed: set(),
+            AgentRunStatus.canceled: set(),
+        }
+        if new_status == self.status:
+            return self
+        allowed = transitions.get(self.status, set())
+        if new_status not in allowed:
+            raise ValueError(f"Invalid transition from {self.status} to {new_status}")
+
+        transition_time = (timestamp or datetime.now(timezone.utc)).isoformat()
+        updated_fields: dict[str, Any] = {
+            "status": new_status,
+            "updated_at": transition_time,
+        }
+        if new_status == AgentRunStatus.running and not self.started_at:
+            updated_fields["started_at"] = transition_time
+        if new_status in {AgentRunStatus.succeeded, AgentRunStatus.failed, AgentRunStatus.canceled}:
+            updated_fields["completed_at"] = transition_time
+        if metadata_update:
+            updated_fields["metadata"] = {**self.metadata, **metadata_update}
+        return self.model_copy(update=updated_fields)
