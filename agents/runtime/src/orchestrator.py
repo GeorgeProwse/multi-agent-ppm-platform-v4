@@ -1,16 +1,32 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import random
+import sys
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from agents.runtime.src.base_agent import BaseAgent
+from agents.runtime.src.data_service import DataServiceClient
+from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.event_bus import EventBus, get_event_bus
 from agents.runtime.src.memory_store import ConversationMemoryStore, InMemoryConversationStore
+from agents.runtime.src.models import AgentRun, AgentRunStatus
+
+FEATURE_FLAGS_ROOT = Path(__file__).resolve().parents[3] / "packages" / "feature-flags" / "src"
+if str(FEATURE_FLAGS_ROOT) not in sys.path:
+    sys.path.insert(0, str(FEATURE_FLAGS_ROOT))
+
+from feature_flags import is_feature_enabled  # noqa: E402
+
+logger = logging.getLogger("agents.runtime.orchestrator")
 
 RetryPredicate = Callable[[Exception | None, dict[str, Any] | None], bool]
 
@@ -58,6 +74,7 @@ class Orchestrator:
         memory_store: ConversationMemoryStore | None = None,
         retry_policy: RetryPolicy | None = None,
         max_parallel_tasks: int = 4,
+        data_service_client: DataServiceClient | None = None,
     ) -> None:
         self._event_bus = event_bus or get_event_bus()
         self._memory_store = memory_store or InMemoryConversationStore()
@@ -66,6 +83,7 @@ class Orchestrator:
         self._active_tasks = 0
         self._max_parallel_seen = 0
         self._context_lock = asyncio.Lock()
+        self._data_service = data_service_client or self._build_data_service_client()
 
     @property
     def event_bus(self) -> EventBus:
@@ -141,6 +159,10 @@ class Orchestrator:
         semaphore: asyncio.Semaphore,
     ) -> tuple[str, dict[str, Any]]:
         async with semaphore:
+            agent_run = await self._initialize_agent_run(task, shared_context)
+            agent_run = await self._transition_agent_run(
+                agent_run, AgentRunStatus.running, {"event": "task_started"}
+            )
             async with self._context_lock:
                 self._active_tasks += 1
                 self._max_parallel_seen = max(self._max_parallel_seen, self._active_tasks)
@@ -158,6 +180,16 @@ class Orchestrator:
             )
             try:
                 result_payload = await self._execute_with_retries(task, input_data)
+                final_status = (
+                    AgentRunStatus.succeeded
+                    if result_payload.get("success", False)
+                    else AgentRunStatus.failed
+                )
+                agent_run = await self._transition_agent_run(
+                    agent_run,
+                    final_status,
+                    {"event": "task_completed", "success": result_payload.get("success", False)},
+                )
                 await self._event_bus.publish(
                     "orchestrator.task.completed",
                     {"task_id": task.task_id, "success": result_payload.get("success", False)},
@@ -173,6 +205,11 @@ class Orchestrator:
                     "error": str(exc),
                     "metadata": metadata,
                 }
+                agent_run = await self._transition_agent_run(
+                    agent_run,
+                    AgentRunStatus.failed,
+                    {"event": "task_failed", "error": str(exc)},
+                )
                 await self._event_bus.publish(
                     "orchestrator.task.failed",
                     {"task_id": task.task_id, "error": str(exc)},
@@ -299,6 +336,97 @@ class Orchestrator:
                 "max_parallel_tasks": self._max_parallel_seen,
             },
         )
+
+    def _build_data_service_client(self) -> DataServiceClient | None:
+        base_url = os.getenv("DATA_SERVICE_URL")
+        if not base_url:
+            return None
+        return DataServiceClient.from_url(base_url)
+
+    def _agent_run_tracking_enabled(self) -> bool:
+        environment = os.getenv("ENVIRONMENT", "dev")
+        return is_feature_enabled("agent_run_tracking", environment=environment, default=False)
+
+    async def _initialize_agent_run(
+        self, task: AgentTask, context: dict[str, Any]
+    ) -> AgentRun | None:
+        if not self._agent_run_tracking_enabled():
+            return None
+        tenant_id = context.get("tenant_id") or "unknown"
+        correlation_id = context.get("correlation_id")
+        metadata = {
+            "task_id": task.task_id,
+            "depends_on": list(task.depends_on),
+            "correlation_id": correlation_id,
+        }
+        agent_run = AgentRun(
+            id=f"run-{uuid.uuid4().hex}",
+            tenant_id=tenant_id,
+            agent_id=task.agent.agent_id,
+            status=AgentRunStatus.queued,
+            metadata=metadata,
+        )
+        await self._persist_agent_run(agent_run)
+        self._emit_agent_run_audit(agent_run, previous_status=None)
+        return agent_run
+
+    async def _transition_agent_run(
+        self,
+        agent_run: AgentRun | None,
+        new_status: AgentRunStatus,
+        metadata_update: dict[str, Any] | None = None,
+    ) -> AgentRun | None:
+        if agent_run is None:
+            return None
+        updated = agent_run.transition_to(new_status, metadata_update=metadata_update)
+        await self._persist_agent_run(updated)
+        self._emit_agent_run_audit(updated, previous_status=agent_run.status)
+        return updated
+
+    async def _persist_agent_run(self, agent_run: AgentRun) -> None:
+        if not self._data_service:
+            logger.info("agent_run_persistence_skipped", extra={"reason": "data_service_unconfigured"})
+            return
+        try:
+            await self._data_service.store_entity(
+                "agent-run",
+                data=agent_run.model_dump(),
+                tenant_id=agent_run.tenant_id,
+                entity_id=agent_run.id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "agent_run_persist_failed",
+                extra={"agent_run_id": agent_run.id, "error": str(exc)},
+            )
+
+    def _emit_agent_run_audit(
+        self,
+        agent_run: AgentRun,
+        *,
+        previous_status: AgentRunStatus | None,
+    ) -> None:
+        metadata = {
+            "agent_run_id": agent_run.id,
+            "agent_id": agent_run.agent_id,
+            "status": agent_run.status.value,
+            "previous_status": previous_status.value if previous_status else None,
+            "metadata": agent_run.metadata,
+        }
+        event = build_audit_event(
+            tenant_id=agent_run.tenant_id,
+            action="agent_run.status_changed",
+            outcome="success",
+            actor_id="orchestrator",
+            actor_type="system",
+            actor_roles=[],
+            resource_id=agent_run.id,
+            resource_type="agent_run",
+            metadata=metadata,
+            trace_id=agent_run.metadata.get("trace_id"),
+            correlation_id=agent_run.metadata.get("correlation_id"),
+        )
+        emit_audit_event(event)
 
     def _validate_tasks(self, tasks: dict[str, AgentTask]) -> None:
         if len(tasks) != len(set(tasks.keys())):

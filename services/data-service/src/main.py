@@ -100,6 +100,9 @@ class EntityResponse(BaseModel):
     updated_at: datetime
 
 
+AGENT_RUN_SCHEMA = "agent-run"
+
+
 class ConnectorIngestRequest(BaseModel):
     connector_name: str
     tenant_id: str
@@ -327,6 +330,25 @@ async def ingest_entity(
     return _entity_response(stored)
 
 
+@api_router.post("/agent-runs", response_model=EntityResponse)
+async def ingest_agent_run(
+    request: EntityIngestRequest,
+    store: DataServiceStore = Depends(get_store),
+) -> EntityResponse:
+    _require_feature("agent_run_tracking")
+    record = await _resolve_schema(AGENT_RUN_SCHEMA, request.schema_version, store)
+    _validate_payload(record, request.data)
+    entity_id = request.entity_id or request.data.get("id") or str(uuid4())
+    stored = await store.store_entity(
+        entity_id=entity_id,
+        tenant_id=request.tenant_id,
+        schema_name=AGENT_RUN_SCHEMA,
+        schema_version=record.version,
+        payload=request.data,
+    )
+    return _entity_response(stored)
+
+
 @api_router.get("/entities/{schema_name}/{entity_id}", response_model=EntityResponse)
 async def get_entity(
     schema_name: str, entity_id: str, store: DataServiceStore = Depends(get_store)
@@ -334,6 +356,17 @@ async def get_entity(
     record = await store.get_entity(schema_name, entity_id)
     if not record:
         raise HTTPException(status_code=404, detail="Entity not found")
+    return _entity_response(record)
+
+
+@api_router.get("/agent-runs/{agent_run_id}", response_model=EntityResponse)
+async def get_agent_run(
+    agent_run_id: str, store: DataServiceStore = Depends(get_store)
+) -> EntityResponse:
+    _require_feature("agent_run_tracking")
+    record = await store.get_entity(AGENT_RUN_SCHEMA, agent_run_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Agent run not found")
     return _entity_response(record)
 
 
@@ -348,6 +381,24 @@ async def list_entities(
 ) -> list[EntityResponse]:
     records = await store.list_entities(schema_name, tenant_id, skip, limit)
     response.headers["X-Total-Count"] = str(await store.count_entities(schema_name, tenant_id))
+    response.headers["X-Limit"] = str(limit)
+    response.headers["X-Offset"] = str(skip)
+    return [_entity_response(record) for record in records]
+
+
+@api_router.get("/agent-runs", response_model=list[EntityResponse])
+async def list_agent_runs(
+    response: Response,
+    tenant_id: str | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    store: DataServiceStore = Depends(get_store),
+) -> list[EntityResponse]:
+    _require_feature("agent_run_tracking")
+    records = await store.list_entities(AGENT_RUN_SCHEMA, tenant_id, skip, limit)
+    response.headers["X-Total-Count"] = str(
+        await store.count_entities(AGENT_RUN_SCHEMA, tenant_id)
+    )
     response.headers["X-Limit"] = str(limit)
     response.headers["X-Offset"] = str(skip)
     return [_entity_response(record) for record in records]

@@ -5,3 +5,6 @@ flags:
   - name: mcp_global_enabled
     enabled: false
     description: Enable MCP routing globally (system/project overrides can narrow the rollout).
+  - name: agent_run_tracking
+    enabled: false
+    description: Track agent runs and emit audit events for orchestration transitions.
