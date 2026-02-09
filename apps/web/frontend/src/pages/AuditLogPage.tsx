@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n';
 import { useAppStore } from '@/store';
 import { canViewAuditLogs } from '@/auth/permissions';
@@ -73,8 +74,12 @@ const formatMetadataValue = (value: unknown) => {
 export function AuditLogPage() {
   const { t } = useTranslation();
   const { session } = useAppStore();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get('eventId');
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [focusedEvent, setFocusedEvent] = useState<AuditEvent | null>(null);
+  const [focusedLoading, setFocusedLoading] = useState(false);
 
   const allowed = canViewAuditLogs(session.user?.permissions);
 
@@ -108,6 +113,35 @@ export function AuditLogPage() {
     };
   }, [allowed]);
 
+  useEffect(() => {
+    if (!allowed || !eventId) {
+      setFocusedEvent(null);
+      return;
+    }
+    let mounted = true;
+    const loadFocused = async () => {
+      try {
+        setFocusedLoading(true);
+        const response = await fetch(`/v1/audit/events/${encodeURIComponent(eventId)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch audit event');
+        }
+        const data = (await response.json()) as AuditEvent;
+        if (mounted) {
+          setFocusedEvent(data);
+        }
+      } catch {
+        if (mounted) setFocusedEvent(null);
+      } finally {
+        if (mounted) setFocusedLoading(false);
+      }
+    };
+    loadFocused();
+    return () => {
+      mounted = false;
+    };
+  }, [allowed, eventId]);
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -124,6 +158,20 @@ export function AuditLogPage() {
       {allowed && loading && (
         <div className={styles.loading} role="status" aria-live="polite">
           {t('audit.loading')}
+        </div>
+      )}
+
+      {allowed && eventId && (
+        <div className={styles.notice} role="region" aria-live="polite">
+          {focusedLoading && <p>{t('audit.loading')}</p>}
+          {!focusedLoading && focusedEvent && (
+            <div>
+              <strong>Focused audit event:</strong> {focusedEvent.event_id}
+            </div>
+          )}
+          {!focusedLoading && !focusedEvent && (
+            <div>Audit event {eventId} could not be found.</div>
+          )}
         </div>
       )}
 

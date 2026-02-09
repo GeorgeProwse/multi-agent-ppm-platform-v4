@@ -97,9 +97,16 @@ const analyticsNav: NavItem[] = [
 
 export function LeftPanel() {
   const location = useLocation();
-  const { leftPanelCollapsed, toggleLeftPanel, session, currentSelection } = useAppStore();
+  const {
+    leftPanelCollapsed,
+    toggleLeftPanel,
+    session,
+    currentSelection,
+    featureFlags,
+  } = useAppStore();
   const { t } = useTranslation();
   const showAuditLogs = canViewAuditLogs(session.user?.permissions);
+  const showAgentRuns = featureFlags.agent_run_ui === true;
   const showRoleManager = hasPermission(session.user?.permissions, 'roles.manage');
   const showProjectConfig = canManageConfig(session.user?.permissions);
   const projectId = currentSelection?.type === 'project' ? currentSelection.id : null;
@@ -136,6 +143,7 @@ export function LeftPanel() {
     prompts: t('nav.promptLibrary'),
     'analytics-dashboard': t('nav.analyticsDashboard'),
     'role-manager': 'Role Management',
+    'agent-runs': 'Agent Runs',
   };
 
   const tourTargets: Record<string, string> = {
@@ -163,6 +171,16 @@ export function LeftPanel() {
             id: 'audit-logs',
             label: t('nav.auditLogs'),
             path: '/admin/audit',
+            icon: 'provenance.auditLog',
+          },
+        ]
+      : []),
+    ...(showAgentRuns
+      ? [
+          {
+            id: 'agent-runs',
+            label: 'Agent Runs',
+            path: '/admin/agent-runs',
             icon: 'provenance.auditLog',
           },
         ]

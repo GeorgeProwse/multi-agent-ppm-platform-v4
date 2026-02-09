@@ -13,7 +13,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { setSession } = useAppStore();
+  const { setSession, setFeatureFlags } = useAppStore();
 
   useEffect(() => {
     let mounted = true;
@@ -68,6 +68,28 @@ export function AppLayout({ children }: AppLayoutProps) {
       mounted = false;
     };
   }, [setSession]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadConfig = async () => {
+      try {
+        const response = await fetch('/v1/config');
+        if (!response.ok) {
+          throw new Error('Unable to load config');
+        }
+        const data = await response.json();
+        if (!mounted) return;
+        setFeatureFlags(data.feature_flags ?? {});
+      } catch {
+        if (!mounted) return;
+        setFeatureFlags({});
+      }
+    };
+    loadConfig();
+    return () => {
+      mounted = false;
+    };
+  }, [setFeatureFlags]);
 
   return (
     <TourProvider>
