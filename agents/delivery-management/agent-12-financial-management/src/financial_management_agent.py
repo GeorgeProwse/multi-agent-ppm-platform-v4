@@ -20,6 +20,7 @@ from observability.tracing import get_trace_id
 
 from agents.common.connector_integration import DatabaseStorageService, ERPIntegrationService
 from agents.common.integration_services import ForecastingModel, NaiveBayesTextClassifier
+from agents.common.scenario import ScenarioEngine
 from agents.runtime import BaseAgent, ServiceBusEventBus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.state_store import TenantStateStore
@@ -116,6 +117,7 @@ class FinancialManagementAgent(BaseAgent):
         )
         self.forecasting_model = ForecastingModel()
         self.cost_classifier = NaiveBayesTextClassifier(labels=self.cost_categories)
+        self.scenario_engine = ScenarioEngine()
         self.event_bus = config.get("event_bus") if config else None
         self.business_case_agent = config.get("business_case_agent") if config else None
         data_factory_client = config.get("data_factory_client") if config else None
@@ -182,6 +184,7 @@ class FinancialManagementAgent(BaseAgent):
             "analyze_variance",
             "calculate_evm",
             "get_financial_summary",
+            "generate_financial_variants",
             "generate_report",
             "update_budget",
             "approve_budget",
@@ -200,6 +203,13 @@ class FinancialManagementAgent(BaseAgent):
                 if field not in budget_data:
                     self.logger.warning(f"Missing required field: {field}")
                     return False
+        elif action == "generate_financial_variants":
+            if not input_data.get("project_id"):
+                self.logger.warning("Missing project_id")
+                return False
+            if not isinstance(input_data.get("scenarios"), list):
+                self.logger.warning("Missing scenarios list")
+                return False
 
         return True
 
@@ -211,8 +221,9 @@ class FinancialManagementAgent(BaseAgent):
             input_data: {
                 "action": "create_budget" | "track_costs" | "generate_forecast" |
                           "analyze_variance" | "calculate_evm" | "get_financial_summary" |
-                          "generate_report" | "update_budget" | "approve_budget" |
-                          "convert_currency" | "calculate_profitability",
+                          "generate_financial_variants" | "generate_report" |
+                          "update_budget" | "approve_budget" | "convert_currency" |
+                          "calculate_profitability",
                 "budget": Budget data for creation/update,
                 "costs": Cost transaction data,
                 "project_id": Project identifier,
@@ -229,6 +240,7 @@ class FinancialManagementAgent(BaseAgent):
             - analyze_variance: Variance analysis results
             - calculate_evm: Earned value metrics (EV, PV, AC, CPI, SPI)
             - get_financial_summary: Financial summary for entity
+            - generate_financial_variants: Scenario variant metrics and comparisons
             - generate_report: Financial report data
             - update_budget: Updated budget confirmation
             - approve_budget: Approval status
@@ -274,6 +286,13 @@ class FinancialManagementAgent(BaseAgent):
         elif action == "get_financial_summary":
             return await self._get_financial_summary(
                 input_data.get("project_id"), input_data.get("portfolio_id"), tenant_id=tenant_id
+            )
+
+        elif action == "generate_financial_variants":
+            return await self._generate_financial_variants(
+                input_data.get("project_id"),
+                input_data.get("scenarios", []),
+                tenant_id=tenant_id,
             )
 
         elif action == "generate_report":
@@ -543,6 +562,119 @@ class FinancialManagementAgent(BaseAgent):
             ),
             "confidence_interval": await self._calculate_confidence_interval(forecast),
             "generated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    async def _generate_financial_variants(
+        self, project_id: str, scenarios: list[dict[str, Any]], *, tenant_id: str
+    ) -> dict[str, Any]:
+        """Generate scenario variants for financial outcomes."""
+        self.logger.info("Generating financial variants for project: %s", project_id)
+        baseline_metrics = await self._get_project_financial_summary(
+            project_id, tenant_id=tenant_id
+        )
+
+        async def _build_scenario(
+            baseline: dict[str, Any], params: dict[str, Any]
+        ) -> dict[str, Any]:
+            scenario = dict(baseline)
+            budget_baseline = float(baseline.get("budget_baseline", 0) or 0)
+            actual_cost = float(baseline.get("actual_cost", 0) or 0)
+            forecast_eac = float(baseline.get("forecast_eac", 0) or 0)
+
+            budget_delta = float(params.get("budget_delta", 0) or 0)
+            actual_delta = float(params.get("actual_cost_delta", 0) or 0)
+            forecast_delta = float(params.get("forecast_eac_delta", 0) or 0)
+
+            budget_multiplier = params.get("budget_multiplier")
+            actual_multiplier = params.get("actual_cost_multiplier")
+            forecast_multiplier = params.get("forecast_eac_multiplier")
+
+            budget_baseline = budget_baseline + budget_delta
+            if budget_multiplier:
+                budget_baseline *= float(budget_multiplier)
+
+            actual_cost = actual_cost + actual_delta
+            if actual_multiplier:
+                actual_cost *= float(actual_multiplier)
+
+            forecast_eac = forecast_eac + forecast_delta
+            if forecast_multiplier:
+                forecast_eac *= float(forecast_multiplier)
+
+            cpi = float(baseline.get("cost_performance_index", 1.0) or 1.0)
+            spi = float(baseline.get("schedule_performance_index", 1.0) or 1.0)
+            cpi += float(params.get("cost_performance_index_delta", 0) or 0)
+            spi += float(params.get("schedule_performance_index_delta", 0) or 0)
+
+            scenario.update(
+                {
+                    "budget_baseline": max(budget_baseline, 0),
+                    "actual_cost": max(actual_cost, 0),
+                    "forecast_eac": max(forecast_eac, 0),
+                    "cost_performance_index": max(cpi, 0),
+                    "schedule_performance_index": max(spi, 0),
+                    "variance_at_completion": forecast_eac - budget_baseline,
+                    "performance_status": await self._assess_performance_status(cpi, spi),
+                    "scenario_notes": params.get("notes"),
+                    "scenario_adjustments": params,
+                }
+            )
+            return scenario
+
+        async def _compare(
+            baseline: dict[str, Any], scenario: dict[str, Any]
+        ) -> dict[str, Any]:
+            return {
+                "budget_variance": scenario.get("budget_baseline", 0)
+                - baseline.get("budget_baseline", 0),
+                "actual_cost_variance": scenario.get("actual_cost", 0)
+                - baseline.get("actual_cost", 0),
+                "forecast_variance": scenario.get("forecast_eac", 0)
+                - baseline.get("forecast_eac", 0),
+                "variance_at_completion_delta": scenario.get("variance_at_completion", 0)
+                - baseline.get("variance_at_completion", 0),
+                "cpi_delta": scenario.get("cost_performance_index", 1.0)
+                - baseline.get("cost_performance_index", 1.0),
+                "spi_delta": scenario.get("schedule_performance_index", 1.0)
+                - baseline.get("schedule_performance_index", 1.0),
+            }
+
+        results: list[dict[str, Any]] = []
+        for index, variant in enumerate(scenarios):
+            scenario_params = variant.get("params") or variant
+            scenario_name = variant.get("name") or f"Scenario {index + 1}"
+            scenario_id = variant.get("scenario_id") or f"{project_id}-scenario-{index + 1}"
+            output = await self.scenario_engine.run_metric_scenario(
+                baseline_metrics=baseline_metrics,
+                scenario_params=scenario_params,
+                scenario_metrics_builder=_build_scenario,
+                comparison_builder=_compare,
+            )
+            results.append(
+                {
+                    "scenario_id": scenario_id,
+                    "name": scenario_name,
+                    "params": scenario_params,
+                    "metrics": output["scenario_metrics"],
+                    "comparison": output["comparison"],
+                }
+            )
+
+        forecast_values = [
+            result["metrics"].get("forecast_eac", 0) for result in results
+        ]
+        summary = {
+            "baseline_forecast": baseline_metrics.get("forecast_eac", 0),
+            "best_case": min(forecast_values) if forecast_values else 0,
+            "worst_case": max(forecast_values) if forecast_values else 0,
+            "average": sum(forecast_values) / len(forecast_values) if forecast_values else 0,
+        }
+
+        return {
+            "project_id": project_id,
+            "baseline_metrics": baseline_metrics,
+            "scenarios": results,
+            "forecast_summary": summary,
         }
 
     async def _analyze_variance(
