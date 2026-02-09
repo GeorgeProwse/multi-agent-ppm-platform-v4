@@ -53,6 +53,23 @@ interface ScopeResearchResult {
   usedExternalResearch: boolean;
 }
 
+type ConversationalChangeStatus = 'add' | 'update' | 'remove';
+
+interface ConversationalChange {
+  id: string;
+  label: string;
+  before?: string | number | null;
+  after?: string | number | null;
+  status?: ConversationalChangeStatus;
+}
+
+interface ConversationalCommandPreview {
+  title: string;
+  summary?: string;
+  changes: ConversationalChange[];
+  applyLabel?: string;
+}
+
 const ALWAYS_INCLUDED_PROMPTS = new Set<string>(['risk_identification', 'vendor_evaluation']);
 
 const stageTagLookup: Array<{ matcher: RegExp; tag: string }> = [
@@ -65,7 +82,7 @@ const stageTagLookup: Array<{ matcher: RegExp; tag: string }> = [
 ];
 
 export function AssistantPanel() {
-  const { rightPanelCollapsed, toggleRightPanel } = useAppStore();
+  const { rightPanelCollapsed, toggleRightPanel, featureFlags } = useAppStore();
   const {
     projectMethodology,
     currentActivityId,
@@ -99,6 +116,9 @@ export function AssistantPanel() {
     null
   );
   const [scopeResearchPreviewOpen, setScopeResearchPreviewOpen] = useState(false);
+  const [conversationalCommand, setConversationalCommand] =
+    useState<ConversationalCommandPreview | null>(null);
+  const [conversationalConfirmed, setConversationalConfirmed] = useState(false);
   const [promptSearch, setPromptSearch] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState<PromptDefinition | null>(null);
   const [promptEditId, setPromptEditId] = useState<string | null>(null);
@@ -113,6 +133,14 @@ export function AssistantPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevActivityIdRef = useRef<string | null>(null);
+  const conversationalCommandsEnabled = featureFlags.conversational_commands === true;
+
+  const formatDiffValue = (value?: string | number | null) => {
+    if (value === null || value === undefined || value === '') {
+      return '—';
+    }
+    return String(value);
+  };
 
   const promptStageTags = useMemo(() => {
     const candidates = [context?.currentStageName ?? '', context?.currentStageId ?? ''];
@@ -642,6 +670,35 @@ export function AssistantPanel() {
           break;
         }
 
+        case 'custom': {
+          if (chip.payload.actionKey !== 'conversational_command') {
+            addAssistantMessage('Action executed.');
+            break;
+          }
+          if (!conversationalCommandsEnabled) {
+            addAssistantMessage('Conversational commands are disabled for this workspace.');
+            break;
+          }
+          const data = (chip.payload.data ?? {}) as Partial<ConversationalCommandPreview>;
+          const changes = Array.isArray(data.changes)
+            ? data.changes.map((change, index) => ({
+                id: change.id ?? `change-${index}`,
+                label: change.label ?? `Change ${index + 1}`,
+                before: change.before,
+                after: change.after,
+                status: change.status,
+              }))
+            : [];
+          setConversationalCommand({
+            title: data.title ?? 'Review conversational updates',
+            summary: data.summary,
+            changes,
+            applyLabel: data.applyLabel,
+          });
+          setConversationalConfirmed(false);
+          break;
+        }
+
         default:
           addAssistantMessage('Action executed.');
       }
@@ -657,6 +714,7 @@ export function AssistantPanel() {
       addAssistantMessage,
       currentActivityId,
       setScopeResearchObjective,
+      conversationalCommandsEnabled,
     ]
   );
 
@@ -1252,6 +1310,102 @@ export function AssistantPanel() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {conversationalCommand && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <div className={styles.modalHeader}>
+              <h3>{conversationalCommand.title}</h3>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => {
+                  setConversationalCommand(null);
+                  setConversationalConfirmed(false);
+                }}
+              >
+                <Icon
+                  semantic="actions.cancelDismiss"
+                  label="Close conversational command preview"
+                />
+              </button>
+            </div>
+            {conversationalCommand.summary && (
+              <p className={styles.modalHint}>{conversationalCommand.summary}</p>
+            )}
+            {conversationalCommand.changes.length === 0 ? (
+              <p className={styles.modalHint}>
+                No changes were provided for this conversational command.
+              </p>
+            ) : (
+              <div className={styles.diffTable}>
+                <div className={styles.diffHeader}>Field</div>
+                <div className={styles.diffHeader}>Current</div>
+                <div className={styles.diffHeader}>Proposed</div>
+                {conversationalCommand.changes.map((change) => (
+                  <div key={change.id} className={styles.diffRow}>
+                    <div className={styles.diffCell}>
+                      <span className={styles.diffLabel}>{change.label}</span>
+                      {change.status && (
+                        <span
+                          className={`${styles.diffBadge} ${
+                            styles[`diff${change.status}`]
+                          }`}
+                        >
+                          {change.status}
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles.diffCell}>
+                      {formatDiffValue(change.before)}
+                    </div>
+                    <div className={styles.diffCell}>
+                      {formatDiffValue(change.after)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <label className={styles.confirmRow}>
+              <input
+                type="checkbox"
+                checked={conversationalConfirmed}
+                onChange={(event) => setConversationalConfirmed(event.target.checked)}
+              />
+              I understand these updates will change the canonical project records.
+            </label>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalSecondary}
+                onClick={() => {
+                  setConversationalCommand(null);
+                  setConversationalConfirmed(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalPrimary}
+                disabled={!conversationalConfirmed}
+                onClick={() => {
+                  const total = conversationalCommand.changes.length;
+                  addAssistantMessage(
+                    `Applied ${total} update${total === 1 ? '' : 's'} to ${
+                      conversationalCommand.title
+                    }.`
+                  );
+                  setConversationalCommand(null);
+                  setConversationalConfirmed(false);
+                }}
+              >
+                {conversationalCommand.applyLabel ?? 'Apply updates'}
+              </button>
+            </div>
           </div>
         </div>
       )}

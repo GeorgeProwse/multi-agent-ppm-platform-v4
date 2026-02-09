@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from approval_workflow_agent import ApprovalWorkflowAgent
-from events import CharterCreatedEvent, WbsCreatedEvent
+from events import CharterCreatedEvent, ScopeChangeEvent, WbsCreatedEvent
 from agents.common.integration_services import LocalEmbeddingService, VectorSearchIndex
 from observability.tracing import get_trace_id
 from scope_research import generate_scope_from_search
@@ -144,6 +144,7 @@ class ProjectDefinitionAgent(BaseAgent):
         valid_actions = [
             "generate_charter",
             "generate_wbs",
+            "update_wbs",
             "manage_requirements",
             "create_traceability_matrix",
             "analyze_stakeholders",
@@ -172,6 +173,13 @@ class ProjectDefinitionAgent(BaseAgent):
             if "project_id" not in input_data or "scope_statement" not in input_data:
                 self.logger.warning("Missing project_id or scope_statement")
                 return False
+        elif action == "update_wbs":
+            if "project_id" not in input_data:
+                self.logger.warning("Missing project_id")
+                return False
+            if not input_data.get("updates") and not input_data.get("wbs"):
+                self.logger.warning("Missing updates or wbs payload")
+                return False
         elif action == "generate_scope_research":
             if "project_id" not in input_data or "objective" not in input_data:
                 self.logger.warning("Missing project_id or objective")
@@ -185,7 +193,7 @@ class ProjectDefinitionAgent(BaseAgent):
 
         Args:
             input_data: {
-                "action": "generate_charter" | "generate_wbs" | "manage_requirements" |
+                "action": "generate_charter" | "generate_wbs" | "update_wbs" | "manage_requirements" |
                           "create_traceability_matrix" | "analyze_stakeholders" |
                           "create_raci_matrix" | "manage_scope_baseline" | "detect_scope_creep" |
                           "get_charter" | "get_wbs" | "get_requirements",
@@ -201,6 +209,7 @@ class ProjectDefinitionAgent(BaseAgent):
             Response based on action:
             - generate_charter: Charter ID, document, sections
             - generate_wbs: WBS ID, hierarchical structure
+            - update_wbs: Updated WBS metadata
             - manage_requirements: Requirements repository with traceability
             - create_traceability_matrix: Matrix linking requirements to deliverables
             - analyze_stakeholders: Stakeholder register with influence analysis
@@ -229,6 +238,15 @@ class ProjectDefinitionAgent(BaseAgent):
             return await self._generate_wbs(
                 input_data.get("project_id"),
                 input_data.get("scope_statement", {}),  # type: ignore
+                tenant_id=tenant_id,
+                correlation_id=correlation_id,
+                requester=input_data.get("requester", "unknown"),
+            )
+        elif action == "update_wbs":
+            return await self._update_wbs(
+                input_data.get("project_id"),
+                input_data.get("updates", {}),
+                wbs_payload=input_data.get("wbs"),
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
                 requester=input_data.get("requester", "unknown"),
@@ -490,6 +508,68 @@ class ProjectDefinitionAgent(BaseAgent):
             "total_work_packages": await self._count_work_packages(wbs_with_details),
             "next_steps": "Review and refine WBS, then pass to Schedule & Planning Agent",
             "approval": approval,
+        }
+
+    async def _update_wbs(
+        self,
+        project_id: str,
+        updates: dict[str, Any],
+        *,
+        wbs_payload: dict[str, Any] | None,
+        tenant_id: str,
+        correlation_id: str,
+        requester: str,
+    ) -> dict[str, Any]:
+        """Update an existing WBS structure and persist the canonical record."""
+        self.logger.info(f"Updating WBS for project: {project_id}")
+
+        existing = self.wbs_structures.get(project_id) or self.wbs_store.get(tenant_id, project_id)
+        now = datetime.now(timezone.utc).isoformat()
+        if existing:
+            wbs = dict(existing)
+        else:
+            wbs = {
+                "wbs_id": await self._generate_wbs_id(project_id),
+                "project_id": project_id,
+                "structure": {},
+                "created_at": now,
+                "created_by": requester,
+                "version": "1.0",
+            }
+
+        update_payload = dict(updates or {})
+        if wbs_payload:
+            update_payload.setdefault("structure", wbs_payload.get("structure", wbs_payload))
+            if wbs_payload.get("wbs_id"):
+                update_payload.setdefault("wbs_id", wbs_payload.get("wbs_id"))
+
+        for key in ("wbs_id", "structure", "scope_statement", "status", "metadata"):
+            if key in update_payload:
+                wbs[key] = update_payload[key]
+
+        wbs["updated_at"] = now
+        wbs["updated_by"] = requester
+
+        self.wbs_structures[project_id] = wbs
+        self.wbs_store.upsert(tenant_id, project_id, wbs)
+        await self.db_service.store(
+            "project_wbs",
+            wbs.get("wbs_id", project_id),
+            {"tenant_id": tenant_id, "wbs": wbs},
+        )
+        await self._index_artifact(
+            artifact_type="project_wbs",
+            artifact_id=wbs.get("wbs_id", project_id),
+            content=self._serialize_wbs_for_index(wbs.get("structure", {})),
+            metadata={"project_id": project_id},
+        )
+        await self._publish_wbs_updated(wbs, tenant_id=tenant_id, correlation_id=correlation_id)
+
+        return {
+            "wbs_id": wbs.get("wbs_id"),
+            "project_id": project_id,
+            "status": wbs.get("status", "Updated"),
+            "updated_at": wbs.get("updated_at"),
         }
 
     async def _generate_scope_research(
@@ -983,6 +1063,23 @@ class ProjectDefinitionAgent(BaseAgent):
             },
         )
         await self.event_bus.publish("wbs.created", event.model_dump(mode="json"))
+
+    async def _publish_wbs_updated(
+        self, wbs: dict[str, Any], *, tenant_id: str, correlation_id: str
+    ) -> None:
+        if not self.event_bus:
+            return
+        event = ScopeChangeEvent(
+            event_name="wbs.updated",
+            tenant_id=tenant_id,
+            correlation_id=correlation_id,
+            payload={
+                "wbs_id": wbs.get("wbs_id", ""),
+                "project_id": wbs.get("project_id", ""),
+                "updated_at": datetime.fromisoformat(wbs.get("updated_at")),
+            },
+        )
+        await self.event_bus.publish("wbs.updated", event.model_dump(mode="json"))
 
     async def _generate_baseline_id(self, project_id: str) -> str:
         """Generate unique baseline ID."""

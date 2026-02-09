@@ -44,6 +44,41 @@ intents:
       - agent_id: resource-capacity-management
         action: get_resource_pool
         dependencies: []
+  - name: wbs_update
+    description: Update or revise work breakdown structures and scope items.
+    min_confidence: 0.65
+    routes:
+      - agent_id: project-definition
+        action: update_wbs
+        dependencies: []
+  - name: schedule_update
+    description: Update schedules, milestones, or timeline baselines.
+    min_confidence: 0.65
+    routes:
+      - agent_id: schedule-planning
+        action: update_schedule
+        dependencies: []
+  - name: resource_update
+    description: Update resource profiles, allocations, or availability.
+    min_confidence: 0.65
+    routes:
+      - agent_id: resource-capacity-management
+        action: update_resource
+        dependencies: []
+  - name: risk_update
+    description: Update risk register entries, status, or mitigation details.
+    min_confidence: 0.65
+    routes:
+      - agent_id: risk-management
+        action: update_risk_status
+        dependencies: []
+  - name: budget_update
+    description: Update budgets, forecasts, or cost baselines.
+    min_confidence: 0.65
+    routes:
+      - agent_id: financial-management
+        action: update_budget
+        dependencies: []
   - name: demand_intake
     description: Demand intake and new proposal requests.
     min_confidence: 0.6

@@ -791,6 +791,78 @@
   border-radius: var(--radius-md);
 }
 
+.diffTable {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr);
+  gap: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  margin-bottom: var(--space-3);
+}
+
+.diffHeader {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.diffRow {
+  display: contents;
+}
+
+.diffCell {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.diffLabel {
+  font-weight: 600;
+  margin-right: var(--space-2);
+}
+
+.diffBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.diffadd {
+  color: var(--color-state-success-fg);
+  border-color: var(--color-state-success-fg);
+  background: var(--color-state-success-bg);
+}
+
+.diffupdate {
+  color: var(--color-state-info-fg);
+  border-color: var(--color-state-info-fg);
+  background: var(--color-state-info-bg);
+}
+
+.diffremove {
+  color: var(--color-state-danger-fg);
+  border-color: var(--color-state-danger-fg);
+  background: var(--color-state-danger-bg);
+}
+
+.confirmRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
 .researchError {
   color: var(--color-state-warning-fg);
   font-size: var(--font-size-xs);
