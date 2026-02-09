@@ -195,6 +195,7 @@ class SchedulePlanningAgent(BaseAgent):
             "track_milestones",
             "optimize_schedule",
             "what_if_analysis",
+            "generate_schedule_variants",
             "manage_baseline",
             "track_variance",
             "sprint_planning",
@@ -215,6 +216,13 @@ class SchedulePlanningAgent(BaseAgent):
             if "schedule_id" not in input_data:
                 self.logger.warning("Missing schedule_id")
                 return False
+        elif action == "generate_schedule_variants":
+            if "schedule_id" not in input_data:
+                self.logger.warning("Missing schedule_id")
+                return False
+            if not isinstance(input_data.get("scenarios"), list):
+                self.logger.warning("Missing scenarios list")
+                return False
         elif action == "update_schedule":
             if "schedule_id" not in input_data:
                 self.logger.warning("Missing schedule_id")
@@ -234,14 +242,16 @@ class SchedulePlanningAgent(BaseAgent):
                 "action": "create_schedule" | "estimate_duration" | "map_dependencies" |
                           "calculate_critical_path" | "resource_constrained_schedule" |
                           "run_monte_carlo" | "track_milestones" | "optimize_schedule" |
-                          "what_if_analysis" | "manage_baseline" | "track_variance" |
-                          "sprint_planning" | "update_schedule" | "get_schedule",
+                          "what_if_analysis" | "generate_schedule_variants" |
+                          "manage_baseline" | "track_variance" | "sprint_planning" |
+                          "update_schedule" | "get_schedule",
                 "project_id": Project ID,
                 "schedule_id": Schedule ID,
                 "wbs": Work breakdown structure,
                 "dependencies": Dependency definitions,
                 "resources": Resource assignments,
                 "what_if_params": Parameters for what-if analysis,
+                "scenarios": List of scenario variant inputs,
                 "sprint_data": Sprint planning data,
                 "filters": Query filters
             }
@@ -257,6 +267,7 @@ class SchedulePlanningAgent(BaseAgent):
             - track_milestones: Milestone status and upcoming deadlines
             - optimize_schedule: Optimized schedule with improvements
             - what_if_analysis: Scenario comparison results
+            - generate_schedule_variants: Scenario variant metrics and comparisons
             - manage_baseline: Baseline ID and locked schedule
             - track_variance: Schedule variance analysis
             - sprint_planning: Sprint backlog and capacity planning
@@ -310,6 +321,11 @@ class SchedulePlanningAgent(BaseAgent):
         elif action == "what_if_analysis":
             return await self._what_if_analysis(
                 input_data.get("schedule_id"), input_data.get("what_if_params", {})  # type: ignore
+            )
+
+        elif action == "generate_schedule_variants":
+            return await self._generate_schedule_variants(
+                input_data.get("schedule_id"), input_data.get("scenarios", [])  # type: ignore
             )
 
         elif action == "manage_baseline":
@@ -913,6 +929,59 @@ class SchedulePlanningAgent(BaseAgent):
             "cost_impact": comparison.get("cost_impact", 0),
             "resource_impact": comparison.get("resource_impact", {}),
             "recommendation": scenario_output.get("recommendation"),
+        }
+
+    async def _generate_schedule_variants(
+        self, schedule_id: str, scenarios: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """Generate scenario variants for a schedule and compare outcomes."""
+        self.logger.info("Generating schedule variants for %s", schedule_id)
+
+        schedule = self.schedules.get(schedule_id)
+        if not schedule:
+            raise ValueError(f"Schedule not found: {schedule_id}")
+
+        baseline_metrics = await self._recalculate_schedule(schedule)
+
+        async def _run_variant(variant: dict[str, Any], index: int) -> dict[str, Any]:
+            scenario_params = variant.get("params") or variant
+            scenario_name = variant.get("name") or f"Scenario {index + 1}"
+            scenario_id = variant.get("scenario_id") or f"{schedule_id}-scenario-{index + 1}"
+            scenario_output = await self.scenario_engine.run_scenario(
+                baseline=schedule,
+                scenario_params=scenario_params,
+                scenario_builder=self._create_scenario,
+                metrics_builder=self._recalculate_schedule,
+                comparison_builder=self._compare_schedules,
+                recommendation_builder=self._generate_scenario_recommendation,
+            )
+            return {
+                "scenario_id": scenario_id,
+                "name": scenario_name,
+                "params": scenario_params,
+                "metrics": scenario_output["scenario_metrics"],
+                "comparison": scenario_output["comparison"],
+                "recommendation": scenario_output.get("recommendation"),
+            }
+
+        scenario_results = [
+            await _run_variant(variant, index) for index, variant in enumerate(scenarios)
+        ]
+        durations = [
+            result["metrics"].get("project_duration_days", 0) for result in scenario_results
+        ]
+        duration_summary = {
+            "baseline_duration": baseline_metrics.get("project_duration_days", 0),
+            "best_case": min(durations) if durations else 0,
+            "worst_case": max(durations) if durations else 0,
+            "average": sum(durations) / len(durations) if durations else 0,
+        }
+
+        return {
+            "schedule_id": schedule_id,
+            "baseline_metrics": baseline_metrics,
+            "scenarios": scenario_results,
+            "duration_summary": duration_summary,
         }
 
     async def _manage_baseline(
@@ -2337,7 +2406,32 @@ class SchedulePlanningAgent(BaseAgent):
         self, schedule: dict[str, Any], params: dict[str, Any]
     ) -> dict[str, Any]:
         """Create scenario schedule with modified parameters."""
-        return schedule.copy()
+        scenario = dict(schedule)
+        tasks = [dict(task) for task in schedule.get("tasks", [])]
+        scenario["tasks"] = tasks
+
+        duration_delta_days = float(params.get("duration_delta_days", 0) or 0)
+        duration_multiplier = params.get("duration_multiplier")
+        task_delta = float(params.get("task_duration_delta_days", 0) or 0)
+        task_multiplier = params.get("task_duration_multiplier")
+
+        if task_delta or task_multiplier:
+            for task in tasks:
+                current = float(task.get("duration_days", 0) or 0)
+                updated = current + task_delta
+                if task_multiplier:
+                    updated *= float(task_multiplier)
+                task["duration_days"] = max(updated, 0)
+
+        baseline_duration = float(schedule.get("project_duration_days", 0) or 0)
+        updated_duration = baseline_duration + duration_delta_days
+        if duration_multiplier:
+            updated_duration *= float(duration_multiplier)
+
+        scenario["project_duration_days"] = max(updated_duration, 0)
+        scenario["scenario_notes"] = params.get("notes")
+        scenario["scenario_adjustments"] = params
+        return scenario
 
     async def _recalculate_schedule(self, schedule: dict[str, Any]) -> dict[str, Any]:
         """Recalculate schedule with changes."""

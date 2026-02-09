@@ -99,6 +99,17 @@ interface DashboardPayload {
   relatedItemsLimit?: number;
 }
 
+interface ScenarioSnapshot {
+  id: string;
+  label: string;
+  summary: string;
+  schedule: string;
+  budget: string;
+  forecast: string;
+  variance: string;
+  tone: 'positive' | 'neutral' | 'negative';
+}
+
 const API_BASE = '/api';
 const RELATED_PAGE_SIZES = [5, 10, 20];
 
@@ -136,7 +147,8 @@ const endpointMap: Record<EntityType, string> = {
 
 export function WorkspacePage({ type }: WorkspacePageProps) {
   const { portfolioId, programId, projectId } = useParams();
-  const { setCurrentSelection, currentActivity, addTab, openTabs } = useAppStore();
+  const { setCurrentSelection, currentActivity, addTab, openTabs, featureFlags } =
+    useAppStore();
 
   const entityId = portfolioId || programId || projectId || 'unknown';
   const [entityName, setEntityName] = useState(entityId);
@@ -152,6 +164,7 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
   const [relatedFilter, setRelatedFilter] = useState('');
   const [relatedPage, setRelatedPage] = useState(1);
   const [relatedPageSize, setRelatedPageSize] = useState(RELATED_PAGE_SIZES[0]);
+  const scenarioModelingEnabled = featureFlags.scenario_modeling;
 
   useEffect(() => {
     setEntityName(entityId);
@@ -296,6 +309,52 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
     sizes.add(relatedPageSize);
     return Array.from(sizes).sort((a, b) => a - b);
   }, [relatedPageSize]);
+
+  const scenarioSnapshots = useMemo<ScenarioSnapshot[]>(() => {
+    const baseBudget = type === 'project' ? '$2.45M' : '$24.5M';
+    return [
+      {
+        id: 'baseline',
+        label: 'Baseline',
+        summary: 'Current approved plan and forecast.',
+        schedule: '124 days',
+        budget: baseBudget,
+        forecast: baseBudget,
+        variance: '0%',
+        tone: 'neutral',
+      },
+      {
+        id: 'best-case',
+        label: 'Best case',
+        summary: 'Aggressive recovery with additional resources.',
+        schedule: '108 days',
+        budget: baseBudget,
+        forecast: type === 'project' ? '$2.38M' : '$23.8M',
+        variance: '-3.0%',
+        tone: 'positive',
+      },
+      {
+        id: 'most-likely',
+        label: 'Most likely',
+        summary: 'Optimized sequencing with moderate buffer.',
+        schedule: '132 days',
+        budget: baseBudget,
+        forecast: type === 'project' ? '$2.52M' : '$25.2M',
+        variance: '2.8%',
+        tone: 'neutral',
+      },
+      {
+        id: 'worst-case',
+        label: 'Worst case',
+        summary: 'Vendor delay and late procurement.',
+        schedule: '156 days',
+        budget: baseBudget,
+        forecast: type === 'project' ? '$2.74M' : '$27.4M',
+        variance: '11.8%',
+        tone: 'negative',
+      },
+    ];
+  }, [type]);
 
   const filteredRelatedItems = useMemo(() => {
     if (!relatedFilter) return dashboardData.relatedItems;
@@ -464,6 +523,51 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
           {isLoading && <p className={styles.statusNote}>Loading latest metrics…</p>}
           {errorMessage && <p className={styles.errorNote}>{errorMessage}</p>}
         </section>
+
+        {scenarioModelingEnabled && (
+          <section className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2 className={styles.sectionTitle}>Scenario comparison</h2>
+                <p className={styles.sectionSubtitle}>
+                  Compare baseline outcomes against schedule and financial variants.
+                </p>
+              </div>
+              <button type="button" className={styles.secondaryAction}>
+                Compare scenarios
+              </button>
+            </div>
+            <div className={styles.scenarioGrid}>
+              {scenarioSnapshots.map((scenario) => (
+                <article key={scenario.id} className={styles.scenarioCard}>
+                  <div className={styles.scenarioHeader}>
+                    <h3 className={styles.scenarioTitle}>{scenario.label}</h3>
+                    <span
+                      className={`${styles.scenarioTone} ${styles[`tone${scenario.tone}`]}`}
+                    >
+                      {scenario.variance} variance
+                    </span>
+                  </div>
+                  <p className={styles.scenarioSummary}>{scenario.summary}</p>
+                  <div className={styles.scenarioMetrics}>
+                    <div>
+                      <span className={styles.metricLabel}>Schedule</span>
+                      <span className={styles.metricValue}>{scenario.schedule}</span>
+                    </div>
+                    <div>
+                      <span className={styles.metricLabel}>Budget</span>
+                      <span className={styles.metricValue}>{scenario.budget}</span>
+                    </div>
+                    <div>
+                      <span className={styles.metricLabel}>Forecast</span>
+                      <span className={styles.metricValue}>{scenario.forecast}</span>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         {supportsPipelineView && (
           <section className={styles.section}>

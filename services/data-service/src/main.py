@@ -103,6 +103,14 @@ class EntityResponse(BaseModel):
 
 
 AGENT_RUN_SCHEMA = "agent-run"
+SCENARIO_SCHEMA = "scenario"
+
+
+class ScenarioIngestRequest(BaseModel):
+    tenant_id: str
+    data: dict[str, Any]
+    schema_version: int | None = None
+    scenario_id: str | None = None
 
 
 class ConnectorIngestRequest(BaseModel):
@@ -353,6 +361,24 @@ async def ingest_agent_run(
     return _entity_response(stored)
 
 
+@api_router.post("/scenarios", response_model=EntityResponse)
+async def ingest_scenario(
+    request: ScenarioIngestRequest,
+    store: DataServiceStore = Depends(get_store),
+) -> EntityResponse:
+    record = await _resolve_schema(SCENARIO_SCHEMA, request.schema_version, store)
+    _validate_payload(record, request.data)
+    scenario_id = request.scenario_id or request.data.get("id") or str(uuid4())
+    stored = await store.store_entity(
+        entity_id=scenario_id,
+        tenant_id=request.tenant_id,
+        schema_name=SCENARIO_SCHEMA,
+        schema_version=record.version,
+        payload=request.data,
+    )
+    return _entity_response(stored)
+
+
 @api_router.get("/entities/{schema_name}/{entity_id}", response_model=EntityResponse)
 async def get_entity(
     schema_name: str, entity_id: str, store: DataServiceStore = Depends(get_store)
@@ -360,6 +386,16 @@ async def get_entity(
     record = await store.get_entity(schema_name, entity_id)
     if not record:
         raise HTTPException(status_code=404, detail="Entity not found")
+    return _entity_response(record)
+
+
+@api_router.get("/scenarios/{scenario_id}", response_model=EntityResponse)
+async def get_scenario(
+    scenario_id: str, store: DataServiceStore = Depends(get_store)
+) -> EntityResponse:
+    record = await store.get_entity(SCENARIO_SCHEMA, scenario_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Scenario not found")
     return _entity_response(record)
 
 
@@ -385,6 +421,23 @@ async def list_entities(
 ) -> list[EntityResponse]:
     records = await store.list_entities(schema_name, tenant_id, skip, limit)
     response.headers["X-Total-Count"] = str(await store.count_entities(schema_name, tenant_id))
+    response.headers["X-Limit"] = str(limit)
+    response.headers["X-Offset"] = str(skip)
+    return [_entity_response(record) for record in records]
+
+
+@api_router.get("/scenarios", response_model=list[EntityResponse])
+async def list_scenarios(
+    response: Response,
+    tenant_id: str | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    store: DataServiceStore = Depends(get_store),
+) -> list[EntityResponse]:
+    records = await store.list_entities(SCENARIO_SCHEMA, tenant_id, skip, limit)
+    response.headers["X-Total-Count"] = str(
+        await store.count_entities(SCENARIO_SCHEMA, tenant_id)
+    )
     response.headers["X-Limit"] = str(limit)
     response.headers["X-Offset"] = str(skip)
     return [_entity_response(record) for record in records]
