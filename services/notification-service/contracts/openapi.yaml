@@ -29,6 +29,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationResponse"
+  /v1/notifications/predictive-alerts:
+    post:
+      summary: Send a predictive alert notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictiveAlertNotificationRequest"
+      responses:
+        "200":
+          description: Notification delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
 components:
   schemas:
     HealthResponse:
@@ -67,3 +83,41 @@ components:
           type: string
           format: date-time
       required: [delivery_id, status, rendered, delivered_to, timestamp]
+    PredictiveAlertLink:
+      type: object
+      properties:
+        label:
+          type: string
+        url:
+          type: string
+      required: [label, url]
+    PredictiveAlertNotificationRequest:
+      type: object
+      properties:
+        alert_id:
+          type: string
+        project_id:
+          type: string
+        metric:
+          type: string
+        percentile:
+          type: number
+        severity:
+          type: string
+        rationale:
+          type: string
+        mitigations:
+          type: array
+          items:
+            type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/PredictiveAlertLink"
+        channel:
+          type: string
+        recipient:
+          type: string
+        title:
+          type: string
+      required: [project_id, metric, rationale]

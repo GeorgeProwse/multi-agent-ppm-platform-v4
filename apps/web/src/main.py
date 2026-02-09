@@ -2355,6 +2355,9 @@ def _ui_feature_flags() -> dict[str, bool]:
         "duplicate_resolution": is_feature_enabled(
             "duplicate_resolution", environment=environment, default=False
         ),
+        "predictive_alerts": is_feature_enabled(
+            "predictive_alerts", environment=environment, default=False
+        ),
     }
 
 

@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, Response
 from opentelemetry.metrics import Observation
@@ -15,7 +16,8 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
-for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
+FEATURE_FLAGS_ROOT = REPO_ROOT / "packages" / "feature-flags" / "src"
+for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, FEATURE_FLAGS_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -35,6 +37,7 @@ from observability.metrics import (  # noqa: E402
     configure_metrics,
 )
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from scheduler import AnalyticsScheduler  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
@@ -69,6 +72,7 @@ health_snapshot_store: HealthSnapshotStore | None = None
 metrics_store: MetricsStore | None = None
 kpi_engine: AnalyticsKpiEngine | None = None
 data_client: AnalyticsDataClient | None = None
+agent_output_store: TenantStateStore | None = None
 
 DEFAULT_HEALTH_HISTORY_LIMIT = int(os.getenv("ANALYTICS_HEALTH_HISTORY_LIMIT", "20"))
 DEFAULT_HEALTH_SNAPSHOT_DB = os.getenv(
@@ -82,6 +86,10 @@ DEFAULT_LIFECYCLE_HEALTH_STORE = os.getenv(
 DEFAULT_METRICS_DB = os.getenv(
     "ANALYTICS_METRICS_DB",
     "apps/analytics-service/storage/metrics.db",
+)
+DEFAULT_AGENT_OUTPUT_DB = os.getenv(
+    "ANALYTICS_AGENT_OUTPUT_DB",
+    "apps/analytics-service/storage/agent_outputs.json",
 )
 DEFAULT_DATA_SERVICE_URL = os.getenv("DATA_SERVICE_URL", "http://localhost:8081")
 
@@ -236,6 +244,41 @@ class WhatIfDetailResponse(BaseModel):
     baseline: ProjectKpiResponse
     adjusted: ProjectKpiResponse
     narrative: NarrativeResponse
+
+
+class PredictiveAlertLink(BaseModel):
+    label: str
+    url: str
+
+
+class PredictiveAlertIngestRequest(BaseModel):
+    project_id: str
+    agent_id: str
+    metric: str
+    percentile: float = Field(..., ge=0.0, le=100.0)
+    severity: str | None = None
+    rationale: str
+    mitigations: list[str] = Field(default_factory=list)
+    links: list[PredictiveAlertLink] = Field(default_factory=list)
+    detected_at: datetime | None = None
+    alert_id: str | None = None
+
+
+class PredictiveAlertBatchRequest(BaseModel):
+    alerts: list[PredictiveAlertIngestRequest] = Field(default_factory=list)
+
+
+class PredictiveAlertResponse(BaseModel):
+    alert_id: str
+    project_id: str
+    agent_id: str
+    metric: str
+    percentile: float
+    severity: str | None = None
+    rationale: str
+    mitigations: list[str]
+    links: list[PredictiveAlertLink]
+    detected_at: str
 
 
 def _job_to_response(job) -> JobResponse:
@@ -468,6 +511,7 @@ async def _run_scheduler_loop() -> None:
 @app.on_event("startup")
 async def startup() -> None:
     global scheduler, run_loop_task, health_snapshot_store, metrics_store, kpi_engine, data_client
+    global agent_output_store
     db_path = Path(
         os.getenv("ANALYTICS_SCHEDULER_DB", "apps/analytics-service/storage/scheduler.db")
     )
@@ -480,6 +524,7 @@ async def startup() -> None:
     metrics_store = MetricsStore(Path(DEFAULT_METRICS_DB))
     data_client = AnalyticsDataClient(DEFAULT_DATA_SERVICE_URL)
     kpi_engine = AnalyticsKpiEngine(data_client, metrics_store)
+    agent_output_store = TenantStateStore(Path(DEFAULT_AGENT_OUTPUT_DB))
 
 
 @app.on_event("shutdown")
@@ -498,6 +543,7 @@ async def health() -> HealthResponse:
         "health_snapshots": "ok" if health_snapshot_store else "down",
         "metrics_store": "ok" if metrics_store else "down",
         "kpi_engine": "ok" if kpi_engine else "down",
+        "agent_outputs": "ok" if agent_output_store else "down",
     }
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
     return HealthResponse(status=status, dependencies=dependencies)
@@ -813,6 +859,86 @@ def _snapshot_to_response(snapshot: KpiSnapshot) -> ProjectKpiResponse:
         metrics=metrics,
         computed_at=snapshot.computed_at.isoformat(),
     )
+
+
+def _predictive_alerts_enabled() -> bool:
+    environment = os.getenv("ENVIRONMENT", "dev")
+    return is_feature_enabled("predictive_alerts", environment=environment, default=False)
+
+
+def _alert_record_to_response(record: dict[str, Any]) -> PredictiveAlertResponse:
+    links = [
+        PredictiveAlertLink(label=str(link.get("label", "")), url=str(link.get("url", "")))
+        for link in record.get("links", [])
+        if isinstance(link, dict)
+    ]
+    return PredictiveAlertResponse(
+        alert_id=str(record.get("alert_id", "")),
+        project_id=str(record.get("project_id", "")),
+        agent_id=str(record.get("agent_id", "")),
+        metric=str(record.get("metric", "")),
+        percentile=float(record.get("percentile", 0.0)),
+        severity=record.get("severity"),
+        rationale=str(record.get("rationale", "")),
+        mitigations=list(record.get("mitigations") or []),
+        links=links,
+        detected_at=str(record.get("detected_at", "")),
+    )
+
+
+@api_router.post(
+    "/api/analytics/agent-outputs/predictive-alerts", response_model=list[PredictiveAlertResponse]
+)
+async def ingest_predictive_alerts(
+    payload: PredictiveAlertBatchRequest, request: Request
+) -> list[PredictiveAlertResponse]:
+    if not _predictive_alerts_enabled():
+        raise HTTPException(status_code=404, detail="Predictive alerts are not enabled")
+    assert agent_output_store is not None
+    tenant_id = request.state.auth.tenant_id
+    accepted: list[PredictiveAlertResponse] = []
+    for alert in payload.alerts:
+        alert_id = alert.alert_id or str(uuid4())
+        detected_at = alert.detected_at or datetime.now(timezone.utc)
+        record = {
+            "alert_id": alert_id,
+            "project_id": alert.project_id,
+            "agent_id": alert.agent_id,
+            "metric": alert.metric,
+            "percentile": alert.percentile,
+            "severity": alert.severity,
+            "rationale": alert.rationale,
+            "mitigations": alert.mitigations,
+            "links": [link.model_dump() for link in alert.links],
+            "detected_at": detected_at.isoformat(),
+        }
+        agent_output_store.upsert(tenant_id, alert_id, record)
+        accepted.append(_alert_record_to_response(record))
+    kpi_handles.requests.add(1, {"operation": "ingest_predictive_alerts", "tenant_id": tenant_id})
+    return accepted
+
+
+@api_router.get(
+    "/api/analytics/predictive-alerts", response_model=list[PredictiveAlertResponse]
+)
+async def list_predictive_alerts(
+    project_id: str, request: Request, limit: int = Query(20, ge=1, le=200)
+) -> list[PredictiveAlertResponse]:
+    if not _predictive_alerts_enabled():
+        raise HTTPException(status_code=404, detail="Predictive alerts are not enabled")
+    assert agent_output_store is not None
+    tenant_id = request.state.auth.tenant_id
+    records = [
+        record
+        for record in agent_output_store.list(tenant_id)
+        if record.get("project_id") == project_id
+    ]
+    records = sorted(
+        records, key=lambda item: _parse_timestamp(item.get("detected_at")), reverse=True
+    )
+    responses = [_alert_record_to_response(record) for record in records[:limit]]
+    kpi_handles.requests.add(1, {"operation": "list_predictive_alerts", "tenant_id": tenant_id})
+    return responses
 
 
 app.include_router(api_router)

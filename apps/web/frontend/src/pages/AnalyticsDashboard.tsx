@@ -23,6 +23,24 @@ interface TrendWarning {
   forecast?: number;
 }
 
+interface PredictiveAlertLink {
+  label: string;
+  url: string;
+}
+
+interface PredictiveAlert {
+  alert_id: string;
+  project_id: string;
+  agent_id: string;
+  metric: string;
+  percentile: number;
+  severity?: string | null;
+  rationale: string;
+  mitigations: string[];
+  links: PredictiveAlertLink[];
+  detected_at: string;
+}
+
 interface TrendResponse {
   project_id: string;
   computed_at: string;
@@ -38,6 +56,11 @@ const formatMetric = (metric: string) =>
 
 const formatValue = (value: number | null | undefined) =>
   typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : 'N/A';
+
+const formatPercentile = (value: number | null | undefined) =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? `${value.toFixed(1)}th percentile`
+    : 'N/A';
 
 const buildChartPath = (values: Array<number | null>, width = 320, height = 160) => {
   const points = values
@@ -57,14 +80,16 @@ const buildChartPath = (values: Array<number | null>, width = 320, height = 160)
 };
 
 export function AnalyticsDashboard() {
-  const { currentSelection, session } = useAppStore();
+  const { currentSelection, session, featureFlags } = useAppStore();
   const [projectId, setProjectId] = useState(
     currentSelection?.id ?? 'demo-project'
   );
   const [data, setData] = useState<TrendResponse | null>(null);
+  const [predictiveAlerts, setPredictiveAlerts] = useState<PredictiveAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canViewAnalytics = hasPermission(session.user?.permissions, 'analytics.view');
+  const predictiveAlertsEnabled = featureFlags.predictive_alerts === true;
 
   const loadTrends = useCallback(async () => {
     if (!canViewAnalytics) {
@@ -107,10 +132,45 @@ export function AnalyticsDashboard() {
     }
   }, [canViewAnalytics, loadTrends]);
 
+  const loadPredictiveAlerts = useCallback(async () => {
+    if (!canViewAnalytics || !predictiveAlertsEnabled) {
+      setPredictiveAlerts([]);
+      return;
+    }
+    if (!projectId) return;
+    try {
+      const response = await fetch(
+        `/v1/api/analytics/predictive-alerts?project_id=${encodeURIComponent(projectId)}`
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to load predictive alerts (${response.status})`);
+      }
+      const payload = (await response.json()) as PredictiveAlert[];
+      setPredictiveAlerts(payload);
+    } catch (err) {
+      console.error(err);
+      setPredictiveAlerts([]);
+    }
+  }, [canViewAnalytics, predictiveAlertsEnabled, projectId]);
+
+  useEffect(() => {
+    void loadPredictiveAlerts();
+  }, [loadPredictiveAlerts]);
+
   const timestampLabels = useMemo(
     () => data?.series?.[0]?.points.map((point) => point.timestamp) ?? [],
     [data?.series]
   );
+
+  const alertsByMetric = useMemo(() => {
+    const map = new Map<string, PredictiveAlert>();
+    predictiveAlerts.forEach((alert) => {
+      if (!map.has(alert.metric)) {
+        map.set(alert.metric, alert);
+      }
+    });
+    return map;
+  }, [predictiveAlerts]);
 
   return (
     <section className={styles.page}>
@@ -162,33 +222,67 @@ export function AnalyticsDashboard() {
 
       {canViewAnalytics && !loading && data?.series?.length ? (
         <div className={styles.grid}>
-          {data.series.map((series) => (
-            <div key={series.metric} className={styles.card}>
-              <div className={styles.cardTitle}>{formatMetric(series.metric)}</div>
-              <div className={styles.metricMeta}>
-                <span>Trend: {formatValue(series.slope)}</span>
-                <span>Forecast: {formatValue(series.forecast)}</span>
-                <span>Recent change: {formatValue(series.recent_change)}</span>
-              </div>
-              <div className={styles.chart}>
-                <svg viewBox="0 0 320 160" role="img" aria-label={`${series.metric} trend`}>
-                  <path
-                    d={buildChartPath(series.points.map((point) => point.value))}
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="3"
-                  />
-                </svg>
-                <div className={styles.chartLabels}>
-                  {timestampLabels.map((label, index) => (
-                    <span key={`${series.metric}-${label}-${index}`}>
-                      {new Date(label).toLocaleDateString()}
-                    </span>
-                  ))}
+          {data.series.map((series) => {
+            const alert = alertsByMetric.get(series.metric);
+            return (
+              <div key={series.metric} className={styles.card}>
+                {predictiveAlertsEnabled && alert ? (
+                <div className={styles.alertBadge}>Predictive alert</div>
+                ) : null}
+                <div className={styles.cardTitle}>{formatMetric(series.metric)}</div>
+                <div className={styles.metricMeta}>
+                  <span>Trend: {formatValue(series.slope)}</span>
+                  <span>Forecast: {formatValue(series.forecast)}</span>
+                  <span>Recent change: {formatValue(series.recent_change)}</span>
+                </div>
+                {predictiveAlertsEnabled ? (
+                  <div className={styles.alertSection}>
+                    {alert ? (
+                      <>
+                        <div className={styles.alertMeta}>
+                          <span>Percentile: {formatPercentile(alert.percentile)}</span>
+                          {alert.severity ? <span>Severity: {alert.severity}</span> : null}
+                        </div>
+                        <div className={styles.alertLabel}>Mitigations</div>
+                        {alert.mitigations?.length ? (
+                          <ul className={styles.mitigationList}>
+                            {alert.mitigations.map((item, index) => (
+                              <li key={`${series.metric}-mitigation-${index}`}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className={styles.mitigationEmpty}>
+                            No mitigations suggested yet.
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className={styles.mitigationEmpty}>
+                        No predictive alerts for this metric.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                <div className={styles.chart}>
+                  <svg viewBox="0 0 320 160" role="img" aria-label={`${series.metric} trend`}>
+                    <path
+                      d={buildChartPath(series.points.map((point) => point.value))}
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="3"
+                    />
+                  </svg>
+                  <div className={styles.chartLabels}>
+                    {timestampLabels.map((label, index) => (
+                      <span key={`${series.metric}-${label}-${index}`}>
+                        {new Date(label).toLocaleDateString()}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
     </section>
