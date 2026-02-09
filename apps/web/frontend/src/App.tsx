@@ -15,6 +15,7 @@ import {
   IntakeFormPage,
   IntakeStatusPage,
   IntakeApprovalsPage,
+  AgentRunsPage,
   LoginPage,
   PromptManager,
   AnalyticsDashboard,
@@ -90,6 +91,7 @@ export function App() {
 
         {/* Admin pages */}
         <Route path="/admin/audit" element={<AuditLogPage />} />
+        <Route path="/admin/agent-runs" element={<AgentRunsPage />} />
         <Route path="/admin/methodology" element={<MethodologyEditor />} />
         <Route path="/admin/roles" element={<RoleManager />} />
 

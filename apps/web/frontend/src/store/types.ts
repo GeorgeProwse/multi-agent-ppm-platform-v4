@@ -42,3 +42,5 @@ export interface SessionState {
   user: User | null;
   loading: boolean;
 }
+
+export type FeatureFlags = Record<string, boolean>;

@@ -5,12 +5,17 @@ import type {
   CanvasTab,
   ChatMessage,
   SessionState,
+  FeatureFlags,
 } from './types';
 
 interface AppState {
   // Session state
   session: SessionState;
   setSession: (session: Partial<SessionState>) => void;
+
+  // Feature flags
+  featureFlags: FeatureFlags;
+  setFeatureFlags: (flags: FeatureFlags) => void;
 
   // Current selection (project/program/portfolio)
   currentSelection: EntitySelection | null;
@@ -51,6 +56,9 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       session: { ...state.session, ...session },
     })),
+
+  featureFlags: {},
+  setFeatureFlags: (flags) => set({ featureFlags: flags }),
 
   // Current selection
   currentSelection: null,

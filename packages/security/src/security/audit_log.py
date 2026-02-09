@@ -153,6 +153,49 @@ class AuditLogStore:
             )
         return events
 
+    def get_event(self, event_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    event_id,
+                    timestamp,
+                    tenant_id,
+                    actor_id,
+                    actor_type,
+                    actor_roles,
+                    action,
+                    resource_type,
+                    resource_id,
+                    resource_metadata,
+                    outcome,
+                    metadata
+                FROM audit_events
+                WHERE event_id = ?
+                """,
+                (event_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return {
+            "event_id": row[0],
+            "timestamp": row[1],
+            "tenant_id": row[2],
+            "actor": {
+                "id": row[3],
+                "type": row[4],
+                "roles": json.loads(row[5]) if row[5] else [],
+            },
+            "action": row[6],
+            "resource": {
+                "type": row[7],
+                "id": row[8],
+                "metadata": json.loads(row[9]) if row[9] else None,
+            },
+            "outcome": row[10],
+            "metadata": json.loads(row[11]) if row[11] else None,
+        }
+
 
 def get_audit_log_store() -> AuditLogStore:
     db_path = Path(os.getenv("AUDIT_LOG_DB_PATH", "data/audit/audit_logs.db"))

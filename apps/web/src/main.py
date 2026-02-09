@@ -31,7 +31,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 OBSERVABILITY_ROOT = REPO_ROOT / "packages" / "observability" / "src"
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
 LLM_ROOT = REPO_ROOT / "packages" / "llm" / "src"
-for root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT):
+FEATURE_FLAGS_ROOT = REPO_ROOT / "packages" / "feature-flags" / "src"
+for root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT, FEATURE_FLAGS_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
@@ -45,6 +46,7 @@ from agent_settings_store import AgentSettingsStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
 from connector_hub_proxy import ConnectorHubClient  # noqa: E402
 from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
 from knowledge_store import KnowledgeStore  # noqa: E402
 from intake_models import (  # noqa: E402
@@ -204,6 +206,7 @@ class UIConfig(BaseModel):
     oidc_enabled: bool
     login_url: str
     logout_url: str
+    feature_flags: dict[str, bool] = Field(default_factory=dict)
 
 
 class SessionInfo(BaseModel):
@@ -2167,6 +2170,13 @@ async def _decode_id_token(id_token: str) -> dict[str, Any]:
     )
 
 
+def _ui_feature_flags() -> dict[str, bool]:
+    environment = os.getenv("ENVIRONMENT", "dev")
+    return {
+        "agent_run_ui": is_feature_enabled("agent_run_ui", environment=environment, default=False),
+    }
+
+
 @api_router.get("/config", response_model=UIConfig)
 async def config() -> UIConfig:
     return UIConfig(
@@ -2175,6 +2185,7 @@ async def config() -> UIConfig:
         oidc_enabled=_oidc_enabled(),
         login_url="/login",
         logout_url="/logout",
+        feature_flags=_ui_feature_flags(),
     )
 
 
@@ -2639,6 +2650,90 @@ async def audit_log_feed() -> dict[str, Any]:
             }
         ],
     }
+
+
+@api_router.get("/agent-runs")
+async def list_agent_runs(
+    request: Request,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+) -> list[dict[str, Any]]:
+    session = _require_session(request)
+    data_service_url = os.getenv("DATA_SERVICE_URL")
+    if not data_service_url:
+        raise HTTPException(status_code=503, detail="DATA_SERVICE_URL not configured")
+    headers = {
+        "Authorization": f"Bearer {session['access_token']}",
+        "X-Tenant-ID": session["tenant_id"],
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{data_service_url}/v1/agent-runs",
+            headers=headers,
+            params={
+                "tenant_id": session["tenant_id"],
+                "skip": skip,
+                "limit": limit,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+@api_router.get("/agent-runs/{agent_run_id}")
+async def get_agent_run(agent_run_id: str, request: Request) -> dict[str, Any]:
+    session = _require_session(request)
+    data_service_url = os.getenv("DATA_SERVICE_URL")
+    if not data_service_url:
+        raise HTTPException(status_code=503, detail="DATA_SERVICE_URL not configured")
+    headers = {
+        "Authorization": f"Bearer {session['access_token']}",
+        "X-Tenant-ID": session["tenant_id"],
+    }
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(
+            f"{data_service_url}/v1/agent-runs/{agent_run_id}",
+            headers=headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+@api_router.get("/audit/events")
+async def list_audit_events(
+    request: Request,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> list[dict[str, Any]]:
+    session = _require_session(request)
+    return get_audit_log_store().list_events(
+        tenant_id=session["tenant_id"],
+        limit=limit,
+        offset=offset,
+    )
+
+
+@api_router.get("/audit/events/{event_id}")
+async def get_audit_event(event_id: str, request: Request) -> dict[str, Any]:
+    session = _require_session(request)
+    audit_url = os.getenv("AUDIT_LOG_SERVICE_URL")
+    if audit_url:
+        headers = {
+            "Authorization": f"Bearer {session['access_token']}",
+            "X-Tenant-ID": session["tenant_id"],
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{audit_url}/audit/events/{event_id}", headers=headers)
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="Audit event not found")
+            response.raise_for_status()
+            return response.json()
+    record = get_audit_log_store().get_event(event_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Audit event not found")
+    if record.get("tenant_id") != session["tenant_id"]:
+        raise HTTPException(status_code=404, detail="Audit event not found")
+    return record
 
 
 @api_router.get("/api/methodology/editor", response_model=MethodologyEditorPayload)
