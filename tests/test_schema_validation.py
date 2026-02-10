@@ -7,10 +7,8 @@ from jsonschema import Draft202012Validator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "apps" / "analytics-service"))
 sys.path.insert(0, str(REPO_ROOT / "apps" / "connector-hub"))
-sys.path.insert(0, str(REPO_ROOT / "agents" / "runtime" / "prompts"))
-
 from job_registry import list_job_manifests, load_job_manifest  # noqa: E402
-from prompt_registry import list_prompts, load_prompt  # noqa: E402
+from prompt_registry import PromptRegistry  # noqa: E402
 from sandbox_registry import list_sandbox_configs, load_sandbox_config  # noqa: E402
 
 
@@ -20,8 +18,14 @@ def test_job_manifests_validate() -> None:
 
 
 def test_prompt_manifests_validate() -> None:
-    for prompt in list_prompts():
-        load_prompt(prompt)
+    registry = PromptRegistry(prompts_root=REPO_ROOT / "prompts")
+    for agent_dir in (REPO_ROOT / "prompts").iterdir():
+        if not agent_dir.is_dir():
+            continue
+        agent_id = agent_dir.name
+        version = registry.latest_version(agent_id)
+        record = registry.get_prompt_record(agent_id, version)
+        assert record.content
 
 
 def test_sandbox_configs_validate() -> None:
