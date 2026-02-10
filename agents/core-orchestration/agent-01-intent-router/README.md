@@ -77,6 +77,13 @@ Run unit tests (if present):
 pytest agents/core-orchestration/agent-01-intent-router/tests
 ```
 
+## Advanced classification and extraction
+
+- Transformer-based classifier support is enabled via `transformers` using `distilbert-base-uncased` (or local fine-tuned artifacts under `models/intent_classifier/`).
+- Multi-intent output returns the top-2 intents with confidence scores, filtered by global and per-intent thresholds.
+- Entity extraction uses spaCy (with an entity ruler fallback) to capture `portfolio_id`, `project_id`, `currency`, `amount`, and `schedule_focus`.
+- Extracted parameters are validated against the `ExtractedParameters` schema before returning to downstream agents.
+
 ## Configuration
 
 Agent runtime configuration is centralized in `.env` (see `.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.

@@ -52,6 +52,7 @@ class OrchestrationRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     routing: list[RoutingEntry]
+    intents: list[dict[str, Any]] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
     query: str | None = None
     context: dict[str, Any] | None = None
@@ -482,24 +483,33 @@ class ResponseOrchestrationAgent(BaseAgent):
 
         Returns execution plan with dependency graph.
         """
-        nodes = {item["agent_id"]: dict(item) for item in routing}
-        dependencies = {
-            agent_id: set(item.get("depends_on") or []) for agent_id, item in nodes.items()
-        }
-        for agent_id, deps in dependencies.items():
-            dependencies[agent_id] = {dep for dep in deps if dep in nodes and dep != agent_id}
+        nodes: dict[str, dict[str, Any]] = {}
+        nodes_by_agent: dict[str, list[str]] = {}
+        for index, item in enumerate(routing):
+            node_id = str(item.get("task_id") or f"{item['agent_id']}::{index}")
+            nodes[node_id] = dict(item)
+            nodes_by_agent.setdefault(item["agent_id"], []).append(node_id)
+
+        dependencies: dict[str, set[str]] = {}
+        for node_id, item in nodes.items():
+            depends_on_nodes: set[str] = set()
+            for dependency in item.get("depends_on") or []:
+                for dependency_node in nodes_by_agent.get(dependency, []):
+                    if dependency_node != node_id:
+                        depends_on_nodes.add(dependency_node)
+            dependencies[node_id] = depends_on_nodes
 
         plan: list[list[dict[str, Any]]] = []
         remaining = set(nodes.keys())
         while remaining:
-            ready = sorted(agent_id for agent_id in remaining if not dependencies[agent_id])
+            ready = sorted(node_id for node_id in remaining if not dependencies[node_id])
             if not ready:
                 raise ValueError("Dependency cycle detected in routing plan")
-            group = [nodes[agent_id] for agent_id in ready]
+            group = [nodes[node_id] for node_id in ready]
             plan.append(group)
             remaining -= set(ready)
-            for agent_id in remaining:
-                dependencies[agent_id] -= set(ready)
+            for node_id in remaining:
+                dependencies[node_id] -= set(ready)
 
         return {
             "parallel_groups": plan,

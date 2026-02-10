@@ -5,3 +5,11 @@ prompt_fields:
   - prompt
   - user_prompt
   - query
+classifier_model_name: distilbert-base-uncased
+classifier_model_path: agents/core-orchestration/agent-01-intent-router/models/intent_classifier/
+spacy_model_name: en_core_web_sm
+top_k_intents: 2
+confidence_thresholds:
+  financial_query: 0.85
+  risk_query: 0.7
+  schedule_query: 0.65

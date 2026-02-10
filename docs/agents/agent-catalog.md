@@ -12,7 +12,7 @@ Agents form the decision plane of the platform. The Intent Router (Agent 01) cla
 
 | Agent | Purpose | Inputs | Outputs | Interfaces | Dependencies | Example invocation |
 | --- | --- | --- | --- | --- | --- | --- |
-| **Agent 01 – Intent Router** | Classify user intent and route to domain agents. | User query, context. | Intent label, routing plan. | API gateway, agent runner. | Agent registry, policy guardrails. | `{"text":"Create a new project"}` → `intent:create_project` |
+| **Agent 01 – Intent Router** | Classify user intent and route to domain agents. | User query, context. | Top-2 intent predictions, confidence-scored multi-intent routing plan, validated entities. | API gateway, agent runner. | Agent registry, policy guardrails, transformer classifier, spaCy entity extraction. | `{"text":"Show project risks and budget"}` → `intents:[risk_query,financial_query]` |
 | **Agent 02 – Response Orchestration** | Build multi-step plan and compose response. | Intent, plan constraints. | Agent call sequence, final response. | Orchestration runtime. | Policy guardrails, state store. | `{"intent":"create_project"}` → `plan:[A8,A10]` |
 | **Agent 03 – Approval Workflow** | Coordinate approvals and stage gates. | Gate criteria, approvers. | Approval decision, audit log. | Workflow engine, notifications. | RBAC/ABAC, audit events. | `{"gate":"Initiation","project":"PROJ-1"}` |
 | **Agent 04 – Demand & Intake** | Capture demand from channels. | Intake form, email, CRM. | Demand record. | API, connector events. | CRM connectors, schema validator. | `{"source":"salesforce","type":"request"}` |
