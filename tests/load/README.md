@@ -6,8 +6,10 @@ Document the load test scope and how these checks validate the platform.
 
 ## What's inside
 
-- `tests/load/sla_targets.json`: Load-test SLA profiles and thresholds.
-- `tests/load/test_load_sla.py`: Load-test SLA validation suite.
+- `tests/load/sla_targets.json`: Load-test SLA profiles and thresholds, including multi-agent flow targets.
+- `tests/load/multi_agent_scenarios.py`: Scenario builder for single-endpoint and orchestrated multi-step flows.
+- `tests/load/test_load_sla.py`: Load-test SLA validation suite with per-step assertions.
+- `tests/load/test_connectors_latency_sla.py`: Multi-agent risk/compliance/approval SLA coverage.
 
 ## How it's used
 
@@ -17,6 +19,9 @@ These tests run under `pytest` and are included when executing `make test`.
 
 ```bash
 pytest tests/load
+pytest tests/load/test_load_sla.py
+LOAD_TARGET=project-definition-schedule-resource-flow pytest tests/load/test_load_sla.py
+LOAD_TARGET=risk-compliance-approval-flow pytest tests/load/test_connectors_latency_sla.py
 ```
 
 ## Configuration

@@ -9,6 +9,7 @@ Document the integration test scope and how these checks validate the platform.
 - `tests/integration/connectors`: Connector documentation and integration guidance.
 - `tests/integration/test_orchestrator_persistence.py`: Python module used by this component.
 - `tests/integration/test_workflow_engine_runtime.py`: Python module used by this component.
+- `tests/integration/test_multi_agent_flows.py`: End-to-end multi-agent orchestration flows using async mocks.
 
 ## How it's used
 
@@ -18,6 +19,7 @@ These tests run under `pytest` and are included when executing `make test`.
 
 ```bash
 pytest tests/integration
+pytest tests/integration/test_multi_agent_flows.py
 ```
 
 ## Configuration

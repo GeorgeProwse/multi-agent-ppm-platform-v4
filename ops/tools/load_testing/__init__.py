@@ -1,6 +1,6 @@
 """Load testing utilities for the Multi-Agent PPM platform."""
 
-from tools.load_testing.runner import (
+from ops.tools.load_testing.runner import (
     LoadScenario,
     LoadScenarioResult,
     LoadSla,

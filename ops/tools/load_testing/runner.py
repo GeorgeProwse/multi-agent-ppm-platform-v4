@@ -13,9 +13,10 @@ from pathlib import Path
 @dataclass(frozen=True)
 class LoadScenario:
     name: str
-    request_fn: Callable[[], int]
-    total_requests: int
-    concurrency: int
+    request_fn: Callable[[], int] | None = None
+    total_requests: int = 1
+    concurrency: int = 1
+    flow_step_fns: list[tuple[str, Callable[[], int]]] | None = None
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,8 @@ class LoadScenarioResult:
     durations_s: list[float]
     error_count: int
     total_duration_s: float
+    step_durations_s: dict[str, list[float]]
+    step_error_count: dict[str, int]
 
     @property
     def average_latency_s(self) -> float:
@@ -56,25 +59,80 @@ class LoadScenarioResult:
             return 0.0
         return len(self.durations_s) / self.total_duration_s
 
+    @property
+    def step_average_latency_s(self) -> dict[str, float]:
+        return {
+            name: (statistics.mean(durations) if durations else 0.0)
+            for name, durations in self.step_durations_s.items()
+        }
+
+    @property
+    def step_p95_latency_s(self) -> dict[str, float]:
+        percentiles: dict[str, float] = {}
+        for name, durations in self.step_durations_s.items():
+            if not durations:
+                percentiles[name] = 0.0
+                continue
+            ordered = sorted(durations)
+            index = max(int(len(ordered) * 0.95) - 1, 0)
+            percentiles[name] = ordered[index]
+        return percentiles
+
+    @property
+    def step_error_rate(self) -> dict[str, float]:
+        total = len(self.durations_s)
+        return {
+            name: (errors / total if total else 0.0)
+            for name, errors in self.step_error_count.items()
+        }
+
 
 def run_load_scenario(scenario: LoadScenario) -> LoadScenarioResult:
     durations: list[float] = []
     errors = 0
+    step_durations: dict[str, list[float]] = {}
+    step_errors: dict[str, int] = {}
 
-    def _invoke() -> tuple[float, bool]:
-        start = time.perf_counter()
-        status = scenario.request_fn()
-        duration = time.perf_counter() - start
-        return duration, status >= 400
+    if scenario.flow_step_fns:
+        step_fns = scenario.flow_step_fns
+    elif scenario.request_fn:
+        step_fns = [(scenario.name, scenario.request_fn)]
+    else:
+        raise ValueError("LoadScenario must define request_fn or flow_step_fns")
+
+    for step_name, _ in step_fns:
+        step_durations[step_name] = []
+        step_errors[step_name] = 0
+
+    def _invoke() -> tuple[float, bool, list[tuple[str, float, bool]]]:
+        flow_start = time.perf_counter()
+        flow_failed = False
+        invocation_steps: list[tuple[str, float, bool]] = []
+
+        for step_name, request_fn in step_fns:
+            start = time.perf_counter()
+            status = request_fn()
+            duration = time.perf_counter() - start
+            step_failed = status >= 400
+            if step_failed:
+                flow_failed = True
+            invocation_steps.append((step_name, duration, step_failed))
+
+        flow_duration = time.perf_counter() - flow_start
+        return flow_duration, flow_failed, invocation_steps
 
     start = time.perf_counter()
     with ThreadPoolExecutor(max_workers=scenario.concurrency) as executor:
         futures = [executor.submit(_invoke) for _ in range(scenario.total_requests)]
         for future in as_completed(futures):
-            duration, failed = future.result()
-            durations.append(duration)
-            if failed:
+            flow_duration, flow_failed, invocation_steps = future.result()
+            durations.append(flow_duration)
+            if flow_failed:
                 errors += 1
+            for step_name, step_duration, step_failed in invocation_steps:
+                step_durations[step_name].append(step_duration)
+                if step_failed:
+                    step_errors[step_name] += 1
     total_duration = time.perf_counter() - start
 
     return LoadScenarioResult(
@@ -82,6 +140,8 @@ def run_load_scenario(scenario: LoadScenario) -> LoadScenarioResult:
         durations_s=durations,
         error_count=errors,
         total_duration_s=total_duration,
+        step_durations_s=step_durations,
+        step_error_count=step_errors,
     )
 
 
