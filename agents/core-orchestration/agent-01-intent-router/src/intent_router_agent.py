@@ -25,13 +25,9 @@ LLM_ROOT = Path(__file__).resolve().parents[5] / "packages" / "llm" / "src"
 if str(LLM_ROOT) not in sys.path:
     sys.path.insert(0, str(LLM_ROOT))
 
-PROMPT_ROOT = Path(__file__).resolve().parents[3] / "runtime" / "prompts"
-if str(PROMPT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROMPT_ROOT))
-
 from llm import LLMClient  # noqa: E402
 from observability.tracing import get_trace_id  # noqa: E402
-from prompt_registry import enforce_redaction, load_prompt_by_agent  # noqa: E402
+from prompt_registry import PromptRegistry, enforce_redaction  # noqa: E402
 
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 
@@ -133,6 +129,7 @@ class IntentRouterResponse(BaseModel):
     parameters: dict[str, Any]
     query: str
     context: dict[str, Any]
+    prompt_version: int | None = None
 
 
 class ValidationErrorPayload(BaseModel):
@@ -201,14 +198,18 @@ class IntentRouterAgent(BaseAgent):
             provider=self.config.get("llm_provider"),
             config=llm_config,
         )
-        self.prompt: dict[str, Any] | None = None
+        self.prompt_registry = PromptRegistry()
+        self.prompt_text: str | None = None
+        self.prompt_version: int | None = None
         self._last_validation_error: dict[str, Any] | None = None
 
     async def initialize(self) -> None:
         """Initialize NLP models and routing configuration."""
         await super().initialize()
         self.logger.info("Loading intent classification prompt registry...")
-        self.prompt = load_prompt_by_agent("intent-router", "intent-routing")
+        prompt_record = self.prompt_registry.get_prompt_record("intent-router")
+        self.prompt_text = prompt_record.content
+        self.prompt_version = prompt_record.version
 
     async def validate_input(self, input_data: dict[str, Any]) -> bool:
         """Validate that query is present and valid."""
@@ -252,11 +253,12 @@ class IntentRouterAgent(BaseAgent):
         llm_payload = {
             "request": {"text": query, "context": context},
         }
-        if not self.prompt:
+        if not self.prompt_text:
             raise ValueError("Prompt registry not initialized")
-        redacted_payload = enforce_redaction(self.prompt, llm_payload)
-        system_prompt = self._render_prompt(self.prompt["prompt"]["system"], redacted_payload)
-        user_prompt = self._render_prompt(self.prompt["prompt"]["user"], redacted_payload)
+        redacted_payload = enforce_redaction(llm_payload)
+        prompt_templates = self._extract_prompt_templates(self.prompt_text)
+        system_prompt = self._render_prompt(prompt_templates["system"], redacted_payload)
+        user_prompt = self._render_prompt(prompt_templates["user"], redacted_payload)
 
         fallback_reason: str | None = None
         fallback_used = False
@@ -333,8 +335,33 @@ class IntentRouterAgent(BaseAgent):
             parameters=parameters,
             query=query,
             context=context,
+            prompt_version=self.prompt_version,
         )
         return response.model_dump()
+
+    def _extract_prompt_templates(self, prompt_text: str) -> dict[str, str]:
+        sections = {"system": "", "user": ""}
+        current: str | None = None
+        buffer: list[str] = []
+        for line in prompt_text.splitlines():
+            normalized = line.strip().lower()
+            if normalized == "system:":
+                current = "system"
+                continue
+            if normalized == "user:":
+                if current:
+                    sections[current] = "\n".join(buffer).strip()
+                current = "user"
+                buffer = []
+                continue
+            if current:
+                buffer.append(line)
+        if current:
+            sections[current] = "\n".join(buffer).strip()
+
+        if not sections["system"] or not sections["user"]:
+            raise ValueError("Prompt file must include System and User sections")
+        return sections
 
     def _load_routing_config(self) -> IntentRoutingConfig:
         config_path = Path(
