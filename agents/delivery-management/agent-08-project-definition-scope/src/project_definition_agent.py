@@ -31,6 +31,11 @@ from agents.common.connector_integration import (
 )
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
+from services.scope_baseline.scope_baseline_service import create_baseline, retrieve_baseline
+
+Requirement = dict[str, Any]
+WBSItem = dict[str, Any]
+TraceabilityEntry = dict[str, Any]
 
 
 class ProjectDefinitionAgent(BaseAgent):
@@ -195,6 +200,7 @@ class ProjectDefinitionAgent(BaseAgent):
             "create_raci_matrix",
             "manage_scope_baseline",
             "detect_scope_creep",
+            "get_baseline",
             "get_charter",
             "get_wbs",
             "get_requirements",
@@ -323,6 +329,9 @@ class ProjectDefinitionAgent(BaseAgent):
             return await self._detect_scope_creep(
                 input_data.get("project_id"), input_data.get("current_scope", {})  # type: ignore
             )
+
+        elif action == "get_baseline":
+            return await self._get_baseline(input_data.get("baseline_id"))  # type: ignore
 
         elif action == "get_charter":
             return await self._get_charter(input_data.get("project_id"), tenant_id=tenant_id)  # type: ignore
@@ -811,10 +820,8 @@ class ProjectDefinitionAgent(BaseAgent):
         # Query test cases from connected PM/test systems
         test_cases = await self._get_test_cases(project_id)
 
-        # Create traceability links
-        traceability_links = await self._create_traceability_links(
-            requirements_list, user_stories, test_cases
-        )
+        wbs = self.wbs_structures.get(project_id, {}).get("structure", {})
+        traceability_links = self.generate_traceability_matrix(requirements_list, [wbs])
 
         # Identify gaps
         gaps = await self._identify_traceability_gaps(requirements_list, traceability_links)
@@ -843,6 +850,15 @@ class ProjectDefinitionAgent(BaseAgent):
             artifact_id=project_id,
             content=self._serialize_traceability_for_index(matrix),
             metadata={"project_id": project_id},
+        )
+        await self.event_bus.publish(
+            "traceability.matrix.created",
+            {
+                "project_id": project_id,
+                "created_at": matrix["created_at"],
+                "coverage": coverage,
+                "entry_count": len(traceability_links),
+            },
         )
 
 
@@ -958,7 +974,19 @@ class ProjectDefinitionAgent(BaseAgent):
             "locked_at": datetime.now(timezone.utc).isoformat(),
             "locked_by": "system",
             "status": "Locked",
+            "traceability_matrix": self.traceability_matrices.get(project_id),
+            "version": str(wbs.get("version", "1.0")),
+            "created_by": "system",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "data": {
+                "charter": charter,
+                "wbs": wbs,
+                "requirements": requirements_repo,
+            },
         }
+
+        baseline_id = create_baseline(project_id, baseline)
+        baseline["baseline_id"] = baseline_id
 
         self.scope_baselines[project_id] = baseline
         self.scope_baseline_store.upsert("default", project_id, baseline)
@@ -966,6 +994,14 @@ class ProjectDefinitionAgent(BaseAgent):
             "scope_baselines",
             baseline["baseline_id"],
             {"tenant_id": "unknown", "baseline": baseline},
+        )
+        await self.event_bus.publish(
+            "baseline.created",
+            {
+                "project_id": project_id,
+                "baseline_id": baseline["baseline_id"],
+                "created_at": baseline["timestamp"],
+            },
         )
         await self.event_bus.publish(
             "scope.baseline.locked",
@@ -1038,6 +1074,49 @@ class ProjectDefinitionAgent(BaseAgent):
         if not requirements:
             raise ValueError(f"Requirements not found for project: {project_id}")
         return requirements  # type: ignore
+
+    async def _get_baseline(self, baseline_id: str) -> dict[str, Any]:
+        """Retrieve persisted baseline by baseline ID."""
+        if not baseline_id:
+            raise ValueError("baseline_id is required")
+        return retrieve_baseline(baseline_id)
+
+    def generate_traceability_matrix(
+        self, requirements: list[Requirement], wbs: list[WBSItem]
+    ) -> list[TraceabilityEntry]:
+        """Generate requirement-to-WBS traceability entries with coverage status."""
+        wbs_item_ids = self._extract_wbs_item_ids(wbs)
+        default_wbs = wbs_item_ids[0:1]
+
+        entries: list[TraceabilityEntry] = []
+        for requirement in requirements:
+            requirement_id = requirement.get("id") or f"REQ-{uuid.uuid4().hex[:8]}"
+            mapped_wbs_ids = requirement.get("wbs_ids") or default_wbs
+            status = "covered" if mapped_wbs_ids else "not_covered"
+            entries.append(
+                {
+                    "requirement_id": requirement_id,
+                    "wbs_item_ids": mapped_wbs_ids,
+                    "coverage_status": status,
+                }
+            )
+        return entries
+
+    def _extract_wbs_item_ids(self, wbs_items: list[WBSItem]) -> list[str]:
+        ids: list[str] = []
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    if isinstance(key, str) and key and key[0].isdigit():
+                        ids.append(key)
+                    _walk(value)
+            elif isinstance(node, list):
+                for item in node:
+                    _walk(item)
+
+        _walk(wbs_items)
+        return ids
 
     # Helper methods
 
@@ -1563,7 +1642,20 @@ class ProjectDefinitionAgent(BaseAgent):
         """Calculate traceability coverage percentage."""
         if not requirements:
             return 1.0
-        return 0.85
+
+        covered_requirement_ids = {
+            link.get("requirement_id")
+            for link in traceability_links
+            if link.get("coverage_status") == "covered" and link.get("wbs_item_ids")
+        }
+        requirement_ids = {
+            req.get("id")
+            for req in requirements
+            if req.get("id")
+        }
+        if not requirement_ids:
+            return 1.0 if traceability_links else 0.0
+        return len(requirement_ids & covered_requirement_ids) / len(requirement_ids)
 
     async def _classify_stakeholders(
         self, stakeholders: list[dict[str, Any]]
