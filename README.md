@@ -78,6 +78,15 @@ their primary endpoints when run locally (each service defaults to port `8080` u
 | Policy Engine | RBAC/ABAC and policy evaluation. | `GET /healthz`, `POST /v1/policies/evaluate`, `POST /v1/rbac/evaluate`, `POST /v1/abac/evaluate` |
 | Telemetry Service | Ingests platform metrics/events for observability. | `GET /healthz`, `POST /v1/telemetry/ingest` |
 
+
+## Project Definition baseline repository
+
+Agent 08 now supports persistent scope baseline storage and requirement traceability generation:
+
+- Baselines are persisted via SQLAlchemy in `services/scope_baseline/scope_baseline_service.py` (SQLite by default at `data/scope_baselines.db`, configurable with `SCOPE_BASELINE_DB_URL`).
+- The Project Definition agent returns `baseline_id` when locking a baseline and supports `get_baseline` retrieval by ID.
+- Traceability matrices map requirement IDs to WBS IDs and emit `traceability.matrix.created`; baseline persistence emits `baseline.created`.
+
 ## External research (optional)
 
 Several agents can augment their outputs with external web research. The Project Definition & Scope agent

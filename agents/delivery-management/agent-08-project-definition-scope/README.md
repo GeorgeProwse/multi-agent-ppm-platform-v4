@@ -124,6 +124,23 @@ Must not:
 **Critical gating artifact**
 - Scope baseline snapshot + approval status (must exist before schedule/resource planning).
 
+
+### Baseline repository and traceability matrix
+
+Agent 08 now persists scope baselines in a SQL-backed repository (`services/scope_baseline`) using SQLAlchemy. By default it uses SQLite at `data/scope_baselines.db`, and can be overridden with `SCOPE_BASELINE_DB_URL`.
+
+Key operations:
+
+- `manage_scope_baseline`: locks and persists a baseline snapshot and returns `baseline_id`.
+- `get_baseline`: retrieves a persisted baseline by `baseline_id`.
+- `create_traceability_matrix`: generates requirement-to-WBS mappings with coverage status and emits matrix events.
+
+Published events:
+
+- `baseline.created` when a baseline record is persisted.
+- `traceability.matrix.created` when a traceability matrix is generated.
+- Existing `scope.baseline.locked` remains for baseline lock notifications.
+
 ## Troubleshooting
 
 - `run-agent` fails with missing entrypoint: ensure a Python module exists under `src/`.
