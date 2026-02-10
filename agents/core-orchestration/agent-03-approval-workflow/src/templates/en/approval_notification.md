@@ -8,6 +8,8 @@ approval_request_body: |
   Urgency: ${urgency}
   Deadline: ${deadline}
 
+  ${delegation_note}
+
   Please review and submit your decision.
 approval_escalation_subject: "Escalation notice: ${description}"
 approval_escalation_body: |

@@ -44,6 +44,27 @@ At runtime, the agent computes `risk_score` and `criticality_level` from request
 These values are persisted in approval metadata, included in audit events, and rendered in escalation notifications.
 
 
+
+### Delegation rules
+
+Approval delegation can be toggled and configured via `ops/config/agents/approval_workflow.yaml`.
+
+- `delegation.enabled`: enables/disables delegate substitution during approver resolution.
+- `delegation.default_duration_days`: default active window when a delegate rule omits an explicit end date.
+- `delegation.rules`: map of approver IDs to one or more delegate rules. Each rule supports:
+  - `delegate`: delegate user ID
+  - `start`: ISO-8601 start datetime (optional)
+  - `end`: ISO-8601 end datetime (optional)
+
+Runtime behavior:
+
+1. When approvers are resolved, the agent checks each approver for an active delegation rule at the current UTC time.
+2. If a delegate is active, the delegate is assigned as the approver and delegation metadata is persisted in the approval record (`chain.delegations`).
+3. Notification text includes: `You are receiving this approval request on behalf of {original_approver}` for delegated requests.
+4. Notification subscription preferences now support `notify_delegate_directly` (default `true`):
+   - `true`: deliver delegated notifications to the delegate user.
+   - `false`: route delegated notifications to the original approver while preserving delegated assignment metadata.
+
 ### Notification localization and accessibility
 
 Approval notifications now support locale-aware templates and accessibility-focused output controls.

@@ -1,0 +1,7 @@
+delegation:
+  enabled: true
+  default_duration_days: 14
+  rules: {}
+
+notification:
+  notify_delegate_directly: true

@@ -19,3 +19,4 @@ This directory contains agent runtime, orchestration, and intent routing configu
 | [portfolio.yaml](./portfolio.yaml) | Domain agent behavior for demand intake, business case, portfolio strategy, and program management |
 | [knowledge_agent.yaml](./knowledge_agent.yaml) | Semantic search, embeddings, and summarization settings for Agent 19 knowledge/document management. |
 | [approval_policies.yaml](./approval_policies.yaml) | Approval workflow escalation and threshold policy including risk/criticality-driven timeouts |
+| [approval_workflow.yaml](./approval_workflow.yaml) | Approval workflow runtime toggles including delegation enablement and default delegation duration |
