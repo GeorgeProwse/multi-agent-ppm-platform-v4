@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import Any, cast
 
 import httpx
+import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from plan_schema import Plan, PlanTask
 
 from agents.common.web_search import (
     SearchPurpose,
@@ -58,6 +60,7 @@ class OrchestrationRequest(BaseModel):
     prompt_id: str | None = None
     prompt_description: str | None = None
     prompt_tags: list[str] = Field(default_factory=list)
+    plan_id: str | None = None
 
 
 class AgentInvocationResult(BaseModel):
@@ -72,6 +75,7 @@ class OrchestrationResponse(BaseModel):
     aggregated_response: str
     agent_results: list[AgentInvocationResult]
     execution_summary: dict[str, Any]
+    plan: dict[str, Any] | None = None
 
 
 class ValidationErrorPayload(BaseModel):
@@ -123,6 +127,10 @@ class ResponseOrchestrationAgent(BaseAgent):
         self._circuit_half_open_window = config.get("circuit_half_open_window", 30.0) if config else 30.0
         self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
         self._last_validation_error: dict[str, Any] | None = None
+        self.plans_dir = (
+            Path(config.get("plans_dir")) if config and config.get("plans_dir") else Path(__file__).resolve().parents[4] / "ops" / "config" / "plans"
+        )
+        self._current_plan_context: dict[str, Any] = {}
         meter = configure_metrics("response-orchestration")
         self._cache_hits = meter.create_counter(
             name="orchestration_cache_hits_total",
@@ -153,6 +161,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         self._load_agent_registry()
         if self.http_client is None:
             self.http_client = httpx.AsyncClient(timeout=self.agent_timeout)
+        self.plans_dir.mkdir(parents=True, exist_ok=True)
 
     async def validate_input(self, input_data: dict[str, Any]) -> bool:
         try:
@@ -284,8 +293,24 @@ class ResponseOrchestrationAgent(BaseAgent):
                 execution_summary={"total_agents": 0},
             )
 
+        plan = await self._resolve_plan(request.plan_id, routing)
+        self._current_plan_context = {
+            "plan_id": plan.plan_id,
+            "version": plan.version,
+        }
+
         # Build dependency graph
-        execution_plan = await self._build_execution_plan(routing)
+        execution_plan = await self._build_execution_plan(
+            [
+                {
+                    "agent_id": task.agent_id,
+                    "action": task.action,
+                    "depends_on": task.dependencies,
+                    **task.metadata,
+                }
+                for task in plan.tasks
+            ]
+        )
 
         # Execute agents according to plan
         results = await self._execute_plan(
@@ -306,6 +331,8 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "agent_count": len(routing),
                 "successful": len([r for r in results if r.get("success")]),
                 "failed": len([r for r in results if not r.get("success")]),
+                "plan_id": plan.plan_id,
+                "version": plan.version,
             },
         )
 
@@ -316,9 +343,61 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "total_agents": len(routing),
                 "successful": len([r for r in results if r.get("success")]),
                 "failed": len([r for r in results if not r.get("success")]),
+                "plan_id": plan.plan_id,
+                "version": plan.version,
             },
+            plan=plan.model_dump(mode="json"),
         )
         return response
+
+    async def _resolve_plan(self, plan_id: str | None, routing: list[dict[str, Any]]) -> Plan:
+        if plan_id:
+            return self._load_plan(plan_id)
+
+        new_plan = Plan(
+            plan_id=f"plan-{uuid.uuid4()}",
+            version=self._next_plan_version(),
+            tasks=[
+                PlanTask(
+                    task_id=f"task-{index + 1}",
+                    agent_id=item["agent_id"],
+                    action=item.get("action"),
+                    dependencies=list(item.get("depends_on") or []),
+                    metadata={
+                        key: value
+                        for key, value in item.items()
+                        if key not in {"agent_id", "action", "depends_on"}
+                    },
+                )
+                for index, item in enumerate(routing)
+            ],
+        )
+        self._store_plan(new_plan)
+        return new_plan
+
+    def _store_plan(self, plan: Plan) -> None:
+        destination = self.plans_dir / f"{plan.plan_id}.yaml"
+        destination.write_text(yaml.safe_dump(plan.model_dump(mode="json"), sort_keys=False))
+
+    def _load_plan(self, plan_id: str) -> Plan:
+        source = self.plans_dir / f"{plan_id}.yaml"
+        if not source.exists():
+            raise FileNotFoundError(f"Plan not found: {source}")
+        payload = yaml.safe_load(source.read_text())
+        if not isinstance(payload, dict):
+            raise ValueError(f"Invalid plan payload for {plan_id}")
+        return Plan.model_validate(payload)
+
+    def _next_plan_version(self) -> int:
+        versions: list[int] = []
+        for file_path in self.plans_dir.glob("*.yaml"):
+            try:
+                payload = yaml.safe_load(file_path.read_text())
+            except (ConnectionError, TimeoutError, ValueError, KeyError, TypeError, RuntimeError, OSError):
+                continue
+            if isinstance(payload, dict) and isinstance(payload.get("version"), int):
+                versions.append(payload["version"])
+        return (max(versions) if versions else 0) + 1
 
     async def _build_execution_plan(self, routing: list[dict[str, Any]]) -> dict[str, Any]:
         """
@@ -611,6 +690,10 @@ class ResponseOrchestrationAgent(BaseAgent):
         outcome: str,
         metadata: dict[str, Any] | None = None,
     ) -> None:
+        merged_metadata = dict(metadata or {})
+        for key in ("plan_id", "version"):
+            if key in self._current_plan_context and key not in merged_metadata:
+                merged_metadata[key] = self._current_plan_context[key]
         event = build_audit_event(
             tenant_id=tenant_id,
             action=action,
@@ -620,7 +703,7 @@ class ResponseOrchestrationAgent(BaseAgent):
             actor_roles=[],
             resource_id=self.agent_id,
             resource_type="orchestration",
-            metadata=metadata or {},
+            metadata=merged_metadata,
             trace_id=get_trace_id(),
             correlation_id=correlation_id,
         )
