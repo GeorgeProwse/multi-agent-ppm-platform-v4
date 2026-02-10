@@ -1,0 +1,9 @@
+input:
+  plan_id: plan-100
+actual_output:
+  aggregated_response: |
+    [financial-management] budget summary complete
+    [risk-management] risk posture complete
+  execution_summary:
+    successful_agents: 2
+    failed_agents: 0

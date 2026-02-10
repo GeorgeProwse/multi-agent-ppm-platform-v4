@@ -1,0 +1,10 @@
+input:
+  query: Show budget and risk for project Apollo.
+actual_output:
+  intents:
+    - intent: financial_query
+      confidence: 0.91
+    - intent: risk_query
+      confidence: 0.88
+  parameters:
+    project_id: APOLLO
