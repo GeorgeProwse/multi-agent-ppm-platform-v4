@@ -1,55 +1,16 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from urllib.parse import urljoin
 
-import httpx
-
-from tools.load_testing.runner import (
-    LoadScenario,
-    LoadSla,
-    assert_sla,
-    load_profile,
-    run_load_scenario,
-)
+from tests.load.multi_agent_scenarios import build_multi_agent_flow_scenario
+from ops.tools.load_testing.runner import LoadSla, assert_sla, load_profile, run_load_scenario
 
 
 def test_connectors_latency_sla(monkeypatch) -> None:
-    monkeypatch.setenv("LOAD_TARGET", "connector-hub-health")
+    monkeypatch.setenv("LOAD_TARGET", "risk-compliance-approval-flow")
     profile = load_profile(Path("tests/load/sla_targets.json"))
-    base_url = os.getenv(
-        "PERFORMANCE_BASE_URL",
-        profile.get("base_url") or "https://staging.api.ppm-platform.com",
-    )
-    target_url = profile.get("target_url", "/v1/connectors")
-    request_url = (
-        target_url
-        if target_url.startswith("http")
-        else urljoin(base_url.rstrip("/") + "/", target_url)
-    )
-    timeout = float(profile.get("timeout_s", 10.0))
-    headers: dict[str, str] = {}
-    auth_token = os.getenv("PERFORMANCE_AUTH_TOKEN")
-    if auth_token:
-        headers["Authorization"] = f"Bearer {auth_token}"
-    tenant_id = os.getenv("PERFORMANCE_TENANT_ID")
-    if tenant_id:
-        headers["X-Tenant-ID"] = tenant_id
+    scenario = build_multi_agent_flow_scenario(profile)
 
-    def _request() -> int:
-        try:
-            response = httpx.get(request_url, timeout=timeout, headers=headers)
-            return response.status_code
-        except httpx.RequestError:
-            return 599
-
-    scenario = LoadScenario(
-        name=profile["name"],
-        request_fn=_request,
-        total_requests=int(profile["total_requests"]),
-        concurrency=int(profile["concurrency"]),
-    )
     sla = LoadSla(
         max_avg_latency_s=float(profile["max_avg_latency_s"]),
         max_p95_latency_s=float(profile["max_p95_latency_s"]),
@@ -61,3 +22,20 @@ def test_connectors_latency_sla(monkeypatch) -> None:
 
     result = run_load_scenario(scenario)
     assert_sla(result, sla)
+
+    max_step_p95_latency_s = float(
+        profile.get("max_step_p95_latency_s", profile["max_p95_latency_s"])
+    )
+    max_step_error_rate = float(profile.get("max_step_error_rate", profile["max_error_rate"]))
+
+    for step_name, p95_latency in result.step_p95_latency_s.items():
+        assert p95_latency <= max_step_p95_latency_s, (
+            f"Step {step_name} p95 latency {p95_latency:.3f}s exceeds "
+            f"{max_step_p95_latency_s:.3f}s"
+        )
+
+    for step_name, step_error_rate in result.step_error_rate.items():
+        assert step_error_rate <= max_step_error_rate, (
+            f"Step {step_name} error rate {step_error_rate:.2%} exceeds "
+            f"{max_step_error_rate:.2%}"
+        )

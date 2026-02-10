@@ -462,5 +462,135 @@
         "min_requests_per_s": 40
       }
     }
+  },
+  {
+    "name": "project-definition-schedule-resource-flow",
+    "base_url": "https://staging.api.ppm-platform.com",
+    "flow_steps": [
+      {
+        "name": "project-definition",
+        "target_url": "/v1/agents/project-definition/execute",
+        "method": "POST",
+        "payload": {
+          "action": "generate_charter"
+        }
+      },
+      {
+        "name": "schedule-planning",
+        "target_url": "/v1/agents/schedule-planning/execute",
+        "method": "POST",
+        "payload": {
+          "action": "generate_schedule"
+        }
+      },
+      {
+        "name": "resource-capacity",
+        "target_url": "/v1/agents/resource-capacity/execute",
+        "method": "POST",
+        "payload": {
+          "action": "analyze_capacity"
+        }
+      }
+    ],
+    "profiles": {
+      "ci": {
+        "total_requests": 90,
+        "concurrency": 6,
+        "max_avg_latency_s": 1.2,
+        "max_p95_latency_s": 2.2,
+        "max_error_rate": 0.03,
+        "max_step_avg_latency_s": 0.9,
+        "max_step_p95_latency_s": 1.6,
+        "max_step_error_rate": 0.02,
+        "min_requests_per_s": 3
+      },
+      "staging": {
+        "total_requests": 360,
+        "concurrency": 18,
+        "max_avg_latency_s": 1.0,
+        "max_p95_latency_s": 1.8,
+        "max_error_rate": 0.02,
+        "max_step_avg_latency_s": 0.75,
+        "max_step_p95_latency_s": 1.35,
+        "max_step_error_rate": 0.015,
+        "min_requests_per_s": 9
+      },
+      "production": {
+        "total_requests": 1800,
+        "concurrency": 70,
+        "max_avg_latency_s": 0.9,
+        "max_p95_latency_s": 1.5,
+        "max_error_rate": 0.01,
+        "max_step_avg_latency_s": 0.65,
+        "max_step_p95_latency_s": 1.15,
+        "max_step_error_rate": 0.01,
+        "min_requests_per_s": 30
+      }
+    }
+  },
+  {
+    "name": "risk-compliance-approval-flow",
+    "base_url": "https://staging.api.ppm-platform.com",
+    "flow_steps": [
+      {
+        "name": "risk-management",
+        "target_url": "/v1/agents/risk-management/execute",
+        "method": "POST",
+        "payload": {
+          "action": "assess_risks"
+        }
+      },
+      {
+        "name": "compliance-regulatory",
+        "target_url": "/v1/agents/compliance-regulatory/execute",
+        "method": "POST",
+        "payload": {
+          "action": "run_compliance_check"
+        }
+      },
+      {
+        "name": "approval-workflow",
+        "target_url": "/v1/agents/approval-workflow/execute",
+        "method": "POST",
+        "payload": {
+          "action": "submit_for_approval"
+        }
+      }
+    ],
+    "profiles": {
+      "ci": {
+        "total_requests": 75,
+        "concurrency": 5,
+        "max_avg_latency_s": 1.35,
+        "max_p95_latency_s": 2.5,
+        "max_error_rate": 0.03,
+        "max_step_avg_latency_s": 1.0,
+        "max_step_p95_latency_s": 1.7,
+        "max_step_error_rate": 0.02,
+        "min_requests_per_s": 2.5
+      },
+      "staging": {
+        "total_requests": 300,
+        "concurrency": 15,
+        "max_avg_latency_s": 1.1,
+        "max_p95_latency_s": 2.0,
+        "max_error_rate": 0.02,
+        "max_step_avg_latency_s": 0.82,
+        "max_step_p95_latency_s": 1.4,
+        "max_step_error_rate": 0.015,
+        "min_requests_per_s": 7.5
+      },
+      "production": {
+        "total_requests": 1400,
+        "concurrency": 55,
+        "max_avg_latency_s": 0.95,
+        "max_p95_latency_s": 1.65,
+        "max_error_rate": 0.01,
+        "max_step_avg_latency_s": 0.7,
+        "max_step_p95_latency_s": 1.25,
+        "max_step_error_rate": 0.01,
+        "min_requests_per_s": 24
+      }
+    }
   }
 ]
