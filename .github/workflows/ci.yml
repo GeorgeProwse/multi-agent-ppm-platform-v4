@@ -68,11 +68,15 @@ jobs:
 
       - name: Install security tools
         run: |
-          pip install bandit safety checkov
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          pip install safety checkov
 
       - name: Bandit scan
-        run: bandit -r agents/ apps/ packages/ -x tests/ -ll
+        run: python ops/tools/run_bandit.py
+
+      - name: DAST scan
+        run: python ops/tools/run_dast.py
 
       - name: Safety scan
         run: safety check -r requirements.txt
@@ -84,6 +88,13 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         with:
           config: .gitleaks.toml
+
+      - name: Upload security scan reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-reports
+          path: artifacts/security/
 
   terraform:
     name: Terraform Validate
