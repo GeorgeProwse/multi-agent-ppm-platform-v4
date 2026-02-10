@@ -79,6 +79,79 @@ class RoleLookupClient:
         return resolved
 
 
+class DelegationClient:
+    def __init__(self, config: dict[str, Any] | None) -> None:
+        self.config = config or {}
+        self.default_duration_days = int(self.config.get("default_duration_days", 14))
+        self.rules = self._normalize_rules(self.config.get("rules", {}))
+
+    def _normalize_rules(self, rules: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+        normalized: dict[str, list[dict[str, Any]]] = {}
+        for user_id, entries in rules.items():
+            prepared: list[dict[str, Any]] = []
+            candidates = entries if isinstance(entries, list) else [entries]
+            for candidate in candidates:
+                if isinstance(candidate, str):
+                    start = datetime.now(timezone.utc)
+                    end = start + timedelta(days=self.default_duration_days)
+                    prepared.append(
+                        {
+                            "delegate": candidate,
+                            "start": start,
+                            "end": end,
+                        }
+                    )
+                    continue
+                if not isinstance(candidate, dict):
+                    continue
+                delegate = str(candidate.get("delegate") or "").strip()
+                if not delegate:
+                    continue
+                start = self._parse_datetime(candidate.get("start")) or datetime.min.replace(
+                    tzinfo=timezone.utc
+                )
+                end = self._parse_datetime(candidate.get("end"))
+                if end is None:
+                    end = start + timedelta(days=self.default_duration_days)
+                prepared.append(
+                    {
+                        "delegate": delegate,
+                        "start": start,
+                        "end": end,
+                    }
+                )
+            if prepared:
+                normalized[user_id] = prepared
+        return normalized
+
+    def _parse_datetime(self, raw: Any) -> datetime | None:
+        if not raw:
+            return None
+        if isinstance(raw, datetime):
+            return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+        if isinstance(raw, str):
+            try:
+                parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+            except ValueError:
+                return None
+        return None
+
+    def get_delegate(self, user_id: str, date: datetime) -> str | None:
+        candidate_date = date if date.tzinfo else date.replace(tzinfo=timezone.utc)
+        for rule in self.rules.get(user_id, []):
+            if rule["start"] <= candidate_date <= rule["end"]:
+                return rule["delegate"]
+        return None
+
+    def get_active_rule(self, user_id: str, date: datetime) -> dict[str, Any] | None:
+        candidate_date = date if date.tzinfo else date.replace(tzinfo=timezone.utc)
+        for rule in self.rules.get(user_id, []):
+            if rule["start"] <= candidate_date <= rule["end"]:
+                return rule
+        return None
+
+
 class NotificationTemplateEngine:
     def __init__(
         self,
@@ -165,6 +238,8 @@ class NotificationSubscriptionStore:
         if accessible not in {"text_only", "html_with_alt_text"}:
             accessible = "text_only"
         normalized["accessible_format"] = accessible
+        notify_delegate_directly = normalized.get("notify_delegate_directly", True)
+        normalized["notify_delegate_directly"] = bool(notify_delegate_directly)
         self.store.upsert(tenant_id, recipient_id, normalized)
 
     def delete_preferences(self, tenant_id: str, recipient_id: str) -> None:
@@ -228,6 +303,30 @@ class ApprovalWorkflowAgent(BaseAgent):
                 else "data/approval_notification_store.json"
             )
         )
+        self.workflow_config = self._load_workflow_config()
+        delegation_settings = self.workflow_config.get("delegation", {})
+        self.delegation_enabled = delegation_settings.get("enabled", True)
+        merged_rules = {
+            **delegation_settings.get("rules", {}),
+            **((config or {}).get("delegations", {})),
+        }
+        self.delegation_client = (config or {}).get("delegation_client") or DelegationClient(
+            {
+                "default_duration_days": delegation_settings.get("default_duration_days", 14),
+                "rules": merged_rules,
+            }
+        )
+
+    def _load_workflow_config(self) -> dict[str, Any]:
+        config_path = Path("ops/config/agents/approval_workflow.yaml")
+        if not config_path.exists():
+            return {}
+        try:
+            with config_path.open("r", encoding="utf-8") as handle:
+                data = yaml.safe_load(handle)
+            return data if isinstance(data, dict) else {}
+        except (OSError, yaml.YAMLError):
+            return {}
 
     async def initialize(self) -> None:
         """Initialize approval workflow configurations and connections."""
@@ -764,15 +863,22 @@ class ApprovalWorkflowAgent(BaseAgent):
 
         for approver in approvers:
             self.logger.info("Sending approval notification to %s", approver)
+            delegation_details = self._find_delegation_details(approval_chain, approver)
+            notification_recipient = self._resolve_notification_recipient(
+                tenant_id=tenant_id,
+                approver=approver,
+                delegation_details=delegation_details,
+            )
             context = self._build_notification_context(
                 tenant_id=tenant_id,
                 approval_chain=approval_chain,
                 approver=approver,
                 details=details,
+                delegation_details=delegation_details,
             )
             preferences = self._resolve_notification_preferences(
                 tenant_id=tenant_id,
-                approver=approver,
+                approver=notification_recipient,
                 approval_chain=approval_chain,
             )
             locale = preferences.get("locale", self.template_engine.default_locale)
@@ -788,7 +894,8 @@ class ApprovalWorkflowAgent(BaseAgent):
             push_message = self.template_engine.render("approval_request_push", locale, context)
 
             notification = {
-                "to": approver,
+                "to": notification_recipient,
+                "assigned_approver": approver,
                 "subject": subject,
                 "body": body,
                 "deadline": approval_chain["deadline"],
@@ -801,7 +908,7 @@ class ApprovalWorkflowAgent(BaseAgent):
             }
             result = await self._dispatch_notification(
                 tenant_id=tenant_id,
-                recipient=approver,
+                recipient=notification_recipient,
                 notification=notification,
                 subject=subject,
                 body=body,
@@ -816,7 +923,7 @@ class ApprovalWorkflowAgent(BaseAgent):
             if webhook:
                 payloads.append(
                     {
-                        "user": approver,
+                        "user": notification_recipient,
                         "approval_request_id": approval_chain["request_id"],
                         "message": body,
                         "deadline": approval_chain["deadline"],
@@ -1063,7 +1170,16 @@ class ApprovalWorkflowAgent(BaseAgent):
         approval_chain: dict[str, Any],
         approver: str,
         details: dict[str, Any],
+        delegation_details: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        delegation_note = ""
+        delegated_from = ""
+        if delegation_details:
+            delegated_from = str(delegation_details.get("delegator", ""))
+            if delegated_from:
+                delegation_note = (
+                    f"You are receiving this approval request on behalf of {delegated_from}."
+                )
         return {
             "tenant_id": tenant_id,
             "approval_id": approval_chain["id"],
@@ -1076,6 +1192,8 @@ class ApprovalWorkflowAgent(BaseAgent):
             "project_id": details.get("project_id") or approval_chain.get("project_id", ""),
             "deadline": approval_chain["deadline"],
             "approver": approver,
+            "delegated_from": delegated_from,
+            "delegation_note": delegation_note,
         }
 
     def _resolve_notification_preferences(
@@ -1105,7 +1223,30 @@ class ApprovalWorkflowAgent(BaseAgent):
         accessible = preferences.setdefault("accessible_format", "text_only")
         if accessible not in {"text_only", "html_with_alt_text"}:
             preferences["accessible_format"] = "text_only"
+        preferences.setdefault("notify_delegate_directly", True)
         return preferences
+
+    def _find_delegation_details(
+        self, approval_chain: dict[str, Any], approver: str
+    ) -> dict[str, Any] | None:
+        for record in approval_chain.get("delegations", []):
+            if record.get("delegate") == approver:
+                return record
+        return None
+
+    def _resolve_notification_recipient(
+        self,
+        *,
+        tenant_id: str,
+        approver: str,
+        delegation_details: dict[str, Any] | None,
+    ) -> str:
+        if not delegation_details:
+            return approver
+        preferences = self.notification_store.get_preferences(tenant_id, approver) or {}
+        if preferences.get("notify_delegate_directly", True):
+            return approver
+        return str(delegation_details.get("delegator") or approver)
 
     def _merge_preferences(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         if not base:
@@ -1390,16 +1531,22 @@ class ApprovalWorkflowAgent(BaseAgent):
         self.approval_store.update(tenant_id, approval_id, "pending", details)
 
     def _apply_delegations(self, approvers: list[str]) -> tuple[list[str], list[dict[str, Any]]]:
-        delegations = self.config.get("delegations", {}) if self.config else {}
         records: list[dict[str, Any]] = []
         resolved: list[str] = []
+        now = datetime.now(timezone.utc)
         for approver in approvers:
-            delegate = delegations.get(approver)
+            if not self.delegation_enabled:
+                resolved.append(approver)
+                continue
+            delegate = self.delegation_client.get_delegate(approver, now)
             if delegate:
+                active_rule = self.delegation_client.get_active_rule(approver, now) or {}
                 records.append(
                     {
                         "delegator": approver,
                         "delegate": delegate,
+                        "start": active_rule.get("start", now).isoformat(),
+                        "end": active_rule.get("end", now).isoformat(),
                         "recorded_at": datetime.now(timezone.utc).isoformat(),
                     }
                 )
@@ -1650,6 +1797,7 @@ class ApprovalWorkflowAgent(BaseAgent):
                     "Description: ${description}\n"
                     "Urgency: ${urgency}\n"
                     "Deadline: ${deadline}\n\n"
+                    "${delegation_note}\n\n"
                     "Please review and submit your decision."
                 ),
                 "approval_escalation_subject": "Escalation notice: ${description}",
@@ -1693,6 +1841,7 @@ class ApprovalWorkflowAgent(BaseAgent):
                     "Descripción: ${description}\n"
                     "Urgencia: ${urgency}\n"
                     "Fecha límite: ${deadline}\n\n"
+                    "${delegation_note}\n\n"
                     "Revisa y envía tu decisión."
                 ),
                 "approval_escalation_subject": "Aviso de escalamiento: ${description}",

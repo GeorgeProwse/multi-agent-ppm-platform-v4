@@ -8,6 +8,8 @@ approval_request_body: |
   Urgence : ${urgency}
   Date limite : ${deadline}
 
+  ${delegation_note}
+
   Veuillez examiner la demande et soumettre votre décision.
 approval_escalation_subject: "Avis d'escalade : ${description}"
 approval_escalation_body: |
