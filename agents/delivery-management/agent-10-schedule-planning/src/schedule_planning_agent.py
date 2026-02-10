@@ -15,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from change_configuration_agent import ChangeConfigurationAgent
 from events import ScheduleBaselineLockedEvent, ScheduleDelayEvent
 from observability.tracing import get_trace_id
@@ -85,6 +87,12 @@ class SchedulePlanningAgent(BaseAgent):
         self.enable_ai_model_service = config.get("enable_ai_model_service", True) if config else True
         self.enable_ml_simulation = config.get("enable_ml_simulation", True) if config else True
         self.cache_ttl_seconds = config.get("cache_ttl_seconds", 600) if config else 600
+        self.risk_adjustments_path = (
+            Path(config.get("risk_adjustments_path"))
+            if config and config.get("risk_adjustments_path")
+            else Path(__file__).resolve().parents[4] / "ops" / "config" / "agents" / "risk_adjustments.yaml"
+        )
+        self.risk_adjustments = self._load_risk_adjustments_config()
 
         schedule_store_path = (
             Path(config.get("schedule_store_path", "data/project_schedules.json"))
@@ -286,6 +294,9 @@ class SchedulePlanningAgent(BaseAgent):
                 input_data.get("project_id"),  # type: ignore
                 input_data.get("wbs", {}),
                 input_data.get("methodology", "waterfall"),
+                risk_data=input_data.get("risk_data"),
+                dependency_results=input_data.get("dependency_results", {}),
+                context=context,
                 tenant_id=tenant_id,
             )
 
@@ -300,7 +311,12 @@ class SchedulePlanningAgent(BaseAgent):
             )
 
         elif action == "calculate_critical_path":
-            return await self._calculate_critical_path(input_data.get("schedule_id"))  # type: ignore
+            return await self._calculate_critical_path(  # type: ignore
+                input_data.get("schedule_id"),
+                risk_data=input_data.get("risk_data"),
+                dependency_results=input_data.get("dependency_results", {}),
+                context=context,
+            )
 
         elif action == "resource_constrained_schedule":
             return await self._resource_constrained_schedule(
@@ -366,6 +382,9 @@ class SchedulePlanningAgent(BaseAgent):
         project_id: str,
         wbs: dict[str, Any],
         methodology: str = "waterfall",
+        risk_data: dict[str, Any] | None = None,
+        dependency_results: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
         *,
         tenant_id: str,
     ) -> dict[str, Any]:
@@ -387,6 +406,8 @@ class SchedulePlanningAgent(BaseAgent):
 
         # Apply duration estimates to tasks
         tasks_with_durations = await self._apply_duration_estimates(tasks, duration_estimates)
+        resolved_risk_data = self._resolve_risk_data(risk_data, dependency_results, context)
+        tasks_with_durations = self._apply_risk_adjustments_to_tasks(tasks_with_durations, resolved_risk_data)
 
         # Define dependencies
         dependencies = await self._suggest_dependencies(tasks_with_durations)
@@ -423,6 +444,7 @@ class SchedulePlanningAgent(BaseAgent):
             "gantt_data": gantt_data,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "status": "Draft",
+            "risk_data": resolved_risk_data,
         }
 
         # Store schedule
@@ -587,7 +609,13 @@ class SchedulePlanningAgent(BaseAgent):
             "circular_dependencies": circular_deps,
         }
 
-    async def _calculate_critical_path(self, schedule_id: str) -> dict[str, Any]:
+    async def _calculate_critical_path(
+        self,
+        schedule_id: str,
+        risk_data: dict[str, Any] | None = None,
+        dependency_results: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Calculate critical path using CPM.
 
@@ -601,6 +629,13 @@ class SchedulePlanningAgent(BaseAgent):
 
         tasks = schedule.get("tasks", [])
         dependencies = schedule.get("dependencies", [])
+        resolved_risk_data = self._resolve_risk_data(
+            risk_data,
+            dependency_results,
+            context,
+            fallback=schedule.get("risk_data"),
+        )
+        tasks = self._apply_risk_adjustments_to_tasks(tasks, resolved_risk_data)
 
         # Perform forward pass (calculate early start/finish)
         tasks_with_early = await self._forward_pass(tasks, dependencies)
@@ -623,6 +658,7 @@ class SchedulePlanningAgent(BaseAgent):
         schedule["tasks"] = tasks_with_slack
         schedule["critical_path"] = [t["task_id"] for t in critical_path_tasks]
         schedule["project_duration_days"] = project_duration
+        schedule["risk_data"] = resolved_risk_data
 
         if self.enable_persistence and self._sql_engine:
             await self._persist_schedule(schedule)
@@ -2606,6 +2642,73 @@ class SchedulePlanningAgent(BaseAgent):
                 for task in schedule.get("tasks", []):
                     task["duration"] = float(task.get("duration", 0) or 0) * 1.1
                 schedule["risk_adjusted_at"] = datetime.now(timezone.utc).isoformat()
+
+    def _load_risk_adjustments_config(self) -> dict[str, dict[str, float]]:
+        defaults = {
+            "high": {"schedule_buffer_pct": 0.2, "resource_load_factor": 1.25},
+            "medium": {"schedule_buffer_pct": 0.1, "resource_load_factor": 1.1},
+            "low": {"schedule_buffer_pct": 0.05, "resource_load_factor": 1.0},
+            "default": {"schedule_buffer_pct": 0.0, "resource_load_factor": 1.0},
+        }
+        if not self.risk_adjustments_path.exists():
+            return defaults
+        try:
+            payload = yaml.safe_load(self.risk_adjustments_path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError, ValueError):
+            return defaults
+        configured = payload.get("risk_adjustments", {}) if isinstance(payload, dict) else {}
+        normalized: dict[str, dict[str, float]] = {}
+        for level, values in configured.items():
+            if not isinstance(values, dict):
+                continue
+            normalized[str(level).lower()] = {
+                "schedule_buffer_pct": float(values.get("schedule_buffer_pct", 0.0) or 0.0),
+                "resource_load_factor": float(values.get("resource_load_factor", 1.0) or 1.0),
+            }
+        return {**defaults, **normalized}
+
+    def _resolve_risk_data(
+        self,
+        risk_data: dict[str, Any] | None,
+        dependency_results: dict[str, Any] | None,
+        context: dict[str, Any] | None,
+        fallback: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if isinstance(risk_data, dict) and risk_data:
+            return risk_data
+        if isinstance(context, dict) and isinstance(context.get("risk_data"), dict):
+            return context["risk_data"]
+        dep_results = dependency_results or {}
+        for result in dep_results.values():
+            if not isinstance(result, dict):
+                continue
+            data = result.get("data", result)
+            if isinstance(data, dict) and isinstance(data.get("risk_data"), dict):
+                return data["risk_data"]
+        return fallback or {}
+
+    def _apply_risk_adjustments_to_tasks(
+        self, tasks: list[dict[str, Any]], risk_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        task_risks = {
+            str(item.get("task_id")): str(item.get("risk_level", "")).lower()
+            for item in risk_data.get("task_risks", [])
+            if isinstance(item, dict) and item.get("task_id")
+        }
+        project_level = str(risk_data.get("project_risk_level", "")).lower()
+        adjusted: list[dict[str, Any]] = []
+        for task in tasks:
+            level = task_risks.get(str(task.get("task_id")), project_level or "default")
+            adjustment = self.risk_adjustments.get(level, self.risk_adjustments["default"])
+            base_duration = float(task.get("base_duration", task.get("duration", 0)) or 0)
+            buffered_duration = base_duration * (1 + adjustment.get("schedule_buffer_pct", 0.0))
+            next_task = dict(task)
+            next_task["base_duration"] = base_duration
+            next_task["duration"] = buffered_duration
+            next_task["risk_level"] = level
+            next_task["risk_buffer_pct"] = adjustment.get("schedule_buffer_pct", 0.0)
+            adjusted.append(next_task)
+        return adjusted
 
     def _handle_resource_event(self, payload: dict[str, Any]) -> None:
         resource_id = payload.get("resource_id")

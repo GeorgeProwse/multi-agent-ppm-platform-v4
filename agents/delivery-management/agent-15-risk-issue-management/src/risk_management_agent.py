@@ -1042,6 +1042,9 @@ class RiskManagementAgent(BaseAgent):
                     "probability": r.get("probability"),
                     "impact": r.get("impact"),
                     "status": r.get("status"),
+                    "risk_level": await self._classify_risk_level(float(r.get("exposure", 0) or 0)),
+                    "project_id": r.get("project_id"),
+                    "task_id": r.get("task_id"),
                 }
                 for r in ranked_risks
             ],
@@ -1388,6 +1391,9 @@ class RiskManagementAgent(BaseAgent):
                     "score": risk.get("score", 0),
                     "category": risk.get("category"),
                     "status": risk.get("status"),
+                    "risk_level": await self._classify_risk_level(float(risk.get("score", 0) or 0)),
+                    "project_id": risk.get("project_id"),
+                    "task_id": risk.get("task_id"),
                 }
             )
 
@@ -1466,6 +1472,26 @@ class RiskManagementAgent(BaseAgent):
             "mitigation_status": mitigation_status,
             "external_risk_research": external_risk_research,
             "external_risk_signals": external_risk_signals,
+            "risk_data": {
+                "project_id": project_id,
+                "project_risk_level": (
+                    "high"
+                    if prioritization.get("high_risks", 0)
+                    else "medium"
+                    if prioritization.get("medium_risks", 0)
+                    else "low"
+                ),
+                "task_risks": [
+                    {
+                        "task_id": item.get("task_id"),
+                        "risk_id": item.get("risk_id"),
+                        "risk_level": str(item.get("risk_level", "low")).lower(),
+                        "score": item.get("score", 0),
+                    }
+                    for item in prioritization.get("ranked_risks", [])
+                    if item.get("task_id")
+                ],
+            },
             "dashboard_generated_at": datetime.now(timezone.utc).isoformat(),
         }
 

@@ -162,3 +162,7 @@ The agent uses these Python packages (already available in the repo requirements
 - `run-agent` fails with missing entrypoint: ensure a Python module exists under `src/`.
 - Runtime errors about missing secrets: populate the required env vars in `.env`.
 - Docker execution fails: verify Docker is running and the agent has a `Dockerfile`.
+
+## Risk-based capacity integration
+- Applies risk load factors from `ops/config/agents/risk_adjustments.yaml` to demand and utilization calculations.
+- Includes risk-driven recommendations in `plan_capacity` output when high/medium risk is present.

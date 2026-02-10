@@ -539,8 +539,49 @@ class ResponseOrchestrationAgent(BaseAgent):
                 tenant_id=tenant_id,
             )
             results.extend(group_results)
+            risk_data = self._extract_risk_data_from_results(group_results)
+            if risk_data:
+                parameters["risk_data"] = risk_data
+                if isinstance(parameters.get("context"), dict):
+                    parameters["context"]["risk_data"] = risk_data
 
         return results
+
+    def _extract_risk_data_from_results(
+        self, results: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        for result in results:
+            if not result.get("success"):
+                continue
+            data = result.get("data")
+            if not isinstance(data, dict):
+                continue
+            if isinstance(data.get("risk_data"), dict):
+                return cast(dict[str, Any], data["risk_data"])
+            if isinstance(data.get("risk_matrix"), dict):
+                matrix = data["risk_matrix"].get("matrix_data", [])
+                if isinstance(matrix, list):
+                    return {
+                        "project_id": data.get("project_id"),
+                        "project_risk_level": (
+                            "high"
+                            if data.get("risk_summary", {}).get("high_risks", 0)
+                            else "medium"
+                            if data.get("risk_summary", {}).get("medium_risks", 0)
+                            else "low"
+                        ),
+                        "task_risks": [
+                            {
+                                "task_id": item.get("task_id"),
+                                "risk_id": item.get("risk_id"),
+                                "risk_level": str(item.get("risk_level", "low")).lower(),
+                                "score": item.get("score", 0),
+                            }
+                            for item in matrix
+                            if isinstance(item, dict) and item.get("task_id")
+                        ],
+                    }
+        return None
 
     async def _execute_parallel(
         self,

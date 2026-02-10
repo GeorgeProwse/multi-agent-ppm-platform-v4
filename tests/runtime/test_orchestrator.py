@@ -56,6 +56,17 @@ class FlakyAgent(BaseAgent):
         return {"status": "ok"}
 
 
+class RiskEmitterAgent(BaseAgent):
+    async def process(self, input_data: dict) -> dict:
+        return {
+            "risk_data": {
+                "project_id": "proj-1",
+                "project_risk_level": "high",
+                "task_risks": [{"task_id": "t1", "risk_level": "high"}],
+            }
+        }
+
+
 @pytest.mark.asyncio
 async def test_orchestrator_runs_dag_in_parallel() -> None:
     event_bus = build_test_event_bus()
@@ -132,6 +143,21 @@ async def test_orchestrator_persists_memory_across_calls() -> None:
     persisted = memory_client.load_context("conversation-1") or {}
     history = persisted.get("history", [])
     assert len(history) == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_persists_risk_data_in_shared_memory() -> None:
+    memory_client = MemoryClient(MemoryService(backend="memory"))
+    orchestrator = Orchestrator(
+        event_bus=build_test_event_bus(),
+        memory_client=memory_client,
+    )
+    tasks = [AgentTask(task_id="risk", agent=RiskEmitterAgent("risk-agent"))]
+
+    await orchestrator.run(tasks, memory_key="risk-conversation")
+
+    persisted = memory_client.load_context("risk-conversation") or {}
+    assert persisted["risk_data"]["project_risk_level"] == "high"
 
 
 @pytest.mark.asyncio
