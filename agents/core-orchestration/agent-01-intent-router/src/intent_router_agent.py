@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import uuid
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -150,41 +151,40 @@ class IntentRouterAgent(BaseAgent):
 
     def __init__(self, agent_id: str = "intent-router", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
+        self.agent_config = self._load_agent_config()
         self.routing_config = self._load_routing_config()
         self.intent_definitions = {intent.name: intent for intent in self.routing_config.intents}
         self.supported_intents = list(self.intent_definitions.keys())
-        self.intent_signals = {
-            "portfolio_query": ["portfolio", "program", "initiative", "portfolio health"],
-            "project_create": ["create project", "start project", "new project", "project charter"],
-            "schedule_query": ["schedule", "timeline", "deadline", "critical path", "milestone"],
-            "financial_query": ["budget", "cost", "financial", "npv", "irr", "roi", "forecast"],
-            "risk_query": ["risk", "risks", "issue", "mitigation", "risk register"],
-            "resource_query": ["resource", "capacity", "staffing", "utilization", "allocation"],
-            "demand_intake": ["demand", "intake", "request", "idea", "proposal"],
-            "compliance_query": ["compliance", "regulatory", "audit", "policy"],
-            "analytics_query": ["analytics", "insights", "report", "dashboard", "kpi"],
-        }
-        self.stopwords = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "to",
-            "for",
-            "of",
-            "in",
-            "on",
-            "with",
-            "me",
-            "show",
-            "get",
-            "please",
+        self.intent_descriptions = {
+            intent.name: (intent.description or intent.name.replace("_", " "))
+            for intent in self.routing_config.intents
         }
         self.intent_confidence_threshold = self.config.get(
             "intent_confidence_threshold",
             self.routing_config.default_min_confidence,
         )
+        self.top_k_intents = int(self.config.get("top_k_intents") or self.agent_config.get("top_k_intents") or 2)
+        self.intent_confidence_thresholds: dict[str, float] = {
+            str(intent): float(threshold)
+            for intent, threshold in (self.agent_config.get("confidence_thresholds") or {}).items()
+        }
+        self.classifier_model_name = str(
+            self.config.get("classifier_model_name")
+            or self.agent_config.get("classifier_model_name")
+            or "distilbert-base-uncased"
+        )
+        self.classifier_model_path = Path(
+            self.config.get("classifier_model_path")
+            or self.agent_config.get("classifier_model_path")
+            or (Path(__file__).resolve().parents[1] / "models" / "intent_classifier")
+        )
+        self.intent_classifier = self.config.get("intent_classifier")
+        self.nlp_model = self.config.get("nlp_model")
+        self._entity_patterns = self._build_entity_patterns()
+        self._label_prefix_pattern = re.compile(r"^[A-Z_]+\s*:\s*")
+        self._currency_aliases = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY"}
+        self._portfolio_pattern = re.compile(r"^PORT(?:FOLIO)?[-_\s]?\d{1,6}$", re.IGNORECASE)
+        self._project_pattern = re.compile(r"^(?:PROJ|PRJ|PROJECT)?[-_\s]?[A-Z0-9]{2,20}$", re.IGNORECASE)
         llm_config = self.config.get("llm_config") or {}
         if (
             not llm_config
@@ -202,6 +202,10 @@ class IntentRouterAgent(BaseAgent):
         self.prompt_text: str | None = None
         self.prompt_version: int | None = None
         self._last_validation_error: dict[str, Any] | None = None
+        if self.intent_classifier is None:
+            self.intent_classifier = self._load_transformer_classifier()
+        if self.nlp_model is None:
+            self.nlp_model = self._load_nlp_model()
 
     async def initialize(self) -> None:
         """Initialize NLP models and routing configuration."""
@@ -380,6 +384,68 @@ class IntentRouterAgent(BaseAgent):
         except ValidationError as exc:
             raise ValueError(f"Routing config invalid: {config_path}") from exc
 
+    def _load_agent_config(self) -> dict[str, Any]:
+        config_path = Path(
+            self.config.get("agent_config_path")
+            or os.getenv("INTENT_ROUTER_AGENT_CONFIG_PATH")
+            or (Path(__file__).resolve().parents[4] / "ops" / "config" / "agents" / "intent-router.yaml")
+        )
+        try:
+            payload = yaml.safe_load(config_path.read_text())
+        except OSError:
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _load_transformer_classifier(self) -> Any:
+        if self.config.get("disable_transformers"):
+            return None
+        try:
+            from transformers import pipeline
+        except ImportError:
+            self.logger.warning("transformers not available; fallback classifier disabled")
+            return None
+        model_target = str(self.classifier_model_path)
+        if not self.classifier_model_path.exists():
+            model_target = self.classifier_model_name
+        try:
+            return pipeline(
+                "zero-shot-classification",
+                model=model_target,
+            )
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.logger.warning("Unable to initialize transformer classifier", extra={"error": str(exc)})
+            return None
+
+    def _load_nlp_model(self) -> Any:
+        try:
+            import spacy
+        except ImportError:
+            self.logger.warning("spaCy not available; entity extraction will use regex patterns")
+            return None
+        try:
+            nlp = spacy.load("en_core_web_sm")
+        except OSError:
+            nlp = spacy.blank("en")
+        if "entity_ruler" not in nlp.pipe_names:
+            ruler = nlp.add_pipe("entity_ruler")
+        else:
+            ruler = nlp.get_pipe("entity_ruler")
+        ruler.add_patterns(self._entity_patterns)
+        return nlp
+
+    def _build_entity_patterns(self) -> list[dict[str, Any]]:
+        return [
+            {"label": "SCHEDULE_FOCUS", "pattern": "critical path"},
+            {"label": "SCHEDULE_FOCUS", "pattern": "milestone"},
+            {"label": "SCHEDULE_FOCUS", "pattern": "milestones"},
+            {"label": "CURRENCY", "pattern": [{"LOWER": {"IN": ["usd", "eur", "gbp", "jpy"]}}]},
+            {"label": "PROJECT_ID", "pattern": [{"LOWER": "project"}, {"IS_ASCII": True, "OP": "+"}]},
+            {
+                "label": "PORTFOLIO_ID",
+                "pattern": [{"LOWER": "portfolio"}, {"IS_ASCII": True, "OP": "+"}],
+            },
+        ]
+
     def _load_mock_response(self) -> dict[str, Any] | None:
         mock_path = os.getenv("LLM_MOCK_RESPONSE_PATH")
         if mock_path:
@@ -440,7 +506,13 @@ class IntentRouterAgent(BaseAgent):
                 intent_config.min_confidence if intent_config else self.intent_confidence_threshold
             )
             confidence_value = float(confidence)
-            if confidence_value < max(self.intent_confidence_threshold, min_confidence):
+            override_threshold = self.intent_confidence_thresholds.get(intent)
+            effective_threshold = max(
+                self.intent_confidence_threshold,
+                min_confidence,
+                override_threshold if override_threshold is not None else 0.0,
+            )
+            if confidence_value < effective_threshold:
                 continue
             normalized.append(
                 {
@@ -449,7 +521,7 @@ class IntentRouterAgent(BaseAgent):
                 }
             )
         normalized.sort(key=lambda item: float(item.get("confidence", 0.0)), reverse=True)
-        return normalized
+        return normalized[: self.top_k_intents]
 
     async def _classify_intent(self, query: str) -> list[dict[str, Any]]:
         """
@@ -457,50 +529,30 @@ class IntentRouterAgent(BaseAgent):
 
         Returns list of intents with confidence scores.
         """
-        query_lower = query.lower()
-        tokens = [token for token in re.findall(r"[a-z0-9']+", query_lower) if token]
-        filtered_tokens = {token for token in tokens if token not in self.stopwords}
-
-        intents: list[dict[str, Any]] = []
-        max_score = 0.0
-
-        for intent, signals in self.intent_signals.items():
-            if intent not in self.supported_intents:
-                continue
-            score = 0.0
-            for signal in signals:
-                if " " in signal:
-                    if signal in query_lower:
-                        score += 2.0
-                else:
-                    if signal in filtered_tokens:
-                        score += 1.0
-
-            if score > 0:
-                max_score = max(max_score, score)
-                intents.append({"intent": intent, "raw_score": score})
-
-        if not intents:
+        if self.intent_classifier is None:
             fallback_intent = self.routing_config.fallback_intent
             return [{"intent": fallback_intent, "confidence": 0.5}]
 
-        normalized_intents = []
-        for intent_entry in intents:
-            raw_score = float(intent_entry.get("raw_score", 0))
-            confidence = 0.55 + (raw_score / max_score) * 0.4
-            normalized_intents.append(
-                {
-                    "intent": str(intent_entry.get("intent", "general_query")),
-                    "confidence": round(min(confidence, 0.98), 2),
-                }
+        try:
+            classification = self.intent_classifier(
+                query,
+                candidate_labels=self.supported_intents,
+                hypothesis_template="This request is about {}.",
+                multi_label=True,
             )
+        except (ValueError, RuntimeError, TypeError, KeyError) as exc:
+            self.logger.warning("Transformer classification failed", extra={"error": str(exc)})
+            fallback_intent = self.routing_config.fallback_intent
+            return [{"intent": fallback_intent, "confidence": 0.5}]
 
-        def _confidence_key(item: dict[str, Any]) -> float:
-            confidence = item.get("confidence")
-            return float(confidence) if confidence is not None else 0.0
-
-        normalized_intents.sort(key=_confidence_key, reverse=True)
-        return normalized_intents
+        labels = classification.get("labels", [])
+        scores = classification.get("scores", [])
+        predictions = [IntentPrediction(intent=str(label), confidence=float(score)) for label, score in zip(labels, scores)]
+        normalized = self._normalize_intents(predictions)
+        if normalized:
+            return normalized
+        fallback_intent = self.routing_config.fallback_intent
+        return [{"intent": fallback_intent, "confidence": 0.5}]
 
     async def _determine_agents(
         self, intents: list[dict[str, Any]], dependencies: dict[str, list[str]] | None = None
@@ -546,6 +598,23 @@ class IntentRouterAgent(BaseAgent):
         parameters: dict[str, Any] = {}
         query_lower = query.lower()
 
+        if self.nlp_model is not None:
+            doc = self.nlp_model(query)
+            for ent in doc.ents:
+                cleaned = self._clean_entity_value(ent.text)
+                if ent.label_ == "PROJECT_ID" and cleaned:
+                    parameters["project_id"] = self._normalize_project_id(cleaned)
+                    parameters["entity_type"] = "project"
+                elif ent.label_ == "PORTFOLIO_ID" and cleaned:
+                    parameters["portfolio_id"] = self._normalize_portfolio_id(cleaned)
+                    parameters["entity_type"] = "portfolio"
+                elif ent.label_ == "CURRENCY" and cleaned:
+                    parameters["currency"] = cleaned.upper()
+                elif ent.label_ == "SCHEDULE_FOCUS":
+                    parameters["schedule_focus"] = (
+                        "critical_path" if "critical" in cleaned.lower() else "milestones"
+                    )
+
         project_match = re.search(r"project\s+([a-z0-9_-]+)", query_lower)
         if project_match:
             parameters["project_id"] = project_match.group(1).upper()
@@ -560,26 +629,57 @@ class IntentRouterAgent(BaseAgent):
         if currency_match:
             parameters["currency"] = currency_match.group(1).upper()
 
-        amount_match = re.search(r"\$?\s*([0-9]+(?:\.[0-9]+)?)\s?(k|m)?", query_lower)
-        if amount_match:
-            amount = float(amount_match.group(1))
-            suffix = amount_match.group(2)
+        amount_pattern = re.compile(
+            r"(?:(?P<symbol>[\$€£¥])\s*)?(?P<value>\d+(?:\.\d+)?)\s?(?P<suffix>k|m)?\b"
+        )
+        for amount_match in amount_pattern.finditer(query_lower):
+            context_window = query_lower[max(0, amount_match.start() - 12) : amount_match.end() + 12]
+            if not (
+                amount_match.group("symbol")
+                or amount_match.group("suffix")
+                or re.search(r"\b(usd|eur|gbp|jpy|budget|cost|amount|forecast)\b", context_window)
+            ):
+                continue
+            amount = float(amount_match.group("value"))
+            suffix = amount_match.group("suffix")
             if suffix == "k":
                 amount *= 1_000
             elif suffix == "m":
                 amount *= 1_000_000
             parameters["amount"] = amount
+            break
 
-        if any(intent["intent"] == "schedule_query" for intent in intents):
-            if "critical path" in query_lower:
-                parameters["schedule_focus"] = "critical_path"
-            if "milestone" in query_lower:
-                parameters["schedule_focus"] = "milestones"
+        if "currency" not in parameters:
+            symbol_counter = Counter(char for char in query if char in self._currency_aliases)
+            if symbol_counter:
+                symbol = symbol_counter.most_common(1)[0][0]
+                parameters["currency"] = self._currency_aliases[symbol]
+
+        if "critical path" in query_lower:
+            parameters["schedule_focus"] = "critical_path"
+        elif "milestone" in query_lower:
+            parameters["schedule_focus"] = "milestones"
 
         try:
             return ExtractedParameters.model_validate(parameters).model_dump(exclude_none=True)
         except ValidationError:
             return parameters
+
+    def _clean_entity_value(self, value: str) -> str:
+        cleaned = value.strip().strip(".,:;()[]{}")
+        return self._label_prefix_pattern.sub("", cleaned).strip()
+
+    def _normalize_project_id(self, value: str) -> str:
+        token = value.replace(" ", "-").upper()
+        if token.startswith("PROJECT-"):
+            token = token.removeprefix("PROJECT-")
+        return token
+
+    def _normalize_portfolio_id(self, value: str) -> str:
+        token = value.replace(" ", "-").upper()
+        if token.startswith("PORTFOLIO-"):
+            token = token.removeprefix("PORTFOLIO-")
+        return token
 
     def get_capabilities(self) -> list[str]:
         """Return list of capabilities."""

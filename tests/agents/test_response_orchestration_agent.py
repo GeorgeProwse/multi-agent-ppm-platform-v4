@@ -213,3 +213,52 @@ async def test_response_orchestration_detects_dependency_cycle():
                 "approval_decision": "approve",
             }
         )
+
+
+@pytest.mark.asyncio
+async def test_response_orchestration_supports_duplicate_agent_routes_for_multi_intent():
+    called_paths = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        called_paths.append(request.url.path)
+        return httpx.Response(200, json={"message": "ok", "route": request.url.path})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        agent = ResponseOrchestrationAgent(
+            config={
+                "agent_endpoints": {"schedule-planning": "http://test/schedule"},
+                "http_client": client,
+                "event_bus": build_test_event_bus(),
+                "cache_ttl": -1,
+            }
+        )
+        await agent.initialize()
+
+        response = await agent.process(
+            {
+                "routing": [
+                    {
+                        "agent_id": "schedule-planning",
+                        "intent": "schedule_query",
+                        "action": "get_schedule",
+                    },
+                    {
+                        "agent_id": "schedule-planning",
+                        "intent": "schedule_update",
+                        "action": "update_schedule",
+                    },
+                ],
+                "intents": [
+                    {"intent": "schedule_query", "confidence": 0.91},
+                    {"intent": "schedule_update", "confidence": 0.84},
+                ],
+                "parameters": {"project_id": "APOLLO"},
+                "query": "Show and update schedule for project Apollo",
+                "approval_decision": "approve",
+            }
+        )
+
+    payload = response.model_dump()
+    assert called_paths == ["/schedule", "/schedule"]
+    assert payload["execution_summary"]["total_agents"] == 2

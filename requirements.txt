@@ -41,6 +41,8 @@ langchain-community==0.3.14
 tiktoken==0.5.2
 numpy==1.26.4
 faiss-cpu==1.8.0
+transformers==4.48.0
+spacy==3.7.5
 
 # Utilities
 python-dotenv==1.0.0
