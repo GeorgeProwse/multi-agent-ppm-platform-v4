@@ -30,3 +30,30 @@ evaluations:
         equals: search
       - field: expected.first_tool
         equals: search
+
+  - id: runtime-agent-output-check
+    stage: response
+    description: Validate expected agent response values from fixture outputs.
+    fixture: fixtures/flow-intent-router.yaml
+    expected_outputs:
+      - field: intents[0].intent
+        equals: financial_query
+      - field: parameters.project_id
+        equals: APOLLO
+
+multi_agent_flows:
+  - id: intake-to-orchestration-flow
+    description: Example multi-agent evaluation flow using fixture outputs.
+    steps:
+      - id: classify-intent
+        fixture: fixtures/flow-intent-router.yaml
+        expected_outputs:
+          - field: intents[1].intent
+            equals: risk_query
+      - id: orchestrate-response
+        fixture: fixtures/flow-orchestration.yaml
+        expected_outputs:
+          - field: execution_summary.successful_agents
+            equals: 2
+          - field: aggregated_response
+            contains: risk-management

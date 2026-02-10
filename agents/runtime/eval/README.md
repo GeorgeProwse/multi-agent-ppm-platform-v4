@@ -7,7 +7,7 @@ Track evaluation assets and outputs for the runtime agent stack.
 ## What's inside
 
 - `README.md`: Documentation for this directory.
-- `manifest.yaml`: Minimal evaluation manifest that enumerates fixtures and assertions.
+- `manifest.yaml`: Evaluation manifest with stage checks, expected output assertions, and multi-agent flow definitions.
 - `fixtures/`: Stage-scoped fixture sets for regression checks.
 - `run_eval.py`: Lightweight harness that validates the manifest and fixtures.
 
@@ -31,3 +31,10 @@ No direct configuration; evaluation tooling reads files from this directory.
 
 - Missing evaluation inputs: add the required fixtures or manifests to this folder.
 - Evaluation failures: verify schema compatibility with the runtime evaluator.
+
+
+## Manifest features
+
+- `assertions`: Validate fixture fields directly (legacy behavior).
+- `expected_outputs`: Validate agent output fields from `actual_output`, `output`, or `response` in each fixture.
+- `multi_agent_flows`: Define flow steps and validate each step's fixture outputs for cross-agent scenarios.
