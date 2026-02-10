@@ -679,6 +679,10 @@ class Orchestrator:
         )
         agent_outputs = context.setdefault("agent_outputs", {})
         agent_outputs[task_id] = result_payload
+        if isinstance(result_payload.get("data"), dict):
+            risk_data = result_payload["data"].get("risk_data")
+            if isinstance(risk_data, dict):
+                context["risk_data"] = risk_data
         insights = context.setdefault("insights", [])
         new_insights = self._normalize_insights(task_id, result_payload)
         insights.extend(new_insights)

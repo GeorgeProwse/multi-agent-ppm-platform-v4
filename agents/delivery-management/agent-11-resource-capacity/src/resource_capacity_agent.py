@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
+import yaml
+
 from data_quality.rules import evaluate_quality_rules
 from events import ResourceAllocationCreatedEvent
 from observability.tracing import get_trace_id
@@ -756,6 +758,12 @@ class ResourceCapacityAgent(BaseAgent):
         )
         self.forecast_horizon_months = config.get("forecast_horizon_months", 12) if config else 12
         self.utilization_target = config.get("utilization_target", 0.85) if config else 0.85
+        self.risk_adjustments_path = (
+            Path(config.get("risk_adjustments_path"))
+            if config and config.get("risk_adjustments_path")
+            else Path(__file__).resolve().parents[4] / "ops" / "config" / "agents" / "risk_adjustments.yaml"
+        )
+        self.risk_adjustments = self._load_risk_adjustments_config()
         self.scenario_engine = ScenarioEngine()
         self.skill_match_weights = (
             config.get(
@@ -1616,7 +1624,8 @@ class ResourceCapacityAgent(BaseAgent):
         current_capacity = await self._calculate_total_capacity()
 
         # Get current demand
-        current_demand = await self._calculate_total_demand()
+        risk_data = filters.get("risk_data") if isinstance(filters.get("risk_data"), dict) else None
+        current_demand = await self._calculate_total_demand(risk_data)
 
         capacity_series, demand_series = await self._build_capacity_demand_history(history_months)
         ml_metadata = await self._train_forecasting_models(
@@ -1706,7 +1715,12 @@ class ResourceCapacityAgent(BaseAgent):
         self.logger.info("Planning capacity")
 
         # Get forecast
-        forecast = await self._forecast_capacity({})
+        risk_data = (
+            planning_horizon.get("risk_data")
+            if isinstance(planning_horizon.get("risk_data"), dict)
+            else None
+        )
+        forecast = await self._forecast_capacity({"risk_data": risk_data} if risk_data else {})
 
         # Identify gaps
         gaps = await self._identify_capacity_gaps(forecast)
@@ -1738,6 +1752,7 @@ class ResourceCapacityAgent(BaseAgent):
             "optimization": optimization,
             "hiring_recommendations": await self._generate_hiring_recommendations(gaps),
             "training_recommendations": await self._generate_training_recommendations(gaps),
+            "risk_based_recommendations": self._build_risk_capacity_recommendations(risk_data),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -1915,7 +1930,7 @@ class ResourceCapacityAgent(BaseAgent):
         utilization_data = []
 
         for resource_id, resource in self.resource_pool.items():
-            utilization = await self._calculate_resource_utilization(resource_id)
+            utilization = await self._calculate_resource_utilization(resource_id, filters.get("risk_data"))
             utilization_data.append(
                 {
                     "resource_id": resource_id,
@@ -2715,13 +2730,15 @@ class ResourceCapacityAgent(BaseAgent):
             total_capacity += float(resource.get("availability", 0.0))
         return total_capacity
 
-    async def _calculate_total_demand(self) -> float:
-        """Calculate total resource demand in FTE."""
+    async def _calculate_total_demand(self, risk_data: dict[str, Any] | None = None) -> float:
+        """Calculate total resource demand in FTE, including risk load factors."""
         total_demand = 0
         for allocations_list in self.allocations.values():
             for alloc in allocations_list:
                 if alloc.get("status") == "Active":
-                    total_demand += alloc.get("allocation_percentage", 0) / 100
+                    base_allocation = float(alloc.get("allocation_percentage", 0) or 0) / 100
+                    risk_level = self._resolve_allocation_risk_level(alloc, risk_data)
+                    total_demand += base_allocation * self._risk_load_factor(risk_level)
         return total_demand
 
     async def _build_capacity_demand_history(self, months: int) -> tuple[list[float], list[float]]:
@@ -3071,17 +3088,92 @@ class ResourceCapacityAgent(BaseAgent):
             "available_hours": available_hours,
         }
 
-    async def _calculate_resource_utilization(self, resource_id: str) -> float:
-        """Calculate utilization for a resource."""
+    async def _calculate_resource_utilization(
+        self, resource_id: str, risk_data: dict[str, Any] | None = None
+    ) -> float:
+        """Calculate utilization for a resource, adjusted by risk load factors."""
         allocations = self.allocations.get(resource_id, [])
 
-        total_allocation = sum(
-            float(alloc.get("allocation_percentage", 0))
-            for alloc in allocations
-            if alloc.get("status") == "Active"
-        )
+        total_allocation = 0.0
+        for alloc in allocations:
+            if alloc.get("status") != "Active":
+                continue
+            risk_level = self._resolve_allocation_risk_level(alloc, risk_data)
+            total_allocation += (
+                float(alloc.get("allocation_percentage", 0) or 0)
+                * self._risk_load_factor(risk_level)
+            )
 
         return cast(float, total_allocation / 100)  # type: ignore
+
+    def _load_risk_adjustments_config(self) -> dict[str, dict[str, float]]:
+        defaults = {
+            "high": {"schedule_buffer_pct": 0.2, "resource_load_factor": 1.25},
+            "medium": {"schedule_buffer_pct": 0.1, "resource_load_factor": 1.1},
+            "low": {"schedule_buffer_pct": 0.05, "resource_load_factor": 1.0},
+            "default": {"schedule_buffer_pct": 0.0, "resource_load_factor": 1.0},
+        }
+        if not self.risk_adjustments_path.exists():
+            return defaults
+        try:
+            payload = yaml.safe_load(self.risk_adjustments_path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError, ValueError):
+            return defaults
+        configured = payload.get("risk_adjustments", {}) if isinstance(payload, dict) else {}
+        normalized: dict[str, dict[str, float]] = {}
+        for level, values in configured.items():
+            if not isinstance(values, dict):
+                continue
+            normalized[str(level).lower()] = {
+                "schedule_buffer_pct": float(values.get("schedule_buffer_pct", 0.0) or 0.0),
+                "resource_load_factor": float(values.get("resource_load_factor", 1.0) or 1.0),
+            }
+        return {**defaults, **normalized}
+
+    def _risk_load_factor(self, risk_level: str | None) -> float:
+        level = str(risk_level or "default").lower()
+        return float(
+            self.risk_adjustments.get(level, self.risk_adjustments["default"]).get(
+                "resource_load_factor", 1.0
+            )
+        )
+
+    def _resolve_allocation_risk_level(
+        self, allocation: dict[str, Any], risk_data: dict[str, Any] | None
+    ) -> str:
+        if not risk_data:
+            return "default"
+        project_risk = str(risk_data.get("project_risk_level", "default")).lower()
+        project_id = allocation.get("project_id")
+        task_id = allocation.get("task_id")
+        for item in risk_data.get("task_risks", []):
+            if not isinstance(item, dict):
+                continue
+            if task_id and item.get("task_id") == task_id:
+                return str(item.get("risk_level", project_risk)).lower()
+            if project_id and item.get("project_id") == project_id:
+                return str(item.get("risk_level", project_risk)).lower()
+        return project_risk
+
+    def _build_risk_capacity_recommendations(
+        self, risk_data: dict[str, Any] | None
+    ) -> list[str]:
+        if not risk_data:
+            return []
+        project_level = str(risk_data.get("project_risk_level", "low")).lower()
+        recommendations: list[str] = []
+        if project_level == "high":
+            recommendations.append(
+                "Increase capacity buffers or add contingency staff for high-risk scope."
+            )
+            recommendations.append(
+                "Apply schedule padding for high-risk tasks to reduce burnout and overruns."
+            )
+        elif project_level == "medium":
+            recommendations.append(
+                "Monitor utilization weekly and reserve partial contingency capacity."
+            )
+        return recommendations
 
     async def _get_utilization_status(self, utilization: float) -> str:
         """Get utilization status."""

@@ -103,3 +103,7 @@ The agent processes a single `action` per request. Required inputs are enforced 
 - `run-agent` fails with missing entrypoint: ensure a Python module exists under `src/`.
 - Runtime errors about missing secrets: populate the required env vars in `.env`.
 - Docker execution fails: verify Docker is running and the agent has a `Dockerfile`.
+
+## Risk-based planning integration
+- Consumes `risk_data` (`project_risk_level`, `task_risks`) and applies duration buffers from `ops/config/agents/risk_adjustments.yaml`.
+- Risk-adjusted durations are used during schedule creation and critical-path recalculation.

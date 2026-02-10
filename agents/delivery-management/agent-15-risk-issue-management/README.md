@@ -115,3 +115,7 @@ The risk management agent can connect to Azure services and project management p
 - `run-agent` fails with missing entrypoint: ensure a Python module exists under `src/`.
 - Runtime errors about missing secrets: populate the required env vars in `.env`.
 - Docker execution fails: verify Docker is running and the agent has a `Dockerfile`.
+
+## Risk data outputs for downstream planning
+- Risk prioritization and matrix outputs now include `risk_level` and optional `task_id`/`project_id` fields.
+- Dashboard responses include a `risk_data` payload for schedule and resource agents.

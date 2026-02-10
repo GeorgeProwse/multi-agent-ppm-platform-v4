@@ -1,0 +1,13 @@
+risk_adjustments:
+  high:
+    schedule_buffer_pct: 0.20
+    resource_load_factor: 1.25
+  medium:
+    schedule_buffer_pct: 0.10
+    resource_load_factor: 1.10
+  low:
+    schedule_buffer_pct: 0.05
+    resource_load_factor: 1.00
+  default:
+    schedule_buffer_pct: 0.00
+    resource_load_factor: 1.00
