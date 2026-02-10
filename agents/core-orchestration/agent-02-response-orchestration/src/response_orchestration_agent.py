@@ -61,6 +61,9 @@ class OrchestrationRequest(BaseModel):
     prompt_description: str | None = None
     prompt_tags: list[str] = Field(default_factory=list)
     plan_id: str | None = None
+    approval_decision: str | None = None
+    plan_updates: list[dict[str, Any]] | None = None
+    approval_actor: str | None = None
 
 
 class AgentInvocationResult(BaseModel):
@@ -73,6 +76,7 @@ class AgentInvocationResult(BaseModel):
 
 class OrchestrationResponse(BaseModel):
     aggregated_response: str
+    status: str = "completed"
     agent_results: list[AgentInvocationResult]
     execution_summary: dict[str, Any]
     plan: dict[str, Any] | None = None
@@ -286,7 +290,7 @@ class ResponseOrchestrationAgent(BaseAgent):
                 parameters["external_research"] = external_research
                 prompt_payload["external_research"] = external_research
 
-        if not routing:
+        if not routing and not request.plan_id:
             return OrchestrationResponse(
                 aggregated_response="No agents to invoke",
                 agent_results=[],
@@ -298,6 +302,68 @@ class ResponseOrchestrationAgent(BaseAgent):
             "plan_id": plan.plan_id,
             "version": plan.version,
         }
+
+        if request.plan_updates is not None:
+            plan = self.update_pending_plan(
+                plan.plan_id,
+                request.plan_updates,
+                actor=request.approval_actor or "orchestration-api",
+            )
+
+        if request.approval_decision == "reject":
+            plan.status = "rejected"
+            self._store_plan(plan)
+            await self.event_bus.publish(
+                "plan.rejected",
+                {
+                    "plan_id": plan.plan_id,
+                    "version": plan.version,
+                    "modifications": plan.modification_history,
+                    "actor": request.approval_actor or "orchestration-api",
+                },
+            )
+            return OrchestrationResponse(
+                aggregated_response="Plan rejected. Execution cancelled.",
+                status="rejected",
+                agent_results=[],
+                execution_summary={
+                    "total_agents": len(plan.tasks),
+                    "successful": 0,
+                    "failed": 0,
+                    "plan_id": plan.plan_id,
+                    "version": plan.version,
+                },
+                plan=plan.model_dump(mode="json"),
+            )
+
+        if request.approval_decision != "approve":
+            plan.status = "pending_approval"
+            self._store_plan(plan)
+            return OrchestrationResponse(
+                aggregated_response="Plan created and awaiting approval.",
+                status="pending_approval",
+                agent_results=[],
+                execution_summary={
+                    "total_agents": len(plan.tasks),
+                    "successful": 0,
+                    "failed": 0,
+                    "plan_id": plan.plan_id,
+                    "version": plan.version,
+                },
+                plan=plan.model_dump(mode="json"),
+            )
+
+        plan.status = "approved"
+        self._store_plan(plan)
+        await self.event_bus.publish(
+            "plan.approved",
+            {
+                "plan_id": plan.plan_id,
+                "version": plan.version,
+                "modifications": plan.modification_history,
+                "actor": request.approval_actor or "orchestration-api",
+            },
+        )
 
         # Build dependency graph
         execution_plan = await self._build_execution_plan(
@@ -328,7 +394,7 @@ class ResponseOrchestrationAgent(BaseAgent):
             action="orchestration.aggregated",
             outcome="success",
             metadata={
-                "agent_count": len(routing),
+                "agent_count": len(plan.tasks),
                 "successful": len([r for r in results if r.get("success")]),
                 "failed": len([r for r in results if not r.get("success")]),
                 "plan_id": plan.plan_id,
@@ -338,9 +404,10 @@ class ResponseOrchestrationAgent(BaseAgent):
 
         response = OrchestrationResponse(
             aggregated_response=aggregated,
+            status="completed",
             agent_results=[AgentInvocationResult(**result) for result in results],
             execution_summary={
-                "total_agents": len(routing),
+                "total_agents": len(plan.tasks),
                 "successful": len([r for r in results if r.get("success")]),
                 "failed": len([r for r in results if not r.get("success")]),
                 "plan_id": plan.plan_id,
@@ -374,6 +441,16 @@ class ResponseOrchestrationAgent(BaseAgent):
         )
         self._store_plan(new_plan)
         return new_plan
+
+    def update_pending_plan(
+        self, plan_id: str, tasks: list[dict[str, Any]], *, actor: str = "orchestration-api"
+    ) -> Plan:
+        plan = self._load_plan(plan_id)
+        if plan.status != "pending_approval":
+            raise ValueError(f"Plan {plan_id} is not pending approval")
+        plan.apply_task_updates(tasks, actor=actor)
+        self._store_plan(plan)
+        return plan
 
     def _store_plan(self, plan: Plan) -> None:
         destination = self.plans_dir / f"{plan.plan_id}.yaml"

@@ -69,6 +69,18 @@ class WorkflowUploadResponse(BaseModel):
     definition_source: str | None = None
 
 
+class PlanApprovalRequest(BaseModel):
+    decision: str = Field(pattern="^(approve|reject)$")
+    tasks: list[dict[str, object]] | None = None
+    actor: str = "orchestration-api"
+
+
+class PlanApprovalResponse(BaseModel):
+    success: bool
+    data: dict[str, object] | None = None
+    error: str | None = None
+
+
 @app.on_event("startup")
 async def startup() -> None:
     await orchestrator.initialize()
@@ -201,6 +213,19 @@ async def upload_workflow(
         }
     )
     return WorkflowUploadResponse(**response)
+
+
+@api_router.post("/plans/{plan_id}/approve", response_model=PlanApprovalResponse)
+async def approve_plan(plan_id: str, payload: PlanApprovalRequest, request: Request) -> PlanApprovalResponse:
+    auth = request.state.auth
+    response = await orchestrator.approve_plan(
+        plan_id=plan_id,
+        decision=payload.decision,
+        tasks=payload.tasks,
+        actor=payload.actor,
+        context={"tenant_id": auth.tenant_id},
+    )
+    return PlanApprovalResponse(**response)
 
 
 app.include_router(api_router)
