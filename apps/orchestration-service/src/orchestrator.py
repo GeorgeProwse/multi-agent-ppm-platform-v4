@@ -518,6 +518,34 @@ class AgentOrchestrator:
 
         logger.info("Platform agents loaded")
 
+    async def approve_plan(
+        self,
+        *,
+        plan_id: str,
+        decision: str,
+        tasks: list[dict[str, Any]] | None = None,
+        actor: str = "orchestration-api",
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not self.initialized:
+            raise RuntimeError("Orchestrator not initialized")
+
+        assert self.response_orchestrator is not None, "Response orchestrator not initialized"
+        request_context = context or {}
+        return await self._execute_agent(
+            self.response_orchestrator,
+            {
+                "routing": [],
+                "parameters": {},
+                "query": request_context.get("query") or "plan approval",
+                "context": request_context,
+                "plan_id": plan_id,
+                "approval_decision": decision,
+                "plan_updates": tasks,
+                "approval_actor": actor,
+            },
+        ).model_dump()
+
     async def process_query(
         self,
         query: str,
