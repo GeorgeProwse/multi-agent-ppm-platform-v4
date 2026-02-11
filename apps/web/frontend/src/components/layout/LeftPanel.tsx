@@ -1,5 +1,5 @@
 import { Link, matchPath, useLocation } from 'react-router-dom';
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { useAppStore } from '@/store';
 import { useTranslation } from '@/i18n';
 import { canManageConfig, canViewAuditLogs, hasPermission } from '@/auth/permissions';
@@ -49,7 +49,7 @@ const workflowNav: NavItem[] = [
     id: 'approvals',
     label: 'My Approvals',
     path: '/approvals',
-    icon: 'actions.confirmApply',
+    icon: 'actions.confirmApply' as IconSemantic,
   },
   {
     id: 'intake-new',
@@ -61,7 +61,7 @@ const workflowNav: NavItem[] = [
     id: 'intake-approvals',
     label: 'Intake Approvals',
     path: '/intake/approvals',
-    icon: 'actions.confirmApply',
+    icon: 'actions.confirmApply' as IconSemantic,
   },
   {
     id: 'workflow-monitoring',
@@ -218,7 +218,7 @@ export function LeftPanel() {
             id: 'merge-review',
             label: 'Merge Review',
             path: '/intake/merge-review',
-            icon: 'actions.confirmApply',
+            icon: 'actions.confirmApply' as IconSemantic,
           },
         ]
       : []),
@@ -244,6 +244,76 @@ export function LeftPanel() {
         },
       ]
     : [];
+
+  const renderNavItemList = (
+    items: NavItem[],
+    options?: {
+      isActive?: (item: NavItem) => boolean;
+    }
+  ) => (
+    <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
+      {items.map((item) => {
+        const isActive = options?.isActive ? options.isActive(item) : location.pathname === item.path;
+
+        return (
+          <li key={item.id}>
+            <Link
+              to={item.path!}
+              className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+              title={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
+              aria-label={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
+              data-nav-item="true"
+              data-tour={tourTargets[item.id] ?? undefined}
+            >
+              <Icon semantic={item.icon} decorative className={styles.icon} />
+              {!leftPanelCollapsed && (
+                <span className={styles.label}>{labelOverrides[item.id] ?? item.label}</span>
+              )}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const renderSection = (title: string, content: ReactNode) => (
+    <div className={styles.section}>
+      {!leftPanelCollapsed && <h3 className={styles.sectionTitle}>{title}</h3>}
+      {content}
+    </div>
+  );
+
+  const renderHubNav = () => (
+    <>
+      {renderSection('Navigate', <MethodologyNav collapsed={leftPanelCollapsed} />)}
+      {renderSection('Work', renderNavItemList(workflowItems))}
+      {renderSection('Insights', renderNavItemList([...knowledgeNav, ...analyticsNav]))}
+      {renderSection('Admin', renderNavItemList(configItems))}
+    </>
+  );
+
+  const renderProjectWorkspaceNav = () => (
+    <>
+      {renderSection('Methodology Map', <MethodologyNav collapsed={leftPanelCollapsed} />)}
+      {(showProjectConfig && projectConfigNav.length > 0) || (projectId && !leftPanelCollapsed)
+        ? renderSection(
+            'Project',
+            <>
+              {showProjectConfig && projectConfigNav.length > 0
+                ? renderNavItemList(projectConfigNav, {
+                    isActive: (item) => location.pathname.startsWith(item.path!),
+                  })
+                : null}
+              {projectId && !leftPanelCollapsed && (
+                <div className={styles.mcpSidebar}>
+                  <ProjectMcpSidebar />
+                </div>
+              )}
+            </>
+          )
+        : null}
+    </>
+  );
 
   return (
     <aside
@@ -271,158 +341,7 @@ export function LeftPanel() {
       </div>
 
       <nav className={styles.nav} id="left-panel-nav" aria-label="Primary navigation">
-        {sidebarMode === 'hub' && (
-          <>
-            {/* Methodology Navigation - Main section */}
-            <div className={styles.section}>
-              {!leftPanelCollapsed && (
-                <h3 className={styles.sectionTitle}>{t('nav.methodology')}</h3>
-              )}
-              <MethodologyNav collapsed={leftPanelCollapsed} />
-            </div>
-
-            {/* Configuration Navigation */}
-            <div className={styles.section}>
-              {!leftPanelCollapsed && (
-                <h3 className={styles.sectionTitle}>{t('nav.configuration')}</h3>
-              )}
-              <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
-                {configItems.map((item) => (
-                  <li key={item.id}>
-                    <Link
-                      to={item.path!}
-                      className={`${styles.navItem} ${
-                        location.pathname === item.path ? styles.active : ''
-                      }`}
-                      title={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                      aria-label={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                      data-nav-item="true"
-                      data-tour={tourTargets[item.id] ?? undefined}
-                    >
-                      <Icon semantic={item.icon} decorative className={styles.icon} />
-                      {!leftPanelCollapsed && (
-                        <span className={styles.label}>{labelOverrides[item.id] ?? item.label}</span>
-                      )}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className={styles.section}>
-          {!leftPanelCollapsed && (
-            <h3 className={styles.sectionTitle}>{t('nav.workflow')}</h3>
-          )}
-          <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
-            {workflowItems.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={item.path!}
-                  className={`${styles.navItem} ${
-                    location.pathname === item.path ? styles.active : ''
-                  }`}
-                  title={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  aria-label={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  data-nav-item="true"
-                  data-tour={tourTargets[item.id] ?? undefined}
-                >
-                  <Icon semantic={item.icon} decorative className={styles.icon} />
-                  {!leftPanelCollapsed && (
-                    <span className={styles.label}>{labelOverrides[item.id] ?? item.label}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-            </div>
-
-            <div className={styles.section}>
-          {!leftPanelCollapsed && (
-            <h3 className={styles.sectionTitle}>{t('nav.knowledge')}</h3>
-          )}
-          <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
-            {knowledgeNav.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={item.path!}
-                  className={`${styles.navItem} ${
-                    location.pathname === item.path ? styles.active : ''
-                  }`}
-                  title={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  aria-label={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  data-nav-item="true"
-                  data-tour={tourTargets[item.id] ?? undefined}
-                >
-                  <Icon semantic={item.icon} decorative className={styles.icon} />
-                  {!leftPanelCollapsed && (
-                    <span className={styles.label}>{labelOverrides[item.id] ?? item.label}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-            </div>
-
-            <div className={styles.section}>
-          {!leftPanelCollapsed && <h3 className={styles.sectionTitle}>Analytics</h3>}
-          <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
-            {analyticsNav.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={item.path!}
-                  className={`${styles.navItem} ${
-                    location.pathname === item.path ? styles.active : ''
-                  }`}
-                  title={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  aria-label={leftPanelCollapsed ? (labelOverrides[item.id] ?? item.label) : undefined}
-                  data-nav-item="true"
-                >
-                  <Icon semantic={item.icon} decorative className={styles.icon} />
-                  {!leftPanelCollapsed && (
-                    <span className={styles.label}>{labelOverrides[item.id] ?? item.label}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-            </div>
-          </>
-        )}
-
-        {showProjectConfig && projectConfigNav.length > 0 && (
-          <div className={styles.section}>
-            {!leftPanelCollapsed && <h3 className={styles.sectionTitle}>Config</h3>}
-            <ul className={styles.navList} onKeyDown={handleNavKeyDown}>
-              {projectConfigNav.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    to={item.path!}
-                    className={`${styles.navItem} ${
-                      location.pathname.startsWith(item.path!) ? styles.active : ''
-                    }`}
-                    title={leftPanelCollapsed ? item.label : undefined}
-                    aria-label={leftPanelCollapsed ? item.label : undefined}
-                    data-nav-item="true"
-                  >
-                    <Icon semantic={item.icon} decorative className={styles.icon} />
-                    {!leftPanelCollapsed && (
-                      <span className={styles.label}>{item.label}</span>
-                    )}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {projectId && !leftPanelCollapsed && (
-          <div className={styles.section}>
-            <h3 className={styles.sectionTitle}>Project MCP</h3>
-            <div className={styles.mcpSidebar}>
-              <ProjectMcpSidebar />
-            </div>
-          </div>
-        )}
+        {sidebarMode === 'hub' ? renderHubNav() : renderProjectWorkspaceNav()}
       </nav>
     </aside>
   );
