@@ -15,6 +15,26 @@ import type { IconSemantic } from '@/components/icon/iconMap';
  */
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+export type ScopeResearchStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface ScopeResearchItem {
+  id: string;
+  text: string;
+  status: ScopeResearchStatus;
+}
+
+export interface ScopeResearchMessageData {
+  objective?: string;
+  scope?: ScopeResearchItem[];
+  requirements?: ScopeResearchItem[];
+  wbs?: ScopeResearchItem[];
+  sources?: string[];
+  notice?: string;
+  usedExternalResearch?: boolean;
+}
+
+export type AssistantMessageType = 'default' | 'scope_research';
+
 /**
  * Assistant AI state model for UX standards
  */
@@ -158,6 +178,12 @@ export interface AssistantMessage {
 
   /** Message content */
   content: string;
+
+  /** Message rendering type */
+  messageType?: AssistantMessageType;
+
+  /** Optional structured message payload */
+  data?: ScopeResearchMessageData;
 
   /** Timestamp */
   timestamp: Date;
