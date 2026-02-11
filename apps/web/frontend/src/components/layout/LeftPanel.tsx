@@ -1,5 +1,5 @@
 import { Link, matchPath, useLocation } from 'react-router-dom';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { useAppStore } from '@/store';
 import { useTranslation } from '@/i18n';
 import { canManageConfig, canViewAuditLogs, hasPermission } from '@/auth/permissions';
@@ -44,13 +44,34 @@ const configNav: NavItem[] = [
   },
 ];
 
-const workflowNav: NavItem[] = [
+const navigateNav: NavItem[] = [
   {
-    id: 'approvals',
-    label: 'My Approvals',
-    path: '/approvals',
-    icon: 'actions.confirmApply' as IconSemantic,
+    id: 'home',
+    label: 'Home',
+    path: '/',
+    icon: 'artifact.dashboard',
   },
+  {
+    id: 'my-portfolios',
+    label: 'My Portfolios',
+    path: '/portfolios',
+    icon: 'artifact.document',
+  },
+  {
+    id: 'my-programs',
+    label: 'My Programs',
+    path: '/programs',
+    icon: 'provenance.auditLog',
+  },
+  {
+    id: 'my-projects',
+    label: 'My Projects',
+    path: '/projects',
+    icon: 'actions.edit',
+  },
+];
+
+const workNav: NavItem[] = [
   {
     id: 'intake-new',
     label: 'New Intake',
@@ -58,20 +79,26 @@ const workflowNav: NavItem[] = [
     icon: 'actions.edit' as IconSemantic,
   },
   {
+    id: 'approvals',
+    label: 'My Approvals',
+    path: '/approvals',
+    icon: 'actions.confirmApply' as IconSemantic,
+  },
+  {
     id: 'intake-approvals',
     label: 'Intake Approvals',
     path: '/intake/approvals',
     icon: 'actions.confirmApply' as IconSemantic,
   },
-  {
-    id: 'workflow-monitoring',
-    label: 'Workflow Monitor',
-    path: '/workflows/monitoring',
-    icon: 'provenance.auditLog' as IconSemantic,
-  },
 ];
 
-const knowledgeNav: NavItem[] = [
+const insightsNav: NavItem[] = [
+  {
+    id: 'analytics-dashboard',
+    label: 'Analytics Dashboard',
+    path: '/analytics/dashboard',
+    icon: 'artifact.dashboard',
+  },
   {
     id: 'knowledge-documents',
     label: 'Documents',
@@ -83,15 +110,6 @@ const knowledgeNav: NavItem[] = [
     label: 'Lessons Learned',
     path: '/knowledge/lessons',
     icon: 'ai.explainability',
-  },
-];
-
-const analyticsNav: NavItem[] = [
-  {
-    id: 'analytics-dashboard',
-    label: 'Analytics Dashboard',
-    path: '/analytics/dashboard',
-    icon: 'artifact.dashboard',
   },
 ];
 
@@ -127,6 +145,7 @@ export function LeftPanel() {
   const showMergeReview = featureFlags.duplicate_resolution === true;
   const showNotifications = featureFlags.agent_async_notifications === true;
   const selectedProjectId = currentSelection?.type === 'project' ? currentSelection.id : null;
+  const [isHubAdminExpanded, setIsHubAdminExpanded] = useState(false);
   const projectIdFromRoute = getProjectIdFromPathname(location.pathname);
   const sidebarMode = getSidebarMode(location.pathname);
   const projectId =
@@ -178,6 +197,38 @@ export function LeftPanel() {
 
   const configItems: NavItem[] = [
     ...configNav,
+    {
+      id: 'workflow-monitoring',
+      label: 'Workflow Monitor',
+      path: '/workflows/monitoring',
+      icon: 'provenance.auditLog' as IconSemantic,
+    },
+    {
+      id: 'methodology-editor',
+      label: 'Methodology Editor',
+      path: '/admin/methodology',
+      icon: 'actions.edit' as IconSemantic,
+    },
+    ...(showMergeReview
+      ? [
+          {
+            id: 'merge-review',
+            label: 'Merge Review',
+            path: '/intake/merge-review',
+            icon: 'actions.confirmApply' as IconSemantic,
+          },
+        ]
+      : []),
+    ...(showNotifications
+      ? [
+          {
+            id: 'notifications',
+            label: 'Notification Center',
+            path: '/notifications',
+            icon: 'communication.notifications' as IconSemantic,
+          },
+        ]
+      : []),
     ...(showRoleManager
       ? [
           {
@@ -205,30 +256,6 @@ export function LeftPanel() {
             label: 'Agent Runs',
             path: '/admin/agent-runs',
             icon: 'provenance.auditLog' as IconSemantic,
-          },
-        ]
-      : []),
-  ];
-
-  const workflowItems: NavItem[] = [
-    ...workflowNav,
-    ...(showMergeReview
-      ? [
-          {
-            id: 'merge-review',
-            label: 'Merge Review',
-            path: '/intake/merge-review',
-            icon: 'actions.confirmApply' as IconSemantic,
-          },
-        ]
-      : []),
-    ...(showNotifications
-      ? [
-          {
-            id: 'notifications',
-            label: 'Notification Center',
-            path: '/notifications',
-            icon: 'communication.notifications' as IconSemantic,
           },
         ]
       : []),
@@ -285,10 +312,36 @@ export function LeftPanel() {
 
   const renderHubNav = () => (
     <>
-      {renderSection('Navigate', <MethodologyNav collapsed={leftPanelCollapsed} />)}
-      {renderSection('Work', renderNavItemList(workflowItems))}
-      {renderSection('Insights', renderNavItemList([...knowledgeNav, ...analyticsNav]))}
-      {renderSection('Admin', renderNavItemList(configItems))}
+      {renderSection('Navigate', renderNavItemList(navigateNav))}
+      {renderSection('Work', renderNavItemList(workNav))}
+      {renderSection('Insights', renderNavItemList(insightsNav))}
+      {renderSection(
+        'Admin',
+        <>
+          {!leftPanelCollapsed && (
+            <button
+              type="button"
+              className={styles.adminToggle}
+              onClick={() => setIsHubAdminExpanded((expanded) => !expanded)}
+              aria-expanded={isHubAdminExpanded}
+              aria-controls="hub-admin-nav-list"
+            >
+              <Icon
+                semantic="navigation.collapse"
+                decorative
+                className={styles.adminToggleIcon}
+                style={{
+                  transform: isHubAdminExpanded ? 'rotate(180deg)' : 'rotate(90deg)',
+                }}
+              />
+              <span className={styles.adminToggleLabel}>Hub Admin</span>
+            </button>
+          )}
+          {(leftPanelCollapsed || isHubAdminExpanded) && (
+            <div id="hub-admin-nav-list">{renderNavItemList(configItems)}</div>
+          )}
+        </>
+      )}
     </>
   );
 
