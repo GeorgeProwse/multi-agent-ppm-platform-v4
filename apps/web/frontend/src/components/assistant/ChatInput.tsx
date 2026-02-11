@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, RefObject } from 'react';
 import { Icon } from '@/components/icon/Icon';
 import { usePromptStore } from '@/store/prompts';
+import { PromptPicker } from './PromptPicker';
 import styles from './ChatInput.module.css';
 
 const MIN_HEIGHT = 56;
@@ -50,13 +51,17 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
     textareaRef.current.style.height = `${Math.max(MIN_HEIGHT, Math.min(textareaRef.current.scrollHeight, MAX_HEIGHT))}px`;
   }, [textareaRef]);
 
+  const openPromptPicker = () => {
+    setPromptPickerOpen(true);
+    hydratePrompts();
+  };
+
   const runCommand = async (command: string) => {
     setValue('');
     setActiveCommandIndex(0);
 
     if (command === '/prompt') {
-      setPromptPickerOpen(true);
-      hydratePrompts();
+      openPromptPicker();
       return;
     }
 
@@ -181,26 +186,18 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
       )}
 
       {promptPickerOpen && (
-        <div className={styles.promptPicker} role="dialog" aria-label="Prompt picker">
-          <div className={styles.promptHeader}>Prompt picker</div>
-          {prompts.map((prompt) => (
-            <button
-              key={prompt.id}
-              type="button"
-              className={styles.promptOption}
-              onClick={() => {
-                setValue(prompt.description);
-                setPromptPickerOpen(false);
-                requestAnimationFrame(() => {
-                  textareaRef.current?.focus();
-                });
-              }}
-            >
-              <span className={styles.promptTitle}>{prompt.label}</span>
-              <span className={styles.promptDescription}>{prompt.description}</span>
-            </button>
-          ))}
-        </div>
+        <PromptPicker
+          prompts={prompts}
+          onClose={() => {
+            setPromptPickerOpen(false);
+            requestAnimationFrame(() => {
+              textareaRef.current?.focus();
+            });
+          }}
+          onSelectPrompt={(prompt) => {
+            setValue(prompt.description);
+          }}
+        />
       )}
 
       <div className={styles.inputRow}>
@@ -219,6 +216,18 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
           ref={textareaRef}
           id="assistant-chat-input"
         />
+        <button
+          type="button"
+          className={styles.promptButton}
+          onClick={openPromptPicker}
+          title="Open prompt picker"
+          aria-label="Open prompt picker"
+        >
+          <Icon
+            semantic="artifact.document"
+            label="Open prompt picker"
+          />
+        </button>
         <button
           type="submit"
           className={styles.sendButton}
