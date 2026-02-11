@@ -110,6 +110,38 @@
   margin-bottom: var(--space-4);
 }
 
+.projectWorkspaceLayout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.projectMethodologySection {
+  flex: 1 1 70%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.methodologyContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.projectLinksSection {
+  flex: 0 1 30%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.projectContent {
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .sectionTitle {
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-xs);
@@ -209,6 +241,11 @@
 
 .panel.collapsed .sectionTitle {
   display: none;
+}
+
+.panel.collapsed .projectMethodologySection,
+.panel.collapsed .projectLinksSection {
+  margin-bottom: var(--space-2);
 }
 
 @media (max-width: 768px) {

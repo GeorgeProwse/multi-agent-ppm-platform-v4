@@ -314,8 +314,8 @@ export function LeftPanel() {
     </ul>
   );
 
-  const renderSection = (title: string, content: ReactNode) => (
-    <div className={styles.section}>
+  const renderSection = (title: string, content: ReactNode, className?: string) => (
+    <div className={`${styles.section} ${className ?? ''}`}>
       {!leftPanelCollapsed && <h3 className={styles.sectionTitle}>{title}</h3>}
       {content}
     </div>
@@ -357,12 +357,18 @@ export function LeftPanel() {
   );
 
   const renderProjectWorkspaceNav = () => (
-    <>
-      {renderSection('Methodology Map', <MethodologyNav collapsed={leftPanelCollapsed} />)}
+    <div className={styles.projectWorkspaceLayout}>
+      {renderSection(
+        'Methodology Map',
+        <div className={styles.methodologyContent}>
+          <MethodologyNav collapsed={leftPanelCollapsed} />
+        </div>,
+        styles.projectMethodologySection
+      )}
       {(showProjectConfig && projectConfigNav.length > 0) || (projectId && !leftPanelCollapsed)
         ? renderSection(
             'Project',
-            <>
+            <div className={styles.projectContent}>
               {showProjectConfig && projectConfigNav.length > 0
                 ? renderNavItemList(projectConfigNav, {
                     isActive: (item) => location.pathname.startsWith(item.path!),
@@ -373,10 +379,11 @@ export function LeftPanel() {
                   <ProjectMcpSidebar />
                 </div>
               )}
-            </>
+            </div>,
+            styles.projectLinksSection
           )
         : null}
-    </>
+    </div>
   );
 
   return (
