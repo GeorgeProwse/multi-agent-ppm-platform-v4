@@ -17,6 +17,8 @@ import {
   useAssistantStore,
   type ActionChip,
   type PrerequisiteInfo,
+  type ScopeResearchItem,
+  type ScopeResearchMessageData,
 } from '@/store/assistant';
 import { Icon } from '@/components/icon/Icon';
 import { AssistantHeader } from './AssistantHeader';
@@ -28,24 +30,6 @@ import { ChatInput } from './ChatInput';
 import { createArtifact, createEmptyContent } from '@ppm/canvas-engine';
 import { formatAssistantResponse } from '@/utils/assistantResponses';
 import styles from './AssistantPanel.module.css';
-
-type ScopeResearchStatus = 'pending' | 'accepted' | 'rejected';
-type ScopeResearchSection = 'scope' | 'requirements' | 'wbs';
-
-interface ScopeResearchItem {
-  id: string;
-  text: string;
-  status: ScopeResearchStatus;
-}
-
-interface ScopeResearchResult {
-  scope: ScopeResearchItem[];
-  requirements: ScopeResearchItem[];
-  wbs: ScopeResearchItem[];
-  sources: string[];
-  notice?: string;
-  usedExternalResearch: boolean;
-}
 
 type ConversationalChangeStatus = 'add' | 'update' | 'remove';
 
@@ -81,6 +65,7 @@ export function AssistantPanel() {
     context,
     addUserMessage,
     addAssistantMessage,
+    addSystemMessage,
     updateContext,
     generateSuggestions,
     showGatingWarning,
@@ -89,14 +74,6 @@ export function AssistantPanel() {
     setAiState,
   } = useAssistantStore();
 
-  const [scopeResearchOpen, setScopeResearchOpen] = useState(false);
-  const [scopeResearchObjective, setScopeResearchObjective] = useState('');
-  const [scopeResearchLoading, setScopeResearchLoading] = useState(false);
-  const [scopeResearchError, setScopeResearchError] = useState<string | null>(null);
-  const [scopeResearchResult, setScopeResearchResult] = useState<ScopeResearchResult | null>(
-    null
-  );
-  const [scopeResearchPreviewOpen, setScopeResearchPreviewOpen] = useState(false);
   const [conversationalCommand, setConversationalCommand] =
     useState<ConversationalCommandPreview | null>(null);
   const [conversationalConfirmed, setConversationalConfirmed] = useState(false);
@@ -201,47 +178,53 @@ export function AssistantPanel() {
       status: 'pending',
     }));
 
-  const updateScopeItem = (
-    section: ScopeResearchSection,
-    id: string,
-    updates: Partial<ScopeResearchItem>
+  const applyScopeResearchSelections = useCallback((
+    result: ScopeResearchMessageData,
+    acceptedItems: ScopeResearchItem[]
   ) => {
-    setScopeResearchResult((prev) => {
-      if (!prev) return prev;
-      const updatedSection = (prev[section] as ScopeResearchItem[]).map((item) =>
-        item.id === id ? { ...item, ...updates } : item
-      );
-      return { ...prev, [section]: updatedSection } as ScopeResearchResult;
-    });
-  };
+    const confirmed = window.confirm(
+      'Apply these scope updates to the project workspace?'
+    );
+    if (!confirmed) {
+      return false;
+    }
 
-  const handleScopeResearchSubmit = async () => {
+    addAssistantMessage(
+      `Captured ${acceptedItems.length} scope items for review in the project workspace.`,
+      undefined,
+      false,
+      { sources: result.sources ?? [] }
+    );
+    return true;
+  }, [addAssistantMessage]);
+
+  const startScopeResearch = useCallback(async (initialObjective?: string) => {
     if (!context?.projectId) {
       addAssistantMessage('Select a project before running scope research.');
       return;
     }
-    if (!scopeResearchObjective.trim()) {
-      setScopeResearchError('Please enter a high-level objective.');
+
+    const objectiveInput = (initialObjective ?? window.prompt('Enter a high-level objective for scope research:') ?? '').trim();
+    if (!objectiveInput) {
+      addAssistantMessage('Scope research was cancelled because no objective was provided.');
       return;
     }
 
-    setScopeResearchLoading(true);
-    setScopeResearchError(null);
-    setScopeResearchResult(null);
-    setScopeResearchPreviewOpen(false);
+    addSystemMessage('Starting scope research…');
     setAiState('tool_use');
 
     try {
       const response = await fetch(`/v1/projects/${context.projectId}/scope/research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ objective: scopeResearchObjective.trim() }),
+        body: JSON.stringify({ objective: objectiveInput }),
       });
       if (!response.ok) {
         throw new Error('Scope research failed.');
       }
       const data = await response.json();
-      setScopeResearchResult({
+      const result: ScopeResearchMessageData = {
+        objective: objectiveInput,
         scope: buildScopeItems(
           [
             ...(data.scope?.in_scope ?? []),
@@ -255,89 +238,21 @@ export function AssistantPanel() {
         sources: data.sources ?? [],
         notice: data.notice,
         usedExternalResearch: data.used_external_research ?? false,
+      };
+
+      addAssistantMessage('Scope research completed. Review and apply accepted items below.', undefined, false, {
+        messageType: 'scope_research',
+        data: result,
+        sources: result.sources,
       });
-      if (data.notice) {
-        addAssistantMessage(data.notice, undefined, false, {
-          sources: data.sources ?? [],
-        });
-      }
       setAiState('completed');
     } catch (error) {
-      setScopeResearchError('Unable to complete scope research. Please try again.');
       addAssistantMessage('Scope research failed. Please try again.', undefined, true, {
         aiState: 'error',
       });
       setAiState('error');
-    } finally {
-      setScopeResearchLoading(false);
     }
-  };
-
-  const renderResearchSection = (
-    title: string,
-    section: ScopeResearchSection,
-    items: ScopeResearchItem[]
-  ) => (
-    <div className={styles.researchSection}>
-      <h4 className={styles.researchSectionTitle}>{title}</h4>
-      {items.length === 0 ? (
-        <p className={styles.researchEmpty}>No suggestions yet.</p>
-      ) : (
-        items.map((item) => (
-          <div key={item.id} className={styles.researchItem}>
-            <input
-              className={styles.researchInput}
-              value={item.text}
-              onChange={(event) =>
-                updateScopeItem(section, item.id, { text: event.target.value })
-              }
-            />
-            <div className={styles.researchActions}>
-              <button
-                type="button"
-                className={`${styles.researchAction} ${
-                  item.status === 'accepted' ? styles.researchActionActive : ''
-                }`}
-                onClick={() => updateScopeItem(section, item.id, { status: 'accepted' })}
-              >
-                Accept
-              </button>
-              <button
-                type="button"
-                className={`${styles.researchAction} ${
-                  item.status === 'rejected' ? styles.researchActionReject : ''
-                }`}
-                onClick={() => updateScopeItem(section, item.id, { status: 'rejected' })}
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
-
-  const renderPreviewSection = (title: string, items: ScopeResearchItem[]) => (
-    <div className={styles.researchPreviewSection}>
-      <h4 className={styles.researchSectionTitle}>{title}</h4>
-      {items.length === 0 ? (
-        <p className={styles.researchEmpty}>No suggestions yet.</p>
-      ) : (
-        <div className={styles.researchPreviewList}>
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className={`${styles.researchPreviewItem} ${styles[`preview${item.status}`]}`}
-            >
-              <span className={styles.researchPreviewStatus}>{item.status}</span>
-              <span>{item.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  }, [addAssistantMessage, addSystemMessage, context?.projectId, setAiState]);
 
   // Handle chip click
   const handleChipClick = useCallback(
@@ -504,10 +419,7 @@ export function AssistantPanel() {
         }
 
         case 'scope_research': {
-          setScopeResearchObjective(chip.payload.objective ?? '');
-          setScopeResearchResult(null);
-          setScopeResearchError(null);
-          setScopeResearchOpen(true);
+          void startScopeResearch(chip.payload.objective);
           break;
         }
 
@@ -581,7 +493,7 @@ export function AssistantPanel() {
       projectMethodology.projectId,
       addAssistantMessage,
       currentActivityId,
-      setScopeResearchObjective,
+      startScopeResearch,
       conversationalCommandsEnabled,
     ]
   );
@@ -800,6 +712,7 @@ export function AssistantPanel() {
             small={options?.small}
           />
         )}
+        onApplyScopeResearch={applyScopeResearchSelections}
       />
 
       <QuickActions chips={actionChips} onChipClick={handleChipClick} />
@@ -809,138 +722,8 @@ export function AssistantPanel() {
         error={assistantError}
         inputRef={inputRef}
         onSubmitMessage={handleSubmitMessage}
-        onStartScopeResearch={() => setScopeResearchOpen(true)}
+        onStartScopeResearch={() => void startScopeResearch()}
       />
-
-      {scopeResearchOpen && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalCard}>
-            <div className={styles.modalHeader}>
-              <h3>Scope research</h3>
-              <button
-                type="button"
-                className={styles.modalClose}
-                onClick={() => {
-                  setScopeResearchOpen(false);
-                  setScopeResearchPreviewOpen(false);
-                }}
-              >
-                <Icon
-                  semantic="actions.cancelDismiss"
-                  label="Close scope research"
-                />
-              </button>
-            </div>
-            <p className={styles.modalHint}>
-              Enter a high-level objective to research scope, requirements, and WBS proposals.
-            </p>
-            <textarea
-              className={styles.modalTextarea}
-              value={scopeResearchObjective}
-              onChange={(event) => setScopeResearchObjective(event.target.value)}
-              placeholder="e.g., Launch a compliant customer self-service portal."
-            />
-            {scopeResearchError && (
-              <p className={styles.researchError}>{scopeResearchError}</p>
-            )}
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalPrimary}
-                onClick={handleScopeResearchSubmit}
-                disabled={scopeResearchLoading}
-              >
-                {scopeResearchLoading ? 'Researching…' : 'Run research'}
-              </button>
-            </div>
-
-            {scopeResearchResult && (
-              <div className={styles.researchResults}>
-                {scopeResearchResult.notice && (
-                  <p className={styles.researchNotice}>{scopeResearchResult.notice}</p>
-                )}
-                {scopeResearchResult.sources.length === 0 && (
-                  <p className={styles.noSourcesNotice}>
-                    No sources provided for this response.
-                  </p>
-                )}
-                {renderResearchSection(
-                  'Scope statements',
-                  'scope',
-                  scopeResearchResult.scope
-                )}
-                {renderResearchSection(
-                  'Requirements',
-                  'requirements',
-                  scopeResearchResult.requirements
-                )}
-                {renderResearchSection('WBS items', 'wbs', scopeResearchResult.wbs)}
-                {scopeResearchResult.sources.length > 0 && (
-                  <div className={styles.researchSources}>
-                    <h4>Sources</h4>
-                    <ul>
-                      {scopeResearchResult.sources.map((source) => (
-                        <li key={source}>{source}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <div className={styles.researchPreviewActions}>
-                  <button
-                    type="button"
-                    className={styles.modalSecondary}
-                    onClick={() => setScopeResearchPreviewOpen((prev) => !prev)}
-                  >
-                    {scopeResearchPreviewOpen ? 'Hide preview' : 'Preview changes'}
-                  </button>
-                </div>
-                {scopeResearchPreviewOpen && (
-                  <div className={styles.researchPreview}>
-                    <h4>Preview & diff</h4>
-                    <p className={styles.researchPreviewHint}>
-                      Review accepted/rejected items before applying changes to the project.
-                    </p>
-                    {renderPreviewSection('Scope statements', scopeResearchResult.scope)}
-                    {renderPreviewSection('Requirements', scopeResearchResult.requirements)}
-                    {renderPreviewSection('WBS items', scopeResearchResult.wbs)}
-                  </div>
-                )}
-                <div className={styles.modalActions}>
-                  <button
-                    type="button"
-                    className={styles.modalSecondary}
-                    onClick={() => {
-                      const acceptedCount = [
-                        ...scopeResearchResult.scope,
-                        ...scopeResearchResult.requirements,
-                        ...scopeResearchResult.wbs,
-                      ].filter((item) => item.status === 'accepted').length;
-                      if (!scopeResearchPreviewOpen) {
-                        setScopeResearchPreviewOpen(true);
-                        return;
-                      }
-                      const confirmed = window.confirm(
-                        'Apply these scope updates to the project workspace?'
-                      );
-                      if (!confirmed) return;
-                      addAssistantMessage(
-                        `Captured ${acceptedCount} scope items for review in the project workspace.`,
-                        undefined,
-                        false,
-                        { sources: scopeResearchResult.sources }
-                      );
-                      setScopeResearchOpen(false);
-                      setScopeResearchPreviewOpen(false);
-                    }}
-                  >
-                    Apply selections
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {conversationalCommand && (
         <div className={styles.modalOverlay}>

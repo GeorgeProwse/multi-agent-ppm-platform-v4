@@ -1,10 +1,12 @@
 import { Fragment, type ReactNode } from 'react';
-import type { ActionChip, AssistantMessage } from '@/store/assistant';
+import type { ActionChip, AssistantMessage, ScopeResearchItem, ScopeResearchMessageData } from '@/store/assistant';
+import { ScopeResearchCard } from './ScopeResearchCard';
 import styles from './MessageBubble.module.css';
 
 interface MessageBubbleProps {
   message: AssistantMessage;
   renderActionChip?: (chip: ActionChip, options?: { small?: boolean }) => ReactNode;
+  onApplyScopeResearch?: (data: ScopeResearchMessageData, acceptedItems: ScopeResearchItem[]) => boolean;
 }
 
 interface MarkdownInlineProps {
@@ -162,7 +164,7 @@ function renderAssistantMarkdown(content: string): ReactNode {
   return <div className={styles.messageContentRendered}>{blocks}</div>;
 }
 
-export function MessageBubble({ message, renderActionChip }: MessageBubbleProps) {
+export function MessageBubble({ message, renderActionChip, onApplyScopeResearch }: MessageBubbleProps) {
   const showGeneratedBadge = message.role === 'assistant' && message.provenance?.showModelOrTool === true;
 
   return (
@@ -172,6 +174,14 @@ export function MessageBubble({ message, renderActionChip }: MessageBubbleProps)
       <div className={styles.messageContent}>
         {message.role === 'assistant' ? renderAssistantMarkdown(message.content) : message.content}
       </div>
+      {message.messageType === 'scope_research' && message.data && (
+        <ScopeResearchCard
+          data={message.data}
+          onApplyAcceptedItems={(data, acceptedItems) =>
+            onApplyScopeResearch ? onApplyScopeResearch(data, acceptedItems) : false
+          }
+        />
+      )}
       {message.sources && message.sources.length > 0 && (
         <ul className={styles.messageSources}>
           {message.sources.map((source) => (

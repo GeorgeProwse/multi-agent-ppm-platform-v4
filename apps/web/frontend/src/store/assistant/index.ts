@@ -23,5 +23,9 @@ export type {
   PrerequisiteInfo,
   ShowPrerequisitesPayload,
   SuggestionTrigger,
+  AssistantMessageType,
+  ScopeResearchItem,
+  ScopeResearchMessageData,
+  ScopeResearchStatus,
 } from './types';
 export { CATEGORY_COLORS, CATEGORY_ICONS, ACTION_AGENT_MAPPING, getAgentForAction } from './types';
