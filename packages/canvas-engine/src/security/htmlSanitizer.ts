@@ -55,9 +55,76 @@ function sanitizeWithPolicy(input: string, policy: SanitizerPolicy): string {
   const allowedTags = new Set(policy.allowedTags.map((tag) => tag.toLowerCase()));
   const allowedAttrs = new Set(policy.allowedAttrs.map((attr) => attr.toLowerCase()));
   const forbiddenTags = new Set(['script', 'style']);
+  const blockLikeTags = new Set([
+    'address',
+    'article',
+    'aside',
+    'blockquote',
+    'div',
+    'dl',
+    'fieldset',
+    'figcaption',
+    'figure',
+    'footer',
+    'form',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'header',
+    'hr',
+    'li',
+    'main',
+    'nav',
+    'ol',
+    'p',
+    'pre',
+    'section',
+    'table',
+    'ul',
+  ]);
+  const supportsLineBreakTag = allowedTags.has('br');
+
+  const hasMeaningfulContent = (node: Node): boolean => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return Boolean(node.textContent?.trim());
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    const tagName = (node as HTMLElement).tagName.toLowerCase();
+    if (forbiddenTags.has(tagName)) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const appendLineBreakIfNeeded = (targetNode: Node) => {
+    if (!supportsLineBreakTag || targetNode.nodeType !== Node.ELEMENT_NODE) {
+      return;
+    }
+
+    const element = targetNode as Element;
+    const lastChild = element.lastChild;
+    if (lastChild?.nodeType === Node.ELEMENT_NODE) {
+      const lastTagName = (lastChild as HTMLElement).tagName.toLowerCase();
+      if (lastTagName === 'br') {
+        return;
+      }
+    }
+
+    targetNode.appendChild(targetDoc.createElement('br'));
+  };
 
   const appendSanitizedChildren = (sourceNode: ParentNode, targetNode: Node) => {
-    for (const child of Array.from(sourceNode.childNodes)) {
+    const childNodes = Array.from(sourceNode.childNodes);
+
+    for (const [index, child] of childNodes.entries()) {
       if (child.nodeType === Node.TEXT_NODE) {
         targetNode.appendChild(targetDoc.createTextNode(child.textContent ?? ''));
         continue;
@@ -75,7 +142,24 @@ function sanitizeWithPolicy(input: string, policy: SanitizerPolicy): string {
       }
 
       if (!allowedTags.has(tagName)) {
+        const isBlockLikeUnsupportedTag = blockLikeTags.has(tagName);
+        const hasPriorSiblingContent = childNodes
+          .slice(0, index)
+          .some((sibling) => hasMeaningfulContent(sibling));
+        const hasFollowingSiblingContent = childNodes
+          .slice(index + 1)
+          .some((sibling) => hasMeaningfulContent(sibling));
+
+        if (isBlockLikeUnsupportedTag && hasPriorSiblingContent) {
+          appendLineBreakIfNeeded(targetNode);
+        }
+
         appendSanitizedChildren(sourceElement, targetNode);
+
+        if (isBlockLikeUnsupportedTag && hasFollowingSiblingContent) {
+          appendLineBreakIfNeeded(targetNode);
+        }
+
         continue;
       }
 

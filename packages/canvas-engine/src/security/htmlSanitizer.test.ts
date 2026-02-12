@@ -41,4 +41,10 @@ describe('htmlSanitizer', () => {
       'mailto',
     ]);
   });
+
+  it('preserves paragraph breaks when unwrapping unsupported block elements', () => {
+    const sanitized = sanitizeRichTextHtml('line1<div>line2</div><div>line3</div>tail');
+
+    expect(sanitized).toBe('line1<br>line2<br>line3<br>tail');
+  });
 });
