@@ -594,7 +594,7 @@ async def shutdown() -> None:
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/healthz", response_model=HealthResponse)
-async def health() -> HealthResponse:
+async def health(response: Response) -> HealthResponse:
     dependencies = {
         "scheduler": "ok" if scheduler else "down",
         "health_snapshots": "ok" if health_snapshot_store else "down",
@@ -604,6 +604,8 @@ async def health() -> HealthResponse:
         "agent_outputs": "ok" if agent_output_store else "down",
     }
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
+    if status != "ok":
+        response.status_code = 503
     return HealthResponse(status=status, dependencies=dependencies)
 
 

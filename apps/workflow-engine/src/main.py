@@ -205,7 +205,7 @@ def _get_definition(workflow_id: str) -> dict[str, Any]:
 
 
 @app.get("/healthz", response_model=HealthResponse)
-async def healthz() -> HealthResponse:
+async def healthz(response: Response) -> HealthResponse:
     dependencies = {"workflow_store": "unknown", "definitions": "unknown"}
     try:
         store.ping()
@@ -220,6 +220,8 @@ async def healthz() -> HealthResponse:
     except Exception:  # noqa: BLE001
         dependencies["definitions"] = "down"
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
+    if status != "ok":
+        response.status_code = 503
     return HealthResponse(status=status, dependencies=dependencies)
 
 

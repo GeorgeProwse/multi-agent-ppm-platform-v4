@@ -104,7 +104,7 @@ async def shutdown() -> None:
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/healthz", response_model=HealthResponse)
-async def health(request: Request) -> HealthResponse:
+async def health(request: Request, response: Response) -> HealthResponse:
     dependencies = {"document_store": "unknown", "dlp_policy": "unknown"}
     try:
         _get_store(request).ping()
@@ -117,6 +117,8 @@ async def health(request: Request) -> HealthResponse:
     except Exception:  # noqa: BLE001
         dependencies["dlp_policy"] = "down"
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
+    if status != "ok":
+        response.status_code = 503
     return HealthResponse(status=status, dependencies=dependencies)
 
 
