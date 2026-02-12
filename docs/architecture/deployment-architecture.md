@@ -58,6 +58,7 @@ Expected output: deployment spec with container image and env vars.
 
 ## Related docs
 
+- [Container Runtime Identity Policy](container-runtime-identity-policy.md)
 - [Physical Architecture](physical-architecture.md)
 - [Runbooks](../runbooks/)
 - [Infrastructure README](../../infra/README.md)

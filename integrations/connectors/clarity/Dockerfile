@@ -5,7 +5,7 @@ ENV PYTHONPATH=/app
 
 COPY . /app
 
-RUN useradd -m -u 10001 appuser && chown -R appuser:appuser /app
+RUN groupadd --gid 10001 appuser && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser && chown -R 10001:10001 /app
 
 USER appuser
 
