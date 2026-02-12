@@ -136,7 +136,7 @@ resource "azurerm_monitor_action_group" "secret_rotation" {
   }
 
   dynamic "webhook_receiver" {
-    for_each = var.rotation_webhook_url != "" ? [1] : []
+    for_each = var.enable_rotation_webhook ? [1] : []
     content {
       name        = "rotation-webhook"
       service_uri = var.rotation_webhook_url
@@ -146,6 +146,7 @@ resource "azurerm_monitor_action_group" "secret_rotation" {
 
 # Event Grid subscription for secret near-expiry events
 resource "azurerm_eventgrid_system_topic_event_subscription" "secret_near_expiry" {
+  count               = var.enable_rotation_webhook ? 1 : 0
   name                = "${var.resource_prefix}-${var.environment}-secret-expiry-sub"
   system_topic        = azurerm_eventgrid_system_topic.keyvault.name
   resource_group_name = var.resource_group_name
@@ -156,11 +157,18 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "secret_near_expiry
   ]
 
   webhook_endpoint {
-    url = var.rotation_webhook_url != "" ? var.rotation_webhook_url : "https://placeholder.example.com/webhook"
+    url = var.rotation_webhook_url
   }
 
   retry_policy {
     max_delivery_attempts = 30
     event_time_to_live    = 1440
+  }
+
+  lifecycle {
+    precondition {
+      condition     = trimspace(var.rotation_webhook_url) != ""
+      error_message = "rotation_webhook_url must be provided when enable_rotation_webhook is true."
+    }
   }
 }

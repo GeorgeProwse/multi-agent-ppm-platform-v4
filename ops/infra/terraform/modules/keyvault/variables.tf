@@ -95,7 +95,18 @@ variable "ops_email" {
 }
 
 variable "rotation_webhook_url" {
-  description = "Webhook URL for secret rotation automation"
+  description = "Webhook URL for secret rotation automation (required when enable_rotation_webhook is true)"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.rotation_webhook_url == "" || can(regex("^https://", var.rotation_webhook_url))
+    error_message = "rotation_webhook_url must be a valid HTTPS URL when provided."
+  }
+}
+
+variable "enable_rotation_webhook" {
+  description = "Enable Event Grid webhook notifications for Key Vault secret expiry events"
+  type        = bool
+  default     = false
 }
