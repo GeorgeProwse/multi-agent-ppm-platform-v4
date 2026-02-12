@@ -2,7 +2,7 @@
 - 
 
 ## Testing
-- [ ] `make test`
+- [ ] `make test-all`
 - [ ] `make lint`
 
 ## Checklist

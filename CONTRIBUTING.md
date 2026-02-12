@@ -97,7 +97,7 @@ make run-prototype  # Terminal 2
 
 ```bash
 # Run tests
-make test
+make test-all
 
 # Check linting
 make lint
@@ -137,7 +137,7 @@ Branch naming conventions:
 
 ```bash
 # Run tests
-make test
+make test-all
 
 # Run linters
 make lint
@@ -265,6 +265,20 @@ result3 = await call_external_service()
 
 ## Testing Guidelines
 
+### Test Commands Taxonomy
+
+Use the Make targets below so local and CI runs are consistent:
+
+```bash
+make test-unit         # Unit-focused suite (excludes integration/e2e/security folders)
+make test-integration  # tests/integration
+make test-e2e          # tests/e2e
+make test-security     # tests/security
+make test-all          # Aggregate of unit + integration + e2e + security
+make test-cov          # Full suite with coverage reporting
+make test-quick        # Fast feedback alias for make test-unit
+```
+
 ### Test Structure
 
 ```
@@ -306,7 +320,7 @@ async def test_intent_classification():
 
 ```bash
 # Check coverage
-make test
+make test-cov
 
 # View detailed report
 open htmlcov/index.html
@@ -357,7 +371,7 @@ When adding features, update:
 
 ### Before Submitting
 
-1. ✅ Tests pass locally (`make test`)
+1. ✅ Tests pass locally (`make test-all`)
 2. ✅ Linting passes (`make lint`)
 3. ✅ Code is formatted (`make format`)
 4. ✅ Documentation updated

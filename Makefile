@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test lint format codegen check-links check-placeholders secret-scan dev-up dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
+.PHONY: help install install-dev test test-quick test-all test-unit test-integration test-e2e test-security test-cov test-watch lint format codegen check-links check-placeholders secret-scan dev-up dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
 
 # Default target
 .DEFAULT_GOAL := help
@@ -15,7 +15,7 @@ help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
 	@echo 'Available targets:'
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install production dependencies
 	$(PIP) install --upgrade pip setuptools wheel
@@ -27,13 +27,27 @@ install-dev: ## Install development dependencies
 	pre-commit install
 
 test: ## Run tests
-	$(PYTEST) tests/ -v
+	@$(MAKE) test-all
 
 test-cov: ## Run tests with coverage reports
 	$(PYTEST) tests/ -v --cov=agents --cov=apps --cov=packages --cov=tools --cov-report=html --cov-report=term-missing --cov-fail-under=80
 
-test-quick: ## Run tests without coverage (faster)
-	$(PYTEST) tests/ -v
+test-quick: ## Run fast feedback tests (unit scope)
+	@$(MAKE) test-unit
+
+test-all: test-unit test-integration test-e2e test-security ## Run the full test taxonomy
+
+test-unit: ## Run unit-focused tests (excludes integration, e2e, and security suites)
+	$(PYTEST) tests/ -v --ignore=tests/integration --ignore=tests/e2e --ignore=tests/security
+
+test-integration: ## Run integration tests
+	$(PYTEST) tests/integration -v
+
+test-e2e: ## Run end-to-end tests
+	$(PYTEST) tests/e2e -v
+
+test-security: ## Run security-focused tests
+	$(PYTEST) tests/security -v
 
 test-watch: ## Run tests in watch mode
 	$(PYTEST) tests/ -v --looponfail

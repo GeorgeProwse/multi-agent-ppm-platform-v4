@@ -124,7 +124,11 @@ information faster while preserving the organization's existing baselines and go
 ## Testing
 
 ```bash
-make test
+make test-all
+make test-unit
+make test-integration
+make test-e2e
+make test-security
 make test-cov
 ```
 
