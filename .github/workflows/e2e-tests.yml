@@ -14,6 +14,11 @@ permissions:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      MAX_SERVICE_WAIT_SECONDS: ${{ vars.E2E_SERVICE_MAX_WAIT_SECONDS }}
+      HEALTHCHECK_COMMAND_TIMEOUT_SECONDS: 10
+      INITIAL_BACKOFF_SECONDS: 1
+      MAX_BACKOFF_SECONDS: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
@@ -32,23 +37,79 @@ jobs:
 
       - name: Start test services
         run: |
+          set -euo pipefail
+
+          max_wait_seconds="${MAX_SERVICE_WAIT_SECONDS:-240}"
+          command_timeout_seconds="${HEALTHCHECK_COMMAND_TIMEOUT_SECONDS:-10}"
+          initial_backoff_seconds="${INITIAL_BACKOFF_SECONDS:-1}"
+          max_backoff_seconds="${MAX_BACKOFF_SECONDS:-15}"
+
+          wait_for_command() {
+            local check_name="$1"
+            local command="$2"
+            local diagnostics_command="${3:-}"
+            local start_time elapsed wait_time attempt exit_code output
+
+            start_time="$(date +%s)"
+            wait_time="$initial_backoff_seconds"
+            attempt=1
+
+            while true; do
+              if output="$(timeout "${command_timeout_seconds}s" bash -o pipefail -c "$command" 2>&1)"; then
+                echo "✅ ${check_name} is ready (attempt ${attempt})."
+                return 0
+              fi
+
+              exit_code=$?
+              elapsed=$(( $(date +%s) - start_time ))
+
+              echo "Attempt ${attempt} for '${check_name}' failed after ${elapsed}s (exit ${exit_code})."
+              if [ -n "$output" ]; then
+                echo "Last output: ${output}"
+              else
+                echo "No output captured from command."
+              fi
+
+              if [ "$elapsed" -ge "$max_wait_seconds" ]; then
+                echo "❌ Timed out waiting for ${check_name} after ${elapsed}s (max ${max_wait_seconds}s)."
+                docker compose -f docker-compose.test.yml ps || true
+                if [ -n "$diagnostics_command" ]; then
+                  echo "Diagnostics for ${check_name}:"
+                  bash -o pipefail -c "$diagnostics_command" || true
+                fi
+                return 1
+              fi
+
+              sleep "$wait_time"
+              wait_time=$(( wait_time * 2 ))
+              if [ "$wait_time" -gt "$max_backoff_seconds" ]; then
+                wait_time="$max_backoff_seconds"
+              fi
+              attempt=$(( attempt + 1 ))
+            done
+          }
+
           docker compose -f docker-compose.test.yml up -d
-          for i in {1..30}; do
-            if docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U ppm -d ppm_test; then
-              echo "Postgres is ready."
-              break
-            fi
-            sleep 2
-          done
-          docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U ppm -d ppm_test
-          for i in {1..30}; do
-            if docker compose -f docker-compose.test.yml exec -T redis redis-cli ping | grep -q PONG; then
-              echo "Redis is ready."
-              break
-            fi
-            sleep 2
-          done
-          docker compose -f docker-compose.test.yml exec -T redis redis-cli ping | grep -q PONG
+
+          wait_for_command \
+            "Postgres command health endpoint" \
+            "docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U ppm -d ppm_test" \
+            "docker compose -f docker-compose.test.yml logs --tail=100 postgres"
+
+          wait_for_command \
+            "Redis command health endpoint" \
+            "docker compose -f docker-compose.test.yml exec -T redis redis-cli ping | grep -q PONG" \
+            "docker compose -f docker-compose.test.yml logs --tail=100 redis"
+
+          wait_for_command \
+            "Postgres container health endpoint" \
+            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.test.yml ps -q postgres))\" = \"healthy\" ]" \
+            "docker compose -f docker-compose.test.yml logs --tail=100 postgres"
+
+          wait_for_command \
+            "Redis container health endpoint" \
+            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.test.yml ps -q redis))\" = \"healthy\" ]" \
+            "docker compose -f docker-compose.test.yml logs --tail=100 redis"
 
       - name: Run end-to-end tests
         env:
