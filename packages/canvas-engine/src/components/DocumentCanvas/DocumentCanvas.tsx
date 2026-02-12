@@ -6,11 +6,18 @@
  */
 
 import { useCallback, useRef, useEffect } from 'react';
+import type { ClipboardEvent, FormEvent } from 'react';
 import type { CanvasComponentProps } from '../../types/canvas';
 import type { CanvasArtifact, EditHistoryEntry, ProvenanceMetadata } from '../../types/artifact';
 import type { DocumentContent } from '../../types/artifact';
 import styles from './DocumentCanvas.module.css';
 import { sanitizeRichTextHtml } from '../../security/htmlSanitizer';
+import {
+  applyFormattingCommand,
+  createHistoryState,
+  mapInputTypeToCommand,
+  type FormattingCommand,
+} from './richTextAdapter';
 
 export interface DocumentCanvasProps extends CanvasComponentProps<DocumentContent> {
   onSaveDraft?: (artifact: CanvasArtifact<DocumentContent>) => void;
@@ -29,6 +36,7 @@ export function DocumentCanvas({
 }: DocumentCanvasProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
+  const historyRef = useRef(createHistoryState());
 
   // Initialize editor content
   useEffect(() => {
@@ -46,9 +54,46 @@ export function DocumentCanvas({
     }
   }, [onChange]);
 
-  const execCommand = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
+  const runCommand = useCallback((command: FormattingCommand) => {
+    if (!editorRef.current) return;
+    applyFormattingCommand(editorRef.current, command, historyRef.current);
+    editorRef.current.focus();
+    handleInput();
+  }, [handleInput]);
+
+  const handleBeforeInput = useCallback((event: FormEvent<HTMLDivElement>) => {
+    const nativeEvent = event.nativeEvent as InputEvent;
+    const command = mapInputTypeToCommand(nativeEvent.inputType);
+    if (!command || !editorRef.current) return;
+    event.preventDefault();
+    applyFormattingCommand(editorRef.current, command, historyRef.current);
+    handleInput();
+  }, [handleInput]);
+
+  const handlePaste = useCallback((event: ClipboardEvent<HTMLDivElement>) => {
+    if (!editorRef.current) return;
+
+    event.preventDefault();
+    historyRef.current.past.push(editorRef.current.innerHTML);
+    historyRef.current.future = [];
+
+    const html = event.clipboardData.getData('text/html');
+    const plainText = event.clipboardData.getData('text/plain');
+    const sanitized = sanitizeRichTextHtml(html || `<p>${plainText}</p>`);
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      editorRef.current.innerHTML += sanitized;
+      handleInput();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const fragment = range.createContextualFragment(sanitized);
+    range.insertNode(fragment);
+    selection.collapseToEnd();
+
     handleInput();
   }, [handleInput]);
 
@@ -89,7 +134,7 @@ export function DocumentCanvas({
           <div className={styles.formatGroup}>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('bold')}
+              onClick={() => runCommand('bold')}
               title="Bold (Ctrl+B)"
               aria-label="Bold"
             >
@@ -97,7 +142,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('italic')}
+              onClick={() => runCommand('italic')}
               title="Italic (Ctrl+I)"
               aria-label="Italic"
             >
@@ -105,7 +150,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('underline')}
+              onClick={() => runCommand('underline')}
               title="Underline (Ctrl+U)"
               aria-label="Underline"
             >
@@ -113,7 +158,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('strikeThrough')}
+              onClick={() => runCommand('strikeThrough')}
               title="Strikethrough"
               aria-label="Strikethrough"
             >
@@ -126,7 +171,7 @@ export function DocumentCanvas({
           <div className={styles.formatGroup}>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('formatBlock', 'h1')}
+              onClick={() => runCommand('formatH1')}
               title="Heading 1"
               aria-label="Heading 1"
             >
@@ -134,7 +179,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('formatBlock', 'h2')}
+              onClick={() => runCommand('formatH2')}
               title="Heading 2"
               aria-label="Heading 2"
             >
@@ -142,7 +187,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('formatBlock', 'h3')}
+              onClick={() => runCommand('formatH3')}
               title="Heading 3"
               aria-label="Heading 3"
             >
@@ -150,7 +195,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('formatBlock', 'p')}
+              onClick={() => runCommand('formatParagraph')}
               title="Paragraph"
               aria-label="Paragraph"
             >
@@ -163,7 +208,7 @@ export function DocumentCanvas({
           <div className={styles.formatGroup}>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('insertUnorderedList')}
+              onClick={() => runCommand('insertUnorderedList')}
               title="Bullet list"
               aria-label="Bullet list"
             >
@@ -178,7 +223,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('insertOrderedList')}
+              onClick={() => runCommand('insertOrderedList')}
               title="Numbered list"
               aria-label="Numbered list"
             >
@@ -198,7 +243,7 @@ export function DocumentCanvas({
           <div className={styles.formatGroup}>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('undo')}
+              onClick={() => runCommand('undo')}
               title="Undo (Ctrl+Z)"
               aria-label="Undo"
             >
@@ -209,7 +254,7 @@ export function DocumentCanvas({
             </button>
             <button
               className={styles.formatButton}
-              onClick={() => execCommand('redo')}
+              onClick={() => runCommand('redo')}
               title="Redo (Ctrl+Y)"
               aria-label="Redo"
             >
@@ -265,7 +310,9 @@ export function DocumentCanvas({
         ref={editorRef}
         className={styles.editor}
         contentEditable={!readOnly}
+        onBeforeInput={handleBeforeInput}
         onInput={handleInput}
+        onPaste={handlePaste}
         onBlur={handleInput}
         role="textbox"
         aria-multiline="true"
