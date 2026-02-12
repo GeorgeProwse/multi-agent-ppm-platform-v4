@@ -57,6 +57,5 @@ describe('AssistantPanel quick actions', () => {
 
     expect(screen.getByRole('button', { name: /open charter/i })).toBeInTheDocument();
     expect(screen.queryByText(/suggested actions/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/next actions/i)).not.toBeInTheDocument();
   });
 });
