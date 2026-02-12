@@ -100,7 +100,7 @@ async def shutdown() -> None:
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/healthz", response_model=HealthResponse)
-async def health(request: Request) -> HealthResponse:
+async def health(request: Request, response: Response) -> HealthResponse:
     orchestrator = request.app.state.orchestrator
     dependencies = {
         "orchestrator": "ok" if orchestrator.initialized else "down",
@@ -109,6 +109,8 @@ async def health(request: Request) -> HealthResponse:
         else "down",
     }
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
+    if status != "ok":
+        response.status_code = 503
     return HealthResponse(status=status, dependencies=dependencies)
 
 

@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 import yaml
-from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -1366,7 +1366,7 @@ def _load_connector_registry() -> list[dict[str, Any]]:
 
 
 @app.get("/healthz", response_model=HealthResponse)
-async def healthz() -> HealthResponse:
+async def healthz(response: Response) -> HealthResponse:
     dependencies = {
         "knowledge_store": "ok" if knowledge_store else "down",
         "intake_store": "ok" if intake_store else "down",
@@ -1374,6 +1374,8 @@ async def healthz() -> HealthResponse:
         "workflow_definitions": "ok" if WORKFLOW_DEFINITIONS_PATH.exists() else "down",
     }
     status = "ok" if all(value == "ok" for value in dependencies.values()) else "degraded"
+    if status != "ok":
+        response.status_code = 503
     return HealthResponse(status=status, dependencies=dependencies)
 
 
