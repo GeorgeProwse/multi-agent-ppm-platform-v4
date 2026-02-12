@@ -181,7 +181,7 @@ STATE_COOKIE = "ppm_oidc_state"
 SESSION_SIGNING_ALGORITHM = "HS256"
 OIDC_HTTP_TRANSPORT: httpx.BaseTransport | None = None
 
-app = FastAPI(title="PPM Web Console", version=API_VERSION, openapi_prefix="/v1")
+app = FastAPI(title="PPM Web Console", version=API_VERSION)
 api_router = APIRouter(prefix="/v1")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if FRONTEND_DIST_DIR.exists():

@@ -28,25 +28,25 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
-      '/config': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
       '/session': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        rewrite: (path) => '/v1' + path,
+      },
+      '/config': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => '/v1' + path,
       },
       '/login': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        rewrite: (path) => '/v1' + path,
       },
       '/logout': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-      },
-      '/app': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+        rewrite: (path) => '/v1' + path,
       },
     },
   },
