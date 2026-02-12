@@ -15,3 +15,6 @@ export * from './components';
 
 // Hooks
 export * from './hooks';
+
+// Security
+export * from './security';

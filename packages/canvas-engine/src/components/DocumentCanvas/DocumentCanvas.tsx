@@ -10,6 +10,7 @@ import type { CanvasComponentProps } from '../../types/canvas';
 import type { CanvasArtifact, EditHistoryEntry, ProvenanceMetadata } from '../../types/artifact';
 import type { DocumentContent } from '../../types/artifact';
 import styles from './DocumentCanvas.module.css';
+import { sanitizeRichTextHtml } from '../../security/htmlSanitizer';
 
 export interface DocumentCanvasProps extends CanvasComponentProps<DocumentContent> {
   onSaveDraft?: (artifact: CanvasArtifact<DocumentContent>) => void;
@@ -32,14 +33,14 @@ export function DocumentCanvas({
   // Initialize editor content
   useEffect(() => {
     if (editorRef.current && isInitialMount.current) {
-      editorRef.current.innerHTML = artifact.content.html || '';
+      editorRef.current.innerHTML = sanitizeRichTextHtml(artifact.content.html);
       isInitialMount.current = false;
     }
   }, [artifact.content.html]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current && onChange) {
-      const html = editorRef.current.innerHTML;
+      const html = sanitizeRichTextHtml(editorRef.current.innerHTML);
       const plainText = editorRef.current.textContent || '';
       onChange({ html, plainText });
     }

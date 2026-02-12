@@ -22,6 +22,7 @@ export default defineConfig({
         '../../..',
         'packages/ui-kit/design-system/icons/icon-map.json'
       ),
+      '@ppm/canvas-engine': path.resolve(__dirname, '../../..', 'packages/canvas-engine/src'),
     },
   },
 });
