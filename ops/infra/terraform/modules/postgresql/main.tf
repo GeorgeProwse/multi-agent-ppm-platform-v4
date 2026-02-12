@@ -53,7 +53,7 @@ resource "azurerm_key_vault_secret" "postgres_admin_password" {
 }
 
 resource "azurerm_key_vault_secret" "postgres_database_url" {
-  name            = "${var.key_vault_secret_name_prefix}-database-url"
+  name            = "database-url"
   value           = local.database_url
   key_vault_id    = var.key_vault_id
   content_type    = "postgresql/database-url"
