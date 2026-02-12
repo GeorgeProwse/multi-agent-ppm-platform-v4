@@ -6,6 +6,7 @@ import {
   type SearchResultType,
 } from '@/services/searchApi';
 import type { DocumentSummary, LessonRecord } from '@/services/knowledgeApi';
+import { tokenizeHighlight } from '@ppm/canvas-engine/security';
 import styles from './GlobalSearch.module.css';
 
 const TYPE_LABELS: Record<SearchResultType, string> = {
@@ -158,10 +159,12 @@ export function GlobalSearchPage() {
           <span>Updated {new Date(payload.updatedAt).toLocaleString()}</span>
         </div>
         {result.highlights?.excerpt && (
-          <p
-            className={styles.excerpt}
-            dangerouslySetInnerHTML={{ __html: result.highlights.excerpt }}
-          />
+          <p className={styles.excerpt}>
+            {renderHighlightedText(
+              result.summary,
+              result.highlights.excerpt
+            )}
+          </p>
         )}
       </li>
     );
@@ -180,10 +183,9 @@ export function GlobalSearchPage() {
           </div>
         </div>
         {result.highlights?.excerpt ? (
-          <p
-            className={styles.lessonDescription}
-            dangerouslySetInnerHTML={{ __html: result.highlights.excerpt }}
-          />
+          <p className={styles.lessonDescription}>
+            {renderHighlightedText(payload.description, result.highlights.excerpt)}
+          </p>
         ) : (
           <p className={styles.lessonDescription}>{payload.description}</p>
         )}
@@ -207,10 +209,19 @@ export function GlobalSearchPage() {
   };
 
   const renderHighlightedText = (text: string, highlight?: string | null) => {
-    if (!highlight) {
-      return <span>{text}</span>;
-    }
-    return <span dangerouslySetInnerHTML={{ __html: highlight }} />;
+    const tokens = tokenizeHighlight(text, highlight);
+
+    return (
+      <span>
+        {tokens.map((token, index) =>
+          token.highlighted ? (
+            <mark key={`${token.text}-${index}`}>{token.text}</mark>
+          ) : (
+            <span key={`${token.text}-${index}`}>{token.text}</span>
+          )
+        )}
+      </span>
+    );
   };
 
   const renderGenericCard = (result: SearchResult) => {
