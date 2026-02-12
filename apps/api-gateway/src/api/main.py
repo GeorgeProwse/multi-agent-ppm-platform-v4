@@ -122,36 +122,45 @@ app.add_middleware(TraceMiddleware, service_name="api-gateway")
 app.add_middleware(RequestMetricsMiddleware, service_name="api-gateway")
 register_error_handlers(app)
 
-# Global orchestrator instance
-orchestrator = None
-
-
 @app.on_event("startup")
 async def startup_event() -> None:
     """Initialize application on startup."""
-    global orchestrator
     logger.info("Starting Multi-Agent PPM Platform...")
 
     # Initialize orchestrator
     bootstrap_runtime_paths()
     from orchestrator import AgentOrchestrator
 
-    orchestrator = AgentOrchestrator()
-    await orchestrator.initialize()
-    app.state.orchestrator = orchestrator
+    app.state.orchestrator = AgentOrchestrator()
+    await app.state.orchestrator.initialize()
 
     app.state.leader_elector = build_leader_elector("api-gateway")
     app.state.leader_elector.start()
 
+    from api.document_session_store import DocumentSessionStore
+    from api.routes.connectors import (
+        build_circuit_breaker,
+        build_config_store,
+        build_project_config_store,
+        build_webhook_store,
+    )
+
+    app.state.connector_config_store = build_config_store()
+    app.state.project_connector_config_store = build_project_config_store()
+    app.state.webhook_store = build_webhook_store()
+    app.state.connector_circuit_breaker = build_circuit_breaker()
+    app.state.document_session_store = DocumentSessionStore(
+        REPO_ROOT / "data" / "documents" / "sessions.db"
+    )
+
     rotation_enabled = os.getenv("CONNECTOR_ROTATION_ENABLED", "false").lower() == "true"
     if rotation_enabled:
-        from api.routes.connectors import get_config_store
         from api.secret_rotation import ConnectorSecretRotationScheduler
 
         interval = int(os.getenv("CONNECTOR_ROTATION_INTERVAL_SECONDS", "3600"))
         webhook_url = os.getenv("AZURE_AUTOMATION_WEBHOOK_URL")
         scheduler = ConnectorSecretRotationScheduler(
-            get_config_store(),
+            app.state.connector_config_store,
             interval_seconds=interval,
             automation_webhook_url=webhook_url,
         )
@@ -164,9 +173,9 @@ async def startup_event() -> None:
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     """Clean up resources on shutdown."""
-    global orchestrator
     logger.info("Shutting down Multi-Agent PPM Platform...")
 
+    orchestrator = getattr(app.state, "orchestrator", None)
     if orchestrator:
         await orchestrator.cleanup()
 
@@ -177,6 +186,10 @@ async def shutdown_event() -> None:
     rotation_scheduler = getattr(app.state, "rotation_scheduler", None)
     if rotation_scheduler:
         rotation_scheduler.stop()
+
+    document_session_store = getattr(app.state, "document_session_store", None)
+    if document_session_store:
+        document_session_store.close()
 
     logger.info("Application shut down successfully")
 
@@ -217,6 +230,7 @@ api_v1 = APIRouter(prefix="/v1")
 @api_v1.get("/status")
 async def get_status() -> dict[str, Any]:
     """Get platform status."""
+    orchestrator = getattr(app.state, "orchestrator", None)
     return {
         "status": "healthy",
         "orchestrator_initialized": orchestrator is not None and orchestrator.initialized,

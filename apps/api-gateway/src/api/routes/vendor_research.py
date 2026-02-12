@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 
 router = APIRouter()
@@ -29,7 +29,7 @@ async def research_vendor(
     vendor_id: str, request: VendorResearchRequest
 ) -> VendorResearchResponse:
     """Trigger external vendor research using the Vendor & Procurement agent."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")

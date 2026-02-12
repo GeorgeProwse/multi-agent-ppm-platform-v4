@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 
 router = APIRouter()
@@ -34,7 +34,7 @@ async def generate_scope_research(
     project_id: str, request: ScopeResearchRequest
 ) -> ScopeResearchResponse:
     """Trigger scope research using the Project Definition & Scope agent."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")

@@ -41,8 +41,6 @@ app.add_middleware(TraceMiddleware, service_name="orchestration-service")
 app.add_middleware(RequestMetricsMiddleware, service_name="orchestration-service")
 register_error_handlers(app)
 
-orchestrator = AgentOrchestrator()
-
 
 class HealthResponse(BaseModel):
     status: str = "ok"
@@ -83,10 +81,11 @@ class PlanApprovalResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup() -> None:
-    await orchestrator.initialize()
+    app.state.orchestrator = AgentOrchestrator()
+    await app.state.orchestrator.initialize()
     app.state.leader_elector = build_leader_elector("orchestration-service")
     app.state.leader_elector.start()
-    logger.info("orchestrator_ready", extra={"agents": len(orchestrator.agents)})
+    logger.info("orchestrator_ready", extra={"agents": len(app.state.orchestrator.agents)})
 
 
 @app.on_event("shutdown")
@@ -94,11 +93,15 @@ async def shutdown() -> None:
     leader_elector = getattr(app.state, "leader_elector", None)
     if leader_elector:
         leader_elector.stop()
+    orchestrator = getattr(app.state, "orchestrator", None)
+    if orchestrator:
+        await orchestrator.cleanup()
 
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/healthz", response_model=HealthResponse)
-async def health() -> HealthResponse:
+async def health(request: Request) -> HealthResponse:
+    orchestrator = request.app.state.orchestrator
     dependencies = {
         "orchestrator": "ok" if orchestrator.initialized else "down",
         "leader_elector": "ok"
@@ -122,6 +125,7 @@ async def version() -> dict[str, str]:
 async def readiness(request: Request) -> dict[str, bool | dict[str, bool]]:
     leader_elector = getattr(request.app.state, "leader_elector", None)
     leader_ready = leader_elector.is_leader if leader_elector else True
+    orchestrator = request.app.state.orchestrator
     checks = {"orchestrator": orchestrator.initialized, "leader": leader_ready}
     ready = all(checks.values())
     if not ready:
@@ -131,10 +135,12 @@ async def readiness(request: Request) -> dict[str, bool | dict[str, bool]]:
 
 @api_router.get("/agents", response_model=list[str])
 async def list_agents(
+    request: Request,
     response: Response,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[str]:
+    orchestrator = request.app.state.orchestrator
     agents = sorted(orchestrator.agents.keys())
     sliced = agents[offset : offset + limit]
     response.headers["X-Total-Count"] = str(len(agents))
@@ -145,10 +151,12 @@ async def list_agents(
 
 @api_router.get("/dependencies", response_model=list[DependencyRequest])
 async def list_dependencies(
+    request: Request,
     response: Response,
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[DependencyRequest]:
+    orchestrator = request.app.state.orchestrator
     deps = [
         DependencyRequest(agent_id=dep.agent_id, depends_on=dep.depends_on)
         for dep in orchestrator.list_dependencies()
@@ -161,13 +169,15 @@ async def list_dependencies(
 
 
 @api_router.post("/dependencies", response_model=DependencyRequest)
-async def register_dependency(payload: DependencyRequest) -> DependencyRequest:
+async def register_dependency(payload: DependencyRequest, request: Request) -> DependencyRequest:
+    orchestrator = request.app.state.orchestrator
     orchestrator.register_dependency(payload.agent_id, payload.depends_on)
     return payload
 
 
 @api_router.get("/agents/{agent_id}/state", response_model=AgentStateResponse)
-async def get_agent_state(agent_id: str) -> AgentStateResponse:
+async def get_agent_state(agent_id: str, request: Request) -> AgentStateResponse:
+    orchestrator = request.app.state.orchestrator
     state = orchestrator.get_agent_state(agent_id)
     if not state:
         raise HTTPException(status_code=404, detail="Agent state not found")
@@ -177,6 +187,7 @@ async def get_agent_state(agent_id: str) -> AgentStateResponse:
 @api_router.post("/agents/{agent_id}/activate", response_model=AgentStateResponse)
 async def activate_agent(agent_id: str, request: Request) -> AgentStateResponse:
     auth = request.state.auth
+    orchestrator = request.app.state.orchestrator
     if not orchestrator.dependencies_satisfied(agent_id):
         raise HTTPException(status_code=409, detail="Agent dependencies not satisfied")
     try:
@@ -189,7 +200,8 @@ async def activate_agent(agent_id: str, request: Request) -> AgentStateResponse:
 
 
 @api_router.post("/agents/{agent_id}/deactivate", response_model=AgentStateResponse)
-async def deactivate_agent(agent_id: str) -> AgentStateResponse:
+async def deactivate_agent(agent_id: str, request: Request) -> AgentStateResponse:
+    orchestrator = request.app.state.orchestrator
     orchestrator.set_agent_state(agent_id, "stopped")
     state = orchestrator.get_agent_state(agent_id)
     return AgentStateResponse(**state.__dict__)
@@ -200,6 +212,7 @@ async def upload_workflow(
     request: Request, file: UploadFile = File(...), workflow_name: str | None = None
 ) -> WorkflowUploadResponse:
     auth = request.state.auth
+    orchestrator = request.app.state.orchestrator
     workflow_agent = orchestrator.agents.get("agent_024")
     if not workflow_agent:
         raise HTTPException(status_code=503, detail="Workflow engine agent not available")
@@ -218,6 +231,7 @@ async def upload_workflow(
 @api_router.post("/plans/{plan_id}/approve", response_model=PlanApprovalResponse)
 async def approve_plan(plan_id: str, payload: PlanApprovalRequest, request: Request) -> PlanApprovalResponse:
     auth = request.state.auth
+    orchestrator = request.app.state.orchestrator
     response = await orchestrator.approve_plan(
         plan_id=plan_id,
         decision=payload.decision,

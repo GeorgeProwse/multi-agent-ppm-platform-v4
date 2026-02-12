@@ -47,7 +47,6 @@ app.add_middleware(TraceMiddleware, service_name="document-service")
 app.add_middleware(RequestMetricsMiddleware, service_name="document-service")
 register_error_handlers(app)
 
-store: DocumentStore | None = None
 kpi_handles = build_kpi_handles("document-service")
 
 documents_stored = configure_metrics("document-service").create_counter(
@@ -84,37 +83,31 @@ class DocumentResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup() -> None:
-    global store
     ensure_dlp_environment()
     encryption_key = get_encryption_key("DOCUMENT_ENCRYPTION_KEY")
     if not encryption_key:
         encryption_key = Fernet.generate_key().decode("utf-8")
         logger.warning("document_encryption_key_generated", extra={"reason": "missing_key"})
     db_path = Path(os.getenv("DOCUMENT_DB_PATH", "apps/document-service/storage/documents.db"))
-    store = DocumentStore(db_path, encryption_key=encryption_key)
+    app.state.document_store = DocumentStore(db_path, encryption_key=encryption_key)
     logger.info("document_store_ready", extra={"db_path": str(db_path)})
 
 
-def _get_store() -> DocumentStore:
-    global store
-    if store is None:
-        ensure_dlp_environment()
-        encryption_key = get_encryption_key("DOCUMENT_ENCRYPTION_KEY")
-        if not encryption_key:
-            encryption_key = Fernet.generate_key().decode("utf-8")
-            logger.warning("document_encryption_key_generated", extra={"reason": "missing_key"})
-        db_path = Path(os.getenv("DOCUMENT_DB_PATH", "apps/document-service/storage/documents.db"))
-        store = DocumentStore(db_path, encryption_key=encryption_key)
-        logger.info("document_store_initialized", extra={"db_path": str(db_path)})
-    return store
+def _get_store(request: Request) -> DocumentStore:
+    return request.app.state.document_store
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    logger.info("document_service_shutdown")
 
 
 @app.get("/health", response_model=HealthResponse)
 @app.get("/healthz", response_model=HealthResponse)
-async def health() -> HealthResponse:
+async def health(request: Request) -> HealthResponse:
     dependencies = {"document_store": "unknown", "dlp_policy": "unknown"}
     try:
-        _get_store().ping()
+        _get_store(request).ping()
         dependencies["document_store"] = "ok"
     except Exception:  # noqa: BLE001
         dependencies["document_store"] = "down"
@@ -165,7 +158,7 @@ def _format_dlp_reasons(findings: list[DLPFinding]) -> list[dict[str, str]]:
 
 @api_router.post("/documents", response_model=DocumentResponse)
 async def create_document(request: Request, payload: DocumentRequest) -> DocumentResponse:
-    store = _get_store()
+    store = _get_store(request)
     tenant_id = request.state.auth.tenant_id
     dlp_payload = {
         "name": payload.name,
@@ -220,7 +213,7 @@ async def list_documents(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[DocumentResponse]:
-    store = _get_store()
+    store = _get_store(request)
     tenant_id = request.state.auth.tenant_id
     records = store.list_documents(tenant_id, limit=limit, offset=offset)
     response.headers["X-Total-Count"] = str(store.count_documents(tenant_id))
@@ -231,7 +224,7 @@ async def list_documents(
 
 @api_router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(document_id: str, request: Request) -> DocumentResponse:
-    store = _get_store()
+    store = _get_store(request)
     tenant_id = request.state.auth.tenant_id
     record = store.get_document(tenant_id, document_id)
     if not record:
