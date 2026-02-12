@@ -1,5 +1,6 @@
 .messages {
   flex: 1;
+  min-height: 60%;
   overflow-y: auto;
   padding: var(--space-4);
   display: flex;
