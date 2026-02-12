@@ -73,45 +73,40 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 _URL_ADAPTER = TypeAdapter(AnyHttpUrl)
 
-# Initialize connector config store
-# In production, this path should come from environment
-_config_store: ConnectorConfigStore | None = None
-_project_config_store: ProjectConnectorConfigStore | None = None
-_webhook_store: WebhookEventStore | None = None
-_circuit_breaker: CircuitBreaker | None = None
+# Resource constructors and dependency accessors
+def build_config_store() -> ConnectorConfigStore:
+    storage_path = REPO_ROOT / "data" / "connectors" / "config.json"
+    return ConnectorConfigStore(storage_path)
 
 
-def get_config_store() -> ConnectorConfigStore:
-    """Get or create the connector config store."""
-    global _config_store
-    if _config_store is None:
-        storage_path = REPO_ROOT / "data" / "connectors" / "config.json"
-        _config_store = ConnectorConfigStore(storage_path)
-    return _config_store
+def build_project_config_store() -> ProjectConnectorConfigStore:
+    storage_path = REPO_ROOT / "data" / "connectors" / "project_config.json"
+    return ProjectConnectorConfigStore(storage_path)
 
 
-def get_project_config_store() -> ProjectConnectorConfigStore:
-    """Get or create the project connector config store."""
-    global _project_config_store
-    if _project_config_store is None:
-        storage_path = REPO_ROOT / "data" / "connectors" / "project_config.json"
-        _project_config_store = ProjectConnectorConfigStore(storage_path)
-    return _project_config_store
+def build_webhook_store() -> WebhookEventStore:
+    storage_path = REPO_ROOT / "data" / "connectors" / "webhooks.json"
+    return WebhookEventStore(storage_path)
 
 
-def get_webhook_store() -> WebhookEventStore:
-    global _webhook_store
-    if _webhook_store is None:
-        storage_path = REPO_ROOT / "data" / "connectors" / "webhooks.json"
-        _webhook_store = WebhookEventStore(storage_path)
-    return _webhook_store
+def build_circuit_breaker() -> CircuitBreaker:
+    return CircuitBreaker.from_env()
 
 
-def get_circuit_breaker() -> CircuitBreaker:
-    global _circuit_breaker
-    if _circuit_breaker is None:
-        _circuit_breaker = CircuitBreaker.from_env()
-    return _circuit_breaker
+def get_config_store(request: Request) -> ConnectorConfigStore:
+    return request.app.state.connector_config_store
+
+
+def get_project_config_store(request: Request) -> ProjectConnectorConfigStore:
+    return request.app.state.project_connector_config_store
+
+
+def get_webhook_store(request: Request) -> WebhookEventStore:
+    return request.app.state.webhook_store
+
+
+def get_circuit_breaker(request: Request) -> CircuitBreaker:
+    return request.app.state.connector_circuit_breaker
 
 
 def get_webhook_handler(connector_id: str) -> Callable[..., Any] | None:
@@ -898,7 +893,7 @@ async def list_categories(
         },
     }
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     categories = []
 
     for category in ConnectorCategory:
@@ -930,7 +925,7 @@ async def list_mcp_server_tools(system: str) -> McpServerToolsResponse:
     List available MCP tools for a specific server/system.
     """
     definition = _get_mcp_definition_by_system(system)
-    config_store = get_config_store()
+    config_store = get_config_store(http_request)
     config = config_store.get(definition.connector_id)
     if not config or not config.mcp_server_url:
         raise HTTPException(
@@ -978,7 +973,7 @@ async def list_connectors(
 
     Optionally filter by category.
     """
-    store = get_config_store()
+    store = get_config_store(http_request)
 
     # Get connector definitions
     if category:
@@ -1023,7 +1018,6 @@ async def list_connectors(
             ),
             custom_fields=config.custom_fields if config else {},
             mcp_server_url=config.mcp_server_url if config else "",
-            mcp_server_id=config.mcp_server_id if config else "",
             mcp_client_id=config.mcp_client_id if config else "",
             mcp_client_secret=config.mcp_client_secret if config else "",
             mcp_scope=config.mcp_scope if config else "",
@@ -1066,8 +1060,8 @@ async def list_project_connectors(
     """
     List connectors with project-scoped configuration.
     """
-    store = get_project_config_store()
-    base_store = get_config_store()
+    store = get_project_config_store(http_request)
+    base_store = get_config_store(http_request)
 
     if category:
         try:
@@ -1126,7 +1120,6 @@ async def list_project_connectors(
                 ),
                 custom_fields=project_config.custom_fields if project_config else {},
                 mcp_server_url=project_config.mcp_server_url if project_config else "",
-                mcp_server_id=project_config.mcp_server_id if project_config else "",
                 mcp_client_id=project_config.mcp_client_id if project_config else "",
                 mcp_client_secret=project_config.mcp_client_secret if project_config else "",
                 mcp_scope=project_config.mcp_scope if project_config else "",
@@ -1183,7 +1176,7 @@ async def get_connector(connector_id: str) -> ConnectorListItemResponse:
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     config = store.get(connector_id)
 
     return ConnectorListItemResponse(
@@ -1212,7 +1205,6 @@ async def get_connector(connector_id: str) -> ConnectorListItemResponse:
         last_sync_at=config.last_sync_at.isoformat() if config and config.last_sync_at else None,
         custom_fields=config.custom_fields if config else {},
         mcp_server_url=config.mcp_server_url if config else "",
-        mcp_server_id=config.mcp_server_id if config else "",
         mcp_client_id=config.mcp_client_id if config else "",
         mcp_client_secret=config.mcp_client_secret if config else "",
         mcp_scope=config.mcp_scope if config else "",
@@ -1251,7 +1243,7 @@ async def update_connector_config(
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     existing = store.get(connector_id)
 
     now = datetime.now(timezone.utc)
@@ -1366,7 +1358,7 @@ async def update_project_connector_config(
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_project_config_store()
+    store = get_project_config_store(http_request)
     existing = store.get(project_id, connector_id)
     now = datetime.now(timezone.utc)
 
@@ -1461,7 +1453,7 @@ async def update_regulatory_compliance_config(
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     existing = store.get(connector_id)
     now = datetime.now(timezone.utc)
     custom_fields = dict(existing.custom_fields) if existing else {}
@@ -1483,7 +1475,6 @@ async def update_regulatory_compliance_config(
         project_key=existing.project_key if existing else "",
         custom_fields=custom_fields,
         mcp_server_url=existing.mcp_server_url if existing else "",
-        mcp_server_id=existing.mcp_server_id if existing else "",
         protocol=existing.protocol if existing else "",
         protocol_version=existing.protocol_version if existing else "",
         mcp_client_id=existing.mcp_client_id if existing else "",
@@ -1583,7 +1574,7 @@ async def enable_connector(connector_id: str, http_request: Request) -> Connecto
 
     _ensure_connector_is_available(definition)
 
-    store = get_config_store()
+    store = get_config_store(http_request)
 
     # Create config if it doesn't exist
     config = store.get(connector_id)
@@ -1695,7 +1686,7 @@ async def disable_connector(connector_id: str, http_request: Request) -> Connect
     """
     Disable a connector.
     """
-    store = get_config_store()
+    store = get_config_store(http_request)
     config = store.get(connector_id)
     definition = get_connector_definition(connector_id)
     mcp_feature_enabled = _mcp_feature_enabled(definition.system) if definition else True
@@ -1777,7 +1768,7 @@ async def enable_project_mcp_config(
     definition = _get_mcp_definition_by_system(system)
     _ensure_connector_is_available(definition)
 
-    store = get_project_config_store()
+    store = get_project_config_store(http_request)
     existing = store.get(project_id, definition.connector_id)
     now = datetime.now(timezone.utc)
 
@@ -1823,7 +1814,7 @@ async def update_project_mcp_config(
     definition = _get_mcp_definition_by_system(system)
     _ensure_connector_is_available(definition)
 
-    store = get_project_config_store()
+    store = get_project_config_store(http_request)
     existing = store.get(project_id, definition.connector_id)
     now = datetime.now(timezone.utc)
 
@@ -1872,7 +1863,7 @@ async def enable_project_connector(
 
     _ensure_connector_is_available(definition)
 
-    store = get_project_config_store()
+    store = get_project_config_store(http_request)
     config = store.get(project_id, connector_id)
     if not config:
         config = ProjectConnectorConfig(
@@ -1938,7 +1929,7 @@ async def disable_project_connector(
     """
     Disable a project-scoped connector.
     """
-    store = get_project_config_store()
+    store = get_project_config_store(http_request)
     config = store.get(project_id, connector_id)
     definition = get_connector_definition(connector_id)
     mcp_feature_enabled = (
@@ -2013,7 +2004,7 @@ async def test_connection(
 
     _ensure_connector_is_available(definition)
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     config = store.get(connector_id)
 
     # Create config with request values
@@ -2024,7 +2015,6 @@ async def test_connection(
         instance_url=request.instance_url or (config.instance_url if config else ""),
         project_key=request.project_key or (config.project_key if config else ""),
         mcp_server_url=config.mcp_server_url if config else "",
-        mcp_server_id=config.mcp_server_id if config else "",
         mcp_client_id=config.mcp_client_id if config else "",
         mcp_client_secret=config.mcp_client_secret if config else "",
         mcp_scope=config.mcp_scope if config else "",
@@ -2047,7 +2037,7 @@ async def test_connection(
             tested_at=datetime.now(timezone.utc).isoformat(),
         )
 
-    circuit_breaker = get_circuit_breaker()
+    circuit_breaker = get_circuit_breaker(request)
     if not circuit_breaker.allow_request(connector_id):
         return TestConnectionResponse(
             status="circuit_open",
@@ -2099,7 +2089,7 @@ async def test_regulatory_compliance_connection(
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     existing = store.get(connector_id)
     custom_fields = dict(existing.custom_fields) if existing else {}
     if request.endpoint_url:
@@ -2146,7 +2136,7 @@ async def get_regulatory_audit_logs(
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    store = get_config_store()
+    store = get_config_store(http_request)
     config = store.get(connector_id)
     if not config:
         raise HTTPException(
@@ -2168,7 +2158,7 @@ async def handle_connector_webhook(connector_id: str, request: Request) -> dict[
     if not definition:
         raise HTTPException(status_code=404, detail=f"Connector not found: {connector_id}")
 
-    config = get_config_store().get(connector_id)
+    config = get_config_store(request).get(connector_id)
     if not config or not config.enabled:
         raise HTTPException(status_code=403, detail="Connector not enabled")
 
@@ -2176,7 +2166,7 @@ async def handle_connector_webhook(connector_id: str, request: Request) -> dict[
     if not handler:
         raise HTTPException(status_code=404, detail="Webhook handler not registered")
 
-    circuit_breaker = get_circuit_breaker()
+    circuit_breaker = get_circuit_breaker(request)
     if not circuit_breaker.allow_request(connector_id):
         return {
             "status": "circuit_open",
@@ -2201,7 +2191,7 @@ async def handle_connector_webhook(connector_id: str, request: Request) -> dict[
         circuit_breaker.record_success(connector_id)
     tenant_id = request.headers.get("X-Tenant-ID")
     sanitized_headers = _sanitize_headers(headers)
-    get_webhook_store().record_event(
+    get_webhook_store(request).record_event(
         WebhookEvent.from_payload(
             connector_id=connector_id,
             payload=payload,
@@ -2232,7 +2222,7 @@ async def delete_connector_config(connector_id: str, http_request: Request) -> d
     """
     Delete a connector configuration.
     """
-    store = get_config_store()
+    store = get_config_store(http_request)
     if not store.delete(connector_id):
         raise HTTPException(
             status_code=404, detail=f"Connector configuration not found: {connector_id}"

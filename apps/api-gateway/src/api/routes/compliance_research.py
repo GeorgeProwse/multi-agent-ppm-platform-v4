@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
 
 router = APIRouter()
@@ -28,7 +28,7 @@ async def research_compliance(
     project_id: str, request: ComplianceResearchRequest
 ) -> ComplianceResearchResponse:
     """Trigger external regulatory monitoring using the Compliance agent."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")

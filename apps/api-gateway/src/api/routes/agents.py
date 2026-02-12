@@ -4,7 +4,7 @@ Agent API Routes
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ValidationError
 
 from agents.runtime import AgentResponse
@@ -21,13 +21,13 @@ class QueryRequest(BaseModel):
 
 
 @router.post("/query", response_model=AgentResponse)
-async def process_query(request: QueryRequest) -> AgentResponse:
+async def process_query(request: QueryRequest, http_request: Request) -> AgentResponse:
     """
     Process a natural language query through the agent system.
 
     This endpoint routes the query through the Intent Router and Response Orchestration agents.
     """
-    from api.main import orchestrator
+    orchestrator = http_request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
@@ -47,13 +47,13 @@ async def process_query(request: QueryRequest) -> AgentResponse:
 
 
 @router.get("/agents")
-async def list_agents() -> dict[str, Any]:
+async def list_agents(request: Request) -> dict[str, Any]:
     """
     List all available agents.
 
     Returns information about all loaded agents and their capabilities.
     """
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
@@ -65,11 +65,11 @@ async def list_agents() -> dict[str, Any]:
 
 
 @router.get("/agents/{agent_id}")
-async def get_agent_info(agent_id: str) -> dict[str, Any]:
+async def get_agent_info(agent_id: str, request: Request) -> dict[str, Any]:
     """
     Get information about a specific agent.
     """
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")

@@ -5,7 +5,7 @@ Health Check API Routes
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Request
 
 from api.limiter import limiter
 
@@ -14,14 +14,14 @@ router = APIRouter()
 
 @limiter.exempt
 @router.get("/health")
-async def health_check() -> dict[str, Any]:
+async def health_check(request: Request) -> dict[str, Any]:
     """
     Health check endpoint for load balancers and monitoring.
 
     Returns:
         Basic health status of the API
     """
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     checks = {
         "api": True,
@@ -45,7 +45,7 @@ async def readiness_check(request: Request) -> dict[str, Any]:
     Returns:
         Ready status including dependency checks
     """
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     leader_elector = getattr(request.app.state, "leader_elector", None)
     leader_ready = leader_elector.is_leader if leader_elector else True

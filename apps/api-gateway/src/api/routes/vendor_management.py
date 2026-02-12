@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, Field, ValidationError
 
 router = APIRouter()
@@ -31,9 +31,9 @@ class VendorListResponse(BaseModel):
 
 
 @router.get("/vendors/{vendor_id}", response_model=VendorProfileResponse)
-async def get_vendor_profile(vendor_id: str) -> VendorProfileResponse:
+async def get_vendor_profile(vendor_id: str, request: Request) -> VendorProfileResponse:
     """Get a vendor profile by ID."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
@@ -52,9 +52,9 @@ async def get_vendor_profile(vendor_id: str) -> VendorProfileResponse:
 
 
 @router.patch("/vendors/{vendor_id}", response_model=VendorUpdateResponse)
-async def update_vendor_profile(vendor_id: str, request: VendorUpdateRequest) -> VendorUpdateResponse:
+async def update_vendor_profile(vendor_id: str, payload: VendorUpdateRequest, request: Request) -> VendorUpdateResponse:
     """Update fields on a vendor profile."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
@@ -86,7 +86,7 @@ async def list_vendors(
     max_risk_score: float | None = Query(default=None),
 ) -> VendorListResponse:
     """List vendor profiles with optional filtering."""
-    from api.main import orchestrator
+    orchestrator = request.app.state.orchestrator
 
     if not orchestrator or not orchestrator.initialized:
         raise HTTPException(status_code=503, detail="Orchestrator not initialized")
