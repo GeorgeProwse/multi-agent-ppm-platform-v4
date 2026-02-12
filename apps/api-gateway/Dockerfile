@@ -29,31 +29,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 1000 ppm && \
-    chown -R ppm:ppm /app
+RUN groupadd --gid 10001 appuser && \
+    useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser && \
+    chown -R 10001:10001 /app
 
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY --chown=ppm:ppm . ./apps/api-gateway
-COPY --chown=ppm:ppm --from=repo-root apps/orchestration-service/src ./apps/orchestration-service/src
-COPY --chown=ppm:ppm --from=repo-root agents ./agents
-COPY --chown=ppm:ppm --from=repo-root tools ./tools
-COPY --chown=ppm:ppm --from=repo-root config ./config
-COPY --chown=ppm:ppm --from=repo-root packages ./packages
-COPY --chown=ppm:ppm --from=repo-root services/agent-config ./services/agent-config
-COPY --chown=ppm:ppm --from=repo-root connectors ./connectors
-COPY --chown=ppm:ppm --from=repo-root data ./data
+COPY --chown=10001:10001 . ./apps/api-gateway
+COPY --chown=10001:10001 --from=repo-root apps/orchestration-service/src ./apps/orchestration-service/src
+COPY --chown=10001:10001 --from=repo-root agents ./agents
+COPY --chown=10001:10001 --from=repo-root tools ./tools
+COPY --chown=10001:10001 --from=repo-root config ./config
+COPY --chown=10001:10001 --from=repo-root packages ./packages
+COPY --chown=10001:10001 --from=repo-root services/agent-config ./services/agent-config
+COPY --chown=10001:10001 --from=repo-root connectors ./connectors
+COPY --chown=10001:10001 --from=repo-root data ./data
 
 # Switch to non-root user
-USER ppm
+USER appuser
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/home/ppm/.local/bin:${PATH}"
+    PATH="/home/appuser/.local/bin:${PATH}"
 
 # Expose port
 EXPOSE 8000

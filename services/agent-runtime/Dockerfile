@@ -28,18 +28,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN useradd -m -u 10001 appuser && \
-    chown -R appuser:appuser /app
+RUN groupadd --gid 10001 appuser && \
+    useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser && \
+    chown -R 10001:10001 /app
 
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code and shared tooling
-COPY --chown=appuser:appuser pyproject.toml ./
-COPY --chown=appuser:appuser tools ./tools
-COPY --chown=appuser:appuser config ./config
-COPY --chown=appuser:appuser services/agent-runtime ./services/agent-runtime
+COPY --chown=10001:10001 pyproject.toml ./
+COPY --chown=10001:10001 tools ./tools
+COPY --chown=10001:10001 config ./config
+COPY --chown=10001:10001 services/agent-runtime ./services/agent-runtime
 
 # Switch to non-root user
 USER appuser
