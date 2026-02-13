@@ -257,7 +257,13 @@ Agent defaults are derived from `agents/runtime/src/agent_catalog.py` (with desc
 
 ## Template gallery
 
-The workspace includes a template gallery for creating deliverables (documents and spreadsheets). Templates are defined in:
+The workspace includes a canonical template catalog and instantiation gallery. Canonical template retrieval is sourced from:
+
+- `docs/templates/index.json` (source of truth for canonical IDs and metadata)
+- `docs/templates/migration/legacy-to-canonical.csv` (legacy alias mapping)
+- `apps/web/src/canonical_template_registry.py` (API adapter for canonical retrieval and migration)
+
+Instantiation payload templates remain defined in:
 
 - `apps/web/src/template_models.py` (Pydantic models + placeholder rendering)
 - `apps/web/src/template_registry.py` (static registry of template definitions)
@@ -277,12 +283,12 @@ Custom parameters passed during instantiation are merged into the placeholder co
 
 | Method | Path | Description |
 | --- | --- | --- |
-| `GET` | `/api/templates` | List template summaries; supports `type`, `tag`, `q`, and `gallery=true` filters. |
-| `GET` | `/api/templates/{template_id}` | Fetch full template definition (`gallery=true` preferred when requesting deliverable templates); supports `version` for project templates. |
+| `GET` | `/api/templates` | List template summaries; canonical catalog mode supports `gallery=true` plus `artefact`, `methodology`, `compliance_tag`, and `q` filters (`type`/`tag` remain backwards-compatible aliases). |
+| `GET` | `/api/templates/{template_id}` | Fetch a canonical template definition (when `gallery=true` or canonical/legacy ID is provided) or a project template definition (supports `version`). |
 | `POST` | `/api/templates/{template_id}/instantiate` | Instantiate a template into a document or spreadsheet. |
 | `POST` | `/api/templates/{template_id}/apply` | Apply a project template; accepts optional `version` to pin the configuration. |
 
-> **Note:** `/api/templates` is shared with project template configuration. Use `gallery=true` to explicitly request deliverable templates for the workspace gallery.
+> **Note:** `/api/templates` is shared with project template configuration. Use `gallery=true` to explicitly request canonical template catalog responses for the workspace selector.
 
 Example instantiate request:
 

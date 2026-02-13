@@ -108,6 +108,8 @@ from template_models import (  # noqa: E402
     Template as DeliverableTemplate,
 )
 from template_models import (
+    CanonicalTemplateDefinition,
+    CanonicalTemplateSummary,
     TemplateInstantiateRequest,
     TemplateInstantiateResponse,
     TemplateType,
@@ -120,8 +122,9 @@ from template_models import (
 from template_registry import (  # noqa: E402
     get_template as get_deliverable_template,
 )
-from template_registry import (
-    list_templates as list_deliverable_templates,
+from canonical_template_registry import (  # noqa: E402
+    get_catalog_template,
+    list_catalog_templates,
 )
 from timeline_models import (  # noqa: E402
     Milestone,
@@ -3363,6 +3366,11 @@ async def instantiate_template(
     if not tenant_id:
         raise HTTPException(status_code=401, detail="Tenant not available")
     template = get_deliverable_template(template_id)
+    if template is None:
+        catalog_template = get_catalog_template(template_id)
+        if catalog_template:
+            legacy_template_id = catalog_template.template_id.split(".", 1)[0]
+            template = get_deliverable_template(legacy_template_id)
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     context = _template_context(
@@ -4196,15 +4204,18 @@ async def import_spreadsheet_csv(project_id: str, sheet_id: str, request: Reques
 
 @api_router.get(
     "/api/templates",
-    response_model=list[TemplateSummary | DeliverableTemplateSummary],
+    response_model=list[TemplateSummary | CanonicalTemplateSummary],
 )
 async def list_templates(
     request: Request,
     type: str | None = None,
-    tag: str | None = None,
+    artefact: str | None = None,
+    methodology: str | None = None,
+    compliance_tag: str | None = None,
     q: str | None = None,
     gallery: bool | None = None,
-) -> list[TemplateSummary | DeliverableTemplateSummary]:
+    tag: str | None = None,
+) -> list[TemplateSummary | CanonicalTemplateSummary]:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
     if not tenant_id:
@@ -4212,17 +4223,19 @@ async def list_templates(
     wants_gallery = (
         gallery is True
         or "type" in request.query_params
-        or "tag" in request.query_params
+        or "artefact" in request.query_params
+        or "methodology" in request.query_params
+        or "compliance_tag" in request.query_params
         or "q" in request.query_params
     )
     if wants_gallery:
-        try:
-            template_type = TemplateType(type) if type else None
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail="Unsupported template type") from exc
-        templates = list_deliverable_templates(
-            template_type=template_type,
-            tag=tag,
+        mapped_artefact = artefact
+        if type and not mapped_artefact:
+            mapped_artefact = type
+        templates = list_catalog_templates(
+            artefact=mapped_artefact,
+            methodology=methodology,
+            compliance_tag=compliance_tag or tag,
             query=q,
         )
         logger.info(
@@ -4270,21 +4283,21 @@ async def list_templates(
 
 @api_router.get(
     "/api/templates/{template_id}",
-    response_model=TemplateDefinition | DeliverableTemplate,
+    response_model=TemplateDefinition | CanonicalTemplateDefinition,
 )
 async def get_template(
     template_id: str,
     request: Request,
     gallery: bool | None = None,
     version: str | None = None,
-) -> TemplateDefinition | DeliverableTemplate:
+) -> TemplateDefinition | CanonicalTemplateDefinition:
     session = _require_session(request)
     tenant_id = _tenant_id_from_request(request, session)
     if not tenant_id:
         raise HTTPException(status_code=401, detail="Tenant not available")
-    deliverable_template = get_deliverable_template(template_id)
-    if gallery is True or deliverable_template is not None:
-        if not deliverable_template:
+    catalog_template = get_catalog_template(template_id)
+    if gallery is True or catalog_template is not None:
+        if not catalog_template:
             raise HTTPException(status_code=404, detail="Template not found")
         logger.info(
             "templates.get",
@@ -4294,7 +4307,7 @@ async def get_template(
                 "template_id": template_id,
             },
         )
-        return deliverable_template
+        return catalog_template
 
     _require_roles(
         request,
