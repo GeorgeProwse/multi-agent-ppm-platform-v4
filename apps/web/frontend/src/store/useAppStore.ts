@@ -6,12 +6,15 @@ import type {
   ChatMessage,
   SessionState,
   FeatureFlags,
+  TenantContextState,
 } from './types';
 
 interface AppState {
   // Session state
   session: SessionState;
   setSession: (session: Partial<SessionState>) => void;
+  tenantContext: TenantContextState;
+  setTenantContext: (context: Partial<TenantContextState>) => void;
 
   // Feature flags
   featureFlags: FeatureFlags;
@@ -55,6 +58,15 @@ export const useAppStore = create<AppState>((set) => ({
   setSession: (session) =>
     set((state) => ({
       session: { ...state.session, ...session },
+    })),
+
+  tenantContext: {
+    tenantId: null,
+    tenantName: null,
+  },
+  setTenantContext: (context) =>
+    set((state) => ({
+      tenantContext: { ...state.tenantContext, ...context },
     })),
 
   featureFlags: {},

@@ -6,6 +6,7 @@ import { AssistantPanel } from '@/components/assistant';
 import { TourProvider } from '@/components/tours';
 import { useAppStore } from '@/store';
 import { resolvePermissions, type Role } from '@/auth/permissions';
+import { useRealtimeConsole } from '@/hooks/useRealtimeConsole';
 import styles from './AppLayout.module.css';
 
 interface AppLayoutProps {
@@ -13,13 +14,14 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { setSession, setFeatureFlags } = useAppStore();
+  const { setSession, setFeatureFlags, setTenantContext } = useAppStore();
+  useRealtimeConsole();
 
   useEffect(() => {
     let mounted = true;
     const loadSession = async () => {
       try {
-        const response = await fetch('/session');
+        const response = await fetch('/v1/session');
         const data = await response.json();
         if (!mounted) return;
         if (data.authenticated) {
@@ -36,6 +38,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             authenticated: true,
             loading: false,
             user,
+          });
+          setTenantContext({
+            tenantId: data.tenant_id ?? 'default',
+            tenantName: data.tenant_id ?? 'Default Tenant',
           });
           try {
             const roleResponse = await fetch('/v1/api/roles');
@@ -57,17 +63,19 @@ export function AppLayout({ children }: AppLayoutProps) {
           }
         } else {
           setSession({ authenticated: false, loading: false, user: null });
+          setTenantContext({ tenantId: null, tenantName: null });
         }
       } catch {
         if (!mounted) return;
         setSession({ authenticated: false, loading: false, user: null });
+        setTenantContext({ tenantId: null, tenantName: null });
       }
     };
     loadSession();
     return () => {
       mounted = false;
     };
-  }, [setSession]);
+  }, [setSession, setTenantContext]);
 
   useEffect(() => {
     let mounted = true;

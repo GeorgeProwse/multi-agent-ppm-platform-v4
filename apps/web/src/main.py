@@ -771,6 +771,24 @@ def _render_static_page(page: str) -> FileResponse:
     return FileResponse(STATIC_DIR / f"{page}.html")
 
 
+def _legacy_ui_enabled() -> bool:
+    return os.getenv("LEGACY_UI_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+
+
+def _internal_legacy_ui_enabled() -> bool:
+    return os.getenv("INTERNAL_LEGACY_UI_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+
+
+def _spa_route(path: str) -> str:
+    return f"/app{path}"
+
+
+def _legacy_route_or_redirect(*, page: str, spa_path: str) -> FileResponse | RedirectResponse:
+    if _legacy_ui_enabled() or _internal_legacy_ui_enabled():
+        return _render_static_page(page)
+    return RedirectResponse(url=_spa_route(spa_path), status_code=307)
+
+
 def _multimodal_intake_enabled() -> bool:
     environment = os.getenv("ENVIRONMENT", "dev")
     return is_feature_enabled("multimodal_intake", environment=environment, default=False)
@@ -2707,28 +2725,28 @@ async def api_status(request: Request) -> dict[str, Any]:
 
 
 @api_router.get("/approvals")
-async def approvals_page() -> FileResponse:
-    return _render_static_page("approvals")
+async def approvals_page() -> FileResponse | RedirectResponse:
+    return _legacy_route_or_redirect(page="approvals", spa_path="/approvals")
 
 
 @api_router.get("/workflow-monitoring")
-async def workflow_monitoring_page() -> FileResponse:
-    return _render_static_page("workflow-monitoring")
+async def workflow_monitoring_page() -> FileResponse | RedirectResponse:
+    return _legacy_route_or_redirect(page="workflow-monitoring", spa_path="/workflows/monitoring")
 
 
 @api_router.get("/document-search")
-async def document_search_page() -> FileResponse:
-    return _render_static_page("document-search")
+async def document_search_page() -> FileResponse | RedirectResponse:
+    return _legacy_route_or_redirect(page="document-search", spa_path="/knowledge/documents")
 
 
 @api_router.get("/lessons-learned")
-async def lessons_learned_page() -> FileResponse:
-    return _render_static_page("lessons-learned")
+async def lessons_learned_page() -> FileResponse | RedirectResponse:
+    return _legacy_route_or_redirect(page="lessons-learned", spa_path="/knowledge/lessons")
 
 
 @api_router.get("/audit-log")
-async def audit_log_page() -> FileResponse:
-    return _render_static_page("audit-log")
+async def audit_log_page() -> FileResponse | RedirectResponse:
+    return _legacy_route_or_redirect(page="audit-log", spa_path="/admin/audit")
 
 
 @api_router.get("/api/approvals")
@@ -2866,6 +2884,25 @@ async def audit_log_feed() -> dict[str, Any]:
                 "integrity": "SHA256",
             }
         ],
+    }
+
+
+@api_router.get("/ui/migration-map")
+async def ui_migration_map() -> dict[str, Any]:
+    return {
+        "legacy_ui_enabled": _legacy_ui_enabled() or _internal_legacy_ui_enabled(),
+        "routes": [
+            {"legacy": "/v1/approvals", "spa": "/app/approvals", "notes": "Approval inbox moved into SPA workflow area."},
+            {"legacy": "/v1/workflow-monitoring", "spa": "/app/workflows/monitoring", "notes": "Monitoring now relies on SPA route with live updates."},
+            {"legacy": "/v1/document-search", "spa": "/app/knowledge/documents", "notes": "Knowledge document search consolidated in SPA."},
+            {"legacy": "/v1/lessons-learned", "spa": "/app/knowledge/lessons", "notes": "Lessons page moved to knowledge section."},
+            {"legacy": "/v1/audit-log", "spa": "/app/admin/audit", "notes": "Admin audit access requires admin role in SPA."},
+            {"legacy": "/v1/workspace?demo=true", "spa": "/app", "notes": "Workspace shell replaced by SPA console shell."},
+        ],
+        "compatibility": {
+            "api_endpoints": "Preserved under /v1/api/* and /v1/workflows/*.",
+            "legacy_html": "Served only when LEGACY_UI_ENABLED or INTERNAL_LEGACY_UI_ENABLED is true.",
+        },
     }
 
 
