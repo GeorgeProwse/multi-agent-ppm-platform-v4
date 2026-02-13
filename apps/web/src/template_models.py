@@ -90,6 +90,31 @@ class TemplateSummary(BaseModel):
     schema_version: int
 
 
+class CanonicalTemplateSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    template_id: str
+    canonical_template_id: str
+    name: str
+    description: str
+    type: TemplateType
+    tags: list[str]
+    artefact_type: str
+    methodology: str
+    compliance_tags: list[str]
+    version: str
+    status: str
+    supports_modular: bool
+    path: str
+    legacy_ids: list[str] = Field(default_factory=list)
+
+
+class CanonicalTemplateDefinition(CanonicalTemplateSummary):
+    required_fields: list[str] = Field(default_factory=list)
+    replaces: str | None = None
+    placeholder_schema_ref: str | None = None
+
+
 class TemplateInstantiateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

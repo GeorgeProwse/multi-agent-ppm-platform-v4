@@ -134,20 +134,28 @@ const renderWorkspaceShell = () => {
             <p>Select an activity to view guidance.</p>
           </div>
         </div>
-        <section class="workspace-templates" aria-label="Template gallery">
-          <h3>Templates</h3>
+        <section class="workspace-templates" aria-label="Canonical template catalog">
+          <h3>Template Catalog</h3>
           <div class="templates-toolbar">
-            <div class="templates-tabs" role="tablist" aria-label="Template filters">
+            <div class="templates-tabs" role="tablist" aria-label="Template artefact filters">
               <button class="template-tab is-active" role="tab" aria-selected="true" data-template-filter="all">
                 All
               </button>
-              <button class="template-tab" role="tab" aria-selected="false" data-template-filter="document">
-                Documents
+              <button class="template-tab" role="tab" aria-selected="false" data-template-filter="plan">
+                Plans
               </button>
-              <button class="template-tab" role="tab" aria-selected="false" data-template-filter="spreadsheet">
-                Spreadsheets
+              <button class="template-tab" role="tab" aria-selected="false" data-template-filter="risk-register">
+                Risk Registers
               </button>
             </div>
+            <label class="templates-search" for="template-methodology-filter">
+              <span>Methodology</span>
+              <input id="template-methodology-filter" type="search" placeholder="e.g. agile" />
+            </label>
+            <label class="templates-search" for="template-compliance-filter">
+              <span>Compliance tag</span>
+              <input id="template-compliance-filter" type="search" placeholder="e.g. sox" />
+            </label>
             <label class="templates-search" for="template-search">
               <span>Search</span>
               <input id="template-search" type="search" placeholder="Search templates" />
@@ -365,6 +373,8 @@ const initWorkspace = () => {
     list: [],
     selected: null,
     filter: "all",
+    methodology: "",
+    complianceTag: "",
     query: "",
   };
   const connectorsState = {
@@ -954,7 +964,7 @@ const initWorkspace = () => {
               : ""
           }" data-template-id="${template.template_id}">
             <span class="template-name">${escapeHtml(template.name)}</span>
-            <span class="template-type">${escapeHtml(template.type)}</span>
+            <span class="template-type">${escapeHtml(template.artefact_type || template.type)}</span>
           </button>
         `,
       )
@@ -986,16 +996,17 @@ const initWorkspace = () => {
       detail.innerHTML = "<p>Select a template to see details.</p>";
       return;
     }
-    const tags = template.tags.length
+    const tags = (template.tags || []).length
       ? template.tags
           .map((tag) => `<span class="template-tag">${escapeHtml(tag)}</span>`)
           .join("")
       : "<span class=\"template-tag is-muted\">No tags</span>";
     detail.innerHTML = `
       <div class="template-detail-card">
-        <p class="template-detail-type">${escapeHtml(template.type)}</p>
+        <p class="template-detail-type">${escapeHtml(template.artefact_type || template.type)}</p>
         <h4>${escapeHtml(template.name)}</h4>
         <p class="template-detail-description">${escapeHtml(template.description)}</p>
+        <p class="template-detail-description">Methodology: ${escapeHtml(template.methodology || "n/a")} · Compliance: ${escapeHtml((template.compliance_tags || []).join(", ") || "none")}</p>
         <div class="template-tags">${tags}</div>
         <button type="button" class="template-instantiate" id="template-instantiate">
           Instantiate
@@ -1015,7 +1026,13 @@ const initWorkspace = () => {
     const params = new URLSearchParams();
     params.set("gallery", "true");
     if (templatesState.filter !== "all") {
-      params.set("type", templatesState.filter);
+      params.set("artefact", templatesState.filter);
+    }
+    if (templatesState.methodology) {
+      params.set("methodology", templatesState.methodology);
+    }
+    if (templatesState.complianceTag) {
+      params.set("compliance_tag", templatesState.complianceTag);
     }
     if (templatesState.query) {
       params.set("q", templatesState.query);
@@ -4210,9 +4227,23 @@ const initWorkspace = () => {
     });
 
     const searchInput = document.getElementById("template-search");
+    const methodologyInput = document.getElementById("template-methodology-filter");
+    const complianceInput = document.getElementById("template-compliance-filter");
     if (searchInput) {
       searchInput.addEventListener("input", () => {
         templatesState.query = searchInput.value.trim();
+        loadTemplates();
+      });
+    }
+    if (methodologyInput) {
+      methodologyInput.addEventListener("input", () => {
+        templatesState.methodology = methodologyInput.value.trim();
+        loadTemplates();
+      });
+    }
+    if (complianceInput) {
+      complianceInput.addEventListener("input", () => {
+        templatesState.complianceTag = complianceInput.value.trim();
         loadTemplates();
       });
     }

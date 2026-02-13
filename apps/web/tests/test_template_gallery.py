@@ -40,21 +40,22 @@ def _wire_document_client(monkeypatch, transport: httpx.AsyncBaseTransport) -> N
 
 def test_list_templates_filter_type_and_search(client, monkeypatch):
     _set_tenant(monkeypatch, "tenant-a")
-    response = client.get("/api/templates?type=document&q=charter")
+    response = client.get("/api/templates?gallery=true&artefact=charter&q=charter")
     assert response.status_code == 200
     payload = response.json()
     assert payload
-    assert all(item["type"] == "document" for item in payload)
-    assert any(item["template_id"] == "project-charter" for item in payload)
+    assert all(item["artefact_type"] == "charter" for item in payload)
+    assert any(item["template_id"] == "project-charter.universal.v1" for item in payload)
 
 
 def test_get_template(client, monkeypatch):
     _set_tenant(monkeypatch, "tenant-a")
-    response = client.get("/api/templates/status-report")
+    response = client.get("/api/templates/status-report?gallery=true")
     assert response.status_code == 200
     payload = response.json()
-    assert payload["template_id"] == "status-report"
-    assert payload["payload"]["name_template"]
+    assert payload["template_id"] == "status-report.universal.v1"
+    assert payload["canonical_template_id"] == "status-report.universal.v1"
+    assert payload["legacy_ids"]
 
 
 def test_instantiate_document_substitutes_placeholders(client, monkeypatch):
