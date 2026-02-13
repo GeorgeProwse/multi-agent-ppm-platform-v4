@@ -6,11 +6,12 @@ import os
 import re
 import time
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
 
 import httpx
+from common.resilience import ResilienceMiddleware, dependency_config_from_env
 
 
 @dataclass
@@ -27,12 +28,6 @@ class LLMStreamChunk:
     delta: str
     raw: dict[str, Any]
     done: bool = False
-
-
-@dataclass
-class RetryPolicy:
-    max_attempts: int = 2
-    retryable_status_codes: tuple[int, ...] = (408, 409, 425, 429, 500, 502, 503, 504)
 
 
 class LLMProviderError(RuntimeError):
@@ -77,7 +72,7 @@ class SemanticCache:
             ]
         )
         semantic_fingerprint = self.embedder(normalized) if self.embedder else normalized
-        key_material = f"{tenant_id}:{semantic_fingerprint}".encode("utf-8")
+        key_material = f"{tenant_id}:{semantic_fingerprint}".encode()
         return sha256(key_material).hexdigest()
 
     def get(self, *, tenant_id: str, system_prompt: str, user_prompt: str) -> LLMResponse | None:
@@ -283,9 +278,22 @@ class AzureProviderAdapter(OpenAIProviderAdapter):
 class LLMGateway:
     def __init__(self, provider: str | None = None, config: dict[str, Any] | None = None) -> None:
         self.config = config or {}
-        self.retry_policy = RetryPolicy(**self.config.get("retry_policy", {}))
+        retry_cfg = self.config.get("retry_policy", {})
+        self._max_attempts = int(retry_cfg.get("max_attempts", 2))
+        self._initial_backoff_s = float(retry_cfg.get("initial_backoff_s", 0.2))
         self.provider_chain = self._resolve_chain(provider)
         self.adapters = {name: self._build_provider(name) for name in self.provider_chain}
+        self._resilience = {
+            name: ResilienceMiddleware(
+                dependency_config_from_env(
+                    f"llm_{name}",
+                    timeout_s=float(os.getenv("LLM_TIMEOUT", "10")),
+                    max_attempts=self._max_attempts,
+                    initial_backoff_s=self._initial_backoff_s,
+                )
+            )
+            for name in self.provider_chain
+        }
         self.cache = self._build_cache()
         self.budget = TokenBudgetManager(self.config.get("token_budgets"))
 
@@ -371,18 +379,24 @@ class LLMGateway:
         last_error: LLMProviderError | None = None
         for provider_name in self.provider_chain:
             adapter = self.adapters[provider_name]
-            for _ in range(self.retry_policy.max_attempts):
-                try:
+            try:
+                chunks: list[LLMStreamChunk] = []
+
+                async def _operation() -> list[LLMStreamChunk]:
+                    streamed: list[LLMStreamChunk] = []
                     async for chunk in adapter.stream(system_prompt=system_prompt, user_prompt=user_prompt):
-                        yield chunk
-                    self.budget.record_usage(tenant_id, TokenUsage(estimate, 0, estimate))
-                    return
-                except LLMProviderError as exc:
-                    last_error = exc
-                    if not exc.retryable:
-                        break
-            if last_error and not last_error.retryable:
-                break
+                        streamed.append(chunk)
+                    return streamed
+
+                chunks = await self._resilience[provider_name].execute_async(_operation)
+                for chunk in chunks:
+                    yield chunk
+                self.budget.record_usage(tenant_id, TokenUsage(estimate, 0, estimate))
+                return
+            except LLMProviderError as exc:
+                last_error = exc
+                if not exc.retryable:
+                    break
         raise last_error or LLMProviderError("No provider configured")
 
     async def complete_structured(
@@ -427,25 +441,24 @@ class LLMGateway:
         last_error: LLMProviderError | None = None
         for provider_name in self.provider_chain:
             adapter = self.adapters[provider_name]
-            for _ in range(self.retry_policy.max_attempts):
-                try:
-                    response = await adapter.complete(system_prompt=system_prompt, user_prompt=user_prompt)
-                    usage = self._extract_usage(response=response, estimate=estimate)
-                    self.budget.record_usage(tenant_id, usage)
-                    if self.cache:
-                        self.cache.put(
-                            tenant_id=tenant_id,
-                            system_prompt=system_prompt,
-                            user_prompt=user_prompt,
-                            response=response,
-                        )
-                    return response
-                except LLMProviderError as exc:
-                    last_error = exc
-                    if not exc.retryable:
-                        break
-            if last_error and not last_error.retryable:
-                break
+            try:
+                response = await self._resilience[provider_name].execute_async(
+                    lambda: adapter.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+                )
+                usage = self._extract_usage(response=response, estimate=estimate)
+                self.budget.record_usage(tenant_id, usage)
+                if self.cache:
+                    self.cache.put(
+                        tenant_id=tenant_id,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        response=response,
+                    )
+                return response
+            except LLMProviderError as exc:
+                last_error = exc
+                if not exc.retryable:
+                    break
         raise last_error or LLMProviderError("No provider configured")
 
     def _extract_usage(self, *, response: LLMResponse, estimate: int) -> TokenUsage:

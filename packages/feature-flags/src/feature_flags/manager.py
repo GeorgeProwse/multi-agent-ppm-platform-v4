@@ -4,7 +4,6 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from security.config import load_yaml
 
@@ -19,6 +18,27 @@ class FeatureFlag:
 MCP_GLOBAL_FLAG = "mcp_global_enabled"
 MCP_SYSTEM_PREFIX = "mcp_system_"
 MCP_PROJECT_PREFIX = "mcp_project_"
+
+
+_DEPENDENCY_DEGRADED: set[str] = set()
+
+
+def set_dependency_degraded(dependency: str) -> None:
+    _DEPENDENCY_DEGRADED.add(_normalize_flag_key(dependency))
+
+
+def clear_dependency_degraded(dependency: str) -> None:
+    _DEPENDENCY_DEGRADED.discard(_normalize_flag_key(dependency))
+
+
+def is_dependency_degraded(dependency: str) -> bool:
+    return _normalize_flag_key(dependency) in _DEPENDENCY_DEGRADED
+
+
+def should_use_degraded_mode(feature: str, dependency: str, *, environment: str | None = None) -> bool:
+    if is_feature_enabled(feature, environment=environment, default=False):
+        return True
+    return is_dependency_degraded(dependency)
 
 
 def _normalize_flag_key(value: str) -> str:
@@ -129,3 +149,7 @@ def is_feature_enabled(name: str, *, environment: str | None = None, default: bo
     if name not in flags:
         return default
     return flags[name].enabled
+
+
+def clear_all_dependency_degraded() -> None:
+    _DEPENDENCY_DEGRADED.clear()

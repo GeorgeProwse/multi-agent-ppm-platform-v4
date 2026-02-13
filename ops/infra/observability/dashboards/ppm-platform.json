@@ -140,6 +140,40 @@
           "legendFormat": "error_rate"
         }
       ]
+    },
+    {
+      "id": 1,
+      "title": "Dependency Circuit Breaker State Transitions",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (dependency,to_state) (rate(dependency_circuit_breaker_state_transitions_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      }
+    },
+    {
+      "id": 2,
+      "title": "Dependency Open Circuit Denials",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (dependency) (rate(dependency_circuit_breaker_open_denials_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      }
     }
   ]
 }

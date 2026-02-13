@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -25,6 +26,8 @@ def _load_module(name: str, path: Path):
 
 @pytest.mark.asyncio
 async def test_orchestration_service_starts_workflow_via_engine() -> None:
+    if importlib.util.find_spec("structlog") is None:
+        pytest.skip("structlog is required for orchestrator module import")
     orchestrator_module = _load_module("orchestration_service_orchestrator", ORCHESTRATOR_PATH)
     workflow_module = _load_module("orchestration_service_workflow_client", WORKFLOW_CLIENT_PATH)
     AgentOrchestrator = orchestrator_module.AgentOrchestrator
