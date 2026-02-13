@@ -16,11 +16,17 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from random import random
 from threading import Lock
 from typing import Any, TypeVar
 
 import yaml
+from common.resilience import (
+    CircuitBreakerPolicy,
+    DependencyResilienceConfig,
+    ResilienceMiddleware,
+    RetryPolicy,
+    TimeoutPolicy,
+)
 
 from jsonschema import ValidationError as JsonSchemaValidationError
 
@@ -261,7 +267,7 @@ class ConnectorConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ConnectorConfig":
+    def from_dict(cls, data: dict[str, Any]) -> ConnectorConfig:
         mcp_scopes = (
             data.get("mcp_scopes")
             if isinstance(data.get("mcp_scopes"), list)
@@ -388,6 +394,21 @@ class BaseConnector(ABC):
             self._telemetry = _FallbackNoopTelemetry(self.CONNECTOR_ID)
         self._pricing = self._load_pricing_config()
         self._last_call_cost_usd = 0.0
+        self._resilience = ResilienceMiddleware(
+            DependencyResilienceConfig(
+                dependency=f"connector_{self.CONNECTOR_ID}",
+                retry=RetryPolicy(
+                    max_attempts=self.max_retries + 1,
+                    initial_backoff_s=self.retry_initial_delay_seconds,
+                ),
+                timeout=TimeoutPolicy(timeout_s=self.timeout_seconds),
+                circuit_breaker=CircuitBreakerPolicy(
+                    failure_threshold=self.circuit_failure_threshold,
+                    failure_window_s=float(self.circuit_failure_window_seconds),
+                    recovery_timeout_s=float(self.circuit_recovery_timeout_seconds),
+                ),
+            )
+        )
 
     def _execute_call(
         self, endpoint: str, payload: dict[str, Any], *, timeout: float
@@ -473,40 +494,32 @@ class BaseConnector(ABC):
         timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
         """Execute a connector call with schema validation, retries and circuit breaker."""
-        self._before_call()
         self._validate_schema(payload, schema.get("request") if schema else None, "request")
         timeout = timeout_seconds if timeout_seconds is not None else self.timeout_seconds
-        last_error: Exception | None = None
         start = time.perf_counter()
         attributes = {
             "connector_id": self.CONNECTOR_ID,
             "connector_operation": endpoint,
             "service_name": self._telemetry.service_name,
         }
-        for attempt in range(self.max_retries + 1):
-            try:
-                response = self._execute_call(endpoint, payload, timeout=timeout)
-                self._validate_schema(response, schema.get("response") if schema else None, "response")
-                self._last_call_cost_usd = self.estimate_call_cost(endpoint, payload, response)
-                self._mark_success()
-                self._telemetry.sync_total.add(1, {**attributes, "result": "success"})
-                self._telemetry.sync_duration.record(time.perf_counter() - start, attributes)
-                return response
-            except (TimeoutError, ConnectorError, JsonSchemaValidationError, ValueError) as exc:
-                last_error = exc
-                self._mark_failure()
-                self._telemetry.sync_errors.add(1, {**attributes, "attempt": attempt + 1})
-                if attempt >= self.max_retries:
-                    break
-                backoff = self.retry_initial_delay_seconds * (2**attempt)
-                jitter = backoff * random() * 0.25
-                self._telemetry.sync_total.add(1, {**attributes, "result": "retry"})
-                time.sleep(backoff + jitter)
-        self._telemetry.sync_total.add(1, {**attributes, "result": "failure"})
-        self._telemetry.sync_duration.record(time.perf_counter() - start, attributes)
-        raise ConnectorCallFailedError(
-            f"Connector {self.CONNECTOR_ID} failed to call {endpoint} after {self.max_retries + 1} attempts"
-        ) from last_error
+
+        def _operation() -> dict[str, Any]:
+            response = self._execute_call(endpoint, payload, timeout=timeout)
+            self._validate_schema(response, schema.get("response") if schema else None, "response")
+            return response
+
+        try:
+            response = self._resilience.execute(_operation)
+            self._last_call_cost_usd = self.estimate_call_cost(endpoint, payload, response)
+            self._telemetry.sync_total.add(1, {**attributes, "result": "success"})
+            return response
+        except Exception as exc:  # noqa: BLE001
+            self._telemetry.sync_total.add(1, {**attributes, "result": "failure"})
+            raise ConnectorCallFailedError(
+                f"Connector {self.CONNECTOR_ID} failed to call {endpoint} after {self.max_retries + 1} attempts"
+            ) from exc
+        finally:
+            self._telemetry.sync_duration.record(time.perf_counter() - start, attributes)
 
     def estimate_call_cost(
         self,

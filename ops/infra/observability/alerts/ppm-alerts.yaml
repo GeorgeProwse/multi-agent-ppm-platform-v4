@@ -193,3 +193,19 @@ groups:
         annotations:
           summary: "Platform error budget burn detected"
           description: "Global availability below 99.5% for 30 minutes."
+      - alert: DependencyCircuitOpenDenialsHigh
+        expr: sum(rate(dependency_circuit_breaker_open_denials_total[5m])) by (dependency) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dependency circuit open denials high"
+          description: "Dependency {{ $labels.dependency }} is denying requests due to open circuit."
+      - alert: DependencyCircuitBreakerOpened
+        expr: sum(rate(dependency_circuit_breaker_state_transitions_total{to_state="open"}[5m])) by (dependency) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Dependency circuit breaker opened"
+          description: "Dependency {{ $labels.dependency }} transitioned to open state."
