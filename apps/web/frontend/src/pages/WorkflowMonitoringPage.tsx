@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRealtimeStore } from '@/store/realtime/useRealtimeStore';
 import styles from './WorkflowMonitoringPage.module.css';
 
 const API_BASE = '/v1';
@@ -36,6 +37,8 @@ export function WorkflowMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'open' | 'error'>('connecting');
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
+  const realtimeConnected = useRealtimeStore((state) => state.connected);
+  const realtimeWorkflowUpdates = useRealtimeStore((state) => state.workflowUpdates);
 
   const fetchInstances = async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -188,7 +191,11 @@ export function WorkflowMonitoringPage() {
                   : 'Realtime unavailable'}
               </div>
               <div className={styles.streamMeta}>
-                {lastEventAt ? `Last event at ${lastEventAt}` : 'Awaiting events'}
+                {realtimeConnected
+                  ? `Realtime coedit channel connected · ${realtimeWorkflowUpdates.length} workflow update(s)`
+                  : lastEventAt
+                  ? `Last event at ${lastEventAt}`
+                  : 'Awaiting events'}
               </div>
             </div>
           </div>

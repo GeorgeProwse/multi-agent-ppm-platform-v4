@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useRealtimeStore } from '@/store/realtime/useRealtimeStore';
 import styles from './NotificationCenterPage.module.css';
 
 interface NotificationItem {
@@ -45,7 +46,9 @@ export function NotificationCenterPage() {
     ],
     []
   );
+  const realtimeNotifications = useRealtimeStore((state) => state.notifications);
   const [notifications] = useState(seedNotifications);
+  const combinedNotifications = [...realtimeNotifications, ...notifications];
 
   return (
     <section className={styles.page}>
@@ -61,14 +64,14 @@ export function NotificationCenterPage() {
         </button>
       </header>
 
-      {notifications.length === 0 ? (
+      {combinedNotifications.length === 0 ? (
         <div className={styles.emptyState}>
           <h2>No notifications yet</h2>
           <p>Agent run updates will appear here when notifications are enabled.</p>
         </div>
       ) : (
         <div className={styles.list}>
-          {notifications.map((notification) => (
+          {combinedNotifications.map((notification) => (
             <article key={notification.id} className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>

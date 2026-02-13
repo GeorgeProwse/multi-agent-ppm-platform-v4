@@ -43,4 +43,9 @@ export interface SessionState {
   loading: boolean;
 }
 
+export interface TenantContextState {
+  tenantId: string | null;
+  tenantName: string | null;
+}
+
 export type FeatureFlags = Record<string, boolean>;

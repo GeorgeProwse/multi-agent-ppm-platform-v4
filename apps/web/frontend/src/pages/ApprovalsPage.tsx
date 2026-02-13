@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRequestState } from '@/hooks/useRequestState';
 import { getErrorMessage, requestJson } from '@/services/apiClient';
+import { useRealtimeStore } from '@/store/realtime/useRealtimeStore';
 import styles from './ApprovalsPage.module.css';
 
 const API_BASE = '/v1';
@@ -47,6 +48,7 @@ export function ApprovalsPage() {
   const detailRequest = useRequestState();
   const { start: startList, succeed: succeedList, fail: failList } = listRequest;
   const { start: startDetail, succeed: succeedDetail, fail: failDetail } = detailRequest;
+  const realtimeApprovals = useRealtimeStore((state) => state.approvalUpdates);
 
   const fetchApprovals = useCallback(async () => {
     startList();
@@ -144,6 +146,11 @@ export function ApprovalsPage() {
       </header>
 
       {bannerMessage && <div className={styles.infoBanner}>{bannerMessage}</div>}
+      {realtimeApprovals.length > 0 && (
+        <div className={styles.infoBanner}>
+          Live updates: {realtimeApprovals.length} approval event(s) received.
+        </div>
+      )}
 
       <div className={styles.layout}>
         <section className={styles.listSection}>

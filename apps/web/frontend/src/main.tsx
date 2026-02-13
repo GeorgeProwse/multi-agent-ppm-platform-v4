@@ -13,7 +13,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <I18nProvider>
       <ThemeProvider>
         <ErrorBoundary>
-          <BrowserRouter>
+          <BrowserRouter basename={window.location.pathname.startsWith('/app') ? '/app' : '/'}>
             <App />
           </BrowserRouter>
         </ErrorBoundary>

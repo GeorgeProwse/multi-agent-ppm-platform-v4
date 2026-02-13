@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, Outlet } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useAppStore } from '@/store';
+import { RequireAdminRole, RequireAuth, RequireTenantContext } from '@/routing/RouteGuards';
 import {
   HomePage,
   WorkspacePage,
@@ -50,6 +51,8 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route element={<RequireAuth />}>
+        <Route element={<RequireTenantContext />}>
       <Route
         element={(
           <AppLayout>
@@ -131,13 +134,17 @@ export function App() {
         <Route path="/search" element={<GlobalSearchPage />} />
 
         {/* Admin pages */}
-        <Route path="/admin/audit" element={<AuditLogPage />} />
-        <Route path="/admin/agent-runs" element={<AgentRunsPage />} />
-        <Route path="/admin/methodology" element={<MethodologyEditor />} />
-        <Route path="/admin/roles" element={<RoleManager />} />
+        <Route element={<RequireAdminRole />}>
+          <Route path="/admin/audit" element={<AuditLogPage />} />
+          <Route path="/admin/agent-runs" element={<AgentRunsPage />} />
+          <Route path="/admin/methodology" element={<MethodologyEditor />} />
+          <Route path="/admin/roles" element={<RoleManager />} />
+        </Route>
 
         {/* Analytics */}
         <Route path="/analytics/dashboard" element={<AnalyticsDashboard />} />
+      </Route>
+        </Route>
       </Route>
     </Routes>
   );
