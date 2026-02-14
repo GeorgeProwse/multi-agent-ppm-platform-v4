@@ -21,3 +21,4 @@ export { RoleManager } from './RoleManager';
 export { ProjectConfigPage } from './ProjectConfigPage';
 export { AgentRunsPage } from './AgentRunsPage';
 export { NotificationCenterPage } from './NotificationCenterPage';
+export { DemoRunPage } from './DemoRunPage';

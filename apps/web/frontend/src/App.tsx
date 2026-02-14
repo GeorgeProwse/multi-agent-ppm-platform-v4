@@ -28,6 +28,7 @@ const MethodologyEditor = React.lazy(() => import('./pages/MethodologyEditor'));
 const RoleManager = React.lazy(() => import('./pages/RoleManager'));
 const ProjectConfigPage = React.lazy(() => import('./pages/ProjectConfigPage'));
 const NotificationCenterPage = React.lazy(() => import('./pages/NotificationCenterPage'));
+const DemoRunPage = React.lazy(() => import('./pages/DemoRunPage'));
 const AppLayout = React.lazy(() => import('./components/layout/AppLayout').then((module) => ({ default: module.AppLayout })));
 
 interface EntityCollectionRedirectProps {
@@ -121,6 +122,7 @@ function AppRoutes() {
               <Route path="/admin/roles" element={<RoleManager />} />
             </Route>
             <Route path="/analytics/dashboard" element={<AnalyticsDashboard />} />
+            <Route path="/demo-run" element={<DemoRunPage />} />
           </Route>
         </Route>
       </Route>

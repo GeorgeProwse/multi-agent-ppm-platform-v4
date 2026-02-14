@@ -23,6 +23,7 @@ NAVIGATION_SECTION_BACKING_DATA = {
     "audit_log": "audit_log",
     "dashboards": "dashboards",
     "notifications": "notifications",
+    "demo_run": "demo_run_log",
 }
 
 
@@ -67,3 +68,14 @@ def test_web_demo_seed_has_required_ui_data() -> None:
         assert section_data, (
             f"apps/web/data/demo_seed.json has empty backing data for '{section}' navigation section"
         )
+
+
+def test_demo_run_log_fixture_exists_and_has_agents() -> None:
+    """Ensure demo run activity fixture exists for the demo run page."""
+    demo_run_log_path = REPO_ROOT / "apps" / "web" / "data" / "demo" / "demo_run_log.json"
+    assert demo_run_log_path.exists(), "apps/web/data/demo/demo_run_log.json must exist"
+
+    run_log = _read_json(demo_run_log_path)
+    agents = run_log.get("agents") if isinstance(run_log, dict) else None
+    assert isinstance(agents, list) and agents, "demo run log must include a non-empty agents list"
+    assert len(agents) >= 25, "demo run log should include the full 25-agent execution record"
