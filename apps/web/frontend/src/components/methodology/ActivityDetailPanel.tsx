@@ -8,6 +8,7 @@ interface ActivityDetailPanelProps {
   missingPrerequisites: string[];
   runtimeActionsAvailable: string[];
   onLifecycleAction: (event: 'generate' | 'update' | 'review' | 'approve' | 'publish') => void;
+  actionsDisabled?: boolean;
 }
 
 const EVENTS: Array<'generate' | 'update' | 'review' | 'approve' | 'publish'> = ['generate', 'update', 'review', 'approve', 'publish'];
@@ -19,6 +20,7 @@ export function ActivityDetailPanel({
   missingPrerequisites,
   runtimeActionsAvailable,
   onLifecycleAction,
+  actionsDisabled = false,
 }: ActivityDetailPanelProps) {
   return (
     <section className={styles.canvas}>
@@ -32,7 +34,7 @@ export function ActivityDetailPanel({
       {isLocked && <p>This activity is currently locked.</p>}
       <div className={styles.monitoringRow}>
         {EVENTS.filter((event) => runtimeActionsAvailable.includes(event)).map((event) => (
-          <button key={event} type="button" className={styles.card} onClick={() => onLifecycleAction(event)}>
+          <button key={event} type="button" className={styles.card} disabled={actionsDisabled} onClick={() => onLifecycleAction(event)}>
             {event}
           </button>
         ))}

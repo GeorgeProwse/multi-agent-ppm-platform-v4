@@ -27,6 +27,7 @@ export function MethodologyWorkspaceSurface() {
     runtimeDefaultViewContract,
     templatesRequiredHere,
     templatesInReview,
+    backendReachable,
   } = useMethodologyStore();
   const { openArtifact } = useCanvasStore();
   const { setActionChips, addAssistantMessage } = useAssistantStore();
@@ -94,6 +95,10 @@ export function MethodologyWorkspaceSurface() {
 
   if (!selectedActivity) {
     return (
+      <>
+        {!backendReachable && (
+          <div role="alert">Backend unavailable. Methodology is in read-only emergency mode.</div>
+        )}
       <MethodologyMapCanvas
         stages={projectMethodology.methodology.stages}
         monitoring={projectMethodology.methodology.monitoring}
@@ -104,10 +109,15 @@ export function MethodologyWorkspaceSurface() {
         templatesInReview={templatesInReview}
         onSelectActivity={(activity, stageId) => { void selectActivity(activity.id, stageId); }}
       />
+      </>
     );
   }
 
   return (
+    <>
+      {!backendReachable && (
+        <div role="alert">Backend unavailable. Runtime actions are disabled.</div>
+      )}
     <ActivityDetailPanel
       activity={selectedActivity}
       stageLabel={selectedStage?.id === 'monitoring' ? 'Monitoring & Controlling' : (selectedStage?.name ?? 'Monitoring & Controlling')}
@@ -115,6 +125,8 @@ export function MethodologyWorkspaceSurface() {
       missingPrerequisites={prerequisiteNames}
       runtimeActionsAvailable={runtimeActionsAvailable}
       onLifecycleAction={(event) => { void runLifecycleAction(event); }}
+      actionsDisabled={!backendReachable}
     />
+    </>
   );
 }
