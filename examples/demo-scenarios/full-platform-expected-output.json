@@ -108,6 +108,183 @@
       "total_agents": 25,
       "successful": 25,
       "failed": 0
-    }
+    },
+    "agent_activity": [
+      {
+        "agent_id": "agent-01-intent-router",
+        "started_at": "2026-01-01T00:00:00.000Z",
+        "completed_at": "2026-01-01T00:00:01.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-02-response-orchestration",
+        "started_at": "2026-01-01T00:00:02.000Z",
+        "completed_at": "2026-01-01T00:00:03.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-03-approval-workflow",
+        "started_at": "2026-01-01T00:00:04.000Z",
+        "completed_at": "2026-01-01T00:00:05.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-04-demand-intake",
+        "started_at": "2026-01-01T00:00:06.000Z",
+        "completed_at": "2026-01-01T00:00:07.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-05-business-case-investment",
+        "started_at": "2026-01-01T00:00:08.000Z",
+        "completed_at": "2026-01-01T00:00:09.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-06-portfolio-strategy-optimisation",
+        "started_at": "2026-01-01T00:00:10.000Z",
+        "completed_at": "2026-01-01T00:00:11.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-07-program-management",
+        "started_at": "2026-01-01T00:00:12.000Z",
+        "completed_at": "2026-01-01T00:00:13.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-08-project-definition-scope",
+        "started_at": "2026-01-01T00:00:14.000Z",
+        "completed_at": "2026-01-01T00:00:15.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-09-lifecycle-governance",
+        "started_at": "2026-01-01T00:00:16.000Z",
+        "completed_at": "2026-01-01T00:00:17.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-10-schedule-planning",
+        "started_at": "2026-01-01T00:00:18.000Z",
+        "completed_at": "2026-01-01T00:00:19.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-11-resource-capacity",
+        "started_at": "2026-01-01T00:00:20.000Z",
+        "completed_at": "2026-01-01T00:00:21.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-12-financial-management",
+        "started_at": "2026-01-01T00:00:22.000Z",
+        "completed_at": "2026-01-01T00:00:23.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-13-vendor-procurement",
+        "started_at": "2026-01-01T00:00:24.000Z",
+        "completed_at": "2026-01-01T00:00:25.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-14-quality-management",
+        "started_at": "2026-01-01T00:00:26.000Z",
+        "completed_at": "2026-01-01T00:00:27.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-15-risk-issue-management",
+        "started_at": "2026-01-01T00:00:28.000Z",
+        "completed_at": "2026-01-01T00:00:29.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-16-compliance-regulatory",
+        "started_at": "2026-01-01T00:00:30.000Z",
+        "completed_at": "2026-01-01T00:00:31.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-17-change-configuration",
+        "started_at": "2026-01-01T00:00:32.000Z",
+        "completed_at": "2026-01-01T00:00:33.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-18-release-deployment",
+        "started_at": "2026-01-01T00:00:34.000Z",
+        "completed_at": "2026-01-01T00:00:35.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-19-knowledge-document-management",
+        "started_at": "2026-01-01T00:00:36.000Z",
+        "completed_at": "2026-01-01T00:00:37.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-20-continuous-improvement-process-mining",
+        "started_at": "2026-01-01T00:00:38.000Z",
+        "completed_at": "2026-01-01T00:00:39.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-21-stakeholder-comms",
+        "started_at": "2026-01-01T00:00:40.000Z",
+        "completed_at": "2026-01-01T00:00:41.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-22-analytics-insights",
+        "started_at": "2026-01-01T00:00:42.000Z",
+        "completed_at": "2026-01-01T00:00:43.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-23-data-synchronisation-quality",
+        "started_at": "2026-01-01T00:00:44.000Z",
+        "completed_at": "2026-01-01T00:00:45.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-24-workflow-process-engine",
+        "started_at": "2026-01-01T00:00:46.000Z",
+        "completed_at": "2026-01-01T00:00:47.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      },
+      {
+        "agent_id": "agent-25-system-health-monitoring",
+        "started_at": "2026-01-01T00:00:48.000Z",
+        "completed_at": "2026-01-01T00:00:49.000Z",
+        "duration_ms": 1000,
+        "status": "success"
+      }
+    ]
   }
 }

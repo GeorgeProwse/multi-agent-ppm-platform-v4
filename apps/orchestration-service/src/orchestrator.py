@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 MAX_AGENT_CONCURRENCY = int(os.getenv("MAX_AGENT_CONCURRENCY", "5"))
 AGENT_CALL_TIMEOUT = float(os.getenv("AGENT_CALL_TIMEOUT", "30.0"))
+DEMO_QUERY_TRIGGER = "full platform demo"
 DEFAULT_POLICY_BUNDLE_PATH = (
     Path(__file__).resolve().parents[1] / "policies" / "bundles" / "default-policy-bundle.yaml"
 )
@@ -569,9 +570,27 @@ class AgentOrchestrator:
 
         assert self.intent_router is not None, "Intent router not initialized"
         assert self.response_orchestrator is not None, "Response orchestrator not initialized"
+        request_context = context or {}
+
+        if self._is_full_demo_run_enabled(query=query, context=request_context):
+            correlation_id = request_context.get("correlation_id")
+            if not correlation_id:
+                correlation_id = f"corr-{os.urandom(8).hex()}"
+
+            orchestration_response = await self._execute_agent(
+                self.response_orchestrator,
+                {
+                    "routing": self._build_full_demo_routing_plan(),
+                    "parameters": {},
+                    "query": query,
+                    "context": {**request_context, "correlation_id": correlation_id},
+                    "approval_decision": "approve",
+                },
+            )
+            return orchestration_response.model_dump()
 
         # Step 1: Route the query
-        correlation_id = (context or {}).get("correlation_id")
+        correlation_id = request_context.get("correlation_id")
         if not correlation_id:
             correlation_id = f"corr-{os.urandom(8).hex()}"
 
@@ -579,7 +598,7 @@ class AgentOrchestrator:
             self.intent_router,
             {
                 "query": query,
-                "context": {**(context or {}), "correlation_id": correlation_id},
+                "context": {**request_context, "correlation_id": correlation_id},
             }
         )
 
@@ -602,10 +621,43 @@ class AgentOrchestrator:
                 "routing": intent_payload.get("routing", []),
                 "parameters": parameters,
                 "query": query,
-                "context": {**(context or {}), "correlation_id": correlation_id},
+                "context": {**request_context, "correlation_id": correlation_id},
             }
         )
         return orchestration_response.model_dump()
+
+    def _is_full_demo_run_enabled(self, *, query: str, context: dict[str, Any]) -> bool:
+        if not self._is_truthy_env_flag("DEMO_MODE") or not self._is_truthy_env_flag(
+            "DEMO_MODE_FULL_RUN"
+        ):
+            return False
+
+        full_demo_context_flag = context.get("full_demo")
+        if isinstance(full_demo_context_flag, str):
+            full_demo_context_flag = full_demo_context_flag.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+
+        return bool(full_demo_context_flag) or DEMO_QUERY_TRIGGER in query.lower()
+
+    @staticmethod
+    def _is_truthy_env_flag(name: str) -> bool:
+        return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def _build_full_demo_routing_plan(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "agent_id": agent_id,
+                "priority": 1.0,
+                "intent": "full_platform_demo",
+                "depends_on": [],
+                "action": "demo_run",
+            }
+            for agent_id in sorted(self.agents.keys())
+        ]
 
     def get_agent(self, agent_id: str) -> BaseAgent | None:
         """Get agent by ID."""
