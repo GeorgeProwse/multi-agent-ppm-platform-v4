@@ -1,6 +1,8 @@
 import { Link, matchPath, useLocation } from 'react-router-dom';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAppStore } from '@/store';
+import { MethodologyNav } from '@/components/methodology/MethodologyNav';
+import { useMethodologyStore } from '@/store/methodology';
 import { useTranslation } from '@/i18n';
 import { canManageConfig, canViewAuditLogs, hasPermission } from '@/auth/permissions';
 import { Icon } from '@/components/icon/Icon';
@@ -154,6 +156,11 @@ export function LeftPanel() {
   const sidebarMode = getSidebarMode(location.pathname);
   const projectId =
     sidebarMode === 'project-workspace' ? (projectIdFromRoute ?? selectedProjectId) : null;
+  const {
+    availableMethodologies,
+    projectMethodology,
+    hydrateFromWorkspace,
+  } = useMethodologyStore();
 
   const projectIdentityName = useMemo(() => {
     if (!projectId) return null;
@@ -162,6 +169,11 @@ export function LeftPanel() {
     }
     return `Project ${projectId}`;
   }, [currentSelection, projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    void hydrateFromWorkspace(projectId);
+  }, [projectId, hydrateFromWorkspace]);
 
 
   const projectWorkspaceNav: NavItem[] = projectId
@@ -395,8 +407,35 @@ export function LeftPanel() {
   const renderProjectWorkspaceNav = () => (
     <div className={styles.projectWorkspaceLayout}>
       {renderSection(
+        'Methodology',
+        <div className={styles.projectMethodologySection}>
+          {!leftPanelCollapsed && (
+            <label className={styles.methodologyPickerLabel}>
+              <span>Methodology</span>
+              <select
+                className={styles.methodologyPicker}
+                value={projectMethodology.methodology.id}
+                onChange={(event) => {
+                  if (!projectId) return;
+                  void hydrateFromWorkspace(projectId, event.target.value);
+                }}
+              >
+                {availableMethodologies.map((methodologyId) => (
+                  <option key={methodologyId} value={methodologyId}>
+                    {methodologyId}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className={styles.methodologyContent}>
+            <MethodologyNav collapsed={leftPanelCollapsed} />
+          </div>
+        </div>
+      )}
+      {renderSection(
         'Project',
-        <div className={styles.projectContent}>
+        <div className={styles.projectLinksSection}>
           {renderNavItemList(projectWorkspaceNav, {
             isActive: (item) => {
               if (!item.path) return false;
