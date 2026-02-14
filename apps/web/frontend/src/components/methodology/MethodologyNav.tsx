@@ -1,57 +1,11 @@
-/**
- * MethodologyNav - Left panel navigation component for project methodology
- *
- * Features:
- * - Collapsible stages with activities
- * - Status icons and progress bar per stage
- * - Stage-gate logic: locked stages/activities shown but not actionable
- * - "Monitoring & Controlling" section always accessible
- * - Clicking activity updates current activity and opens relevant canvas
- * - Integration with Assistant for context-aware suggestions
- */
-
-import { useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
+import { requestJson } from '@/services/apiClient';
 import { useMethodologyStore } from '@/store/methodology';
-import { useCanvasStore } from '@/store/useCanvasStore';
-import { useAssistantStore } from '@/store/assistant';
-import {
-  STATUS_ICONS,
-  type MethodologyActivity,
-  type MethodologyStage,
-  type MethodologyStatus,
-} from '@/store/methodology';
-import type { PrerequisiteInfo } from '@/store/assistant';
-import { createArtifact, createEmptyContent, type CanvasType } from '@ppm/canvas-engine';
+import { STATUS_ICONS, flattenMethodologyActivities, type MethodologyActivity, type MethodologyStatus } from '@/store/methodology';
 import { Icon } from '@/components/icon/Icon';
-import type { IconSemantic } from '@/components/icon/iconMap';
 import styles from './MethodologyNav.module.css';
 
-
-interface ActivityRenderNode {
-  activity: MethodologyActivity;
-  depth: 0 | 1;
-  parentId?: string;
-}
-
-function flattenActivityTree(
-  activities: MethodologyActivity[],
-  depth: 0 | 1 = 0,
-  parentId?: string
-): ActivityRenderNode[] {
-  return activities.flatMap((activity) => {
-    const node: ActivityRenderNode = { activity, depth, parentId };
-
-    if (!activity.children?.length || depth >= 1) {
-      return [node];
-    }
-
-    return [node, ...flattenActivityTree(activity.children, 1, activity.id)];
-  });
-}
-
 interface MethodologyNavProps {
-  /** Whether the panel is collapsed (icon-only mode) */
   collapsed?: boolean;
 }
 
@@ -60,497 +14,67 @@ export function MethodologyNav({ collapsed = false }: MethodologyNavProps) {
     projectMethodology,
     currentActivityId,
     expandedStageIds,
-    templatesAvailableHere,
-    runtimeDefaultViewContract,
-    runtimeActionsAvailable,
-    backendReachable,
-    executeNodeAction,
     setCurrentActivity,
-    resolveNodeRuntime,
     toggleStageExpanded,
+    resolveNodeRuntime,
     isStageLockedComputed,
     isActivityLockedComputed,
-    getStageProgressComputed,
-    getAllActivities,
-    getStageForActivity,
   } = useMethodologyStore();
 
-  const { openArtifact, artifacts } = useCanvasStore();
-  const { showGatingWarning } = useAssistantStore();
-  const navigate = useNavigate();
-
-  const { methodology, projectName } = projectMethodology;
-  const stageNameLookup = Object.fromEntries(
-    methodology.stages.map((stage) => [stage.id, stage.name])
-  );
-
-  // Helper to get incomplete prerequisites
-  const getIncompletePrerequisites = useCallback(
-    (activity: MethodologyActivity): PrerequisiteInfo[] => {
-      const allActivitiesArray = getAllActivities();
-      const result: PrerequisiteInfo[] = [];
-
-      for (const prereqId of activity.prerequisites) {
-        const prereq = allActivitiesArray.find((a) => a.id === prereqId);
-        if (!prereq || prereq.status === 'complete') continue;
-
-        const stage = getStageForActivity(prereqId);
-        result.push({
-          activityId: prereq.id,
-          activityName: prereq.name,
-          status: prereq.status as PrerequisiteInfo['status'],
-          stageId: stage?.id ?? '',
-          stageName: stage?.name ?? '',
-        });
-      }
-
-      return result;
-    },
-    [getAllActivities, getStageForActivity]
-  );
-
-  const handleActivityClick = useCallback(
-    (activity: MethodologyActivity, stageLocked: boolean) => {
-      // Always allow setting current activity (for viewing)
-      setCurrentActivity(activity.id);
-      const selectedStage = getStageForActivity(activity.id);
-
-      const runtimeContractPromise = selectedStage
-        ? resolveNodeRuntime({
-            methodologyId: methodology.id,
-            stageId: selectedStage.id,
-            activityId: activity.id,
-            event: 'view',
-          }).catch(() => null)
-        : Promise.resolve(null);
-
-      // If stage or activity is locked, user can view but not create artifacts
-      const activityLocked = isActivityLockedComputed(activity.id);
-      const isLocked = stageLocked || activityLocked;
-
-      // If locked, show gating warning in assistant
-      if (isLocked) {
-        const incompletePrereqs = getIncompletePrerequisites(activity);
-        if (incompletePrereqs.length > 0) {
-          showGatingWarning(activity, incompletePrereqs);
-        }
-        return;
-      }
-
-      // Open the associated artifact if it exists, or create a new one.
-      if (activity.artifactId && artifacts[activity.artifactId]) {
-        openArtifact(artifacts[activity.artifactId]);
-      } else {
-        void runtimeContractPromise.then((runtimeContract) => {
-          const canvasMap: Record<string, CanvasType> = {
-            document: 'document',
-            spreadsheet: 'spreadsheet',
-            timeline: 'timeline',
-            dashboard: 'dashboard',
-            kanban: 'tree',
-            risk_log: 'spreadsheet',
-            decision_log: 'document',
-            form: 'document',
-            whiteboard: 'dependency-map',
-          };
-          const runtimeCanvasType = runtimeContract?.canvas?.canvas_type
-            ?? runtimeDefaultViewContract?.canvas?.canvas_type
-            ?? activity.canvasType;
-          const canvasType = (canvasMap[runtimeCanvasType] ?? activity.canvasType) as CanvasType;
-          const newArtifact = createArtifact(
-            canvasType,
-            activity.name,
-            projectMethodology.projectId,
-            createEmptyContent(canvasType)
-          );
-          openArtifact(newArtifact);
-        });
-      }
-    },
-    [
-      setCurrentActivity,
-      resolveNodeRuntime,
-      isActivityLockedComputed,
-      openArtifact,
-      artifacts,
-      projectMethodology.projectId,
-      getIncompletePrerequisites,
-      showGatingWarning,
-      methodology.id,
-      getStageForActivity,
-      runtimeDefaultViewContract,
-    runtimeActionsAvailable,
-    backendReachable,
-    executeNodeAction,
-      stageNameLookup,
-    ]
-  );
-
-  const lifecycleGroups = useMemo(() => {
-    const groups: Record<string, typeof templatesAvailableHere> = {
-      generate: [],
-      update: [],
-      review: [],
-      approve: [],
-      publish: [],
-    };
-    for (const template of templatesAvailableHere) {
-      const binding = template.methodology_bindings.find(
-        (item) => item.activity_id === currentActivityId
-      ) ?? template.methodology_bindings[0];
-      for (const event of binding?.lifecycle_events ?? []) {
-        if (groups[event]) groups[event].push(template);
-      }
-    }
-    return groups;
-  }, [templatesAvailableHere, currentActivityId]);
-
-  const executeTemplateLifecycle = useCallback(async (templateId: string, lifecycleEvent: 'generate' | 'update' | 'review' | 'approve' | 'publish') => {
-    if (!backendReachable) return;
-    const selectedStage = currentActivityId ? getStageForActivity(currentActivityId) : undefined;
-    if (!selectedStage) return;
-    await executeNodeAction({
-      workspaceId: projectMethodology.projectId,
-      methodologyId: methodology.id,
-      stageId: selectedStage.id,
-      activityId: currentActivityId,
-      lifecycleEvent,
-      userInput: { template_id: templateId },
+  const onSelect = useCallback(async (activity: MethodologyActivity, stageId: string) => {
+    setCurrentActivity(activity.id);
+    await requestJson(`/api/workspace/${encodeURIComponent(projectMethodology.projectId)}/select`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_stage_id: stageId === 'monitoring' ? null : stageId, current_activity_id: activity.id }),
     });
-  }, [backendReachable, currentActivityId, executeNodeAction, getStageForActivity, methodology.id, projectMethodology.projectId]);
-
-  const handleStageHeaderClick = useCallback(
-    (stageId: string) => {
-      toggleStageExpanded(stageId);
-    },
-    [toggleStageExpanded]
-  );
-
-  const handleCaptureLessons = useCallback(
-    (stageId: string, stageName: string) => {
-      const params = new URLSearchParams({
-        projectId: projectMethodology.projectId,
-        stageId,
-        stageName,
-      });
-      navigate(`/knowledge/lessons?${params.toString()}`);
-    },
-    [navigate, projectMethodology.projectId]
-  );
+    await resolveNodeRuntime({ methodologyId: projectMethodology.methodology.id, stageId, activityId: activity.id, event: 'view' });
+  }, [projectMethodology.methodology.id, projectMethodology.projectId, resolveNodeRuntime, setCurrentActivity]);
 
   return (
     <div className={styles.methodologyNav}>
-      {!collapsed && (
-        <div className={styles.projectHeader}>
-          <span className={styles.projectLabel}>Project</span>
-          <span className={styles.projectName}>{projectName}</span>
-          <span className={styles.methodologyType}>{methodology.name}</span>
-        </div>
-      )}
-
-      <nav className={styles.stageList} role="navigation" aria-label="Methodology navigation">
-        {!collapsed && templatesAvailableHere.length > 0 && (
-          <div className={styles.templateRuntimePanel}>
-            <strong>Template Runtime Mapping</strong>
-            {(['generate', 'update', 'review', 'approve', 'publish'] as const).map((event) => (
-              lifecycleGroups[event].length > 0 ? (
-                <div key={event}>
-                  <div className={styles.templateLifecycleHeader}>{event.toUpperCase()}</div>
-                  {lifecycleGroups[event].map((template) => (
-                    <button
-                      key={`${event}-${template.template_id}`}
-                      className={styles.templateEntry}
-                      onClick={() => void executeTemplateLifecycle(template.template_id, event)}
-                      disabled={!backendReachable || !runtimeActionsAvailable.includes(event)}
-                    >
-                      {template.name}
-                    </button>
-                  ))}
-                </div>
-              ) : null
-            ))}
-          </div>
-        )}
-        {methodology.stages.map((stage) => (
-          <StageItem
-            key={stage.id}
-            stage={stage}
-            collapsed={collapsed}
-            isExpanded={expandedStageIds.includes(stage.id)}
-            isLocked={isStageLockedComputed(stage.id)}
-            progress={getStageProgressComputed(stage.id)}
-            stageNameLookup={stageNameLookup}
-            currentActivityId={currentActivityId}
-            isActivityLocked={isActivityLockedComputed}
-            getIncompletePrerequisites={getIncompletePrerequisites}
-            onStageClick={handleStageHeaderClick}
-            onActivityClick={handleActivityClick}
-            onCaptureLessons={handleCaptureLessons}
-          />
-        ))}
+      <nav className={styles.stageList}>
+        {projectMethodology.methodology.stages.map((stage) => {
+          const locked = isStageLockedComputed(stage.id);
+          const expanded = expandedStageIds.includes(stage.id);
+          return (
+            <div key={stage.id} className={styles.stageItem}>
+              <button type="button" className={styles.stageHeader} onClick={() => toggleStageExpanded(stage.id)}>
+                <span className={styles.stageExpandIcon}>{expanded ? '▼' : '▶'}</span>
+                <StatusIcon status={locked ? 'locked' : stage.status} />
+                {!collapsed && <span className={styles.stageName}>{stage.name}</span>}
+              </button>
+              {expanded && !collapsed && (
+                <ul className={styles.activityList}>
+                  {flattenMethodologyActivities(stage.activities).map((activity) => {
+                    const activityLocked = locked || isActivityLockedComputed(activity.id);
+                    return (
+                      <li key={activity.id} className={styles.activityItem}>
+                        <button
+                          type="button"
+                          className={`${styles.activityButton} ${currentActivityId === activity.id ? styles.selected : ''}`}
+                          onClick={() => { void onSelect(activity, stage.id); }}
+                          title={activityLocked ? 'Blocked by prerequisites' : undefined}
+                        >
+                          <StatusIcon status={activityLocked ? 'locked' : activity.status} small />
+                          <span className={styles.activityName}>{activity.name}</span>
+                          <Icon semantic="artifact.document" decorative className={styles.canvasTypeIcon} size="sm" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </nav>
     </div>
   );
 }
 
-interface StageItemProps {
-  stage: MethodologyStage;
-  collapsed: boolean;
-  isExpanded: boolean;
-  isLocked: boolean;
-  progress: number;
-  stageNameLookup: Record<string, string>;
-  currentActivityId: string | null;
-  isActivityLocked: (activityId: string) => boolean;
-  getIncompletePrerequisites: (activity: MethodologyActivity) => PrerequisiteInfo[];
-  onStageClick: (stageId: string) => void;
-  onActivityClick: (activity: MethodologyActivity, stageLocked: boolean) => void;
-  onCaptureLessons: (stageId: string, stageName: string) => void;
-}
-
-function StageItem({
-  stage,
-  collapsed,
-  isExpanded,
-  isLocked,
-  progress,
-  stageNameLookup,
-  currentActivityId,
-  isActivityLocked,
-  getIncompletePrerequisites,
-  onStageClick,
-  onActivityClick,
-  onCaptureLessons,
-}: StageItemProps) {
-  // Compute effective status (locked overrides actual status for display)
-  const displayStatus: MethodologyStatus = isLocked ? 'locked' : stage.status;
-  const progressTone = getProgressTone(displayStatus);
-  const prerequisiteNames = stage.prerequisites
-    .map((prereqId) => stageNameLookup[prereqId])
-    .filter(Boolean);
-  const gateCriteria = prerequisiteNames.length
-    ? `Gate criteria: prerequisites completed (${prerequisiteNames.join(
-        ', '
-      )}), approvals received.`
-    : 'Gate criteria: approvals received, readiness checklist complete.';
-  const activityNodes = flattenActivityTree(stage.activities);
-
-  return (
-    <div
-      className={`${styles.stageItem} ${isLocked ? styles.locked : ''} ${
-        stage.alwaysAccessible ? styles.alwaysAccessible : ''
-      }`}
-    >
-      <button
-        className={styles.stageHeader}
-        onClick={() => onStageClick(stage.id)}
-        title={collapsed ? `${stage.name} (${progress}%)` : undefined}
-        aria-expanded={isExpanded}
-        aria-controls={`stage-activities-${stage.id}`}
-      >
-        <span className={styles.stageExpandIcon} aria-hidden="true">
-          {isExpanded ? '▼' : '▶'}
-        </span>
-        <StatusIcon status={displayStatus} />
-        {!collapsed && (
-          <>
-            <span className={styles.stageName}>{stage.name}</span>
-            <span className={styles.stageProgressWrapper}>
-              <span
-                className={styles.stageProgressBar}
-                role="progressbar"
-                aria-valuenow={progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`${stage.name} progress`}
-              >
-                <span
-                  className={`${styles.stageProgressFill} ${styles[progressTone]}`}
-                  style={{ width: `${progress}%` }}
-                />
-              </span>
-              <span className={styles.stageGateTooltip}>{gateCriteria}</span>
-            </span>
-            {stage.status === 'complete' && (
-              <button
-                className={styles.stageActionButton}
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onCaptureLessons(stage.id, stage.name);
-                }}
-              >
-                Capture Lessons
-              </button>
-            )}
-          </>
-        )}
-      </button>
-
-      {isExpanded && !collapsed && (
-        <ul
-          id={`stage-activities-${stage.id}`}
-          className={styles.activityList}
-          role="list"
-        >
-          {activityNodes.map(({ activity, depth, parentId }) => {
-            const childCount = activity.children?.length ?? 0;
-            const groupLabel =
-              depth === 0 && childCount > 0
-                ? `${activity.name} group (${childCount} item${childCount === 1 ? '' : 's'})`
-                : undefined;
-
-            return (
-              <ActivityItem
-                key={activity.id}
-                activity={activity}
-                stageLocked={isLocked}
-                isActivityLocked={isActivityLocked(activity.id)}
-                missingPrerequisites={getIncompletePrerequisites(activity)}
-                isSelected={currentActivityId === activity.id}
-                depth={depth}
-                parentId={parentId}
-                groupLabel={groupLabel}
-                onClick={() => onActivityClick(activity, isLocked)}
-              />
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-interface ActivityItemProps {
-  activity: MethodologyActivity;
-  stageLocked: boolean;
-  isActivityLocked: boolean;
-  missingPrerequisites: PrerequisiteInfo[];
-  isSelected: boolean;
-  depth?: 0 | 1;
-  parentId?: string;
-  groupLabel?: string;
-  onClick: () => void;
-}
-
-function ActivityItem({
-  activity,
-  stageLocked,
-  isActivityLocked,
-  missingPrerequisites,
-  isSelected,
-  depth = 0,
-  parentId,
-  groupLabel,
-  onClick,
-}: ActivityItemProps) {
-  // Compute effective status
-  const isLocked = stageLocked || isActivityLocked;
-  const displayStatus: MethodologyStatus = isLocked ? 'locked' : activity.status;
-  const missingLabel = missingPrerequisites.length
-    ? missingPrerequisites.map((prereq) => prereq.activityName).join(', ')
-    : 'Additional prerequisites required.';
-
-  return (
-    <li
-      className={`${styles.activityItem} ${depth === 1 ? styles.nestedActivityItem : ''}`}
-      role="listitem"
-      aria-level={depth + 1}
-    >
-      <button
-        className={`${styles.activityButton} ${isSelected ? styles.selected : ''} ${
-          isLocked ? styles.locked : ''
-        } ${activity.alwaysAccessible ? styles.alwaysAccessible : ''} ${
-          depth === 1 ? styles.nestedActivityButton : ''
-        }`}
-        onClick={onClick}
-        title={`${activity.name}${isLocked ? ' (Locked - prerequisites not met)' : ''}`}
-        aria-current={isSelected ? 'true' : undefined}
-        aria-describedby={groupLabel ? `${activity.id}-group-label` : undefined}
-        data-parent-id={parentId}
-      >
-        <StatusIcon status={displayStatus} small />
-        <span className={styles.activityName}>{activity.name}</span>
-        {groupLabel && (
-          <span id={`${activity.id}-group-label`} className={styles.activityGroupLabel}>
-            {groupLabel}
-          </span>
-        )}
-        <CanvasTypeIcon canvasType={activity.canvasType} />
-      </button>
-      {isLocked && (
-        <div className={styles.lockedPopover} role="tooltip">
-          <div className={styles.lockedPopoverTitle}>Missing prerequisites</div>
-          {missingPrerequisites.length > 0 ? (
-            <ul className={styles.lockedPopoverList}>
-              {missingPrerequisites.map((prereq) => (
-                <li key={prereq.activityId}>
-                  {prereq.activityName} ({prereq.stageName})
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={styles.lockedPopoverText}>{missingLabel}</p>
-          )}
-        </div>
-      )}
-    </li>
-  );
-}
-
-interface StatusIconProps {
-  status: MethodologyStatus;
-  small?: boolean;
-}
-
-function StatusIcon({ status, small = false }: StatusIconProps) {
-  const icon = STATUS_ICONS[status];
-
-  return (
-    <Icon
-      semantic={icon}
-      label={status.replace('_', ' ')}
-      className={`${styles.statusIcon} ${small ? styles.small : ''}`}
-      size={small ? 'sm' : 'md'}
-    />
-  );
-}
-
-interface CanvasTypeIconProps {
-  canvasType: CanvasType;
-}
-
-function CanvasTypeIcon({ canvasType }: CanvasTypeIconProps) {
-  const iconMap: Record<CanvasType, IconSemantic> = {
-    document: 'artifact.document',
-    tree: 'artifact.tree',
-    timeline: 'artifact.timeline',
-    spreadsheet: 'artifact.spreadsheet',
-    dashboard: 'artifact.dashboard',
-  };
-
-  return (
-    <Icon
-      semantic={iconMap[canvasType]}
-      decorative
-      className={styles.canvasTypeIcon}
-      size="sm"
-    />
-  );
-}
-
-type ProgressTone = 'onTrack' | 'atRisk' | 'offTrack';
-
-function getProgressTone(status: MethodologyStatus): ProgressTone {
-  if (status === 'locked') {
-    return 'offTrack';
-  }
-
-  if (status === 'blocked') {
-    return 'atRisk';
-  }
-
-  return 'onTrack';
+function StatusIcon({ status, small = false }: { status: MethodologyStatus; small?: boolean }) {
+  return <Icon semantic={STATUS_ICONS[status]} label={status} className={`${styles.statusIcon} ${small ? styles.small : ''}`} size={small ? 'sm' : 'md'} />;
 }
 
 export default MethodologyNav;

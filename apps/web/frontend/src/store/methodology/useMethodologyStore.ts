@@ -74,6 +74,7 @@ interface WorkspaceMethodologySummary {
   name: string;
   description: string;
   stages: WorkspaceStageSummary[];
+  monitoring?: WorkspaceActivitySummary[];
 }
 
 interface WorkspaceStateResponse {
@@ -162,6 +163,7 @@ function buildFallbackMethodology(methodologyId: string): MethodologyMap {
   return {
     ...template,
     stages,
+    monitoring: template.monitoring ?? [],
   };
 }
 
@@ -202,6 +204,26 @@ function mapWorkspaceResponseToProjectMethodology(payload: WorkspaceStateRespons
     };
   });
 
+
+  const monitoring = (methodologySummary.monitoring ?? []).map((activity, activityIndex) => ({
+    id: activity.id,
+    name: activity.name,
+    description: activity.description,
+    status: summarizeActivityStatus(activity),
+    canvasType: activity.recommended_canvas_tab,
+    prerequisites: activity.prerequisites,
+    alwaysAccessible: true,
+    order: activityIndex + 1,
+    metadata: {
+      category: activity.category,
+      assistant_suggested_actions: activity.assistant_prompts,
+      template_id: activity.template_id ?? undefined,
+      agent_id: activity.agent_id ?? undefined,
+      connector_id: activity.connector_id ?? undefined,
+      stage_id: 'monitoring',
+    },
+  }));
+
   const methodologyType = methodologySummary.id === 'predictive'
     ? 'predictive'
     : methodologySummary.id === 'adaptive'
@@ -220,6 +242,7 @@ function mapWorkspaceResponseToProjectMethodology(payload: WorkspaceStateRespons
       type: methodologyType,
       version: 'yaml-api',
       stages,
+      monitoring,
     },
     currentActivityId: payload.current_activity_id,
     expandedStageIds: stages.slice(0, 1).map((stage) => stage.id),
@@ -615,12 +638,13 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
   },
 
   getActivity: (activityId) => {
-    const stages = get().projectMethodology.methodology.stages;
+    const state = get();
+    const stages = state.projectMethodology.methodology.stages;
     for (const stage of stages) {
       const activity = flattenMethodologyActivities(stage.activities).find((a) => a.id === activityId);
       if (activity) return activity;
     }
-    return undefined;
+    return state.projectMethodology.methodology.monitoring.find((activity) => activity.id === activityId);
   },
 
   getCurrentActivity: () => {
@@ -631,9 +655,22 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
 
   getStageForActivity: (activityId) => {
     const stages = get().projectMethodology.methodology.stages;
-    return stages.find((stage) =>
-      flattenMethodologyActivities(stage.activities).some((a) => a.id === activityId)
+    const stage = stages.find((item) =>
+      flattenMethodologyActivities(item.activities).some((a) => a.id === activityId)
     );
+    if (stage) return stage;
+    const monitoring = get().projectMethodology.methodology.monitoring;
+    return monitoring.some((activity) => activity.id === activityId)
+      ? {
+          id: 'monitoring',
+          name: 'Monitoring & Controlling',
+          status: 'in_progress' as MethodologyStatus,
+          activities: monitoring,
+          prerequisites: [],
+          order: Number.MAX_SAFE_INTEGER,
+          alwaysAccessible: true,
+        }
+      : undefined;
   },
 
   isStageLockedComputed: (stageId) => {
@@ -664,8 +701,10 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
   },
 
   getAllActivities: () => {
-    return get().projectMethodology.methodology.stages.flatMap((stage) =>
-      flattenMethodologyActivities(stage.activities)
-    );
+    const methodology = get().projectMethodology.methodology;
+    return [
+      ...methodology.stages.flatMap((stage) => flattenMethodologyActivities(stage.activities)),
+      ...flattenMethodologyActivities(methodology.monitoring),
+    ];
   },
 }));

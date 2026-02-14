@@ -1,0 +1,13 @@
+.canvas { display: flex; flex-direction: column; gap: 1rem; }
+.stageGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
+.stageColumn { background: var(--color-neutral-grey-100); border: 1px solid var(--color-neutral-grey-300); border-radius: 8px; padding: 0.5rem; }
+.stageHeader { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 0.5rem; }
+.cards { display: flex; flex-direction: column; gap: 0.5rem; }
+.card { text-align: left; border: 1px solid var(--color-neutral-grey-300); background: white; border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.125rem; }
+.selected { outline: 2px solid var(--color-brand-primary-500, #335dff); }
+.cardTitle { font-weight: 600; }
+.meta { font-size: 0.75rem; color: var(--color-neutral-grey-600); }
+.monitoringBand { border: 1px solid var(--color-neutral-grey-400); border-radius: 8px; padding: 0.75rem; }
+.monitoringRow { display: flex; gap: 0.5rem; overflow-x: auto; }
+.monitoringCard { min-width: 240px; }
+.dashboardCard { min-width: 320px; border-color: var(--color-brand-primary-500, #335dff); }
