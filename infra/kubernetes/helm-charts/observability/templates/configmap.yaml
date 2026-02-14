@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-collector-config
+  labels:
+    app.kubernetes.io/name: observability
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  collector.yaml: |
+{{- toYaml .Values.collectorConfig | nindent 4 }}

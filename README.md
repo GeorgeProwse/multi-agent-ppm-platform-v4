@@ -153,6 +153,31 @@ python ops/tools/config_validator.py
 - **Kubernetes manifests**: see [ops/infra/kubernetes/manifests/](./ops/infra/kubernetes/manifests/).
 - **Helm charts**: each app/service has a `helm/` folder for packaging.
 
+### Deploy the observability Helm chart
+
+Use the dedicated observability chart to deploy an OpenTelemetry collector and collector configuration map:
+
+```bash
+helm upgrade --install ppm-observability \
+  infra/kubernetes/helm-charts/observability \
+  --namespace observability \
+  --create-namespace
+```
+
+You can override the default collector configuration and image at deploy time:
+
+```bash
+helm upgrade --install ppm-observability \
+  infra/kubernetes/helm-charts/observability \
+  --namespace observability \
+  --set image.tag=0.95.0 \
+  --set collectorConfig.exporters.azuremonitor.connection_string="$AZURE_MONITOR_CONNECTION_STRING"
+```
+
+Platform-level alert thresholds and OpenTelemetry sidecar controls are parameterized in:
+
+- `infra/kubernetes/helm-charts/ppm-platform/values-template.yaml`
+
 ### Environment parameterization (dev, staging, production)
 
 Configuration templates under [`ops/config/agents/`](./ops/config/agents/) and
