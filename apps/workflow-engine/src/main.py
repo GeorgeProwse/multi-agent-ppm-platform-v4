@@ -60,6 +60,7 @@ validate_startup_config()
 
 WORKFLOW_ROOT = Path(__file__).resolve().parents[1]
 DEFINITIONS_DIR = WORKFLOW_ROOT / "workflows" / "definitions"
+DEMO_DEFINITIONS_DIR = REPO_ROOT / "config" / "demo-workflows"
 DB_PATH = Path(os.getenv("WORKFLOW_DB_PATH", "apps/workflow-engine/storage/workflows.db"))
 SCHEMA_PATH = WORKFLOW_ROOT / "workflows" / "schema" / "workflow.schema.json"
 RATE_LIMIT = os.getenv("WORKFLOW_ENGINE_RATE_LIMIT", "100/minute")
@@ -258,6 +259,8 @@ async def version() -> dict[str, str]:
 async def startup_event() -> None:
     await approval_agent.initialize()
     seed_definitions(store, DEFINITIONS_DIR, SCHEMA_PATH)
+    if settings.demo_mode:
+        seed_definitions(store, DEMO_DEFINITIONS_DIR, SCHEMA_PATH)
 
 
 @api_router.get("/workflows/definitions", response_model=list[WorkflowDefinitionResponse])

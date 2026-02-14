@@ -1,0 +1,29 @@
+{
+  "id": "exec-portfolio-command-center",
+  "title": "Executive Portfolio Command Center",
+  "description": "Portfolio-level health, value delivery, and stage-gate confidence for demo tenants.",
+  "charts": [
+    {
+      "id": "value-delivery-trend",
+      "type": "line",
+      "title": "Value Delivery Trend (M$)",
+      "series": [
+        { "name": "Planned", "data": [2.8, 3.1, 3.7, 4.2, 4.8] },
+        { "name": "Actual", "data": [2.6, 3.0, 3.4, 4.0, 4.6] }
+      ],
+      "labels": ["Jan", "Feb", "Mar", "Apr", "May"]
+    },
+    {
+      "id": "portfolio-health-mix",
+      "type": "donut",
+      "title": "Program Health Distribution",
+      "series": [8, 3, 1],
+      "labels": ["Green", "Amber", "Red"]
+    }
+  ],
+  "kpis": [
+    { "id": "npv", "label": "Portfolio NPV", "value": 12.4, "unit": "M" },
+    { "id": "gate_on_time", "label": "Gates On Time", "value": 83, "unit": "%" },
+    { "id": "active_risks", "label": "Active High Risks", "value": 5 }
+  ]
+}

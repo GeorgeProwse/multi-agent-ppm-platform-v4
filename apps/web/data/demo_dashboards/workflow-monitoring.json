@@ -1,0 +1,13 @@
+{
+  "status_board": {"healthy": 26, "warning": 5, "failed": 1},
+  "runs": [
+    {"title": "Project Intake", "status": "Success", "run_id": "WF-3101", "duration": "1m 48s", "owner": "Agent: Intake"},
+    {"title": "Stage Gate Approval", "status": "Warning", "run_id": "WF-3102", "duration": "6m 02s", "owner": "Agent: Governance"},
+    {"title": "Risk Mitigation", "status": "Success", "run_id": "WF-3103", "duration": "2m 31s", "owner": "Agent: Risk"},
+    {"title": "Vendor Onboarding", "status": "Failed", "run_id": "WF-3104", "duration": "4m 41s", "owner": "Agent: Vendor"}
+  ],
+  "alerts": [
+    {"title": "Vendor onboarding exception backlog", "recommendation": "Escalate to executive exception queue."},
+    {"title": "Approval gate nearing SLA breach", "recommendation": "Route to delegate approver automatically."}
+  ]
+}

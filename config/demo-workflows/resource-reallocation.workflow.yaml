@@ -1,0 +1,55 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Resource Reallocation Workflow
+  version: 1.0.0
+  owner: PMO Resource Management
+  description: Rebalances constrained teams across projects based on priority and risk.
+steps:
+  - id: identify_resource_conflict
+    type: task
+    config:
+      endpoint: /resources/conflicts
+    next: evaluate_priority
+  - id: evaluate_priority
+    type: decision
+    condition:
+      field: payload.priority_delta
+      operator: greater_than
+      value: 10
+    branches:
+      - name: reallocate
+        condition:
+          field: payload.priority_delta
+          operator: greater_than
+          value: 10
+        next: manager_approval
+      - name: defer
+        condition:
+          field: payload.priority_delta
+          operator: less_than
+          value: 11
+        next: keep_current_allocation
+    default_next: keep_current_allocation
+  - id: manager_approval
+    type: approval
+    config:
+      queue: resource-approvals
+      required_role: ResourceManager
+    next: update_allocations
+  - id: update_allocations
+    type: api
+    config:
+      endpoint: /resources/reallocate
+    next: notify_stakeholders
+  - id: keep_current_allocation
+    type: notification
+    config:
+      channel: notifications
+      template: reallocation-deferred
+    next: notify_stakeholders
+  - id: notify_stakeholders
+    type: notification
+    config:
+      channel: notifications
+      template: reallocation-outcome

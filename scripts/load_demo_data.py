@@ -31,6 +31,7 @@ ENTITY_FILES = [
     "contracts",
     "policies",
     "approvals",
+    "notifications",
 ]
 
 

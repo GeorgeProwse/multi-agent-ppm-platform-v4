@@ -830,17 +830,21 @@ def _demo_mode_enabled() -> bool:
 
 
 def _load_demo_dashboard_payload(filename: str) -> dict[str, Any] | None:
-    demo_path = REPO_ROOT / "examples" / "demo-scenarios" / filename
-    if not demo_path.exists():
-        return None
-    try:
-        with demo_path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return payload
+    candidate_paths = [
+        REPO_ROOT / "apps" / "web" / "data" / "demo_dashboards" / filename,
+        REPO_ROOT / "examples" / "demo-scenarios" / filename,
+    ]
+    for demo_path in candidate_paths:
+        if not demo_path.exists():
+            continue
+        try:
+            with demo_path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
 
 
 def _load_demo_search_payload(filename: str) -> dict[str, Any] | None:

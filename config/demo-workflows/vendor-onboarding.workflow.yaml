@@ -1,0 +1,66 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Vendor Onboarding Workflow
+  version: 1.0.0
+  owner: Vendor Governance
+  description: Onboards net-new vendors with compliance and security checks.
+steps:
+  - id: submit_vendor_profile
+    type: task
+    config:
+      endpoint: /vendors/profile
+    next: due_diligence
+  - id: due_diligence
+    type: task
+    config:
+      endpoint: /vendors/due-diligence
+    next: security_review
+  - id: security_review
+    type: approval
+    config:
+      queue: security-vendor-review
+      required_role: Compliance
+    next: legal_review
+  - id: legal_review
+    type: approval
+    config:
+      queue: legal-vendor-review
+      required_role: Compliance
+    next: onboarding_decision
+  - id: onboarding_decision
+    type: decision
+    condition:
+      field: payload.vendor_risk
+      operator: less_than
+      value: 60
+    branches:
+      - name: onboard
+        condition:
+          field: payload.vendor_risk
+          operator: less_than
+          value: 60
+        next: activate_vendor
+      - name: escalate
+        condition:
+          field: payload.vendor_risk
+          operator: greater_than
+          value: 59
+        next: executive_exception
+    default_next: executive_exception
+  - id: activate_vendor
+    type: api
+    config:
+      endpoint: /vendors/activate
+    next: notify_onboarding
+  - id: executive_exception
+    type: approval
+    config:
+      queue: vendor-exception
+      required_role: Executive
+    next: notify_onboarding
+  - id: notify_onboarding
+    type: notification
+    config:
+      channel: notifications
+      template: vendor-onboarding-status
