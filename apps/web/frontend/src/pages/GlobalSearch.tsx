@@ -27,6 +27,8 @@ const DEFAULT_TYPES: SearchResultType[] = [
 
 const PAGE_SIZE = 12;
 
+type DateRange = 'all' | '7d' | '30d' | '90d';
+
 export function GlobalSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') ?? '';
@@ -40,6 +42,7 @@ export function GlobalSearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>('all');
 
   const projectIds = useMemo(
     () =>
@@ -50,6 +53,23 @@ export function GlobalSearchPage() {
     [projectFilter]
   );
 
+  const filteredResults = useMemo(() => {
+    if (dateRange === 'all') {
+      return results;
+    }
+
+    const days = Number(dateRange.replace('d', ''));
+    const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
+    return results.filter((result) => {
+      const updated = result.updatedAt;
+      if (!updated) {
+        return false;
+      }
+      const timestamp = new Date(updated).getTime();
+      return !Number.isNaN(timestamp) && timestamp >= threshold;
+    });
+  }, [dateRange, results]);
+
   const groupedResults = useMemo(() => {
     const groups: Record<SearchResultType, SearchResult[]> = {
       document: [],
@@ -58,11 +78,11 @@ export function GlobalSearchPage() {
       approval: [],
       workflow: [],
     };
-    results.forEach((result) => {
+    filteredResults.forEach((result) => {
       groups[result.type].push(result);
     });
     return groups;
-  }, [results]);
+  }, [filteredResults]);
 
   const loadResults = useCallback(
     async (offset = 0, append = false) => {
@@ -279,6 +299,18 @@ export function GlobalSearchPage() {
                 />
                 {TYPE_LABELS[type]}
               </label>
+            ))}
+          </div>
+          <div className={styles.filterGroup}>
+            {(['all', '7d', '30d', '90d'] as DateRange[]).map((range) => (
+              <button
+                key={range}
+                type="button"
+                className={`${styles.dateChip} ${dateRange === range ? styles.dateChipActive : ''}`.trim()}
+                onClick={() => setDateRange(range)}
+              >
+                {range === 'all' ? 'Any time' : `Last ${range.replace('d', ' days')}`}
+              </button>
             ))}
           </div>
           <input
