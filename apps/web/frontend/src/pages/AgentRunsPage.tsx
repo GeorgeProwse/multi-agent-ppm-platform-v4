@@ -91,3 +91,5 @@ export function AgentRunsPage() {
     </div>
   );
 }
+
+export default AgentRunsPage;

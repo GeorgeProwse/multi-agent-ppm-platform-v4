@@ -283,3 +283,5 @@ export function WorkflowMonitoringPage() {
     </div>
   );
 }
+
+export default WorkflowMonitoringPage;

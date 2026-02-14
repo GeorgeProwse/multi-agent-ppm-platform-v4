@@ -530,3 +530,5 @@ export function IntakeFormPage() {
     </div>
   );
 }
+
+export default IntakeFormPage;

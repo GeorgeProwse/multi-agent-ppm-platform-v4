@@ -62,15 +62,6 @@ interface WorkflowDefinitionSummary {
   description?: string | null;
 }
 
-interface WorkflowDefinitionRecord {
-  workflow_id: string;
-  name: string;
-  description?: string | null;
-  nodes: Array<Node<WorkflowNodeData>>;
-  edges: Array<Edge>;
-  definition: Record<string, unknown>;
-}
-
 
 const agentConfigSchema = s.object({
   agent_id: s.string(),
@@ -920,3 +911,5 @@ export function WorkflowDesigner() {
     </div>
   );
 }
+
+export default WorkflowDesigner;

@@ -1156,3 +1156,5 @@ export function WorkspacePage({ type }: WorkspacePageProps) {
     </div>
   );
 }
+
+export default WorkspacePage;

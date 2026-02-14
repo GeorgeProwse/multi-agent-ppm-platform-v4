@@ -361,3 +361,5 @@ export function AnalyticsDashboard() {
     </section>
   );
 }
+
+export default AnalyticsDashboard;
