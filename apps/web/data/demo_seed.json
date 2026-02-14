@@ -5,49 +5,118 @@
       "name": "Elena Brooks",
       "email": "elena.brooks@demo-ppm.com",
       "role": "Executive",
-      "clearance": "Confidential"
+      "clearance": "Confidential",
+      "permissions": [
+        "dashboard.view",
+        "approvals.review",
+        "audit.read",
+        "portfolio.approve",
+        "workflow.monitor"
+      ]
     },
     {
       "id": "u_portfolio_demo",
       "name": "Marcus Hill",
       "email": "marcus.hill@demo-ppm.com",
       "role": "PortfolioManager",
-      "clearance": "Confidential"
+      "clearance": "Confidential",
+      "permissions": [
+        "portfolio.manage",
+        "workflow.start",
+        "workflow.monitor",
+        "dashboard.view"
+      ]
     },
     {
       "id": "u_program_demo",
       "name": "Priya Nair",
       "email": "priya.nair@demo-ppm.com",
       "role": "ProgramManager",
-      "clearance": "Internal"
+      "clearance": "Internal",
+      "permissions": [
+        "program.manage",
+        "risk.manage",
+        "workflow.start",
+        "approvals.submit"
+      ]
     },
     {
       "id": "u_project_demo",
       "name": "Daniel Ortiz",
       "email": "daniel.ortiz@demo-ppm.com",
       "role": "ProjectManager",
-      "clearance": "Internal"
+      "clearance": "Internal",
+      "permissions": [
+        "project.manage",
+        "workflow.start",
+        "workflow.monitor",
+        "approvals.submit"
+      ]
     },
     {
       "id": "u_finance_demo",
       "name": "Sophie Lang",
       "email": "sophie.lang@demo-ppm.com",
       "role": "Finance",
-      "clearance": "Confidential"
+      "clearance": "Confidential",
+      "permissions": [
+        "budget.manage",
+        "approvals.review",
+        "procurement.review",
+        "dashboard.view"
+      ]
     },
     {
       "id": "u_compliance_demo",
       "name": "Henry Cole",
       "email": "henry.cole@demo-ppm.com",
       "role": "Compliance",
-      "clearance": "Restricted"
+      "clearance": "Restricted",
+      "permissions": [
+        "compliance.review",
+        "approvals.review",
+        "audit.read",
+        "vendor.review"
+      ]
     },
     {
       "id": "u_vendor_demo",
       "name": "Rina Shah",
       "email": "rina.shah@demo-ppm.com",
       "role": "VendorManager",
-      "clearance": "Internal"
+      "clearance": "Internal",
+      "permissions": [
+        "vendor.manage",
+        "procurement.manage",
+        "approvals.submit",
+        "workflow.monitor"
+      ]
+    },
+    {
+      "id": "u_resource_demo",
+      "name": "Maya Chen",
+      "email": "maya.chen@demo-ppm.com",
+      "role": "ResourceManager",
+      "clearance": "Internal",
+      "permissions": [
+        "resource.manage",
+        "resource.reallocate",
+        "workflow.start",
+        "dashboard.view"
+      ]
+    },
+    {
+      "id": "u_pmo_admin_demo",
+      "name": "Noah Bennett",
+      "email": "noah.bennett@demo-ppm.com",
+      "role": "PMOAdmin",
+      "clearance": "Restricted",
+      "permissions": [
+        "roles.manage",
+        "workflow.manage_definitions",
+        "audit.read",
+        "approvals.review"
+      ]
     }
   ],
   "portfolios": [
@@ -177,6 +246,24 @@
       "severity": "medium",
       "created_at": "2025-05-20T07:50:00Z",
       "read": true
+    },
+    {
+      "id": "notif-003",
+      "type": "procurement",
+      "title": "Procurement package awaiting finance sign-off",
+      "message": "Purchase request PR-4472 exceeded spend threshold and requires Finance approval within 12 hours.",
+      "severity": "medium",
+      "created_at": "2025-05-20T08:25:00Z",
+      "read": false
+    },
+    {
+      "id": "notif-004",
+      "type": "workflow",
+      "title": "Resource reallocation executed",
+      "message": "3 engineers reallocated from Portal Upgrade to Mobile App Modernization for sprint recovery.",
+      "severity": "low",
+      "created_at": "2025-05-20T08:40:00Z",
+      "read": false
     }
   ],
   "approvals": [
@@ -197,6 +284,28 @@
       "status": "ApprovedWithConditions",
       "submitted_at": "2025-02-02T09:00:00Z",
       "decision_at": "2025-02-04T14:30:00Z"
+    },
+    {
+      "id": "apr-ui-003",
+      "entity": "Phase Gate Exit - Mobile App Modernization",
+      "requester": "Daniel Ortiz",
+      "approver": "Elena Brooks",
+      "status": "Pending",
+      "submitted_at": "2025-02-10T10:00:00Z",
+      "decision_at": null,
+      "queue": "Stage Gates",
+      "sla_hours": 24
+    },
+    {
+      "id": "apr-ui-004",
+      "entity": "Vendor Onboarding - Northstar Security",
+      "requester": "Rina Shah",
+      "approver": "Henry Cole",
+      "status": "Pending",
+      "submitted_at": "2025-02-11T08:20:00Z",
+      "decision_at": null,
+      "queue": "Compliance",
+      "sla_hours": 48
     }
   ],
   "assistant_history": [
@@ -240,6 +349,66 @@
       "sync_frequency_minutes": 60,
       "last_success_at": "2025-05-20T07:30:00Z",
       "note": "One OData endpoint returned partial cost center metadata; retry scheduled."
+    }
+  ],
+  "audit_log": [
+    {
+      "id": "audit-001",
+      "timestamp": "2025-05-20T07:55:00Z",
+      "actor": "u_pmo_admin_demo",
+      "action": "workflow.definition.loaded",
+      "entity": "project-intake",
+      "outcome": "success",
+      "details": "Demo workflow loaded from config/demo-workflows/project-intake.workflow.yaml"
+    },
+    {
+      "id": "audit-002",
+      "timestamp": "2025-05-20T08:05:00Z",
+      "actor": "u_finance_demo",
+      "action": "approval.decision",
+      "entity": "apr-ui-002",
+      "outcome": "approved_with_conditions",
+      "details": "Contract approved with regional data residency controls."
+    },
+    {
+      "id": "audit-003",
+      "timestamp": "2025-05-20T08:42:00Z",
+      "actor": "u_resource_demo",
+      "action": "resource.reallocated",
+      "entity": "workflow/resource-reallocation",
+      "outcome": "success",
+      "details": "Capacity rebalanced across critical path projects."
+    }
+  ],
+  "dashboards": [
+    {
+      "id": "exec-portfolio-command-center",
+      "title": "Executive Portfolio Command Center",
+      "audience": [
+        "Executive",
+        "PortfolioManager"
+      ],
+      "path": "apps/web/data/demo_dashboards/executive_portfolio.json"
+    },
+    {
+      "id": "delivery-governance",
+      "title": "Delivery Governance Dashboard",
+      "audience": [
+        "ProgramManager",
+        "ProjectManager",
+        "PMOAdmin"
+      ],
+      "path": "apps/web/data/demo_dashboards/delivery_governance.json"
+    },
+    {
+      "id": "vendor-risk-watch",
+      "title": "Vendor and Procurement Risk Watch",
+      "audience": [
+        "VendorManager",
+        "Compliance",
+        "Finance"
+      ],
+      "path": "apps/web/data/demo_dashboards/vendor_procurement_risk.json"
     }
   ]
 }

@@ -1,0 +1,28 @@
+{
+  "id": "vendor-risk-watch",
+  "title": "Vendor and Procurement Risk Watch",
+  "description": "Combines vendor onboarding controls with procurement risk indicators.",
+  "charts": [
+    {
+      "id": "vendor-onboarding-funnel",
+      "type": "funnel",
+      "title": "Vendor Onboarding Funnel",
+      "series": [22, 18, 14, 11],
+      "labels": ["Submitted", "Due Diligence", "Security/Legal", "Activated"]
+    },
+    {
+      "id": "procurement-risk-heatmap",
+      "type": "heatmap",
+      "title": "Procurement Risk Heatmap",
+      "matrix": [
+        {"category": "Data Residency", "low": 2, "medium": 5, "high": 1},
+        {"category": "Delivery Capacity", "low": 1, "medium": 4, "high": 2},
+        {"category": "Commercial Terms", "low": 3, "medium": 6, "high": 1}
+      ]
+    }
+  ],
+  "alerts": [
+    "Northstar Security onboarding pending executive exception.",
+    "Two procurement requests exceed approved budget tolerance."
+  ]
+}

@@ -1,0 +1,60 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Procurement Workflow
+  version: 1.0.0
+  owner: Procurement Office
+  description: Handles purchase requests, sourcing, and purchase order approvals.
+steps:
+  - id: submit_purchase_request
+    type: task
+    config:
+      endpoint: /procurement/requests
+    next: sourcing_check
+  - id: sourcing_check
+    type: decision
+    condition:
+      field: payload.preferred_vendor_available
+      operator: equals
+      value: true
+    branches:
+      - name: preferred_vendor
+        condition:
+          field: payload.preferred_vendor_available
+          operator: equals
+          value: true
+        next: generate_po
+      - name: competitive_bid
+        condition:
+          field: payload.preferred_vendor_available
+          operator: equals
+          value: false
+        next: run_rfp
+    default_next: run_rfp
+  - id: run_rfp
+    type: task
+    config:
+      endpoint: /procurement/rfp
+    next: evaluate_bids
+  - id: evaluate_bids
+    type: approval
+    config:
+      queue: procurement-review
+      required_role: VendorManager
+    next: generate_po
+  - id: generate_po
+    type: task
+    config:
+      endpoint: /procurement/purchase-order
+    next: finance_signoff
+  - id: finance_signoff
+    type: approval
+    config:
+      queue: finance-procurement
+      required_role: Finance
+    next: notify_procurement_outcome
+  - id: notify_procurement_outcome
+    type: notification
+    config:
+      channel: notifications
+      template: procurement-complete

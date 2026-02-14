@@ -1,0 +1,39 @@
+{
+  "id": "delivery-governance",
+  "title": "Delivery Governance Dashboard",
+  "description": "Tracks workflow throughput, approval SLA, and audit completeness.",
+  "charts": [
+    {
+      "id": "workflow-throughput",
+      "type": "bar",
+      "title": "Workflow Throughput by Process",
+      "series": [34, 21, 18, 12, 15, 9],
+      "labels": [
+        "Project Intake",
+        "Approval Gating",
+        "Risk Mitigation",
+        "Procurement",
+        "Resource Reallocation",
+        "Vendor Onboarding"
+      ]
+    },
+    {
+      "id": "approval-sla",
+      "type": "area",
+      "title": "Approval SLA Compliance",
+      "series": [88, 91, 93, 89, 95],
+      "labels": ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5"]
+    }
+  ],
+  "tables": [
+    {
+      "id": "audit-coverage",
+      "title": "Audit Coverage by Workflow",
+      "rows": [
+        {"workflow": "project-intake", "events": 42, "coverage": "100%"},
+        {"workflow": "approval-gating", "events": 37, "coverage": "100%"},
+        {"workflow": "risk-mitigation", "events": 29, "coverage": "96%"}
+      ]
+    }
+  ]
+}

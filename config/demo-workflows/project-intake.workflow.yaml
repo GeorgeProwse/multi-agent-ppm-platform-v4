@@ -1,0 +1,51 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Project Intake Workflow
+  version: 1.0.0
+  owner: PMO Office
+  description: Intake and triage process for new project proposals.
+steps:
+  - id: submit_intake
+    type: task
+    config:
+      endpoint: /intake/submit
+      form: project-intake
+    next: strategic_alignment_check
+  - id: strategic_alignment_check
+    type: decision
+    condition:
+      field: payload.strategy_score
+      operator: greater_than
+      value: 70
+    branches:
+      - name: aligned
+        condition:
+          field: payload.strategy_score
+          operator: greater_than
+          value: 70
+        next: pmo_triage
+      - name: misaligned
+        condition:
+          field: payload.strategy_score
+          operator: less_than
+          value: 71
+        next: reject_request
+    default_next: reject_request
+  - id: pmo_triage
+    type: approval
+    config:
+      queue: pmo-intake
+      required_role: PortfolioManager
+    next: notify_requester
+  - id: reject_request
+    type: notification
+    config:
+      channel: notifications
+      template: intake-rejected
+    next: notify_requester
+  - id: notify_requester
+    type: notification
+    config:
+      channel: notifications
+      template: intake-status

@@ -1,0 +1,61 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Stage Gate Approval Workflow
+  version: 1.0.0
+  owner: Governance Board
+  description: Stage gate approval cycle for scope, budget, and compliance checks.
+steps:
+  - id: collect_gate_packet
+    type: task
+    config:
+      endpoint: /gates/packet
+    next: budget_gate
+  - id: budget_gate
+    type: approval
+    config:
+      queue: budget-approvals
+      required_role: Finance
+    next: compliance_gate
+  - id: compliance_gate
+    type: approval
+    config:
+      queue: compliance-approvals
+      required_role: Compliance
+    next: exec_gate
+  - id: exec_gate
+    type: approval
+    config:
+      queue: exec-gates
+      required_role: Executive
+    next: gate_outcome
+  - id: gate_outcome
+    type: decision
+    condition:
+      field: payload.gate_result
+      operator: equals
+      value: approved
+    branches:
+      - name: approved
+        condition:
+          field: payload.gate_result
+          operator: equals
+          value: approved
+        next: publish_gate_decision
+      - name: rejected
+        condition:
+          field: payload.gate_result
+          operator: not_equals
+          value: approved
+        next: raise_rework
+    default_next: raise_rework
+  - id: publish_gate_decision
+    type: notification
+    config:
+      channel: audit
+      event: gate-approved
+  - id: raise_rework
+    type: notification
+    config:
+      channel: notifications
+      template: gate-rework-required

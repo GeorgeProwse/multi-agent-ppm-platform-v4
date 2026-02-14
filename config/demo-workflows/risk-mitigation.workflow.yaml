@@ -1,0 +1,79 @@
+apiVersion: ppm.workflows/v1
+kind: Workflow
+metadata:
+  name: Risk Mitigation Workflow
+  version: 1.0.0
+  owner: Risk Office
+  description: Escalates high risks, assigns mitigations, and tracks closure readiness.
+steps:
+  - id: detect_risk_threshold
+    type: decision
+    condition:
+      field: payload.risk_score
+      operator: greater_than
+      value: 75
+    branches:
+      - name: high_risk
+        condition:
+          field: payload.risk_score
+          operator: greater_than
+          value: 75
+        next: create_mitigation_plan
+      - name: monitor_only
+        condition:
+          field: payload.risk_score
+          operator: less_than
+          value: 76
+        next: notify_monitoring
+    default_next: notify_monitoring
+  - id: create_mitigation_plan
+    type: task
+    config:
+      endpoint: /risks/mitigation-plan
+    next: assign_owner
+  - id: assign_owner
+    type: approval
+    config:
+      queue: risk-mitigation
+      required_role: ProgramManager
+    next: execute_mitigation
+  - id: execute_mitigation
+    type: task
+    config:
+      endpoint: /risks/execute-mitigation
+    next: verify_residual_risk
+  - id: verify_residual_risk
+    type: decision
+    condition:
+      field: payload.residual_risk
+      operator: less_than
+      value: 50
+    branches:
+      - name: mitigated
+        condition:
+          field: payload.residual_risk
+          operator: less_than
+          value: 50
+        next: close_risk
+      - name: escalate
+        condition:
+          field: payload.residual_risk
+          operator: greater_than
+          value: 49
+        next: escalate_risk
+    default_next: escalate_risk
+  - id: close_risk
+    type: notification
+    config:
+      channel: audit
+      event: risk-closed
+  - id: escalate_risk
+    type: notification
+    config:
+      channel: notifications
+      template: risk-escalation
+  - id: notify_monitoring
+    type: notification
+    config:
+      channel: notifications
+      template: risk-monitoring

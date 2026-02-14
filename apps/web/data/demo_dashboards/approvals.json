@@ -1,0 +1,31 @@
+{
+  "pending_count": 11,
+  "queues": ["Stage Gates", "Budget", "Vendor", "Compliance", "Resource"],
+  "approvals": [
+    {
+      "title": "Phase Gate Exit - Mobile App Modernization",
+      "meta": ["Project: Mobile App Modernization · Risk: High · Due in 18h"],
+      "approvers": "Elena Brooks, Noah Bennett"
+    },
+    {
+      "title": "Vendor Onboarding - Northstar Security",
+      "meta": ["Queue: Compliance · SLA: 36h"],
+      "approvers": "Henry Cole"
+    },
+    {
+      "title": "Procurement PO PR-4472",
+      "meta": ["Spend variance: +14% · Due in 12h"],
+      "approvers": "Sophie Lang"
+    }
+  ],
+  "history": [
+    {
+      "title": "08:42 · Resource Reallocation Approved · M. Chen",
+      "meta": ["3 engineers reassigned to critical path"]
+    },
+    {
+      "title": "08:05 · Contract Approved with Conditions · H. Cole",
+      "meta": ["Data residency controls added"]
+    }
+  ]
+}

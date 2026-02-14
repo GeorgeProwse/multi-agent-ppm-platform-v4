@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ntf-001",
+    "tenant_id": "tenant-demo",
+    "type": "risk",
+    "title": "Risk mitigation escalation required",
+    "message": "Residual risk for Mobile App Modernization remains above threshold after sprint 12.",
+    "severity": "high",
+    "channel": "notification-centre",
+    "created_at": "2025-05-20T08:10:00Z",
+    "read": false,
+    "workflow_id": "risk-mitigation"
+  },
+  {
+    "id": "ntf-002",
+    "tenant_id": "tenant-demo",
+    "type": "approval_queue",
+    "title": "Stage gate approval queued",
+    "message": "Phase Gate Exit - Mobile App Modernization is awaiting executive sign-off.",
+    "severity": "medium",
+    "channel": "approval-queue",
+    "created_at": "2025-05-20T08:18:00Z",
+    "read": false,
+    "approval_id": "apr-ui-003"
+  },
+  {
+    "id": "ntf-003",
+    "tenant_id": "tenant-demo",
+    "type": "audit",
+    "title": "Workflow definition loaded in demo mode",
+    "message": "Workflow engine auto-loaded vendor-onboarding from config/demo-workflows.",
+    "severity": "low",
+    "channel": "audit-log",
+    "created_at": "2025-05-20T08:20:00Z",
+    "read": true,
+    "audit_event_id": "audit-001"
+  },
+  {
+    "id": "ntf-004",
+    "tenant_id": "tenant-demo",
+    "type": "procurement",
+    "title": "Procurement packet awaiting finance approval",
+    "message": "Request PR-4472 exceeded threshold and was routed to Finance queue.",
+    "severity": "medium",
+    "channel": "notification-centre",
+    "created_at": "2025-05-20T08:25:00Z",
+    "read": false,
+    "workflow_id": "procurement"
+  }
+]

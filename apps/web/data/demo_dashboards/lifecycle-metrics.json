@@ -1,0 +1,18 @@
+{
+  "portfolio_id": "demo-portfolio",
+  "project_id": "prj-mobile-001",
+  "as_of": "2025-05-20T08:45:00Z",
+  "summary": {
+    "avg_cycle_time_days": 38,
+    "gates_on_track": 4,
+    "gates_at_risk": 1,
+    "gates_blocked": 0
+  },
+  "stage_gates": [
+    {"stage_id": "intake", "stage_name": "Intake", "status": "on_track", "percent_complete": 100, "gate": "Intake Complete", "due_date": "2025-02-01"},
+    {"stage_id": "planning", "stage_name": "Planning", "status": "on_track", "percent_complete": 86, "gate": "Planning Gate", "due_date": "2025-06-03"},
+    {"stage_id": "delivery", "stage_name": "Delivery", "status": "at_risk", "percent_complete": 58, "gate": "Delivery Gate", "due_date": "2025-07-10"},
+    {"stage_id": "closure", "stage_name": "Closure", "status": "pending", "percent_complete": 18, "gate": "Closure Gate", "due_date": "2025-10-01"}
+  ],
+  "capacity": {"current": 0.88, "target": 0.9}
+}
