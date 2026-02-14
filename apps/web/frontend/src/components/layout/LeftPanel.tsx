@@ -50,6 +50,12 @@ const navigateNav: NavItem[] = [
     icon: 'artifact.dashboard',
   },
   {
+    id: 'demo-run',
+    label: 'Demo Run (25 Agents)',
+    path: '/demo-run',
+    icon: 'provenance.auditLog',
+  },
+  {
     id: 'my-portfolios',
     label: 'My Portfolios',
     path: '/portfolios',

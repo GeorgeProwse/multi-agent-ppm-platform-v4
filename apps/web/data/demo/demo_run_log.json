@@ -1,0 +1,224 @@
+{
+  "demo_run_id": "demo-run-2025-05-20-full-platform",
+  "started_at": "2025-05-20T08:00:00Z",
+  "total_agents_executed": 25,
+  "agents": [
+    {
+      "agent_id": "agent-01",
+      "status": "completed",
+      "duration_seconds": 42,
+      "artifacts": [
+        "artifact-01-summary.md",
+        "artifact-01-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-02",
+      "status": "completed",
+      "duration_seconds": 49,
+      "artifacts": [
+        "artifact-02-summary.md",
+        "artifact-02-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-03",
+      "status": "completed",
+      "duration_seconds": 56,
+      "artifacts": [
+        "artifact-03-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-04",
+      "status": "completed",
+      "duration_seconds": 63,
+      "artifacts": [
+        "artifact-04-summary.md",
+        "artifact-04-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-05",
+      "status": "completed",
+      "duration_seconds": 70,
+      "artifacts": [
+        "artifact-05-summary.md",
+        "artifact-05-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-06",
+      "status": "completed",
+      "duration_seconds": 77,
+      "artifacts": [
+        "artifact-06-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-07",
+      "status": "completed",
+      "duration_seconds": 84,
+      "artifacts": [
+        "artifact-07-summary.md",
+        "artifact-07-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-08",
+      "status": "completed",
+      "duration_seconds": 91,
+      "artifacts": [
+        "artifact-08-summary.md",
+        "artifact-08-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-09",
+      "status": "completed",
+      "duration_seconds": 98,
+      "artifacts": [
+        "artifact-09-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-10",
+      "status": "completed",
+      "duration_seconds": 105,
+      "artifacts": [
+        "artifact-10-summary.md",
+        "artifact-10-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-11",
+      "status": "completed",
+      "duration_seconds": 112,
+      "artifacts": [
+        "artifact-11-summary.md",
+        "artifact-11-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-12",
+      "status": "completed",
+      "duration_seconds": 119,
+      "artifacts": [
+        "artifact-12-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-13",
+      "status": "completed",
+      "duration_seconds": 126,
+      "artifacts": [
+        "artifact-13-summary.md",
+        "artifact-13-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-14",
+      "status": "completed",
+      "duration_seconds": 133,
+      "artifacts": [
+        "artifact-14-summary.md",
+        "artifact-14-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-15",
+      "status": "completed",
+      "duration_seconds": 140,
+      "artifacts": [
+        "artifact-15-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-16",
+      "status": "completed",
+      "duration_seconds": 147,
+      "artifacts": [
+        "artifact-16-summary.md",
+        "artifact-16-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-17",
+      "status": "completed",
+      "duration_seconds": 154,
+      "artifacts": [
+        "artifact-17-summary.md",
+        "artifact-17-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-18",
+      "status": "completed",
+      "duration_seconds": 161,
+      "artifacts": [
+        "artifact-18-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-19",
+      "status": "completed",
+      "duration_seconds": 168,
+      "artifacts": [
+        "artifact-19-summary.md",
+        "artifact-19-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-20",
+      "status": "completed",
+      "duration_seconds": 175,
+      "artifacts": [
+        "artifact-20-summary.md",
+        "artifact-20-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-21",
+      "status": "completed",
+      "duration_seconds": 182,
+      "artifacts": [
+        "artifact-21-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-22",
+      "status": "completed",
+      "duration_seconds": 189,
+      "artifacts": [
+        "artifact-22-summary.md",
+        "artifact-22-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-23",
+      "status": "completed",
+      "duration_seconds": 196,
+      "artifacts": [
+        "artifact-23-summary.md",
+        "artifact-23-evidence.json"
+      ]
+    },
+    {
+      "agent_id": "agent-24",
+      "status": "completed_with_warnings",
+      "duration_seconds": 203,
+      "artifacts": [
+        "artifact-24-summary.md"
+      ]
+    },
+    {
+      "agent_id": "agent-25",
+      "status": "completed",
+      "duration_seconds": 210,
+      "artifacts": [
+        "artifact-25-summary.md",
+        "artifact-25-evidence.json"
+      ]
+    }
+  ]
+}
