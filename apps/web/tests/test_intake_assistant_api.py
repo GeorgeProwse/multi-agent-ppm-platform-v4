@@ -56,3 +56,50 @@ def test_intake_assistant_adds_confirmation_hint_for_non_empty_field():
     payload = response.json()
     assert "riskNotes" in payload["proposals"]
     assert any("safe to apply directly" in hint for hint in payload["apply_hints"])
+
+
+def test_intake_assistant_response_matches_expected_schema():
+    client = TestClient(main.app)
+    response = client.post(
+        "/v1/api/intake/assistant",
+        json={
+            "step_id": "success",
+            "step_index": 2,
+            "form_state": {
+                "successMetrics": "",
+                "riskNotes": "",
+            },
+            "validation_errors": {},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload.keys()) == {"step_id", "questions", "proposals", "apply_hints"}
+    assert payload["step_id"] == "success"
+    assert isinstance(payload["questions"], list)
+    assert isinstance(payload["proposals"], dict)
+    assert isinstance(payload["apply_hints"], list)
+
+
+def test_intake_assistant_missing_info_returns_questions_without_fabricating_sponsor_values():
+    client = TestClient(main.app)
+    response = client.post(
+        "/v1/api/intake/assistant",
+        json={
+            "step_id": "sponsor",
+            "step_index": 0,
+            "form_state": {
+                "sponsorName": "",
+                "sponsorEmail": "",
+                "sponsorDepartment": "",
+            },
+            "validation_errors": {},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["questions"]
+    assert payload["proposals"] == {}
+    assert any("executive sponsor" in question.lower() for question in payload["questions"])
