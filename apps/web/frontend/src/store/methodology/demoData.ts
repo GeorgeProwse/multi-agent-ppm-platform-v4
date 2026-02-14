@@ -21,8 +21,19 @@ export const predictiveMethodology: MethodologyMap = {
     mkStage('0.3-initiation', 'Initiation', 3, '0.2-portfolio-assessment-prioritisation'),
     mkStage('0.4-planning', 'Planning', 4, '0.3-initiation'),
     mkStage('0.5-execution', 'Execution', 5, '0.4-planning'),
-    mkStage('0.6-monitoring-controlling', 'Monitoring & Controlling', 6, '0.5-execution'),
-    mkStage('0.7-closure', 'Closure', 7, '0.6-monitoring-controlling'),
+    mkStage('0.7-closure', 'Closure', 6, '0.5-execution'),
+  ],
+  monitoring: [
+    {
+      id: 'monitoring-project-performance-insights',
+      name: 'Project Performance & Insights Dashboard',
+      description: 'Control tower dashboard for cross-lifecycle project performance.',
+      status: 'not_started',
+      canvasType: 'dashboard',
+      prerequisites: [],
+      alwaysAccessible: true,
+      order: 1,
+    },
   ],
 };
 
@@ -41,7 +52,19 @@ export const adaptiveMethodology: MethodologyMap = {
     mkStage('0.6-release-planning-deployment', 'Release Planning & Deployment', 6, '0.5-iteration-sprint-delivery'),
     mkStage('0.7-product-ops-lifecycle', 'Product Ops & Lifecycle', 7, '0.6-release-planning-deployment'),
     mkStage('0.8-governance-monitoring-controls', 'Governance, Monitoring & Controls', 8, '0.7-product-ops-lifecycle'),
-    mkStage('0.9-closure-transition', 'Closure/Transition', 9, '0.8-governance-monitoring-controls'),
+    mkStage('0.9-closure-transition', 'Closure/Transition', 8, '0.7-product-ops-lifecycle'),
+  ],
+  monitoring: [
+    {
+      id: 'monitoring-project-performance-insights',
+      name: 'Project Performance & Insights Dashboard',
+      description: 'Control tower dashboard for cross-lifecycle project performance.',
+      status: 'not_started',
+      canvasType: 'dashboard',
+      prerequisites: [],
+      alwaysAccessible: true,
+      order: 1,
+    },
   ],
 };
 
@@ -61,6 +84,18 @@ export const hybridMethodology: MethodologyMap = {
     mkStage('0.7-stage-gate-assurance-control', 'Stage-Gate Assurance & Control (Parallel)', 7),
     mkStage('0.8-release-readiness-deployment-transition', 'Release Readiness, Deployment & Transition', 8, '0.6-iterative-build-test-sprints'),
     mkStage('0.9-closure-benefits-realisation', 'Closure & Benefits Realisation', 9, '0.8-release-readiness-deployment-transition'),
+  ],
+  monitoring: [
+    {
+      id: 'monitoring-project-performance-insights',
+      name: 'Project Performance & Insights Dashboard',
+      description: 'Control tower dashboard for cross-lifecycle project performance.',
+      status: 'not_started',
+      canvasType: 'dashboard',
+      prerequisites: [],
+      alwaysAccessible: true,
+      order: 1,
+    },
   ],
 };
 

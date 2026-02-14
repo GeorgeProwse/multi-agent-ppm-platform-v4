@@ -1,4 +1,6 @@
+import { useLocation } from 'react-router-dom';
 import { CanvasWorkspace } from '@/components/canvas';
+import { MethodologyWorkspaceSurface } from '@/components/methodology';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import styles from './MainCanvas.module.css';
 
@@ -9,13 +11,15 @@ interface MainCanvasProps {
 export function MainCanvas({ children }: MainCanvasProps) {
   const { tabs } = useCanvasStore();
   const hasCanvasTabs = tabs.length > 0;
+  const location = useLocation();
+  const isProjectWorkspaceRoot = /^\/projects?\/[^/]+$/.test(location.pathname);
 
   return (
     <main className={styles.canvas}>
-      {hasCanvasTabs ? (
-        <CanvasWorkspace />
-      ) : (
-        <div className={styles.content}>{children}</div>
+      {hasCanvasTabs ? <CanvasWorkspace /> : (
+        <div className={styles.content}>
+          {isProjectWorkspaceRoot ? <MethodologyWorkspaceSurface /> : children}
+        </div>
       )}
     </main>
   );

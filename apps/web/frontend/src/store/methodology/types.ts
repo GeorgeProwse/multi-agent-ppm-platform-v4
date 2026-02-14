@@ -151,6 +151,9 @@ export interface MethodologyMap {
   /** Stages in this methodology */
   stages: MethodologyStage[];
 
+  /** Cross-cutting monitoring & controlling activities */
+  monitoring: MethodologyActivity[];
+
   /** Version for template updates */
   version: string;
 

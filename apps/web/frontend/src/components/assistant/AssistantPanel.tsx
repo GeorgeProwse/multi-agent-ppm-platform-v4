@@ -231,6 +231,39 @@ export function AssistantPanel() {
           addAssistantMessage(`Please share the ${workspaceType} ID to open.`);
           return;
         }
+        if (chip.payload.actionKey === 'methodology_runtime_action') {
+          const lifecycleEvent = chip.payload.data?.lifecycleEvent;
+          const stageId = chip.payload.data?.stageId;
+          const activityId = chip.payload.data?.activityId;
+          if (typeof lifecycleEvent !== 'string' || typeof stageId !== 'string' || typeof activityId !== 'string') {
+            addAssistantMessage('Unable to run this lifecycle action.');
+            return;
+          }
+          const methodologyState = useMethodologyStore.getState();
+          void methodologyState.executeNodeAction({
+            workspaceId: methodologyState.projectMethodology.projectId,
+            methodologyId: methodologyState.projectMethodology.methodology.id,
+            stageId,
+            activityId,
+            lifecycleEvent: lifecycleEvent as 'generate' | 'update' | 'review' | 'approve' | 'publish' | 'view',
+          }).then(async (response) => {
+            if (response.human_review?.required) {
+              addAssistantMessage('Action submitted and pending human review.');
+              return;
+            }
+            const contract = await methodologyState.resolveNodeRuntime({
+              methodologyId: methodologyState.projectMethodology.methodology.id,
+              stageId,
+              activityId,
+              event: 'view',
+            });
+            const activity = methodologyState.getActivity(activityId);
+            if (!activity || !contract) return;
+            openArtifact(createArtifact(activity.canvasType, activity.name, methodologyState.projectMethodology.projectId, createEmptyContent(activity.canvasType)));
+            addAssistantMessage(`${lifecycleEvent} completed for ${activity.name}.`);
+          }).catch(() => addAssistantMessage('Lifecycle action failed.'));
+          return;
+        }
         if (chip.payload.actionKey === 'ask_question') return inputRef.current?.focus();
         if (chip.payload.actionKey === 'intake_apply_field') {
           const field = typeof chip.payload.data?.field === 'string' ? chip.payload.data.field : '';
