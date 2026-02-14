@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-otel-collector
+  labels:
+    app.kubernetes.io/name: observability
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: observability
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: observability
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: otel-collector
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--config=/conf/collector.yaml"
+          ports:
+            - name: otlp-grpc
+              containerPort: {{ .Values.service.ports.grpc }}
+            - name: otlp-http
+              containerPort: {{ .Values.service.ports.http }}
+            - name: prometheus
+              containerPort: {{ .Values.service.ports.prometheus }}
+          volumeMounts:
+            - name: collector-config
+              mountPath: /conf
+      volumes:
+        - name: collector-config
+          configMap:
+            name: {{ .Release.Name }}-otel-collector-config
