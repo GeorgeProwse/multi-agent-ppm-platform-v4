@@ -41,3 +41,18 @@ def test_assistant_endpoint_returns_demo_response(client, monkeypatch):
     payload = response.json()
     assert "highest risk exposure" in payload["summary"].lower()
     assert payload["items"]
+
+
+def test_assistant_demo_conversation_endpoint_returns_script(client):
+    response = client.get("/api/assistant/demo-conversations/project_intake")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scenario"] == "project_intake"
+    assert isinstance(payload["messages"], list)
+    assert payload["messages"]
+    assert payload["messages"][0]["role"] in {"assistant", "user"}
+
+
+def test_assistant_demo_conversation_endpoint_rejects_unknown_scenario(client):
+    response = client.get("/api/assistant/demo-conversations/not_real")
+    assert response.status_code == 404
