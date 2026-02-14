@@ -251,5 +251,82 @@
     "owner": "res-eng-006",
     "classification": "Internal",
     "created_at": "2025-06-24T14:32:00Z"
+  },
+  {
+    "id": "iss-024",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 024 defect 24",
+    "severity": "low",
+    "status": "open",
+    "project_id": "gen-project-014",
+    "owner": "res-eng-007",
+    "classification": "Internal",
+    "created_at": "2025-06-25T14:32:00Z"
+  },
+  {
+    "id": "iss-025",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 025 defect 25",
+    "severity": "medium",
+    "status": "in_progress",
+    "project_id": "gen-project-015",
+    "owner": "res-eng-008",
+    "classification": "Internal",
+    "created_at": "2025-06-26T14:32:00Z"
+  },
+  {
+    "id": "iss-026",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 026 defect 26",
+    "severity": "high",
+    "status": "resolved",
+    "project_id": "gen-project-016",
+    "owner": "res-eng-009",
+    "classification": "Internal",
+    "created_at": "2025-06-27T14:32:00Z"
+  },
+  {
+    "id": "iss-027",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 027 defect 27",
+    "severity": "low",
+    "status": "open",
+    "project_id": "gen-project-017",
+    "owner": "res-eng-001",
+    "classification": "Internal",
+    "created_at": "2025-06-28T14:32:00Z"
+  },
+  {
+    "id": "iss-028",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 028 defect 28",
+    "severity": "medium",
+    "status": "in_progress",
+    "project_id": "gen-project-018",
+    "owner": "res-eng-002",
+    "classification": "Internal",
+    "created_at": "2025-06-29T14:32:00Z"
+  },
+  {
+    "id": "iss-029",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 029 defect 29",
+    "severity": "high",
+    "status": "resolved",
+    "project_id": "gen-project-019",
+    "owner": "res-eng-003",
+    "classification": "Internal",
+    "created_at": "2025-06-30T14:32:00Z"
+  },
+  {
+    "id": "iss-030",
+    "tenant_id": "tenant-demo",
+    "title": "Portfolio stream 030 defect 30",
+    "severity": "low",
+    "status": "open",
+    "project_id": "gen-project-020",
+    "owner": "res-eng-004",
+    "classification": "Internal",
+    "created_at": "2025-07-01T14:32:00Z"
   }
 ]
