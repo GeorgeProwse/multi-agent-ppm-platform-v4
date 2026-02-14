@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-12-financial-management",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-12-financial-management",
+    "data": {
+      "agent": "agent-12-financial-management",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

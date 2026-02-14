@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-21-stakeholder-comms",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-21-stakeholder-comms",
+    "data": {
+      "agent": "agent-21-stakeholder-comms",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

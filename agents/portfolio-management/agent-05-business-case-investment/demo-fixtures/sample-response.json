@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-05-business-case-investment",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-05-business-case-investment",
+    "data": {
+      "agent": "agent-05-business-case-investment",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-09-lifecycle-governance",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-09-lifecycle-governance",
+    "data": {
+      "agent": "agent-09-lifecycle-governance",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

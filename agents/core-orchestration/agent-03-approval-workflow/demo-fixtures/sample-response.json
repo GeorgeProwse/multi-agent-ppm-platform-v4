@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-03-approval-workflow",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-03-approval-workflow",
+    "data": {
+      "agent": "agent-03-approval-workflow",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}
