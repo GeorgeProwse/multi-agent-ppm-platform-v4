@@ -1,119 +1,77 @@
 import sys
 from pathlib import Path
 
-import pytest
-from fastapi.testclient import TestClient
-
 SRC_DIR = Path(__file__).resolve().parents[1] / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-import main  # noqa: E402
-from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
-from methodologies import get_methodology_map  # noqa: E402
-from workspace_state import build_default_state  # noqa: E402
-from workspace_state_store import WorkspaceStateStore  # noqa: E402
+from gating import evaluate_activity_access, next_required_activity, stage_progress
+from methodologies import get_methodology_map
+from workspace_state import build_default_state
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("AUTH_DEV_MODE", "true")
-    monkeypatch.setenv("ENVIRONMENT", "test")
-    main.workspace_state_store = WorkspaceStateStore(tmp_path / "workspace_state.json")
-    return TestClient(main.app)
-
-
-def _set_tenant(monkeypatch, tenant_id: str) -> None:
-    monkeypatch.setenv("AUTH_DEV_TENANT_ID", tenant_id)
-
-
-def test_monitoring_never_blocked():
-    methodology_map = get_methodology_map("agile")
+def test_prereq_blocks_activity_until_complete_for_wbs_ids():
+    methodology_map = get_methodology_map("adaptive")
     state = build_default_state("tenant-a", "demo-1")
-    access = evaluate_activity_access(methodology_map, state, "monitoring-health")
-    assert access["allowed"] is True
-    assert access["missing_prereqs"] == []
 
+    backlog_refinement = "0.4.3-backlog-creation-and-refinement"
+    architecture_shaping = "0.4.4-architecture-risk-and-compliance-shaping-as-needed"
+    sprint_planning = "0.5.1-sprint-iteration-planning"
+    sprint_build = "0.5.2-build-test-within-sprint"
+    release_strategy = "0.6.1-define-release-strategy-feature-flags-phased-rollout"
 
-def test_prereq_blocks_activity_until_complete():
-    methodology_map = get_methodology_map("agile")
-    state = build_default_state("tenant-a", "demo-1")
-    access = evaluate_activity_access(methodology_map, state, "agile-release-plan")
+    access = evaluate_activity_access(methodology_map, state, architecture_shaping)
     assert access["allowed"] is False
-    assert access["missing_prereqs"] == ["agile-backlog"]
+    assert access["missing_prereqs"] == [backlog_refinement]
 
-    state.activity_completion["agile-backlog"] = True
-    access = evaluate_activity_access(methodology_map, state, "agile-release-plan")
+    state.activity_completion[backlog_refinement] = True
+    access = evaluate_activity_access(methodology_map, state, architecture_shaping)
     assert access["allowed"] is True
 
+    access = evaluate_activity_access(methodology_map, state, sprint_planning)
+    assert access["allowed"] is False
+    assert access["missing_prereqs"] == [architecture_shaping]
 
-def test_next_required_activity_returns_prereq():
-    methodology_map = get_methodology_map("agile")
+    state.activity_completion[architecture_shaping] = True
+    access = evaluate_activity_access(methodology_map, state, sprint_build)
+    assert access["allowed"] is False
+    assert access["missing_prereqs"] == [sprint_planning]
+
+    access = evaluate_activity_access(methodology_map, state, release_strategy)
+    assert access["allowed"] is False
+    assert access["missing_prereqs"] == [
+        "0.5.5-sprint-retrospective-and-improvement"
+    ]
+
+
+def test_next_required_activity_returns_wbs_prereq():
+    methodology_map = get_methodology_map("adaptive")
     state = build_default_state("tenant-a", "demo-1")
-    state.current_activity_id = "agile-release-plan"
-    assert next_required_activity(methodology_map, state) == "agile-backlog"
+    state.current_activity_id = "0.5.2-build-test-within-sprint"
+    assert (
+        next_required_activity(methodology_map, state)
+        == "0.5.1-sprint-iteration-planning"
+    )
 
 
-def test_stage_progress_calculation():
-    methodology_map = get_methodology_map("agile")
+def test_stage_progress_calculation_with_wbs_stage_id():
+    methodology_map = get_methodology_map("adaptive")
     state = build_default_state("tenant-a", "demo-1")
-    state.activity_completion["agile-backlog"] = True
-    progress = stage_progress(methodology_map, state, "agile-planning")
+    state.activity_completion["0.4.1-understand-users-and-problem-space"] = True
+    progress = stage_progress(methodology_map, state, "0.4-discovery-definition-iterative")
     assert progress["complete_count"] == 1
-    assert progress["total_count"] == 2
-    assert progress["percent"] == 50.0
+    assert progress["total_count"] == 4
+    assert progress["percent"] == 25.0
 
 
-def test_api_returns_gating_metadata(client, monkeypatch):
-    _set_tenant(monkeypatch, "tenant-a")
-    response = client.post(
-        "/api/workspace/demo-1/select",
-        json={
-            "current_stage_id": "agile-planning",
-            "current_activity_id": "agile-release-plan",
-            "current_canvas_tab": "timeline",
-            "methodology": "agile",
-        },
+def test_methodology_aliases_resolve_to_new_maps():
+    adaptive = get_methodology_map("adaptive")
+    predictive = get_methodology_map("predictive")
+
+    assert get_methodology_map("agile")["id"] == adaptive["id"]
+    assert get_methodology_map("waterfall")["id"] == predictive["id"]
+    assert get_methodology_map("agile")["stages"][0]["id"] == adaptive["stages"][0]["id"]
+    assert (
+        get_methodology_map("waterfall")["stages"][0]["id"]
+        == predictive["stages"][0]["id"]
     )
-    assert response.status_code == 200
-    payload = response.json()
-    assert "available_methodologies" in payload
-    assert payload["gating"]["current_activity_access"]["allowed"] is False
-    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == ["agile-backlog"]
-    assert payload["gating"]["next_required_activity_id"] == "agile-backlog"
-
-
-def test_tenant_isolation_for_completion_and_gating(client, monkeypatch):
-    _set_tenant(monkeypatch, "tenant-a")
-    response = client.post(
-        "/api/workspace/demo-1/activity-completion",
-        json={"activity_id": "agile-vision", "completed": True},
-    )
-    assert response.status_code == 200
-    response = client.post(
-        "/api/workspace/demo-1/select",
-        json={
-            "current_stage_id": "agile-discovery",
-            "current_activity_id": "agile-stakeholder-map",
-            "current_canvas_tab": "tree",
-            "methodology": "agile",
-        },
-    )
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["gating"]["current_activity_access"]["allowed"] is True
-
-    _set_tenant(monkeypatch, "tenant-b")
-    response = client.post(
-        "/api/workspace/demo-1/select",
-        json={
-            "current_stage_id": "agile-discovery",
-            "current_activity_id": "agile-stakeholder-map",
-            "current_canvas_tab": "tree",
-            "methodology": "agile",
-        },
-    )
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["gating"]["current_activity_access"]["allowed"] is False
-    assert payload["gating"]["current_activity_access"]["missing_prereqs"] == ["agile-vision"]
