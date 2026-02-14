@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useTour } from '@/components/tours';
@@ -6,6 +6,7 @@ import { Icon } from '@/components/icon/Icon';
 import { FocusTrap } from '@/components/ui/FocusTrap';
 import { useTranslation } from '@/i18n';
 import { useTheme } from '@/components/theme/ThemeProvider';
+import { SearchOverlay, type SearchOverlayHandle } from './SearchOverlay';
 import styles from './Header.module.css';
 
 interface BreadcrumbItem {
@@ -41,6 +42,31 @@ function getBreadcrumbs(pathname: string, t: (key: string) => string): Breadcrum
   return crumbs;
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      setIsMobile(window.innerWidth <= 768);
+      return;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const onChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    setIsMobile(mediaQuery.matches);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', onChange);
+      return () => mediaQuery.removeEventListener('change', onChange);
+    }
+
+    mediaQuery.addListener(onChange);
+    return () => mediaQuery.removeListener(onChange);
+  }, []);
+
+  return isMobile;
+}
+
 export function Header() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,9 +76,12 @@ export function Header() {
   const { mode, setMode } = useTheme();
   const breadcrumbs = getBreadcrumbs(location.pathname, t);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const isMobile = useIsMobile();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const searchRef = useRef<SearchOverlayHandle | null>(null);
   const menuId = 'user-settings-menu';
   const notificationsEnabled = featureFlags.agent_async_notifications === true;
 
@@ -80,13 +109,25 @@ export function Header() {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearchOpen(true);
+        searchRef.current?.open();
+      }
+    };
+
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, []);
+
   const toggleMenu = () => setMenuOpen((prev) => !prev);
-  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!searchQuery.trim()) {
+  const submitSearch = (nextQuery: string) => {
+    if (!nextQuery.trim()) {
       return;
     }
-    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    navigate(`/search?q=${encodeURIComponent(nextQuery.trim())}`);
   };
 
   return (
@@ -119,22 +160,17 @@ export function Header() {
         </nav>
       </div>
 
-      <form className={styles.searchForm} onSubmit={handleSearchSubmit}>
-        <label className={styles.visuallyHidden} htmlFor="global-header-search">
-          Global search
-        </label>
-        <input
-          id="global-header-search"
-          className={styles.searchInput}
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search across portfolios"
-          aria-label="Global search"
+      <div className={styles.searchRegion}>
+        <SearchOverlay
+          ref={searchRef}
+          isMobile={isMobile}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onSubmit={submitSearch}
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
         />
-        <button className={styles.searchButton} type="submit">
-          Search
-        </button>
-      </form>
+      </div>
 
       <div className={styles.right}>
         <button

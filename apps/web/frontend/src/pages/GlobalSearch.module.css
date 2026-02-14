@@ -62,6 +62,20 @@
   font-size: 0.85rem;
 }
 
+
+.dateChip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-default);
+  background: var(--color-surface-card);
+  font-size: 0.85rem;
+}
+
+.dateChipActive {
+  background: var(--color-primary-100);
+  border-color: var(--color-primary-600);
+}
+
 .filterInput {
   min-width: 220px;
   padding: 0.65rem 0.9rem;
