@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRequestState } from '@/hooks/useRequestState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { getErrorMessage, requestJson } from '@/services/apiClient';
 import { useRealtimeStore } from '@/store/realtime/useRealtimeStore';
@@ -45,6 +46,10 @@ export function ApprovalsPage() {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isSubmittingDecision, setIsSubmittingDecision] = useState(false);
+  const [pendingDecision, setPendingDecision] = useState<{
+    approvalId: string;
+    decision: 'approved' | 'rejected';
+  } | null>(null);
   const listRequest = useRequestState();
   const detailRequest = useRequestState();
   const { start: startList, succeed: succeedList, fail: failList } = listRequest;
@@ -218,14 +223,29 @@ export function ApprovalsPage() {
                     <div className={styles.actionGroup}>
                       <button
                         className={styles.rejectButton}
-                        onClick={() => submitDecision(approval.approval_id, 'rejected')}
+                        onClick={() => {
+                          const comment = comments[approval.approval_id]?.trim() ?? '';
+                          if (!comment) {
+                            setBannerMessage('A comment is required before rejecting an approval.');
+                            return;
+                          }
+                          setPendingDecision({
+                            approvalId: approval.approval_id,
+                            decision: 'rejected',
+                          });
+                        }}
                         disabled={isSubmittingDecision}
                       >
                         Reject
                       </button>
                       <button
                         className={styles.approveButton}
-                        onClick={() => submitDecision(approval.approval_id, 'approved')}
+                        onClick={() =>
+                          setPendingDecision({
+                            approvalId: approval.approval_id,
+                            decision: 'approved',
+                          })
+                        }
                         disabled={isSubmittingDecision}
                       >
                         Approve
@@ -293,6 +313,29 @@ export function ApprovalsPage() {
           )}
         </aside>
       </div>
+
+      {pendingDecision && (
+        <ConfirmDialog
+          title={
+            pendingDecision.decision === 'rejected'
+              ? 'Confirm rejection'
+              : 'Confirm approval'
+          }
+          description={
+            pendingDecision.decision === 'rejected'
+              ? 'This rejection will be written to the immutable audit log and cannot be undone.'
+              : 'This approval will be written to the immutable audit log and cannot be undone.'
+          }
+          confirmLabel={pendingDecision.decision === 'rejected' ? 'Reject request' : 'Approve request'}
+          cancelLabel="Cancel"
+          variant={pendingDecision.decision === 'rejected' ? 'danger' : 'default'}
+          onCancel={() => setPendingDecision(null)}
+          onConfirm={async () => {
+            await submitDecision(pendingDecision.approvalId, pendingDecision.decision);
+            setPendingDecision(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ConfigForm } from '@/components/config';
 import { Icon } from '@/components/icon/Icon';
 import { FocusTrap } from '@/components/ui/FocusTrap';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { getErrorMessage, requestJson } from '@/services/apiClient';
 import type { AgentConfig, AgentParameter } from '@/store/agentConfig/types';
@@ -102,6 +103,11 @@ export function ConfigPage({ type }: ConfigPageProps) {
   const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null);
   const [selectedWorkflowIndex, setSelectedWorkflowIndex] = useState<number | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [pendingAgentSave, setPendingAgentSave] = useState<{
+    agent: AgentConfig;
+    values: Record<string, unknown>;
+  } | null>(null);
+  const [pendingConnectorSync, setPendingConnectorSync] = useState<Connector | null>(null);
 
   useEffect(() => {
     setActiveTab(type);
@@ -295,6 +301,17 @@ export function ConfigPage({ type }: ConfigPageProps) {
       ...prev,
       { agent_id: '', action: null, intent: null, depends_on: [], priority: null },
     ]);
+  };
+
+
+  const handleConnectorManualSync = async (connector: Connector) => {
+    await requestJson(`${API_BASE}/sync/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connector: connector.connector_id, dry_run: false }),
+    });
+
+    setActionMessage(`Manual sync started for ${connector.name}.`);
   };
 
   const handleCloseModal = () => {
@@ -510,8 +527,7 @@ export function ConfigPage({ type }: ConfigPageProps) {
                                 initialValues={initialValues}
                                 submitLabel="Save agent"
                                 onSubmit={async (values) => {
-                                  await handleAgentSubmit(agent, values);
-                                  handleCloseModal();
+                                  setPendingAgentSave({ agent, values });
                                 }}
                               />
                             </div>
@@ -604,15 +620,25 @@ export function ConfigPage({ type }: ConfigPageProps) {
                   };
 
                   return (
-                    <ConfigForm
-                      key={connector.connector_id}
-                      title={connector.name}
-                      description={connector.description}
-                      fields={fields}
-                      initialValues={initialValues}
-                      submitLabel="Update connector"
-                      onSubmit={(values) => handleConnectorSubmit(connector, values)}
-                    />
+                    <div key={connector.connector_id} className={styles.card}>
+                      <ConfigForm
+                        title={connector.name}
+                        description={connector.description}
+                        fields={fields}
+                        initialValues={initialValues}
+                        submitLabel="Update connector"
+                        onSubmit={(values) => handleConnectorSubmit(connector, values)}
+                      />
+                      <div className={styles.cardActions}>
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => setPendingConnectorSync(connector)}
+                        >
+                          Run manual sync
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -853,6 +879,36 @@ export function ConfigPage({ type }: ConfigPageProps) {
           </div>
         )}
       </section>
+
+      {pendingAgentSave && (
+        <ConfirmDialog
+          title="Save agent configuration?"
+          description={`This will update ${pendingAgentSave.agent.display_name} for all future orchestration runs.`}
+          confirmLabel="Save configuration"
+          cancelLabel="Cancel"
+          onCancel={() => setPendingAgentSave(null)}
+          onConfirm={async () => {
+            await handleAgentSubmit(pendingAgentSave.agent, pendingAgentSave.values);
+            setPendingAgentSave(null);
+            handleCloseModal();
+          }}
+        />
+      )}
+
+      {pendingConnectorSync && (
+        <ConfirmDialog
+          title="Run manual connector sync?"
+          description={`This starts a live sync run for ${pendingConnectorSync.name} and may update integration data.`}
+          confirmLabel="Run sync"
+          cancelLabel="Cancel"
+          variant="danger"
+          onCancel={() => setPendingConnectorSync(null)}
+          onConfirm={async () => {
+            await handleConnectorManualSync(pendingConnectorSync);
+            setPendingConnectorSync(null);
+          }}
+        />
+      )}
     </div>
   );
 }
