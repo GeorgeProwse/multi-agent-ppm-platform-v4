@@ -17,7 +17,6 @@ import {
   isStageLocked,
   flattenMethodologyActivities,
 } from './types';
-import { projectApolloMethodology, methodologyTemplates } from './demoData';
 import type { CanvasType } from '@ppm/canvas-engine';
 import { requestJson } from '@/services/apiClient';
 import { useAssistantStore } from '@/store/assistant';
@@ -127,44 +126,25 @@ interface RuntimeResolutionContract {
 
 const WORKSPACE_API_BASE = '/api/workspace';
 
-function buildFallbackMethodology(methodologyId: string): MethodologyMap {
-  const template = methodologyTemplates.find((item) => item.id === methodologyId) ?? methodologyTemplates[0];
 
-  const stages = template.stages.map((stage, stageIndex) => {
-    const parentActivityId = `${stage.id}-fallback-parent`;
-    return {
-      ...stage,
-      order: stageIndex + 1,
-      activities: [
-        {
-          id: parentActivityId,
-          name: `${stage.name} Activity`,
-          description: `Fallback activity for ${stage.name}`,
-          status: 'not_started' as const,
-          canvasType: 'document' as CanvasType,
-          prerequisites: [],
-          order: 1,
-          children: [
-            {
-              id: `${parentActivityId}-child`,
-              name: `${stage.name} Sub-activity`,
-              description: `Fallback sub-activity for ${stage.name}`,
-              status: 'not_started' as const,
-              canvasType: 'document' as CanvasType,
-              prerequisites: [],
-              order: 1,
-            },
-          ],
-        },
-      ],
-    };
-  });
+const emergencyFallbackMethodology: ProjectMethodology = {
+  projectId: 'backend-unavailable',
+  projectName: 'Backend unavailable',
+  methodology: {
+    id: 'unavailable',
+    name: 'Backend Unavailable',
+    description: 'Connect to the backend to load methodology stages and runtime contracts.',
+    type: 'custom',
+    version: 'emergency',
+    stages: [],
+    monitoring: [],
+  },
+  currentActivityId: null,
+  expandedStageIds: [],
+};
 
-  return {
-    ...template,
-    stages,
-    monitoring: template.monitoring ?? [],
-  };
+function buildEmergencyFallback(projectId: string): ProjectMethodology {
+  return { ...emergencyFallbackMethodology, projectId, projectName: `Project ${projectId}` };
 }
 
 function summarizeActivityStatus(activity: WorkspaceActivitySummary): MethodologyStatus {
@@ -357,8 +337,8 @@ interface MethodologyStoreState {
 }
 
 export const useMethodologyStore = create<MethodologyStoreState>((set, get) => ({
-  // Initialize with Project Apollo demo data
-  projectMethodology: projectApolloMethodology,
+  // Initialize with an emergency fallback until workspace hydration completes
+  projectMethodology: emergencyFallbackMethodology,
   availableMethodologies: ['predictive', 'adaptive', 'hybrid'],
   isHydrating: false,
   templatesAvailableHere: [],
@@ -367,8 +347,8 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
   runtimeActionsAvailable: [],
   runtimeDefaultViewContract: null,
   backendReachable: true,
-  currentActivityId: projectApolloMethodology.currentActivityId,
-  expandedStageIds: projectApolloMethodology.expandedStageIds,
+  currentActivityId: emergencyFallbackMethodology.currentActivityId,
+  expandedStageIds: emergencyFallbackMethodology.expandedStageIds,
 
   // Navigation actions
   setCurrentActivity: (activityId) => {
@@ -506,28 +486,13 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
     });
   },
 
-  createFromTemplate: (templateId, projectId, projectName) => {
-    const template = methodologyTemplates.find((t) => t.id === templateId);
-    if (!template) return;
-
-    // Deep clone the template
-    const defaultExpandedStageIds = [
-      template.stages[0]?.id,
-      ...template.stages.filter((stage) => stage.alwaysAccessible).map((stage) => stage.id),
-    ].filter((id, index, allIds): id is string => Boolean(id) && allIds.indexOf(id) === index);
-
-    const newMethodology: ProjectMethodology = {
-      projectId,
-      projectName,
-      methodology: JSON.parse(JSON.stringify(template)),
-      currentActivityId: null,
-      expandedStageIds: defaultExpandedStageIds,
-    };
-
+  createFromTemplate: (_templateId, projectId, projectName) => {
+    const fallback = buildEmergencyFallback(projectId);
     set({
-      projectMethodology: newMethodology,
+      projectMethodology: { ...fallback, projectName },
       currentActivityId: null,
-      expandedStageIds: newMethodology.expandedStageIds,
+      expandedStageIds: [],
+      backendReachable: false,
     });
   },
 
@@ -550,22 +515,13 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
         isHydrating: false,
       });
     } catch (error) {
-      const fallbackMethodologyId = methodology ?? get().projectMethodology.methodology.id;
-      const fallbackMap = buildFallbackMethodology(fallbackMethodologyId);
-      console.warn(
-        `[methodology] Falling back to local demo methodology because backend workspace API is unavailable for project ${projectId}.`,
-        error
-      );
-      set((state) => ({
-        projectMethodology: {
-          ...state.projectMethodology,
-          projectId,
-          methodology: fallbackMap,
-          expandedStageIds: fallbackMap.stages.slice(0, 1).map((stage) => stage.id),
-        },
+      console.warn(`[methodology] Backend workspace API unavailable for project ${projectId}.`, error);
+      const fallback = buildEmergencyFallback(projectId);
+      set({
+        projectMethodology: fallback,
         currentActivityId: null,
-        expandedStageIds: fallbackMap.stages.slice(0, 1).map((stage) => stage.id),
-        availableMethodologies: ['predictive', 'adaptive', 'hybrid'],
+        expandedStageIds: [],
+        availableMethodologies: [],
         templatesAvailableHere: [],
         templatesRequiredHere: [],
         templatesInReview: [],
@@ -573,7 +529,7 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
         runtimeDefaultViewContract: null,
         backendReachable: false,
         isHydrating: false,
-      }));
+      });
       useAssistantStore.getState().addAssistantMessage(
         'Backend is unreachable. Runtime actions are disabled until the API is available.',
         [],

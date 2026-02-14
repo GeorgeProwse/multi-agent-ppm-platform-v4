@@ -2,6 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import styles from './HomePage.module.css';
 
+const DEMO_PROJECTS = [
+  { id: 'demo-predictive', label: 'Demo Predictive project' },
+  { id: 'demo-adaptive', label: 'Demo Adaptive project' },
+  { id: 'demo-hybrid', label: 'Demo Hybrid project' },
+];
+
 export function HomePage() {
   const navigate = useNavigate();
 
@@ -20,6 +26,22 @@ export function HomePage() {
         >
           Log new intake
         </button>
+      </section>
+      <section className={styles.entryCard}>
+        <h2>Demo Projects</h2>
+        <p>Launch seeded demo projects powered by the same backend workspace APIs.</p>
+        <div>
+          {DEMO_PROJECTS.map((project) => (
+            <button
+              key={project.id}
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => navigate(`/projects/${project.id}`)}
+            >
+              {project.label}
+            </button>
+          ))}
+        </div>
       </section>
     </div>
   );

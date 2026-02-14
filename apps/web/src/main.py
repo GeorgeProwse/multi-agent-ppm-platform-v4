@@ -50,6 +50,14 @@ from agent_settings_models import (  # noqa: E402
 from agent_settings_store import AgentSettingsStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
 from connector_hub_proxy import ConnectorHubClient  # noqa: E402
+from demo_integrations import (  # noqa: E402
+    DemoAnalyticsServiceClient,
+    DemoConnectorHubClient,
+    DemoDataServiceClient,
+    DemoDocumentServiceClient,
+    DemoOutbox,
+)
+from demo_seed import seed_demo_data  # noqa: E402
 from data_service_proxy import DataServiceClient  # noqa: E402
 from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
@@ -185,6 +193,7 @@ AGENT_SETTINGS_PATH = STORAGE_DIR / "agent_settings.json"
 INTAKE_REQUESTS_PATH = STORAGE_DIR / "intake_requests.json"
 PIPELINE_STATE_PATH = STORAGE_DIR / "pipeline_state.json"
 WORKFLOW_DEFINITIONS_PATH = STORAGE_DIR / "workflow_definitions.json"
+DEMO_OUTBOX_PATH = STORAGE_DIR / "demo_outbox.json"
 ROLES_PATH = STORAGE_DIR / "roles.json"
 MERGE_REVIEW_PATH = STORAGE_DIR / "merge_review_cases.json"
 MERGE_REVIEW_SEED_PATH = WEB_ROOT / "data" / "merge_review_seed.json"
@@ -227,6 +236,7 @@ intake_store = IntakeStore(INTAKE_REQUESTS_PATH)
 merge_review_store = MergeReviewStore(MERGE_REVIEW_PATH, MERGE_REVIEW_SEED_PATH)
 pipeline_store = PipelineStore(PIPELINE_STATE_PATH)
 workflow_definition_store = WorkflowDefinitionStore(WORKFLOW_DEFINITIONS_PATH)
+demo_outbox = DemoOutbox(DEMO_OUTBOX_PATH)
 logger = logging.getLogger("web-ui")
 
 validate_startup_config()
@@ -802,6 +812,14 @@ async def startup() -> None:
     knowledge_store = KnowledgeStore(KNOWLEDGE_DB_PATH)
     load_template_mappings()
     load_methodology_node_runtime_registry()
+    if _demo_mode_enabled():
+        seed_demo_data(
+            workspace_state_store=workspace_state_store,
+            spreadsheet_store=spreadsheet_store,
+            timeline_store=timeline_store,
+            tree_store=tree_store,
+            knowledge_db_path=KNOWLEDGE_DB_PATH,
+        )
 
 
 def _get_knowledge_store() -> KnowledgeStore:
@@ -815,15 +833,21 @@ def _get_search_service() -> SearchService:
     return SearchService(_get_knowledge_store(), spreadsheet_store)
 
 
-def _document_client() -> DocumentServiceClient:
+def _document_client() -> DocumentServiceClient | DemoDocumentServiceClient:
+    if _demo_mode_enabled():
+        return DemoDocumentServiceClient(demo_outbox)
     return DocumentServiceClient()
 
 
-def _data_service_client() -> DataServiceClient:
+def _data_service_client() -> DataServiceClient | DemoDataServiceClient:
+    if _demo_mode_enabled():
+        return DemoDataServiceClient(demo_outbox)
     return DataServiceClient()
 
 
-def _analytics_client() -> AnalyticsServiceClient:
+def _analytics_client() -> AnalyticsServiceClient | DemoAnalyticsServiceClient:
+    if _demo_mode_enabled():
+        return DemoAnalyticsServiceClient()
     return AnalyticsServiceClient()
 
 
@@ -835,7 +859,9 @@ def _orchestrator_client() -> OrchestratorProxyClient:
     return OrchestratorProxyClient()
 
 
-def _connector_hub_client() -> ConnectorHubClient:
+def _connector_hub_client() -> ConnectorHubClient | DemoConnectorHubClient:
+    if _demo_mode_enabled():
+        return DemoConnectorHubClient(demo_outbox)
     return ConnectorHubClient()
 
 
