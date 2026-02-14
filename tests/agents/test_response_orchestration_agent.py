@@ -262,3 +262,41 @@ async def test_response_orchestration_supports_duplicate_agent_routes_for_multi_
     payload = response.model_dump()
     assert called_paths == ["/schedule", "/schedule"]
     assert payload["execution_summary"]["total_agents"] == 2
+
+
+@pytest.mark.asyncio
+async def test_response_orchestration_emits_agent_activity() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"message": "ok"})
+
+    transport = httpx.MockTransport(handler)
+    async with httpx.AsyncClient(transport=transport) as client:
+        agent = ResponseOrchestrationAgent(
+            config={
+                "agent_endpoints": {
+                    "financial-management": "http://test/financial",
+                    "risk-management": "http://test/risk",
+                },
+                "http_client": client,
+                "event_bus": build_test_event_bus(),
+            }
+        )
+        await agent.initialize()
+        result = await agent.process(
+            {
+                "routing": [
+                    {"agent_id": "financial-management"},
+                    {"agent_id": "risk-management"},
+                ],
+                "parameters": {},
+                "query": "test",
+                "approval_decision": "approve",
+            }
+        )
+
+    payload = result.model_dump()
+    assert len(payload["agent_results"]) == 2
+    assert len(payload["agent_activity"]) == 2
+    assert all("started_at" in entry for entry in payload["agent_activity"])
+    assert all("completed_at" in entry for entry in payload["agent_activity"])
+    assert all("duration_ms" in entry for entry in payload["agent_activity"])

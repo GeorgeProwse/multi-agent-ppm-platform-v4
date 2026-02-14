@@ -80,6 +80,7 @@ class OrchestrationResponse(BaseModel):
     status: str = "completed"
     agent_results: list[AgentInvocationResult]
     execution_summary: dict[str, Any]
+    agent_activity: list[dict[str, Any]] = Field(default_factory=list)
     plan: dict[str, Any] | None = None
 
 
@@ -380,6 +381,7 @@ class ResponseOrchestrationAgent(BaseAgent):
         )
 
         # Execute agents according to plan
+        execution_start = time.time()
         results = await self._execute_plan(
             execution_plan,
             parameters,
@@ -389,6 +391,7 @@ class ResponseOrchestrationAgent(BaseAgent):
 
         # Aggregate responses
         aggregated = await self._aggregate_responses(results)
+        agent_activity = self._build_agent_activity(results, execution_start)
         self._emit_audit_event(
             tenant_id=tenant_id,
             correlation_id=correlation_id,
@@ -414,6 +417,7 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "plan_id": plan.plan_id,
                 "version": plan.version,
             },
+            agent_activity=agent_activity,
             plan=plan.model_dump(mode="json"),
         )
         return response
@@ -716,6 +720,7 @@ class ResponseOrchestrationAgent(BaseAgent):
     ) -> dict[str, Any]:
         attempt = 0
         last_error: str | None = None
+        request_start = time.perf_counter()
         while attempt <= self.max_retries:
             try:
                 self._emit_audit_event(
@@ -761,7 +766,12 @@ class ResponseOrchestrationAgent(BaseAgent):
                         },
                     )
 
-                result = {"success": True, "agent_id": agent_id, "data": data}
+                result = {
+                    "success": True,
+                    "agent_id": agent_id,
+                    "data": data,
+                    "duration_seconds": time.perf_counter() - request_start,
+                }
                 await self.event_bus.publish("agent.completed", result)
                 self._failure_counts[agent_id] = 0
                 self._circuit_open_until.pop(agent_id, None)
@@ -836,6 +846,35 @@ class ResponseOrchestrationAgent(BaseAgent):
             correlation_id=correlation_id,
         )
         emit_audit_event(event)
+
+    def _build_agent_activity(
+        self, results: list[dict[str, Any]], execution_start: float
+    ) -> list[dict[str, Any]]:
+        activity: list[dict[str, Any]] = []
+        cursor = execution_start
+        for result in results:
+            duration_seconds = float(result.get("duration_seconds", 0.001) or 0.001)
+            if duration_seconds <= 0:
+                duration_seconds = 0.001
+            started_at = cursor
+            completed_at = started_at + duration_seconds
+            cursor = completed_at
+            activity.append(
+                {
+                    "agent_id": result.get("agent_id", "unknown"),
+                    "started_at": (
+                        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(started_at))
+                        + f".{int((started_at % 1) * 1000):03d}Z"
+                    ),
+                    "completed_at": (
+                        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(completed_at))
+                        + f".{int((completed_at % 1) * 1000):03d}Z"
+                    ),
+                    "duration_ms": int(duration_seconds * 1000),
+                    "status": "success" if result.get("success") else "failed",
+                }
+            )
+        return activity
 
     async def _aggregate_responses(self, results: list[dict[str, Any]]) -> str:
         """
