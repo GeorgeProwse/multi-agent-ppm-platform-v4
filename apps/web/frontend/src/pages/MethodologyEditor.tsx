@@ -902,3 +902,5 @@ export function MethodologyEditor() {
     </div>
   );
 }
+
+export default MethodologyEditor;

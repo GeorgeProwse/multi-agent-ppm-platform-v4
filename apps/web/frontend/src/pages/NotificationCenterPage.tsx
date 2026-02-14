@@ -106,3 +106,5 @@ export function NotificationCenterPage() {
     </section>
   );
 }
+
+export default NotificationCenterPage;

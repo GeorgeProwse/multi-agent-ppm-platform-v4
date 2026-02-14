@@ -1,0 +1,67 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-surface-base);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.headerPrimary {
+  width: 18rem;
+  max-width: 55%;
+}
+
+.headerSecondary {
+  width: 8rem;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.leftPanel {
+  width: 18rem;
+  min-width: 16rem;
+  padding: var(--space-4);
+  border-right: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.panelTitle {
+  width: 70%;
+  margin-bottom: var(--space-2);
+}
+
+.panelItem {
+  width: 100%;
+}
+
+.main {
+  flex: 1;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mainTitle {
+  width: min(24rem, 70%);
+}
+
+.mainCard,
+.mainChart {
+  width: 100%;
+}

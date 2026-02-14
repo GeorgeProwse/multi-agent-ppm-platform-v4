@@ -160,3 +160,5 @@ export function DocumentSearchPage() {
     </div>
   );
 }
+
+export default DocumentSearchPage;

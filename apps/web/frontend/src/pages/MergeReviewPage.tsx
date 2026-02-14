@@ -245,3 +245,5 @@ export function MergeReviewPage() {
     </div>
   );
 }
+
+export default MergeReviewPage;

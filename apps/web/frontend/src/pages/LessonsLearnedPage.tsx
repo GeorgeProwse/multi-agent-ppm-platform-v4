@@ -346,3 +346,5 @@ export function LessonsLearnedPage() {
     </div>
   );
 }
+
+export default LessonsLearnedPage;

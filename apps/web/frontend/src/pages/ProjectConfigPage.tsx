@@ -24,3 +24,5 @@ export function ProjectConfigPage() {
     <ProjectConfigSection projectId={projectId} defaultTab={defaultTab} />
   );
 }
+
+export default ProjectConfigPage;

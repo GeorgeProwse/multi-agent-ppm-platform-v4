@@ -842,3 +842,5 @@ export function ConfigPage({ type }: ConfigPageProps) {
     </div>
   );
 }
+
+export default ConfigPage;

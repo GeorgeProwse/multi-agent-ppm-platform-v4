@@ -345,3 +345,5 @@ export function GlobalSearchPage() {
     </div>
   );
 }
+
+export default GlobalSearchPage;

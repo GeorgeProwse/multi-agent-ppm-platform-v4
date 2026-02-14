@@ -181,3 +181,5 @@ export function IntakeApprovalsPage() {
     </div>
   );
 }
+
+export default IntakeApprovalsPage;

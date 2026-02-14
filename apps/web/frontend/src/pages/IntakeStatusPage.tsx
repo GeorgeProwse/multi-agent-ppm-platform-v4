@@ -174,3 +174,5 @@ export function IntakeStatusPage() {
     </div>
   );
 }
+
+export default IntakeStatusPage;

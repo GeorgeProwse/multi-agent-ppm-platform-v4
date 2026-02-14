@@ -411,3 +411,5 @@ export function RoleManager() {
     </div>
   );
 }
+
+export default RoleManager;
