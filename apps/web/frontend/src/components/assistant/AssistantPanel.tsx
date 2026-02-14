@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createArtifact, createEmptyContent } from '@ppm/canvas-engine';
 import { Icon } from '@/components/icon/Icon';
 import { useAppStore } from '@/store/useAppStore';
@@ -19,13 +19,50 @@ import { MessageList } from './MessageList';
 import { QuickActions } from './QuickActions';
 import { ChatInput } from './ChatInput';
 import styles from './AssistantPanel.module.css';
+
+interface DemoScriptMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+type DemoScenarioId = 'project_intake' | 'resource_request' | 'vendor_procurement';
+
+const DEMO_SCENARIOS: Array<{ id: DemoScenarioId; label: string }> = [
+  { id: 'project_intake', label: 'Project Intake' },
+  { id: 'resource_request', label: 'Resource Request' },
+  { id: 'vendor_procurement', label: 'Vendor Procurement' },
+];
+
+function isDemoModeEnabled(): boolean {
+  const env = import.meta.env as Record<string, unknown>;
+  const value = env.DEMO_MODE ?? env.VITE_DEMO_MODE;
+  return ['1', 'true', 'yes', 'on'].includes(String(value ?? '').toLowerCase());
+}
+
 export function AssistantPanel() {
   const { rightPanelCollapsed, toggleRightPanel } = useAppStore();
   const { projectMethodology, currentActivityId, getActivity, getStageForActivity, isActivityLockedComputed, getAllActivities } = useMethodologyStore();
   const { artifacts, openArtifact } = useCanvasStore();
-  const { messages, actionChips, context, aiState, typingStatus, addAssistantMessage, addSystemMessage, showGatingWarning, updateContext } = useAssistantStore();
+  const {
+    messages,
+    actionChips,
+    context,
+    aiState,
+    typingStatus,
+    addUserMessage,
+    addAssistantMessage,
+    addSystemMessage,
+    showGatingWarning,
+    updateContext,
+    clearMessages,
+  } = useAssistantStore();
   const { generateSuggestions, clearActionChips } = useSuggestionEngine();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const demoMode = useMemo(() => isDemoModeEnabled(), []);
+  const [demoScenario, setDemoScenario] = useState<DemoScenarioId>('project_intake');
+  const [demoScript, setDemoScript] = useState<DemoScriptMessage[]>([]);
+  const [demoStepIndex, setDemoStepIndex] = useState(0);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const onFallbackResponse = useCallback((text: string) => addAssistantMessage(`I heard: "${text}". Ask me to open an activity, dashboard, or /research.`), [addAssistantMessage]);
   const { sendMessage, error: assistantError } = useAssistantChat({ projectId: context?.projectId, onFallbackResponse });
@@ -63,6 +100,49 @@ export function AssistantPanel() {
     generateSuggestions,
   });
 
+  const restartDemoScenario = useCallback((script: DemoScriptMessage[]) => {
+    clearActionChips();
+    clearMessages();
+    let idx = 0;
+    while (idx < script.length && script[idx]?.role === 'assistant') {
+      addAssistantMessage(script[idx].content);
+      idx += 1;
+      if (idx > 0) break;
+    }
+    setDemoStepIndex(idx);
+  }, [addAssistantMessage, clearActionChips, clearMessages]);
+
+  useEffect(() => {
+    if (!demoMode) return;
+    let cancelled = false;
+    setDemoLoading(true);
+
+    fetch(`/api/assistant/demo-conversations/${demoScenario}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load scenario.');
+        return response.json();
+      })
+      .then((payload: { messages?: DemoScriptMessage[] }) => {
+        if (cancelled) return;
+        const script = Array.isArray(payload.messages) ? payload.messages : [];
+        setDemoScript(script);
+        restartDemoScenario(script);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDemoScript([]);
+        clearMessages();
+        addAssistantMessage('Demo scenario could not be loaded.');
+        setDemoStepIndex(0);
+      })
+      .finally(() => {
+        if (!cancelled) setDemoLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addAssistantMessage, clearMessages, demoMode, demoScenario, restartDemoScenario]);
 
   const previousContextEntityRef = useRef<string | null>(null);
 
@@ -107,15 +187,85 @@ export function AssistantPanel() {
     }
   }, [addAssistantMessage, currentActivityId, getActivity, openForActivity, sendMessage]);
 
+  const demoBranchReply = useCallback((input: string) => {
+    const normalized = input.toLowerCase();
+    if (demoScenario === 'project_intake' && demoStepIndex === 3 && normalized.includes('onboarding')) {
+      return 'Great choice. I captured the objective as cutting onboarding cycle time by 30% in two quarters. Do you want me to draft an intake summary now?';
+    }
+    if (demoScenario === 'resource_request' && demoStepIndex === 3 && normalized.includes('backfill')) {
+      return 'Understood. I can prepare a hiring backfill brief with lead-time assumptions and milestone risk impact. Should I proceed?';
+    }
+    if (demoScenario === 'vendor_procurement' && demoStepIndex === 3 && normalized.includes('fast')) {
+      return 'Got it. I will optimize for fast go-live and streamline legal review checkpoints. Do you want a draft evaluation scorecard?';
+    }
+    return null;
+  }, [demoScenario, demoStepIndex]);
+
+  const handleSubmitMessage = useCallback(async (text: string) => {
+    if (!demoMode) {
+      await sendMessage(text);
+      return;
+    }
+
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    addUserMessage(trimmed);
+
+    const expected = demoScript[demoStepIndex];
+    if (!expected) {
+      addAssistantMessage('This scripted demo is complete. Restart or choose another scenario.');
+      return;
+    }
+
+    if (expected.role !== 'user') {
+      addAssistantMessage('Please restart the demo scenario to continue this scripted flow.');
+      return;
+    }
+
+    const branchReply = demoBranchReply(trimmed);
+    if (branchReply) {
+      addAssistantMessage(branchReply);
+      setDemoStepIndex(Math.min(demoStepIndex + 2, demoScript.length));
+      return;
+    }
+
+    const normalized = trimmed.toLowerCase();
+    const expectedText = expected.content.toLowerCase();
+    const matchesExpected = normalized.includes(expectedText) || expectedText.includes(normalized);
+    if (!matchesExpected) {
+      addAssistantMessage('For this demo script, try the suggested response path or pick the alternate branch option.');
+      return;
+    }
+
+    let idx = demoStepIndex + 1;
+    while (idx < demoScript.length && demoScript[idx]?.role === 'assistant') {
+      addAssistantMessage(demoScript[idx].content);
+      idx += 1;
+    }
+    setDemoStepIndex(idx);
+  }, [addAssistantMessage, addUserMessage, demoBranchReply, demoMode, demoScript, demoStepIndex, sendMessage]);
+
   if (rightPanelCollapsed) return <aside className={`${styles.panel} ${styles.collapsed}`} data-tour="assistant-panel"><button className={styles.expandButton} onClick={toggleRightPanel} title="Open Assistant"><Icon semantic="communication.message" label="Open Assistant" /></button></aside>;
 
   return (
     <aside className={styles.panel} data-tour="assistant-panel">
       <AssistantHeader title="Assistant" aiState={aiState} toggleRightPanel={toggleRightPanel} />
+      {demoMode && (
+        <div className={styles.demoBanner}>
+          <p className={styles.demoLabel}>Scripted demo mode</p>
+          <div className={styles.demoControls}>
+            <label htmlFor="assistant-demo-scenario" className={styles.visuallyHidden}>Select demo scenario</label>
+            <select id="assistant-demo-scenario" value={demoScenario} onChange={(event) => setDemoScenario(event.target.value as DemoScenarioId)} disabled={demoLoading}>
+              {DEMO_SCENARIOS.map((scenario) => <option value={scenario.id} key={scenario.id}>{scenario.label}</option>)}
+            </select>
+            <button type="button" onClick={() => restartDemoScenario(demoScript)} disabled={demoLoading}>Restart</button>
+          </div>
+        </div>
+      )}
       {context && <ContextBar context={context} contextSyncLabel={context.currentActivityName ?? context.currentStageName ?? context.projectName} />}
       <MessageList messages={messages} aiState={aiState} typingStatus={typingStatus} context={context} onChipClick={handleChipClick} />
       <QuickActions chips={actionChips} onChipClick={handleChipClick} />
-      <ChatInput error={assistantError} inputRef={inputRef} onSubmitMessage={sendMessage} onStartScopeResearch={() => void sendMessage('/research')} />
+      <ChatInput error={assistantError} inputRef={inputRef} onSubmitMessage={handleSubmitMessage} onStartScopeResearch={() => void sendMessage('/research')} />
     </aside>
   );
 }

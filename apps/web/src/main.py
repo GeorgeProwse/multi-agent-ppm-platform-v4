@@ -660,6 +660,16 @@ class AssistantQueryResponse(BaseModel):
     items: list[str] = Field(default_factory=list)
 
 
+class DemoConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class DemoConversationResponse(BaseModel):
+    scenario: str
+    messages: list[DemoConversationMessage] = Field(default_factory=list)
+
+
 class DocumentCanvasRequest(BaseModel):
     name: str
     content: str
@@ -851,6 +861,32 @@ def _load_demo_assistant_payload(filename: str) -> dict[str, Any] | None:
     if not isinstance(payload.get("default"), dict):
         return None
     return payload
+
+
+def _load_demo_conversation_payload(filename: str) -> list[dict[str, str]] | None:
+    demo_path = REPO_ROOT / "apps" / "web" / "data" / "demo_conversations" / filename
+    if not demo_path.exists():
+        return None
+    try:
+        with demo_path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(payload, list):
+        return None
+
+    script: list[dict[str, str]] = []
+    for entry in payload:
+        if not isinstance(entry, dict):
+            return None
+        role = entry.get("role")
+        content = entry.get("content")
+        if role not in {"user", "assistant"} or not isinstance(content, str):
+            return None
+        script.append({"role": role, "content": content})
+
+    return script
 
 
 def _highlight_query(query: str, text: str) -> str | None:
@@ -3772,6 +3808,24 @@ async def assistant_query(
     projects = _load_projects()
     summary = f"Tracking {len(projects)} active projects. Ask about risks, approvals, or workflows for details."
     return AssistantQueryResponse(query=query_text, summary=summary, items=[])
+
+
+@api_router.get("/api/assistant/demo-conversations/{scenario}", response_model=DemoConversationResponse)
+async def assistant_demo_conversation(scenario: str, request: Request) -> DemoConversationResponse:
+    _require_session(request)
+
+    safe_scenario = (scenario or "").strip().lower()
+    if safe_scenario not in {"project_intake", "resource_request", "vendor_procurement"}:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    messages = _load_demo_conversation_payload(f"{safe_scenario}.json")
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+
+    return DemoConversationResponse(
+        scenario=safe_scenario,
+        messages=[DemoConversationMessage(**entry) for entry in messages],
+    )
 
 
 @api_router.post("/api/assistant/suggestions", response_model=AssistantSuggestionResponse)

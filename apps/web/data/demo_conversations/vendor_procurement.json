@@ -1,0 +1,7 @@
+[
+  {"role":"assistant","content":"Vendor Procurement demo started. Are you looking for a net-new vendor or renewing an existing one?"},
+  {"role":"user","content":"Net-new vendor."},
+  {"role":"assistant","content":"Noted. Which evaluation path should we follow: fastest go-live or strongest compliance posture?"},
+  {"role":"user","content":"Strongest compliance posture."},
+  {"role":"assistant","content":"Excellent. I will prioritize SOC2, data residency, and legal review checkpoints. Do you want a draft evaluation scorecard?"}
+]

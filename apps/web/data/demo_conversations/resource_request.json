@@ -1,0 +1,7 @@
+[
+  {"role":"assistant","content":"Resource Request demo is ready. Which capability is constrained: engineering, QA, or change management?"},
+  {"role":"user","content":"Engineering capacity is constrained."},
+  {"role":"assistant","content":"Thanks. Do you need short-term contractor support or backfill for permanent roles?"},
+  {"role":"user","content":"Short-term contractors for 10 weeks."},
+  {"role":"assistant","content":"Got it. I can prepare a staffing request for 3 contractors and map impact to delivery milestones. Should I proceed?"}
+]
