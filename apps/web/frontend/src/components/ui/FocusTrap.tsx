@@ -25,6 +25,7 @@ interface FocusTrapProps {
   'aria-modal'?: boolean | 'true' | 'false';
   'aria-label'?: string;
   'aria-labelledby'?: string;
+  'aria-describedby'?: string;
   id?: string;
   onClick?: (event: ReactMouseEvent<HTMLDivElement>) => void;
   onClose: () => void;

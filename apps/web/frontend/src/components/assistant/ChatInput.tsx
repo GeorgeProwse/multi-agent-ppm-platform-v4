@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, RefObject } from 'react';
 import { Icon } from '@/components/icon/Icon';
 import { FocusTrap } from '@/components/ui/FocusTrap';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { usePromptStore } from '@/store/prompts';
 import { PromptPicker } from './PromptPicker';
 import styles from './ChatInput.module.css';
@@ -27,6 +28,7 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
   const [value, setValue] = useState('');
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const [promptPickerOpen, setPromptPickerOpen] = useState(false);
+  const [researchConfirmOpen, setResearchConfirmOpen] = useState(false);
   const internalTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const prompts = usePromptStore((state) => state.prompts);
@@ -67,7 +69,7 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
     }
 
     if (command === '/research') {
-      onStartScopeResearch();
+      setResearchConfirmOpen(true);
       return;
     }
 
@@ -202,6 +204,20 @@ export function ChatInput({ error, inputRef, onSubmitMessage, onStartScopeResear
           }}
           onSelectPrompt={(prompt) => {
             setValue(prompt.description);
+          }}
+        />
+      )}
+
+      {researchConfirmOpen && (
+        <ConfirmDialog
+          title="Start scope research?"
+          description="This will start a background research operation for your current context."
+          confirmLabel="Start research"
+          cancelLabel="Cancel"
+          onCancel={() => setResearchConfirmOpen(false)}
+          onConfirm={() => {
+            onStartScopeResearch();
+            setResearchConfirmOpen(false);
           }}
         />
       )}
