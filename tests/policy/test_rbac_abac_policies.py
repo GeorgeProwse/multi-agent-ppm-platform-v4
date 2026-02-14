@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RBAC_PATH = REPO_ROOT / "policies" / "rbac" / "roles.yaml"
+ABAC_PATH = REPO_ROOT / "policies" / "abac" / "rules.yaml"
+
+
+def _load_yaml(path: Path) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def _rbac_allows(roles_cfg: dict, role: str, action: str, resource: str) -> bool:
+    roles = {entry["id"]: entry.get("permissions", []) for entry in roles_cfg.get("roles", [])}
+    allowed_pairs = {(perm.get("action"), perm.get("resource")) for perm in roles.get(role, [])}
+    return (action, resource) in allowed_pairs
+
+
+def _abac_allows(abac_cfg: dict, role: str, action: str, resource: dict) -> bool:
+    for rule in abac_cfg.get("rules", []):
+        when = rule.get("when", {})
+        action_in = when.get("action_in", [])
+        resource_type = when.get("resource_type")
+        regulated = when.get("resource_attributes", {}).get("regulatory_category")
+        allowed_roles = set(when.get("subject_roles_allowed", []))
+
+        if (
+            action in action_in
+            and resource.get("type") == resource_type
+            and resource.get("regulatory_category") == regulated
+            and role not in allowed_roles
+            and rule.get("effect") == "deny"
+        ):
+            return False
+
+    return abac_cfg.get("default_decision", "allow") == "allow"
+
+
+def test_rbac_role_permissions_present() -> None:
+    roles_cfg = _load_yaml(RBAC_PATH)
+
+    assert _rbac_allows(roles_cfg, "portfolio_manager", "update", "portfolio")
+    assert _rbac_allows(roles_cfg, "project_manager", "create", "task")
+    assert _rbac_allows(roles_cfg, "finance_controller", "approve", "budget")
+    assert _rbac_allows(roles_cfg, "compliance_officer", "update", "compliance_control")
+
+
+def test_abac_denies_high_regulatory_project_for_non_compliance_role() -> None:
+    abac_cfg = _load_yaml(ABAC_PATH)
+
+    allowed = _abac_allows(
+        abac_cfg,
+        role="project_manager",
+        action="read",
+        resource={"type": "project", "regulatory_category": "high"},
+    )
+
+    assert not allowed
+
+
+def test_abac_allows_high_regulatory_project_for_compliance_officer() -> None:
+    abac_cfg = _load_yaml(ABAC_PATH)
+
+    allowed = _abac_allows(
+        abac_cfg,
+        role="compliance_officer",
+        action="read",
+        resource={"type": "project", "regulatory_category": "high"},
+    )
+
+    assert allowed
