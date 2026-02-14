@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-01-intent-router",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-01-intent-router",
+    "data": {
+      "agent": "agent-01-intent-router",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

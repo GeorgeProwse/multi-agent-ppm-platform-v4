@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-10-schedule-planning",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-10-schedule-planning",
+    "data": {
+      "agent": "agent-10-schedule-planning",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

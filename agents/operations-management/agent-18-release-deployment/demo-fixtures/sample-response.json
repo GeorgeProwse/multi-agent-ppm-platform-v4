@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-18-release-deployment",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-18-release-deployment",
+    "data": {
+      "agent": "agent-18-release-deployment",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

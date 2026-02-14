@@ -23,6 +23,7 @@ for path in [
     PACKAGES_ROOT / "llm" / "src",
     PACKAGES_ROOT / "event_bus" / "src",
     REPO_ROOT / "services" / "data-sync-service" / "src",
+    REPO_ROOT / "ops",
 ]:
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
@@ -105,6 +106,10 @@ class AgentSpec:
     config: dict[str, Any]
     class_name: str | None = None
 
+    @property
+    def fixture_dir(self) -> Path:
+        return self.path.parent.parent / "demo-fixtures"
+
 
 class AgentRuntime:
     def __init__(
@@ -121,6 +126,8 @@ class AgentRuntime:
         self._connector_registry = ConnectorRegistry()
         self._connector_client = ConnectorActionClient(self._connector_registry)
         self._agent_registry: dict[str, BaseAgent] = {}
+        self._demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+        self._demo_fixtures: dict[str, dict[str, Any]] = {}
         self._orchestration_config: dict[str, Any] = {
             "default_routing": [],
             "last_updated_by": "system",
@@ -170,6 +177,11 @@ class AgentRuntime:
         self._orchestration_config = config
 
     async def execute_agent(self, agent_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if self._demo_mode:
+            demo_response = self._demo_fixtures.get(agent_id)
+            if demo_response is not None:
+                return demo_response
+
         agent = self._agent_registry.get(agent_id)
         if not agent:
             raise KeyError(f"Agent {agent_id} not registered")
@@ -612,6 +624,17 @@ class AgentRuntime:
     def _initialize_agents(self) -> None:
         specs = self._build_agent_specs()
         for spec in specs:
+            fixture_payload = self._load_demo_fixture(spec.fixture_dir)
+            if fixture_payload is not None:
+                if isinstance(fixture_payload, dict) and "scripted_response" in fixture_payload:
+                    self._demo_fixtures[spec.agent_id] = fixture_payload["scripted_response"]
+                else:
+                    self._demo_fixtures[spec.agent_id] = fixture_payload
+
+        if self._demo_mode:
+            return
+
+        for spec in specs:
             if str(spec.path.parent) not in sys.path:
                 sys.path.insert(0, str(spec.path.parent))
 
@@ -628,3 +651,25 @@ class AgentRuntime:
             entry = get_catalog_entry(agent_id)
             if entry:
                 self._agent_registry[agent_id].catalog_id = entry.catalog_id
+
+    def _load_demo_fixture(self, fixture_dir: Path) -> dict[str, Any] | None:
+        if not fixture_dir.exists():
+            return None
+        fixture_file = next(
+            (
+                candidate
+                for candidate in ["sample-response.json", "sample-response.yaml", "sample-response.yml"]
+                if (fixture_dir / candidate).exists()
+            ),
+            None,
+        )
+        if fixture_file is None:
+            return None
+        fixture_path = fixture_dir / fixture_file
+        if fixture_path.suffix == ".json":
+            return json.loads(fixture_path.read_text())
+        try:
+            import yaml
+        except ImportError as exc:  # pragma: no cover
+            raise RuntimeError("PyYAML is required to parse YAML demo fixtures") from exc
+        return yaml.safe_load(fixture_path.read_text())

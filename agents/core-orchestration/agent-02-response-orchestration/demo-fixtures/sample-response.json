@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-02-response-orchestration",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-02-response-orchestration",
+    "data": {
+      "agent": "agent-02-response-orchestration",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}

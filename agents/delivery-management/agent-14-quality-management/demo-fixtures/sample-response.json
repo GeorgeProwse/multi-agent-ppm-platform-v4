@@ -1,0 +1,16 @@
+{
+  "sample_input": {
+    "action": "demo",
+    "agent": "agent-14-quality-management",
+    "context": "demo-mode"
+  },
+  "scripted_response": {
+    "success": true,
+    "message": "Demo response from agent-14-quality-management",
+    "data": {
+      "agent": "agent-14-quality-management",
+      "mode": "demo",
+      "fixture": "sample-response"
+    }
+  }
+}
