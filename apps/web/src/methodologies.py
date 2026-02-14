@@ -38,6 +38,15 @@ def _validate_node(node: dict[str, Any], methodology_id: str, seen: set[str]) ->
 
 
 def _node_to_activity(node: dict[str, Any], prereqs: list[str]) -> dict[str, Any]:
+    children = sorted(node.get("children", []) or [], key=lambda item: item["order"])
+    child_activities: list[dict[str, Any]] = []
+    previous_child_id: str | None = None
+    for child in children:
+        child_prereqs = [previous_child_id] if previous_child_id else []
+        child_activities.append(_node_to_activity(child, child_prereqs))
+        if not child.get("parallel"):
+            previous_child_id = child["id"]
+
     return {
         "id": node["id"],
         "name": node["title"],
@@ -49,7 +58,7 @@ def _node_to_activity(node: dict[str, Any], prereqs: list[str]) -> dict[str, Any
         "wbs": node["wbs"],
         "type": node["type"],
         "order": node["order"],
-        "children": [_node_to_activity(c, []) for c in node.get("children", []) or []],
+        "children": child_activities,
         "metadata": {
             "repeatable": bool(node.get("repeatable", False)),
             "parallel": bool(node.get("parallel", False)),
@@ -66,12 +75,21 @@ def _normalize_methodology_from_nodes(payload: dict[str, Any], methodology_id: s
 
     stages = []
     previous_stage_id: str | None = None
+    previous_stage_last_activity_id: str | None = None
     for node in sorted(nodes, key=lambda item: item["order"]):
+        activities = []
+        previous_activity_id: str | None = previous_stage_last_activity_id
+        for activity_node in sorted(node.get("children", []) or [], key=lambda item: item["order"]):
+            prereqs = [previous_activity_id] if previous_activity_id else []
+            activities.append(_node_to_activity(activity_node, prereqs))
+            if not activity_node.get("parallel"):
+                previous_activity_id = activity_node["id"]
+
         stage = {
             "id": node["id"],
             "name": node["title"],
             "description": f"WBS {node['wbs']}",
-            "activities": [_node_to_activity(c, []) for c in sorted(node.get("children", []) or [], key=lambda item: item["order"])],
+            "activities": activities,
             "prerequisites": [previous_stage_id] if previous_stage_id else [],
             "order": node["order"],
             "metadata": {
@@ -85,6 +103,7 @@ def _normalize_methodology_from_nodes(payload: dict[str, Any], methodology_id: s
         stages.append(stage)
         if not node.get("parallel"):
             previous_stage_id = node["id"]
+            previous_stage_last_activity_id = previous_activity_id
 
     return {
         "id": payload.get("id", methodology_id),
@@ -133,9 +152,9 @@ def _load_all_methodologies() -> dict[str, dict[str, Any]]:
     for methodology_id in _discover_methodology_ids():
         maps[methodology_id] = _load_methodology_map(methodology_id)
 
-    if "agile" not in maps and "adaptive" in maps:
+    if "adaptive" in maps:
         maps["agile"] = maps["adaptive"]
-    if "waterfall" not in maps and "predictive" in maps:
+    if "predictive" in maps:
         maps["waterfall"] = maps["predictive"]
     return maps
 
