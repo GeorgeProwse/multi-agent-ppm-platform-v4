@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import type {
   MethodologyActivity,
+  MethodologyMap,
   MethodologyStage,
   MethodologyStatus,
   ProjectMethodology,
@@ -17,6 +18,152 @@ import {
   flattenMethodologyActivities,
 } from './types';
 import { projectApolloMethodology, methodologyTemplates } from './demoData';
+import type { CanvasType } from '@ppm/canvas-engine';
+
+interface WorkspaceActivitySummary {
+  id: string;
+  name: string;
+  description: string;
+  prerequisites: string[];
+  category: string;
+  recommended_canvas_tab: CanvasType;
+  access: {
+    allowed: boolean;
+  };
+  completed: boolean;
+}
+
+interface WorkspaceStageSummary {
+  id: string;
+  name: string;
+  activities: WorkspaceActivitySummary[];
+}
+
+interface WorkspaceMethodologySummary {
+  id: string;
+  name: string;
+  description: string;
+  stages: WorkspaceStageSummary[];
+}
+
+interface WorkspaceStateResponse {
+  project_id: string;
+  methodology: string | null;
+  current_activity_id: string | null;
+  available_methodologies: string[];
+  methodology_map_summary: WorkspaceMethodologySummary;
+}
+
+const WORKSPACE_API_BASE = '/api/workspace';
+
+function buildFallbackMethodology(methodologyId: string): MethodologyMap {
+  const template = methodologyTemplates.find((item) => item.id === methodologyId) ?? methodologyTemplates[0];
+
+  const stages = template.stages.map((stage, stageIndex) => {
+    const parentActivityId = `${stage.id}-fallback-parent`;
+    return {
+      ...stage,
+      order: stageIndex + 1,
+      activities: [
+        {
+          id: parentActivityId,
+          name: `${stage.name} Activity`,
+          description: `Fallback activity for ${stage.name}`,
+          status: 'not_started' as const,
+          canvasType: 'document' as CanvasType,
+          prerequisites: [],
+          order: 1,
+          children: [
+            {
+              id: `${parentActivityId}-child`,
+              name: `${stage.name} Sub-activity`,
+              description: `Fallback sub-activity for ${stage.name}`,
+              status: 'not_started' as const,
+              canvasType: 'document' as CanvasType,
+              prerequisites: [],
+              order: 1,
+            },
+          ],
+        },
+      ],
+    };
+  });
+
+  return {
+    ...template,
+    stages,
+  };
+}
+
+function summarizeActivityStatus(activity: WorkspaceActivitySummary): MethodologyStatus {
+  if (activity.completed) return 'complete';
+  if (!activity.access.allowed) return 'locked';
+  return 'not_started';
+}
+
+function mapWorkspaceResponseToProjectMethodology(payload: WorkspaceStateResponse): ProjectMethodology {
+  const methodologySummary = payload.methodology_map_summary;
+  const stages: MethodologyStage[] = methodologySummary.stages.map((stage, stageIndex) => {
+    const activities: MethodologyActivity[] = stage.activities.map((activity, activityIndex) => ({
+      id: activity.id,
+      name: activity.name,
+      description: activity.description,
+      status: summarizeActivityStatus(activity),
+      canvasType: activity.recommended_canvas_tab,
+      prerequisites: activity.prerequisites,
+      order: activityIndex + 1,
+      metadata: {
+        category: activity.category,
+      },
+    }));
+
+    return {
+      id: stage.id,
+      name: stage.name,
+      status: activities.some((activity) => activity.status === 'complete') ? 'in_progress' : 'not_started',
+      activities,
+      prerequisites: stageIndex > 0 ? [methodologySummary.stages[stageIndex - 1]?.id].filter(Boolean) : [],
+      order: stageIndex + 1,
+      alwaysAccessible: stage.name.toLowerCase().includes('monitoring'),
+    };
+  });
+
+  const methodologyType = methodologySummary.id === 'predictive'
+    ? 'waterfall'
+    : methodologySummary.id === 'adaptive'
+      ? 'agile'
+      : methodologySummary.id === 'hybrid'
+        ? 'hybrid'
+        : 'custom';
+
+  return {
+    projectId: payload.project_id,
+    projectName: `Project ${payload.project_id}`,
+    methodology: {
+      id: methodologySummary.id,
+      name: methodologySummary.name,
+      description: methodologySummary.description,
+      type: methodologyType,
+      version: 'yaml-api',
+      stages,
+    },
+    currentActivityId: payload.current_activity_id,
+    expandedStageIds: stages.slice(0, 1).map((stage) => stage.id),
+  };
+}
+
+async function fetchWorkspaceState(projectId: string, methodology?: string): Promise<WorkspaceStateResponse> {
+  const params = methodology ? `?methodology=${encodeURIComponent(methodology)}` : '';
+  const relativeUrl = `${WORKSPACE_API_BASE}/${encodeURIComponent(projectId)}${params}`;
+  const requestUrl = typeof window === 'undefined'
+    ? `http://localhost${relativeUrl}`
+    : new URL(relativeUrl, window.location.origin).toString();
+  const response = await fetch(requestUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to load workspace methodology (${response.status})`);
+  }
+  return response.json() as Promise<WorkspaceStateResponse>;
+}
 
 
 function updateActivityStatusInTree(
@@ -54,6 +201,8 @@ function updateActivityStatusInTree(
 interface MethodologyStoreState {
   // Current project methodology
   projectMethodology: ProjectMethodology;
+  availableMethodologies: string[];
+  isHydrating: boolean;
 
   // UI state
   currentActivityId: string | null;
@@ -74,6 +223,7 @@ interface MethodologyStoreState {
   // Actions - Methodology management
   loadProjectMethodology: (methodology: ProjectMethodology) => void;
   createFromTemplate: (templateId: string, projectId: string, projectName: string) => void;
+  hydrateFromWorkspace: (projectId: string, methodology?: string) => Promise<void>;
 
   // Selectors
   getStage: (stageId: string) => MethodologyStage | undefined;
@@ -89,6 +239,8 @@ interface MethodologyStoreState {
 export const useMethodologyStore = create<MethodologyStoreState>((set, get) => ({
   // Initialize with Project Apollo demo data
   projectMethodology: projectApolloMethodology,
+  availableMethodologies: ['predictive', 'adaptive', 'hybrid'],
+  isHydrating: false,
   currentActivityId: projectApolloMethodology.currentActivityId,
   expandedStageIds: projectApolloMethodology.expandedStageIds,
 
@@ -251,6 +403,40 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
       currentActivityId: null,
       expandedStageIds: newMethodology.expandedStageIds,
     });
+  },
+
+  hydrateFromWorkspace: async (projectId, methodology) => {
+    set({ isHydrating: true });
+    try {
+      const payload = await fetchWorkspaceState(projectId, methodology);
+      const mapped = mapWorkspaceResponseToProjectMethodology(payload);
+      set({
+        projectMethodology: mapped,
+        currentActivityId: mapped.currentActivityId,
+        expandedStageIds: mapped.expandedStageIds,
+        availableMethodologies: payload.available_methodologies,
+        isHydrating: false,
+      });
+    } catch (error) {
+      const fallbackMethodologyId = methodology ?? get().projectMethodology.methodology.id;
+      const fallbackMap = buildFallbackMethodology(fallbackMethodologyId);
+      console.warn(
+        `[methodology] Falling back to local demo methodology because backend workspace API is unavailable for project ${projectId}.`,
+        error
+      );
+      set((state) => ({
+        projectMethodology: {
+          ...state.projectMethodology,
+          projectId,
+          methodology: fallbackMap,
+          expandedStageIds: fallbackMap.stages.slice(0, 1).map((stage) => stage.id),
+        },
+        currentActivityId: null,
+        expandedStageIds: fallbackMap.stages.slice(0, 1).map((stage) => stage.id),
+        availableMethodologies: ['predictive', 'adaptive', 'hybrid'],
+        isHydrating: false,
+      }));
+    }
   },
 
   // Selectors

@@ -3393,10 +3393,30 @@ async def api_start_workflow(request: Request, payload: WorkflowStartRequest) ->
 
 @api_router.get("/api/workspace/{project_id}", response_model=WorkspaceStateResponse)
 @permission_required("portfolio.view")
-async def get_workspace_state(project_id: str, request: Request) -> WorkspaceStateResponse:
+async def get_workspace_state(
+    project_id: str,
+    request: Request,
+    methodology: str | None = Query(default=None),
+) -> WorkspaceStateResponse:
     session = _require_session(request)
     tenant_id = session["tenant_id"]
     state = workspace_state_store.get_or_create(tenant_id, project_id)
+
+    if methodology is not None:
+        selected_methodology = methodology.strip()
+        available = set(available_methodologies())
+        if selected_methodology not in available:
+            raise HTTPException(status_code=422, detail="Invalid methodology")
+        state = workspace_state_store.update_selection(
+            tenant_id,
+            project_id,
+            {
+                "methodology": selected_methodology,
+                "current_stage_id": None,
+                "current_activity_id": None,
+            },
+        )
+
     return _build_workspace_response(state)
 
 

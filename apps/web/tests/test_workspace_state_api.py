@@ -124,3 +124,18 @@ def test_validation_rejects_bad_tab(client, monkeypatch):
         },
     )
     assert response.status_code == 422
+
+
+def test_get_workspace_supports_methodology_query(client, monkeypatch):
+    _set_tenant(monkeypatch, "tenant-a")
+    response = client.get('/api/workspace/demo-1?methodology=predictive')
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload['methodology'] == 'predictive'
+    assert payload['methodology_map_summary']['id'] == 'predictive'
+
+
+def test_get_workspace_rejects_unknown_methodology_query(client, monkeypatch):
+    _set_tenant(monkeypatch, "tenant-a")
+    response = client.get('/api/workspace/demo-1?methodology=unknown')
+    assert response.status_code == 422
