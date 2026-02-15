@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createArtifact, createEmptyContent } from '@ppm/canvas-engine';
 import { Icon } from '@/components/icon/Icon';
 import { useAppStore } from '@/store/useAppStore';
+import { hasAnyPermission } from '@/auth/permissions';
 import { useCanvasStore } from '@/store/useCanvasStore';
 import { useMethodologyStore, type MethodologyActivity } from '@/store/methodology';
 import {
@@ -26,6 +27,12 @@ import { resolveAssistantMode } from './assistantMode';
 import { useIntakeAssistantStore } from '@/store/assistant/useIntakeAssistantStore';
 import styles from './AssistantPanel.module.css';
 
+interface LLMModel {
+  provider: string;
+  model_id: string;
+  display_name: string;
+}
+
 interface DemoScriptMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -48,7 +55,7 @@ function isDemoModeEnabled(): boolean {
 export function AssistantPanel() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { rightPanelCollapsed, toggleRightPanel } = useAppStore();
+  const { rightPanelCollapsed, toggleRightPanel, session } = useAppStore();
   const { projectMethodology, currentActivityId, getActivity, getStageForActivity, isActivityLockedComputed, getAllActivities } = useMethodologyStore();
   const { artifacts, openArtifact } = useCanvasStore();
   const {
@@ -75,12 +82,16 @@ export function AssistantPanel() {
   const [demoStepIndex, setDemoStepIndex] = useState(0);
   const [demoLoading, setDemoLoading] = useState(false);
   const [pendingWorkspaceType, setPendingWorkspaceType] = useState<WorkspaceType | null>(null);
+  const [models, setModels] = useState<LLMModel[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const canSetProjectDefault = hasAnyPermission(session.user?.permissions, ['config.manage', 'llm.manage']);
   const intakeActive = mode === 'intake';
   const enqueuePatch = useIntakeAssistantStore((state) => state.enqueuePatch);
   const { sendIntakeMessage } = useIntakeAssistantAdapter(intakeActive);
 
   const onFallbackResponse = useCallback((text: string) => addAssistantMessage(`I heard: "${text}". Ask me to open an activity, dashboard, or /research.`), [addAssistantMessage]);
-  const { sendMessage, error: assistantError } = useAssistantChat({ projectId: context?.projectId, onFallbackResponse });
+  const { sendMessage, error: assistantError } = useAssistantChat({ projectId: context?.projectId, provider: selectedProvider || null, modelId: selectedModelId || null, onFallbackResponse });
 
   const buildContext = useCallback(() => {
     const activity = currentActivityId ? getActivity(currentActivityId) : null;
@@ -172,6 +183,59 @@ export function AssistantPanel() {
       cancelled = true;
     };
   }, [addAssistantMessage, clearMessages, demoMode, demoScenario, restartDemoScenario]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/v1/api/llm/models')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Unable to load models');
+        return response.json();
+      })
+      .then((payload: { models?: LLMModel[] }) => {
+        if (cancelled) return;
+        const rows = Array.isArray(payload.models) ? payload.models : [];
+        setModels(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setModels([]);
+      });
+    if (context?.projectId) {
+      void fetch(`/v1/api/llm/preferences?project_id=${encodeURIComponent(context.projectId)}`)
+        .then(async (response) => {
+          if (!response.ok) throw new Error('Unable to load preferences');
+          return response.json();
+        })
+        .then((payload: { provider?: string; model_id?: string }) => {
+          if (cancelled) return;
+          if (payload.provider) setSelectedProvider(payload.provider);
+          if (payload.model_id) setSelectedModelId(payload.model_id);
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [context?.projectId]);
+
+  const saveProjectDefault = useCallback(() => {
+    if (!context?.projectId || !selectedProvider || !selectedModelId || !canSetProjectDefault) return;
+    void fetch('/v1/api/llm/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'project',
+        project_id: context.projectId,
+        provider: selectedProvider,
+        model_id: selectedModelId,
+      }),
+    }).then((response) => {
+      if (!response.ok) {
+        addAssistantMessage('Unable to save project default model selection.');
+        return;
+      }
+      addAssistantMessage('Saved project default LLM selection.');
+    }).catch(() => addAssistantMessage('Unable to save project default model selection.'));
+  }, [addAssistantMessage, canSetProjectDefault, context?.projectId, selectedModelId, selectedProvider]);
 
   const previousContextEntityRef = useRef<string | null>(null);
 
@@ -372,6 +436,28 @@ export function AssistantPanel() {
           </div>
         </div>
       )}
+      <div className={styles.demoControls}>
+        <label htmlFor="assistant-llm-model" className={styles.visuallyHidden}>Select model</label>
+        <select
+          id="assistant-llm-model"
+          value={`${selectedProvider}:${selectedModelId}`}
+          onChange={(event) => {
+            const [provider, modelId] = event.target.value.split(':');
+            setSelectedProvider(provider ?? '');
+            setSelectedModelId(modelId ?? '');
+          }}
+        >
+          <option value="">Default model</option>
+          {models.map((model) => (
+            <option value={`${model.provider}:${model.model_id}`} key={`${model.provider}:${model.model_id}`}>
+              {model.display_name}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={saveProjectDefault} disabled={!canSetProjectDefault || !context?.projectId || !selectedProvider || !selectedModelId}>
+          Set project default
+        </button>
+      </div>
       {context && <ContextBar context={context} contextSyncLabel={context.currentActivityName ?? context.currentStageName ?? context.projectName} />}
       <MessageList messages={messages} aiState={aiState} typingStatus={typingStatus} context={context} onChipClick={handleChipClick} />
       <QuickActions chips={actionChips} onChipClick={handleChipClick} />

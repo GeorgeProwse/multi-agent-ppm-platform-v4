@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 from common.resilience import ResilienceMiddleware, dependency_config_from_env
+from router import LLMRouteRequest, LLMRouter
 
 
 @dataclass
@@ -296,6 +297,7 @@ class LLMGateway:
         }
         self.cache = self._build_cache()
         self.budget = TokenBudgetManager(self.config.get("token_budgets"))
+        self.router = LLMRouter(demo_mode=bool(self.config.get("demo_mode", False)))
 
     def _resolve_chain(self, provider: str | None) -> list[str]:
         chain = self.config.get("provider_chain")
@@ -355,8 +357,22 @@ class LLMGateway:
         user_prompt: str,
         *,
         tenant_id: str = "default",
+        provider: str | None = None,
+        model_id: str | None = None,
+        json_mode: bool = False,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
-        return await self._run_complete(system_prompt=system_prompt, user_prompt=user_prompt, tenant_id=tenant_id)
+        return await self._run_complete(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            tenant_id=tenant_id,
+            provider=provider,
+            model_id=model_id,
+            json_mode=json_mode,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
 
     def complete_sync(
         self,
@@ -430,13 +446,60 @@ class LLMGateway:
             )
         raise LLMProviderError("Structured response could not be parsed/validated", retryable=False)
 
-    async def _run_complete(self, *, system_prompt: str, user_prompt: str, tenant_id: str) -> LLMResponse:
+    async def _run_complete(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        tenant_id: str,
+        provider: str | None = None,
+        model_id: str | None = None,
+        json_mode: bool = False,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMResponse:
         estimate = TokenBudgetManager.estimate_tokens(system_prompt, user_prompt)
         self.budget.ensure_budget(tenant_id, estimate)
         if self.cache:
             cached = self.cache.get(tenant_id=tenant_id, system_prompt=system_prompt, user_prompt=user_prompt)
             if cached:
                 return cached
+
+        selected_provider = provider
+        selected_model = model_id
+        if not (selected_provider and selected_model):
+            try:
+                selected_provider, selected_model = self.router.default_selection()
+            except LLMProviderError:
+                selected_provider, selected_model = None, None
+
+        if selected_provider and selected_model:
+            try:
+                response = await self.router.route(
+                    provider=selected_provider,
+                    model_id=selected_model,
+                    request=LLMRouteRequest(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        json_mode=json_mode,
+                        temperature=float(os.getenv("LLM_TEMPERATURE", "0") if temperature is None else temperature),
+                        max_tokens=max_tokens,
+                    ),
+                )
+                usage = self._extract_usage(response=response, estimate=estimate)
+                self.budget.record_usage(tenant_id, usage)
+                if self.cache:
+                    self.cache.put(
+                        tenant_id=tenant_id,
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        response=response,
+                    )
+                return response
+            except LLMProviderError:
+                if self.config.get("demo_mode"):
+                    mock_adapter = MockProviderAdapter(self.config.get("mock_response") or {"demo": "deterministic"})
+                    return await mock_adapter.complete(system_prompt=system_prompt, user_prompt=user_prompt)
 
         last_error: LLMProviderError | None = None
         for provider_name in self.provider_chain:

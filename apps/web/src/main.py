@@ -76,6 +76,7 @@ from intake_models import (  # noqa: E402
 from intake_store import IntakeStore  # noqa: E402
 from merge_review_models import MergeDecision, MergeReviewCase  # noqa: E402
 from merge_review_store import MergeReviewStore  # noqa: E402
+from llm_preferences_store import LLMPreferencesStore  # noqa: E402
 from pipeline_models import (  # noqa: E402
     PipelineBoard,
     PipelineItem,
@@ -90,6 +91,7 @@ from workflow_models import (  # noqa: E402
 from workflow_store import WorkflowDefinitionStore  # noqa: E402
 from lineage_proxy import LineageServiceClient  # noqa: E402
 from llm.client import LLMGateway, LLMProviderError  # noqa: E402
+from model_registry import get_enabled_models  # noqa: E402
 from methodologies import (  # noqa: E402
     METHODOLOGY_STORAGE_PATH,
     available_methodologies,
@@ -205,6 +207,7 @@ DEMO_DOWNLOADS_DIR = STORAGE_DIR / "downloads"
 SOR_FIXTURES_PATH = DATA_DIR / "demo" / "sor_fixtures.json"
 ROLES_PATH = STORAGE_DIR / "roles.json"
 MERGE_REVIEW_PATH = STORAGE_DIR / "merge_review_cases.json"
+LLM_PREFERENCES_PATH = STORAGE_DIR / "llm_preferences.json"
 DEMAND_STORE_PATH = STORAGE_DIR / "demand.json"
 PRIORITISATION_STORE_PATH = STORAGE_DIR / "prioritisation.json"
 CAPACITY_STORE_PATH = STORAGE_DIR / "capacity.json"
@@ -828,6 +831,8 @@ class SearchResponse(BaseModel):
 class AssistantQueryRequest(BaseModel):
     query: str
     project_id: str | None = None
+    provider: str | None = None
+    model_id: str | None = None
 
 
 class AssistantQueryResponse(BaseModel):
@@ -876,6 +881,8 @@ class AssistantPrerequisite(BaseModel):
 
 class AssistantSuggestionRequest(BaseModel):
     project_id: str
+    provider: str | None = None
+    model_id: str | None = None
     activity_id: str | None = None
     stage_id: str | None = None
     activity_name: str | None = None
@@ -901,6 +908,42 @@ class AssistantSuggestionResponse(BaseModel):
     context: dict[str, Any]
     suggestions: list[AssistantSuggestion]
     generated_by: str
+
+
+class LLMPreferenceRequest(BaseModel):
+    scope: Literal["tenant", "project", "user"]
+    project_id: str | None = None
+    provider: str
+    model_id: str
+
+
+class LLMPreferenceResponse(BaseModel):
+    provider: str
+    model_id: str
+
+
+def _can_manage_llm(request: Request, session: dict[str, Any]) -> bool:
+    permissions = _permissions_for_user(request, session)
+    return bool({"config.manage", "llm.manage"}.intersection(permissions))
+
+
+def _resolve_llm_selection(tenant_id: str, project_id: str | None, user_id: str | None) -> tuple[str, str]:
+    preference = llm_preferences_store.get_preferences(tenant_id=tenant_id, project_id=project_id, user_id=user_id)
+    models = get_enabled_models(demo_mode=_demo_mode_enabled())
+    if not models:
+        raise HTTPException(status_code=503, detail="No enabled models")
+    fallback = models[0]
+    selected_provider = str(preference.get("provider") or fallback.provider)
+    selected_model = str(preference.get("model_id") or fallback.model_id)
+    available = {(item.provider, item.model_id) for item in models}
+    if (selected_provider, selected_model) in available:
+        return selected_provider, selected_model
+    tenant_pref = llm_preferences_store.get_preferences(tenant_id=tenant_id, project_id=None, user_id=None)
+    tenant_provider = str(tenant_pref.get("provider") or "")
+    tenant_model = str(tenant_pref.get("model_id") or "")
+    if (tenant_provider, tenant_model) in available:
+        return tenant_provider, tenant_model
+    return fallback.provider, fallback.model_id
 
 
 @app.on_event("startup")
@@ -1891,8 +1934,11 @@ async def _llm_suggestions(
     payload: AssistantSuggestionRequest,
     context: dict[str, Any],
     methodology_map: dict[str, Any],
+    *,
+    tenant_id: str,
+    user_id: str | None,
 ) -> list[AssistantSuggestion]:
-    llm = LLMGateway()
+    llm = LLMGateway(config={"demo_mode": _demo_mode_enabled()})
     system_prompt = (
         "You are a PMO assistant generating next best action suggestions. "
         "Return JSON with a top-level key 'suggestions' that is a list of objects. "
@@ -1921,7 +1967,8 @@ async def _llm_suggestions(
         indent=2,
     )
 
-    response = await llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
+    provider, model_id = (payload.provider, payload.model_id) if payload.provider and payload.model_id else _resolve_llm_selection(tenant_id, payload.project_id, user_id)
+    response = await llm.complete(system_prompt=system_prompt, user_prompt=user_prompt, provider=provider, model_id=model_id)
     try:
         data = json.loads(response.content)
     except json.JSONDecodeError as exc:
@@ -2160,7 +2207,7 @@ async def _extract_intake_fields(
         document_name=document_name,
         document_content=document_content,
     )
-    llm = LLMGateway()
+    llm = LLMGateway(config={"demo_mode": _demo_mode_enabled()})
     response = await llm.complete(system_prompt=system_prompt, user_prompt=user_prompt)
     try:
         data = json.loads(response.content)
@@ -4801,6 +4848,53 @@ async def reset_project_agent_settings(project_id: str, request: Request) -> JSO
     )
 
 
+
+
+@api_router.get("/api/llm/models")
+async def list_llm_models(request: Request) -> JSONResponse:
+    _require_session(request)
+    models = get_enabled_models(demo_mode=_demo_mode_enabled())
+    return JSONResponse(status_code=200, content={"models": [
+        {
+            "provider": item.provider,
+            "model_id": item.model_id,
+            "display_name": item.display_name,
+            "capabilities": list(item.capabilities),
+            "allow_in_demo": item.allow_in_demo,
+        }
+        for item in models
+    ]})
+
+
+@api_router.get("/api/llm/preferences")
+async def get_llm_preferences(request: Request, project_id: str | None = None) -> JSONResponse:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Tenant not available")
+    provider, model_id = _resolve_llm_selection(tenant_id, project_id, session.get("subject"))
+    return JSONResponse(status_code=200, content={"provider": provider, "model_id": model_id})
+
+
+@api_router.post("/api/llm/preferences", response_model=LLMPreferenceResponse)
+async def set_llm_preferences(payload: LLMPreferenceRequest, request: Request) -> LLMPreferenceResponse:
+    session = _require_session(request)
+    tenant_id = _tenant_id_from_request(request, session)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Tenant not available")
+    if payload.scope in {"tenant", "project"} and not _can_manage_llm(request, session):
+        raise HTTPException(status_code=403, detail="RBAC denied")
+    user_id = session.get("subject") if payload.scope == "user" else None
+    preference = llm_preferences_store.set_preference(
+        scope=payload.scope,
+        tenant_id=tenant_id,
+        project_id=payload.project_id,
+        user_id=user_id,
+        provider=payload.provider,
+        model_id=payload.model_id,
+    )
+    return LLMPreferenceResponse(**preference)
+
 @api_router.post("/api/assistant/send")
 async def send_assistant_message(payload: AssistantSendRequest, request: Request) -> JSONResponse:
     session = _require_session(request)
@@ -4902,6 +4996,36 @@ async def assistant_query(
                 summary=str(default_payload.get("summary", "")),
                 items=list(default_payload.get("items") or []),
             )
+    if payload.project_id:
+        session = _require_session(request)
+        tenant_id = _tenant_id_from_request(request, session)
+        if tenant_id:
+            provider, model_id = (
+                (payload.provider, payload.model_id)
+                if payload.provider and payload.model_id
+                else _resolve_llm_selection(tenant_id, payload.project_id, session.get("subject"))
+            )
+            llm = LLMGateway(config={"demo_mode": _demo_mode_enabled()})
+            try:
+                system_prompt = "You are a PMO portfolio assistant. Return concise JSON with keys summary and items (array of strings)."
+                user_prompt = json.dumps({"query": query_text, "project_id": payload.project_id})
+                response = await llm.complete(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    provider=provider,
+                    model_id=model_id,
+                    json_mode=True,
+                )
+                data = json.loads(response.content)
+                if isinstance(data, dict):
+                    return AssistantQueryResponse(
+                        query=query_text,
+                        summary=str(data.get("summary", "")),
+                        items=[str(item) for item in data.get("items", []) if isinstance(item, (str, int, float))],
+                    )
+            except Exception:
+                pass
+
     lowered = query_text.lower()
     if "risk" in lowered:
         approvals = _approval_payload().get("items", [])
@@ -4978,7 +5102,7 @@ async def generate_assistant_suggestions(
     suggestions: list[AssistantSuggestion] = []
     generated_by = "heuristic"
     try:
-        suggestions = await _llm_suggestions(payload, context, methodology_map)
+        suggestions = await _llm_suggestions(payload, context, methodology_map, tenant_id=tenant_id, user_id=session.get("subject"))
         if suggestions:
             generated_by = "llm"
     except (LLMProviderError, ValueError):
