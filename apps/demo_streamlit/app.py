@@ -60,6 +60,11 @@ DATASET_FILES: dict[str, Path] = {
     "feature_flags": DEMO_ROOT / "data/feature_flags_demo.json",
     "storage_notifications": REPO_ROOT / "apps/web/storage/notifications.json",
     "storage_scenarios": REPO_ROOT / "apps/web/storage/scenarios.json",
+    "dashboard_approvals": REPO_ROOT / "apps/web/data/demo_dashboards/approvals.json",
+    "dashboard_portfolio_health": REPO_ROOT / "apps/web/data/demo_dashboards/portfolio-health.json",
+    "dashboard_lifecycle": REPO_ROOT / "apps/web/data/demo_dashboards/lifecycle-metrics.json",
+    "dashboard_workflow": REPO_ROOT / "apps/web/data/demo_dashboards/workflow-monitoring.json",
+    "dashboard_executive": REPO_ROOT / "apps/web/data/demo_dashboards/executive_portfolio.json",
 }
 
 
@@ -160,6 +165,130 @@ class DemoDataHub:
             )
         dedup = {row["id"]: row for row in rows}
         return sorted(dedup.values(), key=lambda row: str(row["name"]).lower())
+
+    def normalized_entities(self) -> dict[str, list[dict[str, Any]]]:
+        self._record("Collections", ["projects", "demo_seed"])
+        seed = self.load("demo_seed")
+
+        portfolios: list[dict[str, Any]] = []
+        for item in seed.get("portfolios", []):
+            data = item.get("data", {}) if isinstance(item, dict) else {}
+            portfolios.append(
+                {
+                    "id": data.get("portfolio_id", slugify(item.get("title", "portfolio"))),
+                    "name": item.get("title", "Portfolio"),
+                    "status": item.get("status", "Active"),
+                    "owner": data.get("owner", "PMO"),
+                    "classification": item.get("classification", "Internal"),
+                }
+            )
+
+        projects: list[dict[str, Any]] = []
+        raw_projects = self.load("projects").get("projects", [])
+        for i, item in enumerate(raw_projects, start=1):
+            projects.append(
+                {
+                    "id": item.get("id") or item.get("project_id") or f"demo-project-{i}",
+                    "name": item.get("name") or item.get("title") or f"Demo Project {i}",
+                    "status": item.get("status", "In Progress"),
+                    "owner": item.get("owner", "Project Lead"),
+                    "program_id": item.get("program_id", "demo-program-01"),
+                    "portfolio_id": item.get("portfolio_id", "demo-portfolio"),
+                }
+            )
+
+        if not projects:
+            for i in range(1, 4):
+                projects.append(
+                    {
+                        "id": f"demo-project-{i:02d}",
+                        "name": ["Phoenix Modernization", "Atlas Migration", "Nova Compliance"][i - 1],
+                        "status": ["In Progress", "At Risk", "Planning"][i - 1],
+                        "owner": ["R. Chen", "A. Thomas", "P. Iyer"][i - 1],
+                        "program_id": "demo-program-01",
+                        "portfolio_id": "demo-portfolio",
+                    }
+                )
+
+        programs = [
+            {
+                "id": "demo-program-01",
+                "name": "Digital Transformation",
+                "status": "In Progress",
+                "owner": "PMO Strategy",
+                "portfolio_id": "demo-portfolio",
+            },
+            {
+                "id": "demo-program-02",
+                "name": "Risk & Controls",
+                "status": "Planning",
+                "owner": "Governance Office",
+                "portfolio_id": "demo-portfolio",
+            },
+        ]
+
+        return {"portfolios": portfolios, "programs": programs, "projects": projects}
+
+    def normalized_intake_requests(self) -> list[dict[str, Any]]:
+        self._record("Intake", ["dashboard_approvals", "projects"])
+        projects = self.normalized_entities()["projects"]
+        rows: list[dict[str, Any]] = []
+        for idx, project in enumerate(projects[:3], start=1):
+            rows.append(
+                {
+                    "request_id": f"intake-{idx:03d}",
+                    "title": f"{project['name']} intake",
+                    "requester": ["Sophie Lang", "Marcus Reed", "Priya Shah"][idx - 1],
+                    "status": "approved" if idx < 3 else "pending",
+                    "submitted_at": f"2026-02-{10+idx}T09:00:00Z",
+                    "decision_at": f"2026-02-{11+idx}T14:00:00Z" if idx < 3 else None,
+                    "project_id": project["id"],
+                    "approval_type": ["stage_gate", "template", "publish"][idx - 1],
+                }
+            )
+        return rows
+
+    def normalized_agent_catalog(self) -> list[dict[str, Any]]:
+        self._record("Agents", ["demo_run_log"])
+        run_agents = self.load("demo_run_log").get("agents", [])
+        rows: list[dict[str, Any]] = []
+        for idx, run in enumerate(run_agents[:12], start=1):
+            agent_id = str(run.get("agent_id", f"agent-{idx:02d}"))
+            rows.append(
+                {
+                    "agent_id": agent_id,
+                    "name": f"{agent_id.upper()} · Delivery Agent",
+                    "capability": ["Intake", "Planning", "Risk", "Quality"][idx % 4],
+                    "last_status": run.get("status", "completed"),
+                    "avg_duration_seconds": run.get("duration_seconds", 45),
+                    "version": f"v1.{idx}",
+                }
+            )
+        return rows
+
+    def normalized_artifact_lifecycle(self) -> list[dict[str, Any]]:
+        self._record("Artifact Lifecycle", ["demo_run_log", "dashboard_approvals"])
+        run_agents = self.load("demo_run_log").get("agents", [])
+        approvals = self.load("dashboard_approvals").get("approvals", [])
+        rows: list[dict[str, Any]] = []
+        statuses = ["generated", "in_review", "approved", "published"]
+        for idx, run in enumerate(run_agents[:8], start=1):
+            lifecycle = statuses[idx % len(statuses)]
+            rows.append(
+                {
+                    "artifact_id": f"artifact-{idx:03d}",
+                    "artifact_type": ["status_report", "timeline", "decision_log", "risk_register"][idx % 4],
+                    "project_id": "demo-project-01",
+                    "status": lifecycle,
+                    "required_approvals": 2,
+                    "approved_count": 2 if lifecycle in {"approved", "published"} else 1,
+                    "publish_ready": lifecycle in {"approved", "published"},
+                    "audit_event_id": f"audit-lifecycle-{idx:03d}",
+                    "linked_approval": approvals[idx % len(approvals)].get("title", "Gate approval") if approvals else "Gate approval",
+                    "agent_id": run.get("agent_id", "agent-01"),
+                }
+            )
+        return rows
 
     def normalized_dashboard(self) -> dict[str, Any]:
         self._record("Dashboard", ["portfolio_health", "lifecycle_metrics", "workflow_monitoring", "approvals"])
@@ -386,6 +515,13 @@ def init_state(hub: DemoDataHub) -> None:
         "completed_activity_ids": set(),
         "demo_run_step": 0,
         "feature_flags": hub.feature_flags(),
+        "collection_type": "projects",
+        "collection_search": "",
+        "selected_intake_request": None,
+        "selected_agent_id": None,
+        "selected_approval_type": "all",
+        "what_if_budget_delta": 0,
+        "what_if_scope_delta": 0,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -619,6 +755,20 @@ def render_home(hub: DemoDataHub) -> None:
     st.metric("Portfolio KPIs", len(dashboard["health"].get("kpis", [])))
     st.metric("Lifecycle gates", len(dashboard["lifecycle"].get("stage_gates", [])))
     st.metric("Workflow runs", len(dashboard["workflow"].get("runs", [])))
+
+    st.subheader("Parity status against web console demo")
+    st.dataframe(
+        [
+            {"gap_area": "Collections pages", "status": "Closed", "streamlit_surface": "Collections"},
+            {"gap_area": "Intake to project routing", "status": "Closed", "streamlit_surface": "Intake"},
+            {"gap_area": "Agent profile/test/run", "status": "Closed", "streamlit_surface": "Agent Gallery"},
+            {"gap_area": "Analytics what-if/export", "status": "Closed", "streamlit_surface": "Analytics What-If"},
+            {"gap_area": "Artifact lifecycle board", "status": "Closed", "streamlit_surface": "Artifact Lifecycle"},
+            {"gap_area": "Approval type split", "status": "Closed", "streamlit_surface": "Approvals"},
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
     render_provenance(hub, "Dashboard")
 
 
@@ -725,6 +875,185 @@ def render_agent_runs(hub: DemoDataHub, engine: DemoRunEngine) -> None:
     st.dataframe(completed[-10:], hide_index=True, use_container_width=True)
 
 
+
+
+def render_collections(hub: DemoDataHub) -> None:
+    st.header("Portfolio / Program / Project Collections")
+    entities = hub.normalized_entities()
+    st.session_state["collection_type"] = st.segmented_control(
+        "Collection",
+        options=["portfolios", "programs", "projects"],
+        default=st.session_state.get("collection_type", "projects"),
+    )
+    collection_type = st.session_state.get("collection_type", "projects")
+    rows = entities.get(collection_type, [])
+
+    search = st.text_input("Search by id, name, status, owner", value=st.session_state.get("collection_search", ""))
+    st.session_state["collection_search"] = search
+    lowered = search.lower().strip()
+    if lowered:
+        rows = [
+            row
+            for row in rows
+            if lowered in str(row.get("id", "")).lower()
+            or lowered in str(row.get("name", "")).lower()
+            or lowered in str(row.get("status", "")).lower()
+            or lowered in str(row.get("owner", "")).lower()
+        ]
+
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    if rows:
+        selected = st.selectbox("Open workspace", options=[r["id"] for r in rows])
+        if st.button("Open selected workspace", use_container_width=True):
+            st.session_state["selected_project"] = selected
+            st.session_state["active_page"] = "Workspace"
+            st.success(f"Opened {selected} in Workspace view.")
+    render_provenance(hub, "Collections")
+
+
+def render_intake(hub: DemoDataHub) -> None:
+    st.header("Intake & Post-Approval Routing")
+    rows = hub.normalized_intake_requests()
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    request_ids = [r["request_id"] for r in rows]
+    if request_ids:
+        selected = st.selectbox("Request", request_ids)
+        row = next(r for r in rows if r["request_id"] == selected)
+        st.json(row)
+        st.session_state["selected_intake_request"] = selected
+        if row.get("status") == "approved" and row.get("project_id"):
+            if st.button("Open project workspace", use_container_width=True):
+                st.session_state["selected_project"] = row["project_id"]
+                st.session_state["active_page"] = "Workspace"
+                st.success(f"Routed to project workspace: {row['project_id']}")
+        else:
+            st.info("Request is not approved yet. Workspace action unlocks after approval.")
+    render_provenance(hub, "Intake")
+
+
+def render_agent_gallery(hub: DemoDataHub, outbox: DemoOutbox) -> None:
+    st.header("Agent Gallery · Profile · Test · Run")
+    rows = hub.normalized_agent_catalog()
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    if not rows:
+        return
+    selected = st.selectbox("Agent", options=[r["agent_id"] for r in rows])
+    st.session_state["selected_agent_id"] = selected
+    row = next(r for r in rows if r["agent_id"] == selected)
+
+    st.subheader("Agent profile")
+    st.json(
+        {
+            "agent_id": row["agent_id"],
+            "name": row["name"],
+            "capability": row["capability"],
+            "config_history": [
+                {"version": row["version"], "changed_by": "platform-admin", "changed_at": "2026-02-14T10:00:00Z"},
+                {"version": "v1.0", "changed_by": "platform-admin", "changed_at": "2026-01-20T09:30:00Z"},
+            ],
+        }
+    )
+
+    c1, c2 = st.columns(2)
+    if c1.button("Test agent", use_container_width=True):
+        artifact = {
+            "artifact_id": f"test-{uuid4().hex[:8]}",
+            "agent_id": row["agent_id"],
+            "status": "passed",
+            "assertions": ["policy_check", "schema_check", "latency_budget"],
+        }
+        append_outbox_event(outbox, "agent.tested", artifact)
+        st.success("Agent test completed.")
+        st.json(artifact)
+
+    if c2.button("Run agent", use_container_width=True):
+        run_event = {
+            "run_id": f"run-{uuid4().hex[:8]}",
+            "agent_id": row["agent_id"],
+            "status": "completed",
+            "duration_seconds": row.get("avg_duration_seconds", 45),
+            "audit_event_id": f"audit-run-{uuid4().hex[:8]}",
+        }
+        append_outbox_event(outbox, "agent.run", run_event)
+        outbox.append("audit_events", {"event_id": run_event["audit_event_id"], "action": "agent.run", "resource_id": row["agent_id"]})
+        st.success("Agent run recorded and visible in audit trail.")
+        st.json(run_event)
+
+    render_provenance(hub, "Agents")
+
+
+def render_analytics_advanced(hub: DemoDataHub, outbox: DemoOutbox) -> None:
+    st.header("Analytics What-If & Export Pack")
+    dashboard = hub.normalized_dashboard()
+    st.dataframe(dashboard["health"].get("kpis", []), hide_index=True, use_container_width=True)
+
+    st.subheader("What-if modeling")
+    b = st.slider("Budget delta (%)", min_value=-30, max_value=30, value=int(st.session_state.get("what_if_budget_delta", 0)))
+    s_delta = st.slider("Scope delta (%)", min_value=-30, max_value=30, value=int(st.session_state.get("what_if_scope_delta", 0)))
+    st.session_state["what_if_budget_delta"] = b
+    st.session_state["what_if_scope_delta"] = s_delta
+
+    if st.button("Run what-if scenario", use_container_width=True):
+        base_score = float(dashboard["health"].get("kpis", [{}])[0].get("value", 4.0))
+        adjusted = round(base_score + (b * 0.02) - (s_delta * 0.015), 2)
+        result = {
+            "project_id": st.session_state.get("selected_project") or "demo-project-01",
+            "budget_delta_pct": b,
+            "scope_delta_pct": s_delta,
+            "composite_score_forecast": adjusted,
+            "source": "simulated /v1/api/dashboard/{project_id}/what-if",
+        }
+        append_outbox_event(outbox, "analytics.what_if", result)
+        st.success("What-if simulation completed.")
+        st.json(result)
+
+    if st.button("Export dashboard pack", use_container_width=True):
+        payload = {
+            "export_id": f"export-{uuid4().hex[:8]}",
+            "project_id": st.session_state.get("selected_project") or "demo-project-01",
+            "generated_at": datetime.now(tz=UTC).isoformat(),
+            "included": ["kpis", "workflow_runs", "approvals", "predictive_alerts"],
+            "source": "simulated dashboard export",
+        }
+        append_outbox_event(outbox, "analytics.export_pack", payload)
+        st.download_button(
+            "Download export manifest",
+            data=json.dumps(payload, indent=2),
+            file_name=f"dashboard_export_{payload['export_id']}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+
+    render_provenance(hub, "Dashboard")
+
+
+def render_artifact_lifecycle(hub: DemoDataHub) -> None:
+    st.header("Artifact Lifecycle Board")
+    rows = hub.normalized_artifact_lifecycle()
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    selected_status = st.selectbox("Filter status", options=["all", "generated", "in_review", "approved", "published"])
+    filtered = rows if selected_status == "all" else [r for r in rows if r["status"] == selected_status]
+    st.caption(f"Showing {len(filtered)} artifacts")
+    st.dataframe(filtered, hide_index=True, use_container_width=True)
+    blockers = [r for r in filtered if not r.get("publish_ready")]
+    if blockers:
+        st.warning("Publish action disabled for artifacts missing required approvals.")
+    render_provenance(hub, "Artifact Lifecycle")
+
+
+def render_approvals_advanced(hub: DemoDataHub) -> None:
+    st.header("Approvals Queues · Stage Gate / Template / Publish")
+    approvals = hub.normalized_intake_requests()
+    approval_type = st.selectbox("Approval type", options=["all", "stage_gate", "template", "publish"])
+    st.session_state["selected_approval_type"] = approval_type
+    rows = approvals if approval_type == "all" else [r for r in approvals if r.get("approval_type") == approval_type]
+    st.dataframe(rows, hide_index=True, use_container_width=True)
+    if rows:
+        row = rows[0]
+        st.subheader("Decision detail")
+        st.markdown(f"**Request:** {row['request_id']} · **Type:** {row['approval_type']}")
+        st.markdown(f"Audit deep-link: `{row['request_id']}-audit`")
+    render_provenance(hub, "Intake")
 def main() -> None:
     st.set_page_config(page_title="PPM Standalone Demo", layout="wide")
     st.title("Standalone PPM Demo Mode")
@@ -738,7 +1067,20 @@ def main() -> None:
     render_scenario_selectors_sidebar(hub)
     render_feature_flags_panel()
 
-    nav_pages = ["Home", "Workspace", "Dashboard", "Approvals", "Connectors", "Audit", "Demo Run"]
+    nav_pages = [
+        "Home",
+        "Collections",
+        "Workspace",
+        "Intake",
+        "Approvals",
+        "Artifact Lifecycle",
+        "Agent Gallery",
+        "Dashboard",
+        "Analytics What-If",
+        "Connectors",
+        "Audit",
+        "Demo Run",
+    ]
     if st.session_state["feature_flags"].get("agent_async_notifications"):
         nav_pages.append("Notifications")
     if st.session_state["feature_flags"].get("agent_run_ui"):
@@ -754,12 +1096,22 @@ def main() -> None:
         page = st.session_state["selected_page"]
         if page == "Home":
             render_home(hub)
+        elif page == "Collections":
+            render_collections(hub)
         elif page == "Workspace":
             render_workspace(hub)
+        elif page == "Intake":
+            render_intake(hub)
+        elif page == "Approvals":
+            render_approvals_advanced(hub)
+        elif page == "Artifact Lifecycle":
+            render_artifact_lifecycle(hub)
+        elif page == "Agent Gallery":
+            render_agent_gallery(hub, outbox)
         elif page == "Dashboard":
             render_dashboard(hub)
-        elif page == "Approvals":
-            render_approvals(hub)
+        elif page == "Analytics What-If":
+            render_analytics_advanced(hub, outbox)
         elif page == "Connectors":
             render_connectors(hub)
         elif page == "Audit":
