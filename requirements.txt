@@ -46,6 +46,9 @@ transformers==4.48.0
 spacy==3.7.5
 sentence-transformers==3.0.1
 
+# Validation
+email-validator==2.1.1
+
 # Utilities
 python-dotenv==1.0.1
 python-dateutil==2.9.0.post0

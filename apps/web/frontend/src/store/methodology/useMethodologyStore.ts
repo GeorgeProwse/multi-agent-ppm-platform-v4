@@ -634,7 +634,7 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
       const activity = flattenMethodologyActivities(stage.activities).find((a) => a.id === activityId);
       if (activity) return activity;
     }
-    return state.projectMethodology.methodology.monitoring.find((activity) => activity.id === activityId);
+    return state.projectMethodology.methodology.monitoring?.find((activity) => activity.id === activityId);
   },
 
   getCurrentActivity: () => {
@@ -649,7 +649,7 @@ export const useMethodologyStore = create<MethodologyStoreState>((set, get) => (
       flattenMethodologyActivities(item.activities).some((a) => a.id === activityId)
     );
     if (stage) return stage;
-    const monitoring = get().projectMethodology.methodology.monitoring;
+    const monitoring = get().projectMethodology.methodology.monitoring ?? [];
     return monitoring.some((activity) => activity.id === activityId)
       ? {
           id: 'monitoring',

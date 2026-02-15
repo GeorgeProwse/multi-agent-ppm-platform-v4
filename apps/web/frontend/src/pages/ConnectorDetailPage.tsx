@@ -49,7 +49,7 @@ export function ConnectorDetailPage() {
         </section>
         <section className={styles.card}>
           <h2>Authentication requirements</h2>
-          <ul>{(connector.auth_requirements.length ? connector.auth_requirements : [connector.auth_type]).map((item) => <li key={item}>{item}</li>)}</ul>
+          <ul>{(connector.auth_requirements.length ? connector.auth_requirements : [connector.auth_type ?? 'Not specified']).filter(Boolean).map((item) => <li key={item}>{item}</li>)}</ul>
         </section>
         <section className={styles.card}>
           <h2>Supported objects</h2>

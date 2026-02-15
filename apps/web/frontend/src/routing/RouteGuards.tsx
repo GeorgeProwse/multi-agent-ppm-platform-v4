@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { allPermissionIds, hasPermission, resolvePermissions, type Role } from '@/auth/permissions';
+import { hasPermission, resolvePermissions, type Role } from '@/auth/permissions';
 import { useAppStore } from '@/store';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 
@@ -36,39 +36,34 @@ export function RequireAuth() {
           email: '',
           tenantId: data.tenant_id ?? 'default',
           roles,
-          permissions: allPermissionIds(),
+          permissions: [] as string[],
         };
 
-        setSession({ authenticated: true, loading: false, user });
+        // Fetch role catalog before setting loading=false so that the
+        // effect cleanup (triggered by the loading→false state change)
+        // does not cancel the in-flight role resolution.
+        let permissions: string[] = [];
+        try {
+          const roleResponse = await fetch('/v1/api/roles');
+          if (roleResponse.ok) {
+            const roleCatalog = (await roleResponse.json()) as Role[];
+            if (active) {
+              permissions = resolvePermissions(roles, roleCatalog);
+            }
+          }
+        } catch {
+          // Role resolution failed – permissions stay empty (deny-by-default).
+        }
+
+        if (!active) {
+          return;
+        }
+
+        setSession({ authenticated: true, loading: false, user: { ...user, permissions } });
         setTenantContext({
           tenantId: data.tenant_id ?? 'default',
           tenantName: data.tenant_id ?? 'Default Tenant',
         });
-
-        try {
-          const roleResponse = await fetch('/v1/api/roles');
-          if (!roleResponse.ok) {
-            throw new Error('Unable to load roles');
-          }
-          const roleCatalog = (await roleResponse.json()) as Role[];
-
-          if (!active) {
-            return;
-          }
-
-          const permissions = resolvePermissions(roles, roleCatalog);
-          setSession({
-            user: {
-              ...user,
-              permissions: permissions.length > 0 ? permissions : allPermissionIds(),
-            },
-          });
-        } catch {
-          if (!active) {
-            return;
-          }
-          setSession({ user: { ...user, permissions: allPermissionIds() } });
-        }
       } catch {
         if (!active) {
           return;
@@ -83,6 +78,7 @@ export function RequireAuth() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once when loading
   }, [session.loading, setSession, setTenantContext]);
 
   if (session.loading) {
