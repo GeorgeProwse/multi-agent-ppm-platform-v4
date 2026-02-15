@@ -77,7 +77,7 @@ export async function requestJson<T>(
   }
 
   if (response.status === 204) {
-    return undefined as T;
+    return undefined as unknown as T;
   }
 
   return parseJson<T>(response);

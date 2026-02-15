@@ -1,5 +1,7 @@
 # UI Coverage Matrix
 
+> Last reviewed: 2026-02-15
+
 This matrix audits the current SPA + backend implementation against the required capability list.
 
 ## Route Inventory (react-router)
@@ -228,3 +230,5 @@ Source: `apps/web/frontend/src/App.tsx`.
 - Demo mode seeds workspace and demo UI data at startup.
 - Demo fixture tests enforce minimum visible record counts and required navigation backing data.
 - Connector + SoR interactions are demo-safe via demo clients and mock connector mappings when `DEMO_MODE=true`.
+- All demo write operations (documents, entities, connectors) emit audit events to the demo outbox so publish paths remain observable without external side effects.
+- RBAC permission fallback defaults to empty (deny) rather than all-permissions to prevent accidental privilege escalation.

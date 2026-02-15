@@ -101,5 +101,5 @@ export function canViewAuditLogs(permissions: string[] | undefined | null): bool
 }
 
 export function canViewConfig(permissions: string[] | undefined | null): boolean {
-  return Boolean(permissions && permissions.length > 0);
+  return hasAnyPermission(permissions, ['config.manage', 'portfolio.view']);
 }

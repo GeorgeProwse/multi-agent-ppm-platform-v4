@@ -6,18 +6,17 @@ import jwt
 from fastapi.testclient import TestClient
 
 
-def _make_token(role: str) -> str:
-    return jwt.encode(
-        {
-            "sub": "user-123",
-            "roles": [role],
-            "aud": "ppm-platform",
-            "iss": "https://issuer.example.com",
-            "tenant_id": "tenant-alpha",
-        },
-        "test-secret",
-        algorithm="HS256",
-    )
+def _make_token(role: str, *, extra_claims: dict | None = None) -> str:
+    claims = {
+        "sub": "user-123",
+        "roles": [role],
+        "aud": "ppm-platform",
+        "iss": "https://issuer.example.com",
+        "tenant_id": "tenant-alpha",
+    }
+    if extra_claims:
+        claims.update(extra_claims)
+    return jwt.encode(claims, "test-secret", algorithm="HS256")
 
 
 def _client():
@@ -116,6 +115,67 @@ def test_tenant_mismatch(monkeypatch) -> None:
     response = client.get(
         "/v1/status",
         headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-beta"},
+    )
+    assert response.status_code == 403
+
+
+def test_invalid_jwt_signature_rejected(monkeypatch) -> None:
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    client = _client()
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "tenant_id": "tenant-alpha",
+        },
+        "wrong-secret",
+        algorithm="HS256",
+    )
+    response = client.get(
+        "/v1/status",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
+    )
+    assert response.status_code == 401
+
+
+def test_expired_jwt_rejected(monkeypatch) -> None:
+    import time
+
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    client = _client()
+    token = jwt.encode(
+        {
+            "sub": "user-123",
+            "roles": ["portfolio_admin"],
+            "tenant_id": "tenant-alpha",
+            "exp": int(time.time()) - 3600,
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
+    response = client.get(
+        "/v1/status",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
+    )
+    assert response.status_code == 401
+
+
+def test_empty_roles_blocked_for_write(monkeypatch) -> None:
+    monkeypatch.setenv("IDENTITY_JWT_SECRET", "test-secret")
+    client = _client()
+    token = jwt.encode(
+        {
+            "sub": "user-empty-roles",
+            "roles": [],
+            "tenant_id": "tenant-alpha",
+        },
+        "test-secret",
+        algorithm="HS256",
+    )
+    response = client.post(
+        "/v1/query",
+        headers={"Authorization": f"Bearer {token}", "X-Tenant-ID": "tenant-alpha"},
+        json={"query": "test"},
     )
     assert response.status_code == 403
 

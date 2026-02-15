@@ -46,8 +46,7 @@ def test_demo_ui_minimum_visible_counts() -> None:
 
 def test_web_demo_seed_has_required_ui_data() -> None:
     """Validate web demo seed data expected by UI navigation and demo flows."""
-    if not WEB_DEMO_SEED.exists():
-        return
+    assert WEB_DEMO_SEED.exists(), "apps/web/data/demo_seed.json must exist for demo mode"
 
     seed = _read_json(WEB_DEMO_SEED)
 

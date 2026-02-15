@@ -23,7 +23,7 @@ class WorkflowRuntime:
         approval_agent: ApprovalWorkflowAgent,
         agent_client: AgentClient | None = None,
         circuit_breakers: CircuitBreakerRegistry | None = None,
-        event_bus: Any | None = None,
+        event_bus: object | None = None,
     ) -> None:
         self.store = store
         self.approval_agent = approval_agent
@@ -871,46 +871,6 @@ class WorkflowRuntime:
         )
         key = f"{instance.tenant_id}:{instance.workflow_id}:{step['id']}"
         return self.circuit_breakers.get(key, breaker_config)
-
-    async def _handle_retry(
-        self,
-        instance: WorkflowInstance,
-        step_id: str,
-        attempts: int,
-        max_attempts: int,
-        delay_seconds: int,
-        step_output: dict[str, Any],
-        breaker: CircuitBreaker | None,
-        failure_message: str,
-    ) -> str:
-        if breaker:
-            breaker.record_failure()
-            if breaker.is_open():
-                self.store.upsert_step_state(
-                    instance.run_id, step_id, "paused", attempts, step_output
-                )
-                self.store.update_status(instance.run_id, "paused", step_id)
-                self.store.add_event(
-                    instance.run_id,
-                    "paused",
-                    f"Circuit opened for step {step_id} after failure",
-                    step_id,
-                )
-                return "pause"
-        if attempts < max_attempts:
-            self.store.upsert_step_state(
-                instance.run_id, step_id, "retrying", attempts, step_output
-            )
-            self.store.add_event(
-                instance.run_id,
-                "retrying",
-                f"{failure_message}. Retrying step {step_id} ({attempts}/{max_attempts})",
-                step_id,
-            )
-            if delay_seconds:
-                await asyncio.sleep(delay_seconds * (2 ** (attempts - 1)))
-            return "retry"
-        return "fail"
 
     def _next_step_id(
         self, step: dict[str, Any], payload: dict[str, Any], attempts: int = 1

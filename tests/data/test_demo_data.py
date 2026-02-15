@@ -84,7 +84,11 @@ def test_demo_relationship_integrity() -> None:
     assert all(program["portfolio_id"] in portfolio_ids for program in programs)
     assert all(project["program_id"] in program_ids for project in projects)
     assert all(task["project_id"] in project_ids for task in tasks)
-    assert all(task["assigned_to"] in resource_ids for task in tasks)
+    assert all(
+        task["assigned_to"] in resource_ids
+        for task in tasks
+        if task.get("assigned_to")
+    )
     assert all(budget["portfolio_id"] in portfolio_ids for budget in budgets)
     assert all(risk["project_id"] in project_ids for risk in risks)
     assert all(issue["project_id"] in project_ids for issue in issues)

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { allPermissionIds, hasPermission, resolvePermissions, type Role } from '@/auth/permissions';
+import { hasPermission, resolvePermissions, type Role } from '@/auth/permissions';
 import { useAppStore } from '@/store';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 
@@ -36,7 +36,7 @@ export function RequireAuth() {
           email: '',
           tenantId: data.tenant_id ?? 'default',
           roles,
-          permissions: allPermissionIds(),
+          permissions: [] as string[],
         };
 
         setSession({ authenticated: true, loading: false, user });
@@ -60,14 +60,16 @@ export function RequireAuth() {
           setSession({
             user: {
               ...user,
-              permissions: permissions.length > 0 ? permissions : allPermissionIds(),
+              permissions,
             },
           });
         } catch {
           if (!active) {
             return;
           }
-          setSession({ user: { ...user, permissions: allPermissionIds() } });
+          // Role resolution failed – grant no permissions rather than all.
+          // Downstream guards will show a 403 page where appropriate.
+          setSession({ user: { ...user, permissions: [] } });
         }
       } catch {
         if (!active) {
