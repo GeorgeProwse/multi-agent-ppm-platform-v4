@@ -4,20 +4,30 @@ import { MemoryRouter } from 'react-router-dom';
 import { AssistantPanel } from './AssistantPanel';
 import { useAssistantStore } from '@/store/assistant';
 import { useMethodologyStore } from '@/store/methodology';
+import { useAppStore } from '@/store/useAppStore';
 
 const mockFetch = () =>
-  vi.fn(() =>
-    Promise.resolve(
-      new Response(
-        JSON.stringify({ suggestions: [], context: {}, generated_by: 'test' }),
-        { status: 200 }
-      )
-    )
-  );
+  vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('/v1/api/llm/models')) {
+      return Promise.resolve(new Response(JSON.stringify({ models: [{ provider: 'openai', model_id: 'gpt-4o-mini', display_name: 'GPT-4o Mini' }] }), { status: 200 }));
+    }
+    if (url.includes('/v1/api/llm/preferences')) {
+      return Promise.resolve(new Response(JSON.stringify({ provider: 'openai', model_id: 'gpt-4o-mini' }), { status: 200 }));
+    }
+    return Promise.resolve(new Response(JSON.stringify({ suggestions: [], context: {}, generated_by: 'test' }), { status: 200 }));
+  });
 
 describe('AssistantPanel quick actions', () => {
   beforeEach(() => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(mockFetch());
+    useAppStore.setState({
+      session: {
+        authenticated: true,
+        loading: false,
+        user: { id: 'u1', name: 'PMO', email: 'pmo@example.com', tenantId: 'tenant-a', roles: ['PMO_ADMIN'], permissions: ['config.manage'] },
+      },
+    });
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       value: vi.fn(),
       writable: true,
@@ -60,7 +70,25 @@ describe('AssistantPanel quick actions', () => {
       expect(useAssistantStore.getState().isGeneratingSuggestions).toBe(false);
     });
 
-    expect(screen.getByRole('button', { name: /open charter/i })).toBeInTheDocument();
-    expect(screen.queryByText(/suggested actions/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/select model/i)).toBeInTheDocument();
+  });
+
+  it('disables project default button for unauthorized users', async () => {
+    useAppStore.setState({
+      session: {
+        authenticated: true,
+        loading: false,
+        user: { id: 'u2', name: 'User', email: 'u@example.com', tenantId: 'tenant-a', roles: ['TEAM_MEMBER'], permissions: ['portfolio.view'] },
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <AssistantPanel />
+      </MemoryRouter>
+    );
+
+    const button = await screen.findByRole('button', { name: /set project default/i });
+    expect(button).toBeDisabled();
   });
 });

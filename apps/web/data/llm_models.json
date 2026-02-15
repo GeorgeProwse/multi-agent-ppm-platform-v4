@@ -1,0 +1,26 @@
+[
+  {
+    "provider": "openai",
+    "model_id": "gpt-4o-mini",
+    "display_name": "OpenAI GPT-4o Mini",
+    "enabled": true,
+    "capabilities": ["chat", "json"],
+    "allow_in_demo": true
+  },
+  {
+    "provider": "anthropic",
+    "model_id": "claude-3-5-haiku-latest",
+    "display_name": "Anthropic Claude 3.5 Haiku",
+    "enabled": true,
+    "capabilities": ["chat", "json"],
+    "allow_in_demo": true
+  },
+  {
+    "provider": "google",
+    "model_id": "gemini-1.5-flash",
+    "display_name": "Google Gemini 1.5 Flash",
+    "enabled": true,
+    "capabilities": ["chat", "json"],
+    "allow_in_demo": false
+  }
+]

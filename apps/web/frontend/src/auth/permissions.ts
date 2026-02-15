@@ -36,6 +36,11 @@ export const permissionOptions = [
     description: 'Update agents, connectors, and workflows.',
   },
   {
+    id: 'llm.manage',
+    label: 'Manage LLM defaults',
+    description: 'Set tenant/project default LLM provider and model.',
+  },
+  {
     id: 'analytics.view',
     label: 'View analytics',
     description: 'Access KPI dashboards and analytics summaries.',
@@ -93,7 +98,7 @@ export function hasAnyPermission(
 }
 
 export function canManageConfig(permissions: string[] | undefined | null): boolean {
-  return hasPermission(permissions, 'config.manage');
+  return hasAnyPermission(permissions, ['config.manage', 'llm.manage']);
 }
 
 export function canViewAuditLogs(permissions: string[] | undefined | null): boolean {

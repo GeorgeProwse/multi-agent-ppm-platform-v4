@@ -4,11 +4,15 @@ import { formatAssistantResponse } from '@/utils/assistantResponses';
 
 interface UseAssistantChatOptions {
   projectId: string | null | undefined;
+  provider?: string | null;
+  modelId?: string | null;
   onFallbackResponse: (userInput: string) => void;
 }
 
 export function useAssistantChat({
   projectId,
+  provider,
+  modelId,
   onFallbackResponse,
 }: UseAssistantChatOptions) {
   const { addUserMessage, addAssistantMessage, setAiState, setTypingStatus } = useAssistantStore();
@@ -44,6 +48,8 @@ export function useAssistantChat({
           body: JSON.stringify({
             project_id: projectId,
             query: messageText,
+            provider: provider ?? undefined,
+            model_id: modelId ?? undefined,
           }),
           signal: controller.signal,
         });
@@ -82,7 +88,7 @@ export function useAssistantChat({
     onFallbackResponse(messageText);
     setAiState('completed');
     setTypingStatus(null);
-  }, [addAssistantMessage, addUserMessage, onFallbackResponse, projectId, setAiState, setTypingStatus]);
+  }, [addAssistantMessage, addUserMessage, modelId, onFallbackResponse, projectId, provider, setAiState, setTypingStatus]);
 
   return {
     sendMessage,
