@@ -30,3 +30,8 @@ python services/data-service/main.py
 ```
 
 Seed schemas from `data/schemas` by default; set `DATA_SERVICE_LOAD_SEED_SCHEMAS=false` to disable.
+
+## Generated docs
+
+- Endpoint reference (source of truth): [`docs/generated/services/data-service.md`](../../docs/generated/services/data-service.md).
+- Regenerate with: `python ops/tools/codegen/generate_docs.py`.

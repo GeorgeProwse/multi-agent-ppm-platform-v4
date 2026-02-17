@@ -62,3 +62,10 @@ Services use shared `.env` settings plus service-specific env vars documented in
 
 - Service not listed: ensure the service folder exists under `services/`.
 - Startup errors: confirm database and external service endpoints are reachable.
+
+## Generated API docs (source of truth)
+
+Service endpoint documentation is generated from FastAPI route decorators and published under [`docs/generated/services/`](../docs/generated/services/).
+
+- Index: [`docs/generated/services/README.md`](../docs/generated/services/README.md)
+- Regenerate: `python ops/tools/codegen/generate_docs.py`

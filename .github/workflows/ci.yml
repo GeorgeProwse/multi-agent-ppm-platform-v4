@@ -59,6 +59,9 @@ jobs:
       - name: Enforce connector maturity gate
         run: make check-connector-maturity
 
+      - name: Enforce generated docs are current
+        run: make check-generated-docs
+
       - name: Run Ruff
         run: ruff check agents/ apps/ packages/ tests/ --output-format=github
 

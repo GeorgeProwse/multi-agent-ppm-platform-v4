@@ -61,6 +61,13 @@ format: ## Format code with black and ruff
 codegen: ## Validate OpenAPI spec and generate summaries
 	$(PYTHON) -m tools.codegen.run
 
+docs-generate: ## Generate code-derived service and connector docs
+	$(PYTHON) ops/tools/codegen/generate_docs.py
+
+check-generated-docs: ## Ensure generated documentation artifacts are up to date
+	$(PYTHON) ops/tools/codegen/generate_docs.py
+	git diff --exit-code -- docs/generated/services docs/connectors/generated
+
 check-links: ## Validate internal markdown links
 	$(PYTHON) scripts/check-links.py
 

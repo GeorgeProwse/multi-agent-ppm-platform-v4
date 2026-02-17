@@ -40,3 +40,8 @@ passing, and exposes orchestration + connector integration endpoints for the pla
 ```bash
 python -m tools.component_runner run --type service --name agent-runtime --dry-run
 ```
+
+## Generated docs
+
+- Endpoint reference (source of truth): [`docs/generated/services/agent-runtime.md`](../../docs/generated/services/agent-runtime.md).
+- Regenerate with: `python ops/tools/codegen/generate_docs.py`.
