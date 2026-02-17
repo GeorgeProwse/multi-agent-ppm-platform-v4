@@ -48,7 +48,7 @@ jobs:
         run: python scripts/check_api_versioning.py
 
       - name: Enforce connector maturity gate
-        run: python scripts/check_connector_maturity.py
+        run: make check-connector-maturity
 
       - name: Run Ruff
         run: ruff check agents/ apps/ packages/ tests/ --output-format=github
