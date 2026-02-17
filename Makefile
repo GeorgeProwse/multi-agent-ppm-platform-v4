@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-quick test-all test-unit test-integration test-e2e test-security test-cov test-watch lint format codegen check-links check-placeholders check-root-layout secret-scan env-validate smoke-workspace-wiring dev-up dev-up-full dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
+.PHONY: help install install-dev test test-quick test-all test-unit test-integration test-e2e test-security test-cov test-watch lint format codegen check-links check-placeholders check-root-layout check-connector-maturity secret-scan env-validate smoke-workspace-wiring dev-up dev-up-full dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
 
 # Default target
 .DEFAULT_GOAL := help
@@ -69,6 +69,9 @@ check-placeholders: ## Scan for placeholder phrases in docs and configs
 
 check-root-layout: ## Validate repository root allowlist
 	$(PYTHON) ops/tools/check_root_layout.py
+
+check-connector-maturity: ## Enforce connector maturity policy thresholds
+	$(PYTHON) ops/tools/check_connector_maturity.py
 
 secret-scan: ## Scan repository for secrets (requires gitleaks)
 	gitleaks detect --source . --redact
@@ -175,7 +178,7 @@ k8s-delete: ## Delete Kubernetes deployment
 	kubectl delete -f infra/kubernetes/secrets.yaml
 
 # CI/CD
-ci-local: lint test check-links check-placeholders check-root-layout ## Run CI checks locally
+ci-local: lint test check-links check-placeholders check-root-layout check-connector-maturity ## Run CI checks locally
 
 # Documentation
 docs-serve: ## Serve documentation locally
@@ -189,7 +192,7 @@ env-copy: ## Copy .env.example to .env
 	cp .env.example .env
 	@echo "Created .env file. Please update with your values."
 
-check: lint test check-links check-placeholders check-root-layout ## Run all checks (lint + test + docs scans)
+check: lint test check-links check-placeholders check-root-layout check-connector-maturity ## Run all checks (lint + test + docs scans)
 
 all: clean install-dev lint test ## Clean, install, lint, and test
 
