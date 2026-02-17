@@ -11,13 +11,23 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
-from uuid import NAMESPACE_URL, uuid4, uuid5
 from urllib.parse import urlencode
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import httpx
 import jwt
 import yaml
-from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -41,9 +51,6 @@ for root in (REPO_ROOT, OBSERVABILITY_ROOT, SECURITY_ROOT, LLM_ROOT, FEATURE_FLA
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-from packages.version import API_VERSION  # noqa: E402
-from runtime_flags import demo_mode_enabled  # noqa: E402
-from config import validate_startup_config  # noqa: E402
 from agent_registry import load_agent_registry  # noqa: E402
 from agent_settings_models import (  # noqa: E402
     AgentConfigUpdate,
@@ -51,7 +58,12 @@ from agent_settings_models import (  # noqa: E402
 )
 from agent_settings_store import AgentSettingsStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
+from canonical_template_registry import (  # noqa: E402
+    get_catalog_template,
+    list_catalog_templates,
+)
 from connector_hub_proxy import ConnectorHubClient  # noqa: E402
+from data_service_proxy import DataServiceClient  # noqa: E402
 from demo_integrations import (  # noqa: E402
     DemoAnalyticsServiceClient,
     DemoConnectorHubClient,
@@ -63,54 +75,51 @@ from demo_seed import (  # noqa: E402
     DEMO_TENANT_ID,
     seed_demo_data,
 )
-from data_service_proxy import DataServiceClient  # noqa: E402
 from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
 from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
-from knowledge_store import KnowledgeStore  # noqa: E402
 from intake_models import (  # noqa: E402
     IntakeDecision,
     IntakeRequest,
     IntakeRequestCreate,
 )
 from intake_store import IntakeStore  # noqa: E402
-from merge_review_models import MergeDecision, MergeReviewCase  # noqa: E402
-from merge_review_store import MergeReviewStore  # noqa: E402
-from llm_preferences_store import LLMPreferencesStore  # noqa: E402
-from pipeline_models import (  # noqa: E402
-    PipelineBoard,
-    PipelineItem,
-    PipelineItemUpdate,
-)
-from pipeline_store import PipelineStore  # noqa: E402
-from workflow_models import (  # noqa: E402
-    WorkflowDefinitionPayload,
-    WorkflowDefinitionRecord,
-    WorkflowDefinitionSummary,
-)
-from workflow_store import WorkflowDefinitionStore  # noqa: E402
+from knowledge_store import KnowledgeStore  # noqa: E402
 from lineage_proxy import LineageServiceClient  # noqa: E402
 from llm.client import LLMGateway, LLMProviderError  # noqa: E402
-from model_registry import get_enabled_models  # noqa: E402
+from merge_review_models import MergeDecision, MergeReviewCase  # noqa: E402
+from merge_review_store import MergeReviewStore  # noqa: E402
 from methodologies import (  # noqa: E402
     METHODOLOGY_STORAGE_PATH,
     available_methodologies,
     get_default_methodology_map,
     get_methodology_map,
 )
+from methodology_node_runtime import (  # noqa: E402
+    list_runtime_actions_for_node,
+    load_methodology_node_runtime_registry,
+    resolve_runtime,
+)
+from model_registry import get_enabled_models  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing, get_trace_id  # noqa: E402
 from oidc_client import OIDCClient  # noqa: E402
 from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
+from pipeline_models import (  # noqa: E402
+    PipelineBoard,
+    PipelineItem,
+    PipelineItemUpdate,
+)
+from pipeline_store import PipelineStore  # noqa: E402
+from runtime_lifecycle_store import RuntimeLifecycleStore  # noqa: E402
+from search_service import SearchService, _match_score  # noqa: E402
+from security.api_governance import (  # noqa: E402
+    apply_api_governance,
+    version_response_payload,
+)
 from security.audit_log import build_event, get_audit_log_store  # noqa: E402
-from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from agents.runtime.src.orchestrator import Orchestrator  # noqa: E402
-from security.config import load_yaml as load_yaml_config  # noqa: E402
-from security.errors import register_error_handlers  # noqa: E402
-from security.headers import SecurityHeadersMiddleware  # noqa: E402
 from security.prompt_safety import evaluate_prompt  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
-from search_service import SearchService, _match_score  # noqa: E402
 from spreadsheet_models import (  # noqa: E402
     ColumnCreate,
     DeleteResult,
@@ -123,8 +132,11 @@ from spreadsheet_models import (  # noqa: E402
     SheetDetail,
 )
 from spreadsheet_store import SpreadsheetStore  # noqa: E402
-from template_models import (  # noqa: E402
-    Template as DeliverableTemplate,
+from template_mappings import (  # noqa: E402
+    TemplateMapping,
+    get_template_mapping,
+    list_templates_for_methodology_node,
+    load_template_mappings,
 )
 from template_models import (
     CanonicalTemplateDefinition,
@@ -135,26 +147,8 @@ from template_models import (
     build_placeholder_context,
     render_template_value_with_unresolved,
 )
-from template_models import (
-    TemplateSummary as DeliverableTemplateSummary,
-)
 from template_registry import (  # noqa: E402
     get_template as get_deliverable_template,
-)
-from template_mappings import (  # noqa: E402
-    TemplateMapping,
-    get_template_mapping,
-    list_templates_for_methodology_node,
-    load_template_mappings,
-)
-from methodology_node_runtime import (  # noqa: E402
-    list_runtime_actions_for_node,
-    load_methodology_node_runtime_registry,
-    resolve_runtime,
-)
-from canonical_template_registry import (  # noqa: E402
-    get_catalog_template,
-    list_catalog_templates,
 )
 from timeline_models import (  # noqa: E402
     Milestone,
@@ -174,6 +168,12 @@ from tree_models import (  # noqa: E402
     TreeNodeUpdate,
 )
 from tree_store import TreeStore  # noqa: E402
+from workflow_models import (  # noqa: E402
+    WorkflowDefinitionPayload,
+    WorkflowDefinitionRecord,
+    WorkflowDefinitionSummary,
+)
+from workflow_store import WorkflowDefinitionStore  # noqa: E402
 from workspace_state import (  # noqa: E402
     ActivityCompletionUpdate,
     CanvasTab,
@@ -182,7 +182,13 @@ from workspace_state import (  # noqa: E402
     WorkspaceState,
 )
 from workspace_state_store import WorkspaceStateStore  # noqa: E402
-from runtime_lifecycle_store import RuntimeLifecycleStore  # noqa: E402
+
+from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.orchestrator import Orchestrator  # noqa: E402
+from config import validate_startup_config  # noqa: E402
+from packages.version import API_VERSION  # noqa: E402
+from runtime_flags import demo_mode_enabled  # noqa: E402
+from security.config import load_yaml as load_yaml_config  # noqa: E402
 
 WEB_ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = WEB_ROOT / "static"
@@ -244,8 +250,7 @@ configure_tracing("web-ui")
 configure_metrics("web-ui")
 app.add_middleware(TraceMiddleware, service_name="web-ui")
 app.add_middleware(RequestMetricsMiddleware, service_name="web-ui")
-app.add_middleware(SecurityHeadersMiddleware)
-register_error_handlers(app)
+apply_api_governance(app, service_name="web")
 
 knowledge_store: KnowledgeStore | None = None
 workspace_state_store = WorkspaceStateStore(WORKSPACE_STATE_PATH)
@@ -448,7 +453,7 @@ class ActivitySummary(BaseModel):
     connector_id: str | None = None
     access: ActivityAccessSummary
     completed: bool
-    children: list["ActivitySummary"] = Field(default_factory=list)
+    children: list[ActivitySummary] = Field(default_factory=list)
 
 
 class StageProgressSummary(BaseModel):
@@ -1714,11 +1719,7 @@ async def healthz(response: Response) -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return {
-        "service": "web-ui",
-        "api_version": API_VERSION,
-        "build_sha": os.getenv("BUILD_SHA", "unknown"),
-    }
+    return version_response_payload("web")
 
 
 def _oidc_required(name: str) -> str:
@@ -6282,7 +6283,7 @@ async def create_dashboard_what_if(
 ) -> Response:
     if _demo_mode_enabled():
         scenario_hash = hashlib.sha1(
-            f"{project_id}:{payload.scenario}:{json.dumps(payload.adjustments, sort_keys=True)}".encode("utf-8")
+            f"{project_id}:{payload.scenario}:{json.dumps(payload.adjustments, sort_keys=True)}".encode()
         ).hexdigest()[:10]
         baseline_payload = _dashboard_demo_payload_or_default(
             "project-dashboard-kpis.json",

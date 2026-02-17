@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -17,14 +16,17 @@ for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, COMMON_ROOT):
         sys.path.insert(0, str(root))
 
 from leader_election import build_leader_elector  # noqa: E402
-from config import validate_startup_config  # noqa: E402
 from observability.logging import configure_logging  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from orchestrator import AgentOrchestrator  # noqa: E402
+from security.api_governance import (  # noqa: E402
+    apply_api_governance,
+    version_response_payload,
+)
 from security.auth import AuthTenantMiddleware  # noqa: E402
-from security.errors import register_error_handlers  # noqa: E402
-from security.headers import SecurityHeadersMiddleware  # noqa: E402
+
+from config import validate_startup_config  # noqa: E402
 from packages.version import API_VERSION  # noqa: E402
 
 logger = logging.getLogger("orchestration-service")
@@ -37,13 +39,12 @@ api_router = APIRouter(prefix="/v1")
 app.add_middleware(
     AuthTenantMiddleware, exempt_paths={"/health", "/healthz", "/health/ready", "/version"}
 )
-app.add_middleware(SecurityHeadersMiddleware)
 configure_tracing("orchestration-service")
 configure_metrics("orchestration-service")
 configure_logging("orchestration-service")
 app.add_middleware(TraceMiddleware, service_name="orchestration-service")
 app.add_middleware(RequestMetricsMiddleware, service_name="orchestration-service")
-register_error_handlers(app)
+apply_api_governance(app, service_name="orchestration-service")
 
 
 class HealthResponse(BaseModel):
@@ -138,11 +139,7 @@ async def health(request: Request, response: Response) -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return {
-        "service": "orchestration-service",
-        "api_version": API_VERSION,
-        "build_sha": os.getenv("BUILD_SHA", "unknown"),
-    }
+    return version_response_payload("orchestration-service")
 
 
 @app.get("/health/ready")

@@ -20,15 +20,18 @@ for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-from packages.version import API_VERSION  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from policy_config import DEFAULT_POLICY_BUNDLE_PATH  # noqa: E402
+from security.api_governance import (  # noqa: E402
+    apply_api_governance,
+    version_response_payload,
+)
 from security.auth import AuthTenantMiddleware  # noqa: E402
-from security.config import load_yaml  # noqa: E402
-from security.errors import register_error_handlers  # noqa: E402
-from security.headers import SecurityHeadersMiddleware  # noqa: E402
+
 from agents.runtime.src.policy import evaluate_compliance_controls  # noqa: E402
+from packages.version import API_VERSION  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("policy-engine")
 logging.basicConfig(level=logging.INFO)
@@ -92,12 +95,11 @@ class ComplianceEvaluationResponse(BaseModel):
 app = FastAPI(title="Policy Engine", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")
 app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
-app.add_middleware(SecurityHeadersMiddleware)
 configure_tracing("policy-engine")
 configure_metrics("policy-engine")
 app.add_middleware(TraceMiddleware, service_name="policy-engine")
 app.add_middleware(RequestMetricsMiddleware, service_name="policy-engine")
-register_error_handlers(app)
+apply_api_governance(app, service_name="policy-engine")
 
 
 @app.on_event("startup")
@@ -139,11 +141,7 @@ async def healthz() -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return {
-        "service": "policy-engine",
-        "api_version": API_VERSION,
-        "build_sha": os.getenv("BUILD_SHA", "unknown"),
-    }
+    return version_response_payload("policy-engine")
 
 
 def _load_default_policies() -> dict[str, Any]:

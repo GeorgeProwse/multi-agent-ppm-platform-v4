@@ -13,9 +13,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, Field
-from sqlalchemy.exc import SQLAlchemyError
 
 from jsonschema import Draft202012Validator, FormatChecker, SchemaError
+from sqlalchemy.exc import SQLAlchemyError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SECURITY_ROOT = REPO_ROOT / "packages" / "security" / "src"
@@ -25,14 +25,15 @@ for root in (REPO_ROOT, SECURITY_ROOT, OBSERVABILITY_ROOT, FEATURE_FLAGS_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
+from feature_flags import is_feature_enabled  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from retention_scheduler import RetentionScheduler  # noqa: E402
-from feature_flags import is_feature_enabled  # noqa: E402
+from security.api_governance import (  # noqa: E402
+    apply_api_governance,
+    version_response_payload,
+)
 from security.auth import AuthTenantMiddleware  # noqa: E402
-from security.config import load_yaml  # noqa: E402
-from security.errors import register_error_handlers  # noqa: E402
-from security.headers import SecurityHeadersMiddleware  # noqa: E402
 from storage import (  # noqa: E402
     DataServiceStore,
     EntityRecord,
@@ -40,7 +41,9 @@ from storage import (  # noqa: E402
     SchemaRecord,
     to_async_database_url,
 )
+
 from packages.version import API_VERSION
+from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("data-service")
 logging.basicConfig(level=logging.INFO)
@@ -138,12 +141,11 @@ class RetentionStatusResponse(BaseModel):
 app = FastAPI(title="Data Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")
 app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
-app.add_middleware(SecurityHeadersMiddleware)
 configure_tracing("data-service")
 configure_metrics("data-service")
 app.add_middleware(TraceMiddleware, service_name="data-service")
 app.add_middleware(RequestMetricsMiddleware, service_name="data-service")
-register_error_handlers(app)
+apply_api_governance(app, service_name="data-service")
 
 
 @app.on_event("startup")
@@ -197,11 +199,7 @@ async def healthz() -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return {
-        "service": "data-service",
-        "api_version": API_VERSION,
-        "build_sha": os.getenv("BUILD_SHA", "unknown"),
-    }
+    return version_response_payload("data-service")
 
 
 @api_router.get("/retention/status", response_model=RetentionStatusResponse)
