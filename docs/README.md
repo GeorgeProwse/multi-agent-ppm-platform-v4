@@ -14,6 +14,8 @@ This directory contains the canonical documentation set for the multi-agent PPM 
 | [assets/ui/screenshots/](./assets/ui/screenshots/) | Centralized UI screenshots for documentation |
 | [compliance/](./compliance/) | Compliance guidance, DPIA, threat model |
 | [connectors/](./connectors/) | Connector documentation and integration guides |
+| [generated/services/](./generated/services/) | Generated FastAPI endpoint references per service |
+| [connectors/generated/](./connectors/generated/) | Generated connector capability docs from manifests + maturity inventory |
 | [data/](./data/) | Data model, quality, and lineage docs |
 | [methodology/](./methodology/) | Methodology maps (adaptive, predictive, hybrid) with templates |
 | [onboarding/](./onboarding/) | Developer onboarding guides |
@@ -54,3 +56,16 @@ No configuration. Documentation content lives in Markdown and YAML files under t
 
 - Broken links: run the link checker and fix any relative path mismatches.
 - Missing diagrams: verify files exist under `docs/architecture/diagrams/` where referenced.
+
+## Generated artifacts
+
+The following docs are code-derived and should be treated as source of truth:
+
+- Service endpoints: [`docs/generated/services/`](./generated/services/)
+- Connector capabilities: [`docs/connectors/generated/capability-matrix.md`](./connectors/generated/capability-matrix.md)
+
+Regenerate them with:
+
+```bash
+python ops/tools/codegen/generate_docs.py
+```

@@ -42,3 +42,8 @@ Service-specific environment variables should be defined in `.env` and, for prod
 
 - Missing env vars: review the service README or source code for required settings.
 - Port conflicts: adjust `PORT` or Docker/Helm values.
+
+## Generated docs
+
+- Endpoint reference (source of truth): [`docs/generated/services/policy-engine.md`](../../docs/generated/services/policy-engine.md).
+- Regenerate with: `python ops/tools/codegen/generate_docs.py`.
