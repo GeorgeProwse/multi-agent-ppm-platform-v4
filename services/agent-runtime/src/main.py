@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,15 +13,17 @@ for root in (REPO_ROOT, SECURITY_ROOT):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
 
-from packages.version import API_VERSION  # noqa: E402
 from runtime import AgentRuntime  # noqa: E402
-from security.errors import register_error_handlers  # noqa: E402
-from security.headers import SecurityHeadersMiddleware  # noqa: E402
+from security.api_governance import (  # noqa: E402
+    apply_api_governance,
+    version_response_payload,
+)
+
+from packages.version import API_VERSION  # noqa: E402
 
 app = FastAPI(title="Agent Runtime Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")
-app.add_middleware(SecurityHeadersMiddleware)
-register_error_handlers(app)
+apply_api_governance(app, service_name="agent-runtime")
 
 runtime = AgentRuntime()
 
@@ -90,11 +91,7 @@ async def healthz() -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return {
-        "service": "agent-runtime",
-        "api_version": API_VERSION,
-        "build_sha": os.getenv("BUILD_SHA", "unknown"),
-    }
+    return version_response_payload("agent-runtime")
 
 
 @api_router.get("/agents")

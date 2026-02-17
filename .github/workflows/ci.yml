@@ -47,6 +47,9 @@ jobs:
       - name: Verify API versioning
         run: python scripts/check_api_versioning.py
 
+      - name: Enforce service API governance contracts
+        run: pytest tests/contract/test_service_api_governance.py -v
+
       - name: Enforce connector maturity gate
         run: make check-connector-maturity
 
