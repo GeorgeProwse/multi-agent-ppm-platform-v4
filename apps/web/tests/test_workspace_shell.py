@@ -56,6 +56,16 @@ def test_v1_workspace_route_redirects_to_base_app_without_query():
     assert response.headers["location"] == "/app"
 
 
+def test_workspace_route_emits_compatibility_redirect_log():
+    module = importlib.reload(main)
+    client = TestClient(module.app)
+
+    response = client.get("/v1/workspace?project_id=demo-1", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/app?project_id=demo-1"
+
+
 def test_session_api_contract_is_json_for_spa_bootstrap():
     client = TestClient(importlib.reload(main).app)
     response = client.get("/v1/session")
