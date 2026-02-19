@@ -1338,7 +1338,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="in_progress",
             owner="PMO",
             summary="Modernize core platforms and data foundations.",
-            url=f"/workspace?program_id={program_id}",
+            url=f"/app/programs/{program_id}",
         ),
         DependencyNode(
             id=f"{program_id}-proj-crm",
@@ -1347,7 +1347,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="at_risk",
             owner="Revenue Ops",
             summary="Move sales workflows to new CRM environment.",
-            url="/workspace?project_id=crm-migration",
+            url="/app/projects/crm-migration",
         ),
         DependencyNode(
             id=f"{program_id}-proj-data",
@@ -1356,7 +1356,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="in_progress",
             owner="Data Platform",
             summary="Harden ingestion pipelines and governance rules.",
-            url="/workspace?project_id=data-lake-uplift",
+            url="/app/projects/data-lake-uplift",
         ),
         DependencyNode(
             id=f"{program_id}-task-api",
@@ -1365,7 +1365,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="planned",
             owner="Engineering",
             summary="Finalize gateway routes before CRM launch.",
-            url="/workspace?project_id=crm-migration&canvas=dependency-map",
+            url="/app/projects/crm-migration",
         ),
         DependencyNode(
             id=f"{program_id}-task-privacy",
@@ -1374,7 +1374,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="in_progress",
             owner="Security",
             summary="Run DPIA and retention review for new data lake.",
-            url="/workspace?project_id=data-lake-uplift&canvas=dependency-map",
+            url="/app/projects/data-lake-uplift",
         ),
         DependencyNode(
             id=f"{program_id}-milestone-ga",
@@ -1383,7 +1383,7 @@ def _mock_dependency_map(program_id: str) -> DependencyMapResponse:
             status="planned",
             owner="PMO",
             summary="Go-live for the unified platform release.",
-            url="/workspace?program_id=launch",
+            url="/app/programs/launch",
         ),
     ]
     links = [
