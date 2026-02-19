@@ -35,7 +35,7 @@ def test_demo_scenario_files_exist():
         assert (DEMO_DIR / filename).exists()
 
 
-def test_workspace_demo_route_redirects_to_spa_entrypoint():
+def test_workspace_demo_route_is_retired():
     import importlib
     import sys
     import types
@@ -70,5 +70,4 @@ def test_workspace_demo_route_redirects_to_spa_entrypoint():
     client = TestClient(importlib.reload(main).app)
     response = client.get("/v1/workspace?demo=true", follow_redirects=False)
 
-    assert response.status_code == 307
-    assert response.headers["location"] == "/app?demo=true"
+    assert response.status_code == 404

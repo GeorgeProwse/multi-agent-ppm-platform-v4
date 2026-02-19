@@ -40,7 +40,7 @@ To avoid a single cutover, migration executes in two controlled phases.
 
 ### Phase A: redirect-only compatibility + monitoring
 
-- Keep `GET /v1/workspace` active as a compatibility route and always return a redirect to `/app`.
+- Retire `GET /v1/workspace`; requests now return `404` while SPA entrypoints stay on `/v1/app` and `/app/*`.
 - Instrument and monitor:
   - hits to `/workspace`
   - redirect success rate
