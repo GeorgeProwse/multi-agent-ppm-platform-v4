@@ -266,16 +266,6 @@ runtime_lifecycle_store = RuntimeLifecycleStore(RUNTIME_LIFECYCLE_PATH)
 logger = logging.getLogger("web-ui")
 
 _meter = configure_metrics("web-ui")
-workspace_redirect_hits_total = _meter.create_counter(
-    name="workspace_redirect_hits_total",
-    description="Total compatibility hits to the legacy /workspace route.",
-    unit="1",
-)
-workspace_redirect_success_total = _meter.create_counter(
-    name="workspace_redirect_success_total",
-    description="Total successful compatibility redirects from /workspace to /app.",
-    unit="1",
-)
 post_login_landing_success_total = _meter.create_counter(
     name="post_login_landing_success_total",
     description="Total successful post-login landing redirects.",
@@ -7296,38 +7286,9 @@ async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
-@api_router.get("/workspace")
-async def workspace_shell_redirect(request: Request) -> RedirectResponse:
-    """Compatibility redirect to the SPA entrypoint."""
-    redirect_url = "/app"
-    if request.url.query:
-        redirect_url = f"{redirect_url}?{request.url.query}"
-    tenant_id = request.headers.get("X-Tenant-ID", "unknown")
-    workspace_redirect_hits_total.add(
-        1,
-        {
-            "tenant.id": tenant_id,
-            "has_query": bool(request.url.query),
-        },
-    )
-    workspace_redirect_success_total.add(
-        1,
-        {
-            "tenant.id": tenant_id,
-            "status": 307,
-        },
-    )
-    logger.info(
-        "workspace.redirect_to_spa",
-        extra={
-            "legacy_route": "/workspace",
-            "redirect_route": "/app",
-            "query": request.url.query,
-            "tenant_id": tenant_id,
-            "status_code": 307,
-        },
-    )
-    return RedirectResponse(url=redirect_url, status_code=307)
+@api_router.get("/app")
+async def v1_app_entrypoint() -> RedirectResponse:
+    return RedirectResponse(url="/app", status_code=307)
 
 
 app.include_router(api_router)

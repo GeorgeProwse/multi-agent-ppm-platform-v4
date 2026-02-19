@@ -40,30 +40,19 @@ def test_root_serves_spa_entrypoint_contract():
     assert response.headers["content-type"].startswith("text/html")
 
 
-def test_workspace_route_redirects_to_app_preserving_query_params():
-    client = TestClient(importlib.reload(main).app)
-    response = client.get("/v1/workspace?project_id=demo-1&demo=true", follow_redirects=False)
-
-    assert response.status_code == 307
-    assert response.headers["location"] == "/app?project_id=demo-1&demo=true"
-
-
-def test_v1_workspace_route_redirects_to_base_app_without_query():
+def test_workspace_route_contract_is_retired():
     client = TestClient(importlib.reload(main).app)
     response = client.get("/v1/workspace", follow_redirects=False)
 
+    assert response.status_code == 404
+
+
+def test_app_shell_route_contract_remains_healthy():
+    client = TestClient(importlib.reload(main).app)
+    response = client.get("/v1/app", follow_redirects=False)
+
     assert response.status_code == 307
     assert response.headers["location"] == "/app"
-
-
-def test_workspace_route_emits_compatibility_redirect_log():
-    module = importlib.reload(main)
-    client = TestClient(module.app)
-
-    response = client.get("/v1/workspace?project_id=demo-1", follow_redirects=False)
-
-    assert response.status_code == 307
-    assert response.headers["location"] == "/app?project_id=demo-1"
 
 
 def test_session_api_contract_is_json_for_spa_bootstrap():
