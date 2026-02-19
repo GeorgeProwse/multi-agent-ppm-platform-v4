@@ -81,6 +81,18 @@ npm run typecheck
 npm run lint
 ```
 
+### Legacy workspace artifact guard
+
+Run this check before opening a PR to ensure deprecated workspace entrypoints/assets are not reintroduced:
+
+```bash
+python apps/web/scripts/check_legacy_workspace_artifacts.py
+```
+
+The guard blocks these patterns by default: `@api_router.get("/workspace")`, `/workspace?`, `_workspace_redirect_to_spa`, and legacy shell bundle references (for example `workspace[.]js`, `workspace[.]css`).
+
+If a historical mention is intentional (for example in migration tests or changelog notes), add a narrowly scoped exception in `apps/web/scripts/legacy_workspace_guard_allowlist.txt` using the `path|check_id|contains` format.
+
 ### Backend Development
 
 1. Start the FastAPI backend:
