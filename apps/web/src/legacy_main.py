@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 import httpx
@@ -1768,6 +1768,33 @@ def _decode_cookie(token: str) -> dict[str, Any] | None:
         return None
 
 
+def _workspace_redirect_to_spa(path: str) -> str:
+    if path == "/workspace":
+        return "/app"
+
+    parsed = urlparse(path)
+    if parsed.path != "/workspace":
+        return path
+
+    params = parse_qs(parsed.query)
+    project_id = params.get("project_id", [None])[0]
+    if project_id:
+        return f"/app/projects/{project_id}"
+    return "/app"
+
+
+def _resolve_post_login_redirect(state_payload: dict[str, Any]) -> str:
+    return_to = state_payload.get("return_to")
+    if isinstance(return_to, str) and return_to.startswith("/"):
+        return _workspace_redirect_to_spa(return_to)
+
+    project_id = state_payload.get("project_id")
+    if project_id:
+        return f"/app/projects/{project_id}"
+
+    return "/app"
+
+
 def _random_token_urlsafe(length_bytes: int) -> str:
     return base64.urlsafe_b64encode(os.urandom(length_bytes)).rstrip(b"=").decode("utf-8")
 
@@ -3294,7 +3321,7 @@ async def login(request: Request) -> RedirectResponse:
         auth_dev_mode = os.getenv("AUTH_DEV_MODE", "false").lower() in {"1", "true", "yes"}
         environment = os.getenv("ENVIRONMENT", "development").lower()
         if auth_dev_mode and environment in {"dev", "development", "local", "test"}:
-            return RedirectResponse(url="/workspace")
+            return RedirectResponse(url="/app")
         raise HTTPException(status_code=500, detail="OIDC not configured")
 
     client = _oidc_client()
@@ -3379,12 +3406,7 @@ async def oidc_callback(request: Request) -> RedirectResponse:
         "subject": claims.get("sub"),
         "roles": roles,
     }
-    return_to = state_payload.get("return_to")
-    redirect_target = "/workspace"
-    if isinstance(return_to, str) and return_to.startswith("/"):
-        redirect_target = return_to
-    if state_payload.get("project_id"):
-        redirect_target = f"/workspace?project_id={state_payload.get('project_id')}"
+    redirect_target = _resolve_post_login_redirect(state_payload)
     response = RedirectResponse(url=redirect_target)
     response.set_cookie(
         SESSION_COOKIE,
