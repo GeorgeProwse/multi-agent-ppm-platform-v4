@@ -30,7 +30,6 @@ from fastapi import (
 )
 from fastapi.responses import (
     FileResponse,
-    HTMLResponse,
     JSONResponse,
     RedirectResponse,
     Response,
@@ -7231,29 +7230,16 @@ async def index() -> FileResponse:
 
 
 @api_router.get("/workspace")
-async def workspace_shell(request: Request) -> HTMLResponse:
-    demo_mode = request.query_params.get("demo") == "true"
-    script_name = "app.js" if demo_mode else "workspace.js"
-    html = """
-    <!doctype html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PPM Workspace</title>
-        <link rel="stylesheet" href="/static/styles.css" />
-        <link rel="stylesheet" href="/static/workspace.css" />
-      </head>
-      <body>
-        <a class="skip-link" href="#main-content">Skip to main content</a>
-        <main class="app" id="main-content">
-          <p>Loading workspace...</p>
-        </main>
-        <script src="/static/{script_name}"></script>
-      </body>
-    </html>
+async def workspace_shell_redirect(request: Request) -> RedirectResponse:
+    """Temporary compatibility redirect.
+
+    Phase 1 (current): redirect legacy /workspace clients to /app.
+    Phase 2 (post-migration): remove this route to return 404.
     """
-    return HTMLResponse(html.format(script_name=script_name))
+    redirect_url = "/app"
+    if request.url.query:
+        redirect_url = f"{redirect_url}?{request.url.query}"
+    return RedirectResponse(url=redirect_url, status_code=307)
 
 
 app.include_router(api_router)
