@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-quick test-all test-unit test-integration test-e2e test-security test-cov test-watch lint format codegen check-links check-placeholders check-root-layout check-connector-maturity check-security-baseline secret-scan env-validate smoke-workspace-wiring release-gate maturity-scorecard dev-up dev-up-full dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
+.PHONY: help install install-dev install-release-gate-core test test-quick test-all test-unit test-integration test-e2e test-security test-cov test-watch lint format codegen check-links check-placeholders check-root-layout check-connector-maturity check-security-baseline secret-scan env-validate smoke-workspace-wiring release-gate maturity-scorecard dev-up dev-up-full dev-down run-agent run-connector clean run-api run-web docker-build docker-up docker-down deploy-dev deploy-prod
 
 # Default target
 .DEFAULT_GOAL := help
@@ -6,7 +6,7 @@
 # Variables
 PYTHON := python3
 PIP := $(PYTHON) -m pip
-PYTEST := pytest
+PYTEST := $(PYTHON) -m pytest
 BLACK := black
 RUFF := ruff
 DOCKER_COMPOSE := docker-compose
@@ -23,8 +23,13 @@ install: ## Install production dependencies
 
 install-dev: ## Install development dependencies
 	$(PIP) install --upgrade pip setuptools wheel
-	$(PIP) install -e .[dev]
+	$(PIP) install -e .[dev,test]
 	pre-commit install
+
+install-release-gate-core: ## Install deps required for release-gate PROFILE=core unit/integration/security scope
+	$(PIP) install --upgrade pip setuptools wheel
+	$(PIP) install -e .[dev,test]
+	$(PIP) install slowapi cryptography sqlalchemy alembic celery email-validator
 
 test: ## Run tests
 	@$(MAKE) test-all
