@@ -4,6 +4,7 @@ import argparse
 import json
 import subprocess
 import time
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -123,7 +124,7 @@ def run_release_gate(profile: str, report_path: Path, continue_on_fail: bool = F
         ("unit-integration-security", "make test-unit"),
         ("unit-integration-security", "make test-integration"),
         ("unit-integration-security", "make test-security"),
-        ("contract-checks", "pytest tests/contract -v"),
+        ("contract-checks", f"{sys.executable} -m pytest tests/contract -v"),
         ("generated-doc-freshness", "make check-generated-docs"),
         ("maturity-thresholds", "python ops/tools/collect_maturity_score.py --artifact-root . --enforce-thresholds"),
     ]
@@ -138,19 +139,19 @@ def run_release_gate(profile: str, report_path: Path, continue_on_fail: bool = F
             ("full-profile-smoke-workflow", smoke_command),
             (
                 "restart-resilience",
-                "pytest tests/integration/test_orchestrator_persistence.py::test_orchestrator_state_persists_across_restart -v",
+                f"{sys.executable} -m pytest tests/integration/test_orchestrator_persistence.py::test_orchestrator_state_persists_across_restart -v",
             ),
             (
                 "idempotency-behavior",
-                "pytest tests/e2e/test_user_journey.py::test_workflow_idempotency_prevents_duplicate_side_effects -v",
+                f"{sys.executable} -m pytest tests/e2e/test_user_journey.py::test_workflow_idempotency_prevents_duplicate_side_effects -v",
             ),
             (
                 "connector-failure-isolation",
-                "pytest tests/integration/test_circuit_breaker.py::test_circuit_breaker_opens_and_recovers -v",
+                f"{sys.executable} -m pytest tests/integration/test_circuit_breaker.py::test_circuit_breaker_opens_and_recovers -v",
             ),
             (
                 "workflow-resume-after-restart",
-                "pytest tests/e2e/test_user_journey.py::test_workflow_resume_after_mid_workflow_failure -v",
+                f"{sys.executable} -m pytest tests/e2e/test_user_journey.py::test_workflow_resume_after_mid_workflow_failure -v",
             ),
         ]
     )

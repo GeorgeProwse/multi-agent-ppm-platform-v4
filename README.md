@@ -194,6 +194,13 @@ make test-security
 make test-cov
 ```
 
+Release gate (core profile):
+
+```bash
+make install-release-gate-core
+make release-gate PROFILE=core
+```
+
 Other useful checks:
 
 ```bash
