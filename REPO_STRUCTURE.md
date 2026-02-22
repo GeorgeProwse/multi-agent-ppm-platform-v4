@@ -196,7 +196,7 @@ multi-agent-ppm-platform-v4/
 │       │   ├── manifest.yaml
 │       │   ├── run_eval.py
 │       │   └── fixtures/{definition,prompt,tools,flow-*.yaml}
-│       ├── prompts/
+│       ├── agents/runtime/prompts/
 │       │   ├── README.md
 │       │   ├── prompt_registry.py
 │       │   ├── schema/prompt.schema.json
@@ -264,7 +264,7 @@ multi-agent-ppm-platform-v4/
 │   │   ├── Dockerfile
 │   │   ├── document_policy_config.py
 │   │   ├── helm/{Chart.yaml,values.yaml,templates/…}
-│   │   ├── policies/bundles/default-policy-bundle.yaml
+│   │   ├── ops/config/bundles/default-policy-bundle.yaml
 │   │   └── src/{config,document_policy,document_storage,main}.py
 │   ├── mobile/                              # React Native app
 │   │   ├── App.tsx
@@ -283,7 +283,7 @@ multi-agent-ppm-platform-v4/
 │   ├── orchestration-service/
 │   │   ├── Dockerfile
 │   │   ├── helm/{Chart.yaml,values.yaml,templates/…}
-│   │   ├── policies/bundles/default-policy-bundle.yaml
+│   │   ├── ops/config/bundles/default-policy-bundle.yaml
 │   │   └── src/{config,leader_election,main,orchestrator,
 │   │            persistence,workflow_client}.py
 │   ├── web/                                 # Main web application (Python + React)
@@ -367,7 +367,7 @@ multi-agent-ppm-platform-v4/
 │   │   │       │   ├── documents/coeditStore.ts
 │   │   │       │   ├── methodology/useMethodologyStore.ts
 │   │   │       │   ├── projectConnectors/useProjectConnectorStore.ts
-│   │   │       │   ├── prompts/usePromptStore.ts
+│   │   │       │   ├── agents/runtime/prompts/usePromptStore.ts
 │   │   │       │   └── realtime/useRealtimeStore.ts
 │   │   │       ├── styles/{index,tokens}.css
 │   │   │       ├── test/{accessibility,assistantResponses,prompts,
@@ -461,12 +461,12 @@ multi-agent-ppm-platform-v4/
 │   ├── fixtures/
 │   ├── lineage/
 │   ├── migrations/versions/
-│   ├── prompts/
+│   ├── agents/runtime/prompts/
 │   ├── quality/
 │   ├── schemas/examples/
 │   └── seed/
 │
-├── design-system/
+├── packages/ui-kit/design-system/
 │   ├── README.md
 │   ├── icons/icon-map.json
 │   ├── stories/{EmptyState,TokenPalette}.stories.tsx
@@ -543,11 +543,11 @@ multi-agent-ppm-platform-v4/
 │   ├── schema/
 │   └── workflows/
 │
-├── infra/
+├── ops/infra/
 │   ├── kubernetes/
 │   │   └── helm-charts/{observability,ppm-platform}/
 │   ├── observability/otel/helm/templates/
-│   ├── policies/dlp/bundles/
+│   ├── ops/config/dlp/bundles/
 │   └── terraform/envs/demo/
 │
 ├── integrations/
@@ -588,10 +588,10 @@ multi-agent-ppm-platform-v4/
 │   │   ├── connectors/  data-classification/  environments/
 │   │   ├── feature-flags/  iam/  plans/  rbac/
 │   │   ├── retention/  security/  signing/  tenants/
-│   ├── infra/
+│   ├── ops/infra/
 │   │   ├── kubernetes/{helm-charts/ppm-platform,manifests}/
 │   │   ├── observability/{alerts,dashboards,otel/helm/templates,slo}/
-│   │   ├── policies/{dlp,network,schema,security}/bundles/
+│   │   ├── ops/config/{dlp,network,schema,security}/bundles/
 │   │   ├── tenancy/
 │   │   └── terraform/
 │   │       ├── dr/  envs/{dev,prod,stage,test}/
@@ -629,16 +629,16 @@ multi-agent-ppm-platform-v4/
 │   ├── security/src/security/
 │   ├── testing/
 │   ├── ui-kit/
-│   │   ├── design-system/{icons,stories,tokens}/
+│   │   ├── packages/ui-kit/design-system/{icons,stories,tokens}/
 │   │   └── src/
 │   ├── vector_store/
 │   └── workflow/src/workflow/
 │
-├── policies/
+├── ops/config/
 │   ├── abac/
 │   └── rbac/
 │
-├── prompts/
+├── agents/runtime/prompts/
 │   ├── approval-workflow/
 │   ├── intent-router/
 │   ├── knowledge-agent/
@@ -693,7 +693,7 @@ multi-agent-ppm-platform-v4/
 │   ├── notification-service/
 │   │   ├── contracts/  helm/templates/  src/  templates/  tests/
 │   ├── policy-engine/
-│   │   ├── contracts/  helm/templates/  policies/{bundles,schema}/  src/  tests/
+│   │   ├── contracts/  helm/templates/  ops/config/{bundles,schema}/  src/  tests/
 │   ├── realtime-coedit-service/src/  tests/
 │   ├── scope_baseline/
 │   └── telemetry-service/
@@ -708,8 +708,8 @@ multi-agent-ppm-platform-v4/
     ├── observability/  ops/
     │   └── fixtures/check_placeholders/{valid,invalid}/
     ├── orchestrator/   packages/{common,security}/
-    ├── performance/    policies/  policy/  prompts/
-    ├── runtime/prompts/  security/  services/
+    ├── performance/    ops/config/  policy/  agents/runtime/prompts/
+    ├── runtime/agents/runtime/prompts/  security/  services/
     ├── tools/     vector_store/
     └── (test modules for all layers)
 ```
@@ -724,16 +724,16 @@ multi-agent-ppm-platform-v4/
 | `packages/` | Shared libraries: LLM abstraction, canvas engine, event bus, security, observability, contracts, UI kit |
 | `services/` | Backend microservices: auth, audit log, data lineage, data sync, identity access, notification, policy engine, telemetry |
 | `ops/` | Infrastructure-as-code (Terraform), Kubernetes Helm charts, observability config, RBAC/ABAC policies |
-| `infra/` | Additional Kubernetes Helm charts, OTel config, Terraform demo env, DLP policies |
+| `ops/infra/` | Additional Kubernetes Helm charts, OTel config, Terraform demo env, DLP policies |
 | `config/` | Runtime configuration for agents, connectors, feature flags, RBAC, demo workflows |
 | `docs/` | Architecture ADRs, API specs, runbooks, product docs, 100+ PM methodology templates |
 | `tests/` | Cross-cutting test suites: e2e, integration, contract, load, security |
 | `scripts/` | Repo-level scripts: schema validation, template checks, demo data generation, manifest validation |
 | `tools/` | Runtime tooling helpers: component runner, path resolution |
 | `agents/runtime/` | Agent runtime framework (base agent, orchestrator, state store, event bus, prompt registry) |
-| `design-system/` | Design tokens, icon map, Storybook stories |
-| `prompts/` | Versioned prompt files for each agent type |
-| `policies/` | ABAC / RBAC policy bundles |
+| `packages/ui-kit/design-system/` | Design tokens, icon map, Storybook stories |
+| `agents/runtime/prompts/` | Versioned prompt files for each agent type |
+| `ops/config/` | ABAC / RBAC policy bundles |
 | `security/` | Security configuration and tooling |
 | `examples/` | Connector configs, demo scenarios, methodology maps, workflow examples |
 | `artifacts/` | CI/CD generated reports: coverage, vulnerability scan, release gate, SLO, k6, DR |
