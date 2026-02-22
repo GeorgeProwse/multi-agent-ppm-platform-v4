@@ -1067,6 +1067,9 @@ def _demo_mode_enabled() -> bool:
 
 
 def _load_demo_dashboard_payload(filename: str) -> dict[str, Any] | None:
+    # Validate filename to prevent path traversal
+    if not re.fullmatch(r"[a-zA-Z0-9_.-]{1,128}", filename):
+        return None
     candidate_paths = [
         REPO_ROOT / "apps" / "web" / "data" / "demo_dashboards" / filename,
         REPO_ROOT / "examples" / "demo-scenarios" / filename,
@@ -1629,7 +1632,10 @@ def _format_credentials(connector_id: str, fields: list[str]) -> list[str]:
 
 
 def _load_connector_manifest(manifest_path: str) -> dict[str, Any] | None:
-    manifest_file = REPO_ROOT / manifest_path
+    manifest_file = (REPO_ROOT / manifest_path).resolve()
+    if not manifest_file.is_relative_to(REPO_ROOT):
+        logger.warning("Path traversal blocked in manifest load: %s", manifest_path)
+        return None
     if not manifest_file.exists():
         return None
     try:
@@ -1756,9 +1762,31 @@ def _decode_cookie(token: str) -> dict[str, Any] | None:
         return None
 
 
+def _is_safe_redirect_path(value: str) -> bool:
+    """Validate that a redirect target is a safe relative path (not an open redirect)."""
+    if not value.startswith("/"):
+        return False
+    # Block protocol-relative URLs (//evil.com) and backslash tricks
+    if value.startswith("//") or value.startswith("/\\"):
+        return False
+    # Block URLs with embedded credentials or schemes
+    if "://" in value or "@" in value:
+        return False
+    return True
+
+
+def _validate_project_id(value: str | None) -> str | None:
+    """Validate project_id is alphanumeric with hyphens/underscores only."""
+    if value is None:
+        return None
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", value):
+        return None
+    return value
+
+
 def _resolve_post_login_redirect(state_payload: dict[str, Any]) -> str:
     return_to = state_payload.get("return_to")
-    if isinstance(return_to, str) and return_to.startswith("/"):
+    if isinstance(return_to, str) and _is_safe_redirect_path(return_to):
         landing = return_to
         post_login_landing_success_total.add(
             1,
@@ -2038,7 +2066,8 @@ async def _llm_suggestions(
                 description=item.get("description"),
                 enabled=bool(item.get("enabled", True)),
             )
-        except Exception:  # pragma: no cover - defensive parsing
+        except Exception:  # pragma: no cover - defensive parsing  # noqa: BLE001
+            logger.debug("Skipping unparseable suggestion item: %s", item)
             continue
         suggestions.append(suggestion)
     return suggestions
@@ -3111,10 +3140,17 @@ async def _exchange_code_for_token(code: str) -> dict[str, Any]:
     if client_secret:
         payload["client_secret"] = client_secret
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(token_url, data=payload)
-        response.raise_for_status()
-        return response.json()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(token_url, data=payload)
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as exc:
+        logger.error("OIDC token exchange failed: status=%s", exc.response.status_code)
+        raise HTTPException(status_code=502, detail="OIDC token exchange failed") from exc
+    except httpx.RequestError as exc:
+        logger.error("OIDC token exchange request error: %s", exc)
+        raise HTTPException(status_code=502, detail="OIDC provider unreachable") from exc
 
 
 async def _decode_id_token(id_token: str) -> dict[str, Any]:
@@ -3122,10 +3158,17 @@ async def _decode_id_token(id_token: str) -> dict[str, Any]:
     audience = os.getenv("OIDC_AUDIENCE")
     issuer = os.getenv("OIDC_ISSUER")
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(jwks_url)
-        response.raise_for_status()
-        jwks = response.json()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(jwks_url)
+            response.raise_for_status()
+            jwks = response.json()
+    except httpx.HTTPStatusError as exc:
+        logger.error("OIDC JWKS fetch failed: status=%s", exc.response.status_code)
+        raise HTTPException(status_code=502, detail="OIDC JWKS fetch failed") from exc
+    except httpx.RequestError as exc:
+        logger.error("OIDC JWKS request error: %s", exc)
+        raise HTTPException(status_code=502, detail="OIDC JWKS endpoint unreachable") from exc
 
     unverified_header = jwt.get_unverified_header(id_token)
     kid = unverified_header.get("kid")
@@ -3310,8 +3353,10 @@ async def login(request: Request) -> RedirectResponse:
             redirect_uri = _oidc_required("OIDC_REDIRECT_URI")
             state = _random_token_urlsafe(16)
             nonce = _random_token_urlsafe(16)
-            project_id = request.query_params.get("project_id")
+            project_id = _validate_project_id(request.query_params.get("project_id"))
             return_to = request.query_params.get("return_to")
+            if return_to and not _is_safe_redirect_path(return_to):
+                return_to = None
             params = {
                 "client_id": client_id,
                 "response_type": "code",
@@ -3348,8 +3393,10 @@ async def login(request: Request) -> RedirectResponse:
     discovery = await client.discover()
     state = _random_token_urlsafe(16)
     nonce = _random_token_urlsafe(16)
-    project_id = request.query_params.get("project_id")
+    project_id = _validate_project_id(request.query_params.get("project_id"))
     return_to = request.query_params.get("return_to")
+    if return_to and not _is_safe_redirect_path(return_to):
+        return_to = None
 
     params = {
         "client_id": client.client_id,
@@ -5087,8 +5134,8 @@ async def assistant_query(
                         summary=str(data.get("summary", "")),
                         items=[str(item) for item in data.get("items", []) if isinstance(item, (str, int, float))],
                     )
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001
+                logger.exception("LLM assistant query failed for query: %s", query_text[:100])
 
     lowered = query_text.lower()
     if "risk" in lowered:

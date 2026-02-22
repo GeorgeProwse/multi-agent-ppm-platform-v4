@@ -163,9 +163,20 @@ def transform(document: dict) -> dict:
 
 
 def _load_transform(path: Path):
-    namespace: dict[str, object] = {}
-    exec(path.read_text(), namespace)  # noqa: S102
-    transform = namespace.get("transform")
+    # Validate path is within the expected migrations directory
+    migrations_root = REPO_ROOT / "data" / "schemas" / "migrations"
+    resolved = path.resolve()
+    if not resolved.is_relative_to(migrations_root):
+        raise ValueError(
+            f"Migration script must be under {migrations_root}, got: {resolved}"
+        )
+
+    spec = importlib.util.spec_from_file_location(f"migration_{path.stem}", str(resolved))
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Cannot load migration script: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    transform = getattr(module, "transform", None)
     if not callable(transform):
         raise ValueError(f"Migration script missing callable transform(): {path}")
     return transform

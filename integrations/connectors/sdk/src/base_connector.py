@@ -224,8 +224,15 @@ class ConnectorConfig:
     last_sync_at: datetime | None = None
     health_status: str = "unknown"
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
+    _SENSITIVE_FIELDS = frozenset({
+        "mcp_client_secret",
+        "mcp_api_key",
+        "mcp_oauth_token",
+        "client_secret",
+    })
+
+    def to_dict(self, *, include_secrets: bool = False) -> dict[str, Any]:
+        data = {
             "connector_id": self.connector_id,
             "name": self.name,
             "category": self.category.value,
@@ -265,9 +272,17 @@ class ConnectorConfig:
             "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
             "health_status": self.health_status,
         }
+        if not include_secrets:
+            for field in self._SENSITIVE_FIELDS:
+                if field in data and data[field]:
+                    data[field] = "**REDACTED**"
+        return data
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ConnectorConfig:
+        for required_field in ("connector_id", "name", "category"):
+            if required_field not in data:
+                raise ValueError(f"ConnectorConfig missing required field: {required_field}")
         mcp_scopes = (
             data.get("mcp_scopes")
             if isinstance(data.get("mcp_scopes"), list)
@@ -275,13 +290,25 @@ class ConnectorConfig:
         )
         mcp_scope = data.get("mcp_scope", "") or " ".join(mcp_scopes)
         tool_map = data.get("tool_map") or data.get("mcp_tool_map", {})
+        try:
+            category = ConnectorCategory(data["category"])
+        except ValueError:
+            raise ValueError(f"Invalid connector category: {data['category']}")
+        try:
+            sync_direction = SyncDirection(data.get("sync_direction", "inbound"))
+        except ValueError:
+            raise ValueError(f"Invalid sync_direction: {data.get('sync_direction')}")
+        try:
+            sync_frequency = SyncFrequency(data.get("sync_frequency", "daily"))
+        except ValueError:
+            raise ValueError(f"Invalid sync_frequency: {data.get('sync_frequency')}")
         return cls(
             connector_id=data["connector_id"],
             name=data["name"],
-            category=ConnectorCategory(data["category"]),
+            category=category,
             enabled=data.get("enabled", False),
-            sync_direction=SyncDirection(data.get("sync_direction", "inbound")),
-            sync_frequency=SyncFrequency(data.get("sync_frequency", "daily")),
+            sync_direction=sync_direction,
+            sync_frequency=sync_frequency,
             instance_url=data.get("instance_url", ""),
             project_key=data.get("project_key", ""),
             custom_fields=data.get("custom_fields", {}),
@@ -459,8 +486,8 @@ class BaseConnector(ABC):
         self._failure_timestamps = [ts for ts in self._failure_timestamps if ts >= window_start]
 
     def _before_call(self) -> None:
-        now = time.monotonic()
         with self._circuit_lock:
+            now = time.monotonic()
             self._prune_failures(now)
             if self._circuit_state == "open":
                 if self._opened_at and now - self._opened_at >= self.circuit_recovery_timeout_seconds:
@@ -477,8 +504,8 @@ class BaseConnector(ABC):
             self._circuit_state = "closed"
 
     def _mark_failure(self) -> None:
-        now = time.monotonic()
         with self._circuit_lock:
+            now = time.monotonic()
             self._failure_timestamps.append(now)
             self._prune_failures(now)
             if len(self._failure_timestamps) >= self.circuit_failure_threshold:
@@ -709,7 +736,7 @@ class ConnectorConfigStore:
         """Save a connector configuration."""
         configs = self._load_all()
         config.updated_at = datetime.now(timezone.utc)
-        configs[config.connector_id] = config.to_dict()
+        configs[config.connector_id] = config.to_dict(include_secrets=True)
         self._save_all(configs)
 
     def delete(self, connector_id: str) -> bool:
