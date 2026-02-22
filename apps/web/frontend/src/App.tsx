@@ -1,5 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAppStore } from '@/store';
 import { RequireAdminRole, RequireAuth, RequirePermission, RequireTenantContext } from '@/routing/RouteGuards';
@@ -179,8 +180,10 @@ function TransitionedRouter() {
 
 export function App() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
-      <TransitionedRouter />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<PageSkeleton />}>
+        <TransitionedRouter />
+      </Suspense>
+    </ErrorBoundary>
   );
 }

@@ -1,0 +1,29 @@
+title = "Gitleaks Configuration"
+
+[allowlist]
+  description = "Global allowlist"
+  paths = [
+    '''\.env\.example$''',
+    '''\.env\.test$''',
+    '''requirements.*\.txt$''',
+    '''package-lock\.json$''',
+    '''\.gitleaks\.toml$''',
+    '''tests/.*''',
+    '''docs/.*''',
+  ]
+
+[[rules]]
+  id = "generic-api-key"
+  description = "Generic API Key"
+  regex = '''(?i)(api[_-]?key|apikey)\s*[:=]\s*['"]?[a-z0-9]{20,}['"]?'''
+  entropy = 3.5
+  [rules.allowlist]
+    paths = ['''\.example$''', '''tests/.*''']
+
+[[rules]]
+  id = "generic-secret"
+  description = "Generic Secret"
+  regex = '''(?i)(secret|password|passwd|token)\s*[:=]\s*['"]?[^\s'"]{8,}['"]?'''
+  entropy = 3.5
+  [rules.allowlist]
+    paths = ['''\.example$''', '''tests/.*''', '''\.md$''']

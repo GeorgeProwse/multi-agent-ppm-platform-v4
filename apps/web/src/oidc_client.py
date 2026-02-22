@@ -42,10 +42,21 @@ class OIDCClient:
         if self._discovery:
             return self._discovery
         well_known = f"{self.issuer_url}/.well-known/openid-configuration"
-        async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
-            response = await client.get(well_known)
-            response.raise_for_status()
-            payload = response.json()
+        try:
+            async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
+                response = await client.get(well_known)
+                response.raise_for_status()
+                payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"OIDC discovery failed: HTTP {exc.response.status_code}",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="OIDC provider unreachable during discovery",
+            ) from exc
         self._discovery = OIDCDiscovery(
             issuer=payload["issuer"],
             authorization_endpoint=payload["authorization_endpoint"],
@@ -65,17 +76,39 @@ class OIDCClient:
         }
         if self.client_secret:
             payload["client_secret"] = self.client_secret
-        async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
-            response = await client.post(discovery.token_endpoint, data=payload)
-            response.raise_for_status()
-            return response.json()
+        try:
+            async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
+                response = await client.post(discovery.token_endpoint, data=payload)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"OIDC token exchange failed: HTTP {exc.response.status_code}",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="OIDC provider unreachable during token exchange",
+            ) from exc
 
     async def verify_id_token(self, id_token: str, nonce: str | None) -> dict[str, Any]:
         discovery = await self.discover()
-        async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
-            response = await client.get(discovery.jwks_uri)
-            response.raise_for_status()
-            jwks = response.json()
+        try:
+            async with httpx.AsyncClient(timeout=10.0, transport=self._transport) as client:
+                response = await client.get(discovery.jwks_uri)
+                response.raise_for_status()
+                jwks = response.json()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"OIDC JWKS fetch failed: HTTP {exc.response.status_code}",
+            ) from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail="OIDC JWKS endpoint unreachable",
+            ) from exc
 
         unverified_header = jwt.get_unverified_header(id_token)
         kid = unverified_header.get("kid")

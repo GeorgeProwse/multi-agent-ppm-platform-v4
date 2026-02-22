@@ -58,13 +58,13 @@ test-watch: ## Run tests in watch mode
 	$(PYTEST) tests/ -v --looponfail
 
 lint: ## Run linters
-	$(PYTHON) -m tools.lint.run
+	$(PYTHON) -m ops.tools.lint.run
 
 format: ## Format code with black and ruff
-	$(PYTHON) -m tools.format.run
+	$(PYTHON) -m ops.tools.format.run
 
 codegen: ## Validate OpenAPI spec and generate summaries
-	$(PYTHON) -m tools.codegen.run
+	$(PYTHON) -m ops.tools.codegen.run
 
 docs-generate: ## Generate code-derived service and connector docs
 	$(PYTHON) ops/tools/codegen/generate_docs.py

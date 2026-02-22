@@ -42,6 +42,10 @@ class OAuth2TokenManager:
         refresh_token_secret_name: str | None = None,
         client_secret_secret_name: str | None = None,
     ) -> None:
+        if not token_url.startswith("https://"):
+            raise ValueError(
+                f"OAuth token_url must use HTTPS, got: {token_url}"
+            )
         self._token_url = token_url
         self._client_id = client_id
         self._client_secret = client_secret
