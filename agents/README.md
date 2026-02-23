@@ -50,7 +50,7 @@ python scripts/generate_agent_metadata.py --check
 
 ## Configuration
 
-Agent runtime settings live in `.env` (see `.env.example`) and shared config files under `config/`.
+Agent runtime settings live in `.env` (see `ops/config/.env.example`) and shared config files under `config/`.
 
 ## Troubleshooting
 

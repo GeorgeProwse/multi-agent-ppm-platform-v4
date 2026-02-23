@@ -126,7 +126,7 @@ pytest agents/operations-management/agent-23-data-synchronisation-quality/tests
 
 ## Configuration
 
-Agent runtime configuration is centralized in `.env` (see `.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
+Agent runtime configuration is centralized in `.env` (see `ops/config/.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
 
 ### Required environment variables
 
@@ -165,7 +165,7 @@ Set the following variables to enable full integration:
 
 ### Local development
 
-1. Copy `.env.example` to `.env` and populate the required variables above.
+1. Copy `ops/config/.env.example` to `.env` and populate the required variables above.
 2. Ensure the validation rules and pipeline configuration files exist:
    - `config/agent-23/validation_rules.yaml`
    - `config/agent-23/pipelines.yaml`

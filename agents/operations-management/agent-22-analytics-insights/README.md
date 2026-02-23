@@ -78,7 +78,7 @@ Define the responsibilities, workflows, and integration points for Agent 22: Ana
 - **Naming/roles clarity**: Ensure documentation consistently assigns analytics ownership to Agent 22 and reserves system health telemetry and alerting for Agent 25.
 - **Action documentation vs. runtime behavior**: Ensure orchestration docs list the full action set (including ETL/power BI/realtime ingestion actions).
 - **Event taxonomy alignment**: The analytics event topics list should be aligned with upstream agents’ emitted event names (schedule, deployment, risk, quality, resource).
-- **Connector parity**: Ensure the Azure services referenced (Synapse, Data Factory, Event Hub, Power BI, OpenAI) have corresponding connectors and secrets defined in `.env.example` and runtime docs.
+- **Connector parity**: Ensure the Azure services referenced (Synapse, Data Factory, Event Hub, Power BI, OpenAI) have corresponding connectors and secrets defined in `ops/config/ops/config/.env.example` and runtime docs.
 - **UI alignment**: Dashboard/report endpoints (`/dashboards/{id}`, `/reports/{id}/download`, `/narrative`) should match the frontend/API routing templates.
 
 ## Analytics output contract (checkpoint)
@@ -152,7 +152,7 @@ pytest agents/operations-management/agent-22-analytics-insights/tests
 
 ## Configuration
 
-Agent runtime configuration is centralized in `.env` (see `.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
+Agent runtime configuration is centralized in `.env` (see `ops/config/.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
 
 Additional environment variables:
 

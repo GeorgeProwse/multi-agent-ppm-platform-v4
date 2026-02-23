@@ -9,7 +9,7 @@ PIP := $(PYTHON) -m pip
 PYTEST := $(PYTHON) -m pytest
 BLACK := black
 RUFF := ruff
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := docker-compose -f ops/docker/docker-compose.yml
 
 help: ## Show this help message
 	@echo 'Usage: make [target]'
@@ -165,16 +165,16 @@ docker-ps: ## Show running containers
 	$(DOCKER_COMPOSE) ps
 
 db-migrate: ## Run database migrations
-	alembic upgrade head
+	alembic -c ops/config/alembic.ini upgrade head
 
 db-rollback: ## Rollback last migration
-	alembic downgrade -1
+	alembic -c ops/config/alembic.ini downgrade -1
 
 db-reset: ## Reset database (WARNING: destroys data)
 	$(DOCKER_COMPOSE) down -v
 	$(DOCKER_COMPOSE) up -d db
 	sleep 5
-	alembic upgrade head
+	alembic -c ops/config/alembic.ini upgrade head
 
 # Terraform commands
 tf-init: ## Initialize Terraform
@@ -217,7 +217,7 @@ docs-serve: ## Serve documentation locally
 
 # Development helpers
 env-copy: ## Copy .env.example to .env
-	cp .env.example .env
+	cp ops/config/.env.example .env
 	@echo "Created .env file. Please update with your values."
 
 check: lint test check-links check-placeholders check-root-layout check-docs-migration-guard check-connector-maturity ## Run all checks (lint + test + docs scans)

@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r ops/requirements/requirements-dev.txt
           pip install -e .
 
       - name: Run migration validation
@@ -31,4 +31,4 @@ jobs:
         run: |
           python ops/scripts/check-migrations.py
           python data/migrations/validate_registry_consistency.py
-          alembic upgrade head
+          alembic -c ops/config/alembic.ini upgrade head

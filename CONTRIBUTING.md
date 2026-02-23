@@ -66,14 +66,14 @@ make install-dev
 pre-commit install
 
 # Alternative dev install without editable package mode
-pip install -r requirements-dev.txt
+pip install -r ops/requirements/requirements-dev.txt
 ```
 
 ### 3. Configure Environment
 
 ```bash
 # Copy environment template
-cp .env.example .env
+cp ops/config/.env.example .env
 
 # Edit .env with your credentials
 # Minimal setup for development:

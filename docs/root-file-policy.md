@@ -18,19 +18,35 @@ These are resolved by default by package managers, build tools, CI, or local wor
 - `pnpm-workspace.yaml`
 - `pnpm-lock.yaml`
 - `Makefile`
-- `docker-compose.yml`
-- `docker-compose.test.yml`
 - `mkdocs.yml`
-- `alembic.ini`
 - `.pre-commit-config.yaml`
 - `.gitignore`
 - `README.md`
 - `CONTRIBUTING.md`
 - `LICENSE`
 - `SECURITY.md`
-- `.env.example`
 
-### 2) Root-level compatibility modules (temporary allowlist)
+### 2) Consolidated ops files (moved out of root)
+
+These were previously loose at root and are now organised under `ops/`:
+
+- `ops/docker/docker-compose.yml`
+- `ops/docker/docker-compose.test.yml`
+- `ops/config/alembic.ini`
+- `ops/config/.env.example`
+- `ops/config/.env.demo`
+- `ops/requirements/requirements.txt`
+- `ops/requirements/requirements-dev.txt`
+- `ops/requirements/requirements.in`
+- `ops/requirements/requirements-dev.in`
+- `ops/requirements/requirements-demo.txt`
+
+### 3) Consolidated docs (moved into docs/)
+
+- `docs/CHANGELOG.md`
+- `docs/REPO_STRUCTURE.md`
+
+### 4) Root-level compatibility modules (temporary allowlist)
 
 The following modules currently have direct imports from multiple packages and services and remain at root until a dedicated import migration phase is complete:
 
@@ -38,7 +54,7 @@ The following modules currently have direct imports from multiple packages and s
 - `runtime_flags.py`
 - `pydantic_settings.py`
 
-### 3) Approved root directories
+### 5) Approved root directories
 
 Top-level domain directories are allowed for monorepo organization:
 

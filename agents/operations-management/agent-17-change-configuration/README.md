@@ -30,7 +30,7 @@ pytest agents/operations-management/agent-17-change-configuration/tests
 
 ## Configuration
 
-Agent runtime configuration is centralized in `.env` (see `.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. The change agent also uses the environment variables below for integrations.
+Agent runtime configuration is centralized in `.env` (see `ops/config/.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. The change agent also uses the environment variables below for integrations.
 
 ### Integration environment variables
 

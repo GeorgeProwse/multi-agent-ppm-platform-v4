@@ -57,7 +57,7 @@ locally, understand core services, and start contributing safely.
    ```bash
    cp .env.example .env
    ```
-   > Never reuse `.env.example` values in CI/staging/production.
+   > Never reuse `ops/config/.env.example` values in CI/staging/production.
 4. **Start the local stack**
    ```bash
    make dev-up
@@ -112,7 +112,7 @@ CI enforces major version bumps when breaking changes are recorded in the change
 ## Configuration tips
 
 - Local development uses auth dev mode in docker-compose (`AUTH_DEV_MODE=true`).
-- `.env.example` is explicitly dev-only; CI and production must use managed secrets and environment-specific values.
+- `ops/config/.env.example` is explicitly dev-only; CI and production must use managed secrets and environment-specific values.
 - Update `.env` for local overrides (LLM provider, credentials, feature flags).
 - Service-specific environment variables live in each service README.
 - External research features rely on `SEARCH_API_ENDPOINT`/`SEARCH_API_KEY` and per-agent flags such as

@@ -7,7 +7,7 @@ Document the local dev tooling used to automate **local development** workflows.
 ## What's inside
 
 - [dev_down.sh](/ops/tools/local-dev/dev_down.sh): Stops the local Docker Compose stack.
-- [dev_up.sh](/ops/tools/local-dev/dev_up.sh): Boots the local Docker Compose stack and can initialize `.env` from `.env.example`.
+- [dev_up.sh](/ops/tools/local-dev/dev_up.sh): Boots the local Docker Compose stack and can initialize `.env` from `ops/config/.env.example`.
 - [docker-compose.override.example.yml](/ops/tools/local-dev/docker-compose.override.example.yml): Optional local override template.
 
 ## How it's used
@@ -17,8 +17,8 @@ These tools are invoked by local Make targets (for example, `make dev-up` and `m
 ## Configuration
 
 - Configuration is sourced from repository-level `.env`.
-- If `.env` is missing, `dev_up.sh` copies `.env.example` and randomizes local password defaults for safer local posture.
-- `.env.example` values are **dev-only** and must never be reused in CI/staging/production.
+- If `.env` is missing, `dev_up.sh` copies `ops/config/.env.example` and randomizes local password defaults for safer local posture.
+- `ops/config/.env.example` values are **dev-only** and must never be reused in CI/staging/production.
 
 ## Troubleshooting
 

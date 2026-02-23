@@ -17,8 +17,8 @@ else
 fi
 
 if [[ ! -f .env ]]; then
-  if [[ -f .env.example ]]; then
-    cp .env.example .env
+  if [[ -f ops/config/.env.example ]]; then
+    cp ops/config/.env.example .env
 
     random_password=""
     if command -v openssl >/dev/null 2>&1; then
@@ -28,12 +28,12 @@ if [[ ! -f .env ]]; then
     fi
 
     sed -i "s/replace_me_local_password/${random_password}/g" .env
-    echo "Created .env from .env.example with randomized local dev credentials."
+    echo "Created .env from ops/config/.env.example with randomized local dev credentials."
   else
-    echo ".env is missing and .env.example was not found."
+    echo ".env is missing and ops/config/.env.example was not found."
     exit 1
   fi
 fi
 
 echo "Starting local development stack (profile=${profile})..."
-${compose_cmd} --profile "${profile}" up --build
+${compose_cmd} -f ops/docker/docker-compose.yml --profile "${profile}" up --build
