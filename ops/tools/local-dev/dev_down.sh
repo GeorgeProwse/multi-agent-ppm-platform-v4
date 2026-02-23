@@ -15,4 +15,4 @@ else
 fi
 
 echo "Stopping local development stack..."
-${compose_cmd} down
+${compose_cmd} -f ops/docker/docker-compose.yml down

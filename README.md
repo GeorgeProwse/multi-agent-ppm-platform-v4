@@ -42,7 +42,7 @@ The repository delivers a production-ready, multi-agent PPM platform with valida
 > Requires Python 3.11+ and Docker Compose.
 
 ```bash
-cp .env.example .env
+cp ops/config/.env.example .env
 # Optional: update .env values for your machine (dev-only values by default)
 make dev-up
 ```
@@ -72,7 +72,7 @@ Use this mode to run a fully local Streamlit demo with bundled dummy data only (
 ```powershell
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements-demo.txt
+pip install -r ops/requirements/requirements-demo.txt
 python apps/demo_streamlit/validate_demo.py
 streamlit run apps/demo_streamlit/app.py
 ```
@@ -102,7 +102,7 @@ If package installation fails behind a restricted network/proxy, run these comma
 For a realistic, full-functionality demonstration environment with interactive scenarios, use demo mode:
 
 ```bash
-cp .env.example .env
+cp ops/config/.env.example .env
 # set DEMO_MODE=true in .env
 make dev-up
 ```

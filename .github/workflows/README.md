@@ -34,7 +34,7 @@ make check-placeholders
 
 ## Configuration
 
-Workflow secrets and tokens are configured in GitHub repository settings (Actions → Secrets and variables). Environment-specific values should match the settings in `.env.example` and the infra configuration.
+Workflow secrets and tokens are configured in GitHub repository settings (Actions → Secrets and variables). Environment-specific values should match the settings in 'ops/config/.env.example' and the infra configuration.
 
 ## Troubleshooting
 

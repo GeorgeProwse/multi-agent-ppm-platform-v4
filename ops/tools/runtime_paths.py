@@ -14,7 +14,7 @@ _PRIMARY_ROOT_MARKERS: tuple[str, ...] = (
     ".git",
     "pyproject.toml",
     "package.json",
-    "docker-compose.yml",
+    "ops/docker/docker-compose.yml",
 )
 _SECONDARY_ROOT_MARKERS: tuple[str, ...] = ("README.md",)
 

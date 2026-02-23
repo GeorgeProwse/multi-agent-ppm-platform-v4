@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r ops/requirements/requirements-dev.txt
           pip install -e .
 
       - name: Start test services
@@ -72,7 +72,7 @@ jobs:
 
               if [ "$elapsed" -ge "$max_wait_seconds" ]; then
                 echo "❌ Timed out waiting for ${check_name} after ${elapsed}s (max ${max_wait_seconds}s)."
-                docker compose -f docker-compose.test.yml ps || true
+                docker compose -f ops/docker/docker-compose.test.yml ps || true
                 if [ -n "$diagnostics_command" ]; then
                   echo "Diagnostics for ${check_name}:"
                   bash -o pipefail -c "$diagnostics_command" || true
@@ -89,27 +89,27 @@ jobs:
             done
           }
 
-          docker compose -f docker-compose.test.yml up -d
+          docker compose -f ops/docker/docker-compose.test.yml up -d
 
           wait_for_command \
             "Postgres command health endpoint" \
-            "docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U ppm -d ppm_test" \
-            "docker compose -f docker-compose.test.yml logs --tail=100 postgres"
+            "docker compose -f ops/docker/docker-compose.test.yml exec -T postgres pg_isready -U ppm -d ppm_test" \
+            "docker compose -f ops/docker/docker-compose.test.yml logs --tail=100 postgres"
 
           wait_for_command \
             "Redis command health endpoint" \
-            "docker compose -f docker-compose.test.yml exec -T redis redis-cli ping | grep -q PONG" \
-            "docker compose -f docker-compose.test.yml logs --tail=100 redis"
+            "docker compose -f ops/docker/docker-compose.test.yml exec -T redis redis-cli ping | grep -q PONG" \
+            "docker compose -f ops/docker/docker-compose.test.yml logs --tail=100 redis"
 
           wait_for_command \
             "Postgres container health endpoint" \
-            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.test.yml ps -q postgres))\" = \"healthy\" ]" \
-            "docker compose -f docker-compose.test.yml logs --tail=100 postgres"
+            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f ops/docker/docker-compose.test.yml ps -q postgres))\" = \"healthy\" ]" \
+            "docker compose -f ops/docker/docker-compose.test.yml logs --tail=100 postgres"
 
           wait_for_command \
             "Redis container health endpoint" \
-            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f docker-compose.test.yml ps -q redis))\" = \"healthy\" ]" \
-            "docker compose -f docker-compose.test.yml logs --tail=100 redis"
+            "[ \"$(docker inspect --format='{{.State.Health.Status}}' $(docker compose -f ops/docker/docker-compose.test.yml ps -q redis))\" = \"healthy\" ]" \
+            "docker compose -f ops/docker/docker-compose.test.yml logs --tail=100 redis"
 
       - name: Run end-to-end tests
         env:
@@ -119,4 +119,4 @@ jobs:
 
       - name: Stop test services
         if: always()
-        run: docker compose -f docker-compose.test.yml down -v
+        run: docker compose -f ops/docker/docker-compose.test.yml down -v

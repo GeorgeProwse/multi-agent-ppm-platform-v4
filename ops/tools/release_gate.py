@@ -55,7 +55,7 @@ def _run(area: str, command: str) -> CheckResult:
 def _check_profile_manifest(profile: str) -> CheckResult:
     import yaml  # local import to avoid adding hard runtime dependency at import time
 
-    compose = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text())
+    compose = yaml.safe_load((REPO_ROOT / "ops/docker/docker-compose.yml").read_text())
     services = compose.get("services", {})
 
     missing = []

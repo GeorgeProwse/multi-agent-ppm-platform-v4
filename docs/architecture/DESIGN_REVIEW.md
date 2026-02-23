@@ -176,7 +176,7 @@ The `FieldMaskingMiddleware` (`security.py:488-516`) reads the entire response b
 
 **4.2.4 - Dev Mode Authentication Bypass Lacks Guardrails**
 
-While the exact dev-mode bypass wasn't fully visible in the reviewed files, the `.env.example` references `AUTH_MODE=dev` and `X-Dev-User` headers. If a production deployment accidentally sets `AUTH_MODE=dev`, the entire authentication layer could be bypassed.
+While the exact dev-mode bypass wasn't fully visible in the reviewed files, the `ops/config/.env.example` references `AUTH_MODE=dev` and `X-Dev-User` headers. If a production deployment accidentally sets `AUTH_MODE=dev`, the entire authentication layer could be bypassed.
 
 *Recommendation:* Add a startup check that prevents `AUTH_MODE=dev` when `ENVIRONMENT` is `production` or `staging`. Log a clear warning when dev mode is active.
 
@@ -292,7 +292,7 @@ The codebase mixes Pydantic `BaseModel` (for `AgentResponse`, `AgentRun`, `Agent
 
 **7.2.4 - Large Number of Environment Variables Without Centralized Validation**
 
-The `.env.example` file contains 150+ environment variables. These are read via scattered `os.getenv()` calls throughout the codebase with inconsistent default values and no centralized validation at startup. A typo in an environment variable name silently falls through to a default value.
+The `ops/config/.env.example` file contains 150+ environment variables. These are read via scattered `os.getenv()` calls throughout the codebase with inconsistent default values and no centralized validation at startup. A typo in an environment variable name silently falls through to a default value.
 
 *Recommendation:* Define a Pydantic `Settings` class (building on the existing `pydantic_settings.py`) that declares all environment variables with types, defaults, and validation rules. Load and validate this at application startup. Any missing or invalid configuration should fail fast with a clear error message rather than silently degrading.
 

@@ -48,7 +48,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r ops/requirements/requirements-dev.txt
           pip install -e .
 
       - name: Run Ruff linting
@@ -88,7 +88,7 @@ jobs:
       - name: Build documentation
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r ops/requirements/requirements-dev.txt
           mkdocs build --strict
 
   performance:
@@ -107,7 +107,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r ops/requirements/requirements-dev.txt
 
       - name: Start mock performance server
         run: |

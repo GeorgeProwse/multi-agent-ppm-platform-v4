@@ -14,7 +14,7 @@ three domain agents, and workflow persistence.
 
 - Confirm Docker is running: `docker ps`
 - Confirm ports are free: `8000`, `8080`, and `8501`
-- Create `.env` from `.env.example` for local defaults: `cp .env.example .env`
+- Create `.env` from `ops/config/.env.example` for local defaults: `cp .env.example .env`
 
 ## Start the local stack
 ```bash
@@ -22,7 +22,7 @@ cp .env.example .env
 make dev-up
 ```
 
-> ⚠️ `.env.example` is for local development only. Never use these values in CI, staging, or production.
+> ⚠️ `ops/config/.env.example` is for local development only. Never use these values in CI, staging, or production.
 
 
 ## Startup order and failure behavior
@@ -111,7 +111,7 @@ make dev-down
 - To override the deterministic routing response, set `LLM_MOCK_RESPONSE_PATH` to a custom JSON
   file that matches the intent router response schema.
 - Auth dev mode is enabled with `AUTH_DEV_MODE=true` (default in docker-compose for local
-  development). In production, disable it and configure JWT validation. CI/prod must use environment-specific secrets, not local defaults from `.env.example`.
+  development). In production, disable it and configure JWT validation. CI/prod must use environment-specific secrets, not local defaults from `ops/config/.env.example`.
 - The orchestration service reads `ORCHESTRATION_STATE_BACKEND` (set to `db` in docker-compose)
   and `ORCHESTRATION_DATABASE_URL`/`DATABASE_URL` to select the durable Postgres store. Ensure the
   database encryption-at-rest features are enabled in your environment and use optional app-level
