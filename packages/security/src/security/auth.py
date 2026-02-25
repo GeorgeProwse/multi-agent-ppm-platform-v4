@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import threading
+import time as _time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -83,8 +84,6 @@ def _normalize_roles(claims: dict[str, Any], roles_claim: str) -> list[str]:
     combined = list(roles) + iam_roles
     return list(dict.fromkeys(combined))
 
-
-import time as _time
 
 # Cache TTL in seconds (default 5 minutes)
 _CACHE_TTL = float(os.getenv("AUTH_CACHE_TTL_SECONDS", "300"))

@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -74,11 +76,19 @@ class ContextResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    if _service is not None:
+        _service.close()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Memory Service",
         description="Conversation-context key-value store with optional TTL and SQLite persistence.",
         version=API_VERSION,
+        lifespan=_lifespan,
     )
 
     @app.get("/health", response_model=HealthResponse, tags=["health"])
@@ -104,11 +114,6 @@ def create_app() -> FastAPI:
         """Delete a stored context."""
         _get_service().delete_context(key)
         return {"status": "deleted", "key": key}
-
-    @app.on_event("shutdown")
-    def shutdown() -> None:
-        if _service is not None:
-            _service.close()
 
     return app
 

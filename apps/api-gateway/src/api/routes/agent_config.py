@@ -90,11 +90,6 @@ def check_user_permission(request: Request) -> str:
     raise HTTPException(status_code=403, detail="User does not have permission to configure agents")
 
 
-def require_agent_config_permission(request: Request) -> str:
-    """Dependency that enforces agent configuration permissions."""
-    return check_user_permission(request)
-
-
 # Agent Configuration Endpoints
 @router.get("/agents/config", response_model=list[AgentConfigModel])
 async def list_agent_configs(
@@ -156,7 +151,7 @@ async def update_agent_config(
     catalog_id: str,
     updates: AgentConfigUpdateModel,
     http_request: Request,
-    user_id: str = Depends(require_agent_config_permission),
+    user_id: str = Depends(check_user_permission),
 ) -> AgentConfigModel:
     """
     Update configuration for a specific agent.
@@ -242,7 +237,7 @@ async def set_project_agent_config(
     agent_id: str,
     config: ProjectAgentConfigUpdateModel,
     http_request: Request,
-    user_id: str = Depends(require_agent_config_permission),
+    user_id: str = Depends(check_user_permission),
 ) -> ProjectAgentConfigModel:
     """
     Set project-specific configuration for an agent.

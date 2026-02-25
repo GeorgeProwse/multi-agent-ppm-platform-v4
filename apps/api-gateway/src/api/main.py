@@ -56,7 +56,6 @@ from security.auth import clear_auth_caches
 from security.errors import register_error_handlers
 from security.headers import SecurityHeadersMiddleware
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
@@ -129,7 +128,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Application shut down successfully")
 
 
-# Create FastAPI application
 app = FastAPI(
     title="Multi-Agent PPM Platform",
     description="AI-native Project Portfolio Management platform with 25 specialized agents",
@@ -150,7 +148,6 @@ def _version_payload() -> dict[str, str]:
     }
 
 
-# Configure CORS
 allowed_origins = get_allowed_origins(environment)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -218,7 +215,6 @@ async def get_status() -> dict[str, Any]:
     }
 
 
-# Include routers
 api_v1.include_router(agents.router, tags=["agents"])
 api_v1.include_router(health.router, tags=["health"])
 api_v1.include_router(agent_config.router, tags=["agent-config"])
@@ -254,7 +250,6 @@ async def platform_exception_handler(request: Request, exc: PPMPlatformError) ->
     )
 
 
-# Global exception handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle all uncaught exceptions."""

@@ -159,7 +159,7 @@ async def _evaluate_rbac(auth: AuthContext, permission: str, classification: str
 def _load_abac_config() -> dict[str, Any]:
     repo_root = Path(__file__).resolve().parents[5]
     policy_path = Path(
-        os.getenv("ABAC_POLICY_PATH", repo_root / "config" / "abac" / "policies.yaml")
+        os.getenv("ABAC_POLICY_PATH") or repo_root / "config" / "abac" / "policies.yaml"
     )
     if not policy_path.exists():
         return {"policies": [], "default_decision": "allow"}
@@ -326,9 +326,6 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        # Delegate JWT validation, tenant/role extraction, and AuthContext
-        # construction to the centralised security package.  This eliminates
-        # the duplicate _validate_jwt implementation that previously lived here.
         try:
             auth_context = await authenticate_request(request)
         except HTTPException as exc:
@@ -349,13 +346,13 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
             await _evaluate_rbac(auth_context, permission, classification)
             resource = json.loads(body.decode("utf-8")) if body else None
             await _evaluate_abac(auth_context, permission, resource, request)
-        except (HTTPException, json.JSONDecodeError) as exc:
-            if isinstance(exc, HTTPException):
-                message = exc.detail if isinstance(exc.detail, str) else "Request failed"
-                payload = error_payload(
-                    message=message, code=f"http_{exc.status_code}", details=exc.detail
-                )
-                return JSONResponse(status_code=exc.status_code, content=payload)
+        except HTTPException as exc:
+            message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+            payload = error_payload(
+                message=message, code=f"http_{exc.status_code}", details=exc.detail
+            )
+            return JSONResponse(status_code=exc.status_code, content=payload)
+        except json.JSONDecodeError:
             payload = error_payload(
                 message="Invalid JSON payload", code="http_400", details="Invalid JSON payload"
             )
