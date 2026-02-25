@@ -233,6 +233,24 @@
         "resource_id": "res-1"
       },
       "received_at": "2026-02-22T06:02:06.536596+00:00"
+    },
+    "evt-97f9449888a34ddaa924c63f2fed878f": {
+      "event_id": "evt-97f9449888a34ddaa924c63f2fed878f",
+      "event_type": "resource.updated",
+      "domain": "resource",
+      "payload": {
+        "resource_id": "res-1"
+      },
+      "received_at": "2026-02-25T16:02:03.046308+00:00"
+    },
+    "evt-664de7ab78034717b443e8102e3a3d48": {
+      "event_id": "evt-664de7ab78034717b443e8102e3a3d48",
+      "event_type": "resource.updated",
+      "domain": "resource",
+      "payload": {
+        "resource_id": "res-1"
+      },
+      "received_at": "2026-02-25T16:03:42.880447+00:00"
     }
   }
 }
