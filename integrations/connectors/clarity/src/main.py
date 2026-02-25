@@ -70,8 +70,8 @@ def _build_mcp_connector() -> ClarityMcpConnector:
 
 
 def _should_use_mcp() -> bool:
-    prefer_mcp = (resolve_secret(os.getenv("CLARITY_PREFER_MCP")) or "").lower() in {"1", "true", "yes"}
-    return prefer_mcp and bool(resolve_secret(os.getenv("CLARITY_MCP_SERVER_URL")))
+    pref = (resolve_secret(os.getenv("CLARITY_PREFER_MCP")) or "").lower()
+    return pref in {"1", "true", "yes"} and bool(resolve_secret(os.getenv("CLARITY_MCP_SERVER_URL")))
 
 
 def create_app() -> FastAPI:
@@ -100,7 +100,9 @@ if __name__ == "__main__":
     print(json.dumps(output, indent=2))
 
 
-def send_to_external_system(records: list[dict[str, object]], tenant_id: str, *, include_schema: bool) -> None:
+def send_to_external_system(
+    records: list[dict[str, object]], tenant_id: str, *, include_schema: bool
+) -> None:
     """Outbound handler – routes canonical records to Clarity via MCP or REST API."""
     mapped_payload = map_to_clarity(records)
 

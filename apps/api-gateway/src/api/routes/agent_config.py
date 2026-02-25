@@ -77,13 +77,14 @@ class ProjectAgentConfigUpdateModel(BaseModel):
 def check_user_permission(request: Request) -> str:
     """Check if authenticated user has permission to configure agents."""
     auth = request.state.auth
+    claims = auth.claims if isinstance(auth.claims, dict) else {}
     store = get_agent_config_store()
     store.sync_user_roles(
         user_id=auth.subject,
         tenant_id=auth.tenant_id,
         roles=auth.roles,
-        display_name=auth.claims.get("name") if isinstance(auth.claims, dict) else None,
-        email=auth.claims.get("email") if isinstance(auth.claims, dict) else None,
+        display_name=claims.get("name"),
+        email=claims.get("email"),
     )
     if store.can_user_configure_agents(auth.subject, auth.tenant_id):
         return cast(str, auth.subject)
@@ -107,7 +108,6 @@ async def list_agent_configs(
     store = get_agent_config_store()
     agents = store.list_agents()
 
-    # Apply filters
     if category:
         try:
             cat = AgentCategory(category)
@@ -286,7 +286,7 @@ async def get_enabled_agents_for_project(project_id: str) -> dict[str, Any]:
                 "catalog_id": a.catalog_id,
                 "agent_id": a.agent_id,
                 "display_name": a.display_name,
-                "category": a.category.value if hasattr(a.category, "value") else a.category,
+                "category": a.category.value if isinstance(a.category, AgentCategory) else str(a.category),
             }
             for a in agents
         ],

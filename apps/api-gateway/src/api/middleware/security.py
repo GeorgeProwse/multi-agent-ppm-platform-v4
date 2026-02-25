@@ -21,6 +21,14 @@ from security.errors import error_payload
 
 logger = logging.getLogger("api-gateway-security")
 
+_WRITE_METHODS: frozenset[str] = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _make_http_error_response(exc: HTTPException) -> JSONResponse:
+    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    payload = error_payload(message=message, code=f"http_{exc.status_code}", details=exc.detail)
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     return cast(dict[str, Any], load_yaml(path))
@@ -45,16 +53,16 @@ def _required_permission(request: Request) -> str:
     if path.startswith("/v1/audit"):
         return "audit.read" if method == "GET" else "audit.write"
     if path.startswith("/v1/agents/config") or "/agents/config" in path:
-        return "config.write" if method in {"POST", "PUT", "PATCH", "DELETE"} else "config.read"
+        return "config.write" if method in _WRITE_METHODS else "config.read"
     if path.startswith("/v1/connectors"):
-        return "config.write" if method in {"POST", "PUT", "PATCH", "DELETE"} else "config.read"
+        return "config.write" if method in _WRITE_METHODS else "config.read"
     if path.startswith("/v1/query"):
         return "workflow.execute"
     if path.startswith("/v1/documents"):
         return "document.coedit"
     if path.startswith("/v1/agents"):
         return "workflow.read"
-    if method in {"POST", "PUT", "PATCH", "DELETE"}:
+    if method in _WRITE_METHODS:
         return "project.write"
     return "project.read"
 
@@ -329,11 +337,7 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
         try:
             auth_context = await authenticate_request(request)
         except HTTPException as exc:
-            message = exc.detail if isinstance(exc.detail, str) else "Request failed"
-            payload = error_payload(
-                message=message, code=f"http_{exc.status_code}", details=exc.detail
-            )
-            return JSONResponse(status_code=exc.status_code, content=payload)
+            return _make_http_error_response(exc)
 
         request.state.auth = auth_context
 
@@ -347,11 +351,7 @@ class AuthTenantMiddleware(BaseHTTPMiddleware):
             resource = json.loads(body.decode("utf-8")) if body else None
             await _evaluate_abac(auth_context, permission, resource, request)
         except HTTPException as exc:
-            message = exc.detail if isinstance(exc.detail, str) else "Request failed"
-            payload = error_payload(
-                message=message, code=f"http_{exc.status_code}", details=exc.detail
-            )
-            return JSONResponse(status_code=exc.status_code, content=payload)
+            return _make_http_error_response(exc)
         except json.JSONDecodeError:
             payload = error_payload(
                 message="Invalid JSON payload", code="http_400", details="Invalid JSON payload"

@@ -129,9 +129,8 @@ def create_app() -> FastAPI:
     ) -> list[AgentConfigResponse]:
         """List all agent configurations, with optional filters."""
         store = get_agent_config_store()
-        configs = store.list_agents()
-        results: list[AgentConfigResponse] = []
-        for cfg in configs:
+        results = []
+        for cfg in store.list_agents():
             d = cfg.to_dict()
             if category and d.get("category") != category:
                 continue

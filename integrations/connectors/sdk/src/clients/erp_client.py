@@ -134,6 +134,8 @@ class SapErpClient(ErpClient):
 # Oracle ERP Client
 # ---------------------------------------------------------------------------
 
+_ORACLE_API_ROOT = "/fscmRestApi/resources/11.13.18.05"
+
 
 class OracleErpClient(ErpClient):
     """
@@ -176,12 +178,18 @@ class OracleErpClient(ErpClient):
 
     def create_record(self, resource: str, data: dict[str, Any]) -> dict[str, Any]:
         resource_cfg = getattr(self._connector, "RESOURCE_PATHS", {}).get(resource, {})
-        write_path = resource_cfg.get("write_path") or resource_cfg.get("path", f"/fscmRestApi/resources/11.13.18.05/{resource}")
+        write_path = (
+            resource_cfg.get("write_path")
+            or resource_cfg.get("path", f"{_ORACLE_API_ROOT}/{resource}")
+        )
         return _parse_response(self._connector._request("POST", write_path, json=data))
 
     def update_record(self, resource: str, record_id: str, data: dict[str, Any]) -> dict[str, Any]:
         resource_cfg = getattr(self._connector, "RESOURCE_PATHS", {}).get(resource, {})
-        write_path = resource_cfg.get("write_path") or resource_cfg.get("path", f"/fscmRestApi/resources/11.13.18.05/{resource}")
+        write_path = (
+            resource_cfg.get("write_path")
+            or resource_cfg.get("path", f"{_ORACLE_API_ROOT}/{resource}")
+        )
         return _parse_response(self._connector._request("PATCH", f"{write_path}/{record_id}", json=data))
 
     def list_records(self, resource: str, filters: dict[str, Any] | None = None) -> Iterable[dict[str, Any]]:
