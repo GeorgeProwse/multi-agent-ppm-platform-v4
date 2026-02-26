@@ -30,42 +30,36 @@ from routes._deps import (
     logger,
     resolve_secret,
 )
-from routes._deps import (
-    _demo_session_payload,
-    post_login_landing_success_total,
-)
+from routes._deps import _demo_session_payload  # noqa: E402
 from routes._models import SessionInfo, UIConfig
 
 router = APIRouter()
 
-# Re-use the post_login_landing counter created in _deps —
-# import it via legacy_main when wiring; here we just need
-# something that is importable.
-try:
-    from routes._deps import post_login_landing_success_total  # type: ignore[attr-defined]
-except ImportError:  # pragma: no cover
-    pass
-
 
 def _resolve_post_login_redirect(state_payload: dict[str, Any]) -> str:
-    from routes._deps import post_login_landing_success_total  # type: ignore[attr-defined]
+    import routes._deps as _deps_module
+
+    counter = getattr(_deps_module, "post_login_landing_success_total", None)
 
     return_to = state_payload.get("return_to")
     if isinstance(return_to, str) and _is_safe_redirect_path(return_to):
         landing = return_to
-        post_login_landing_success_total.add(1, {"flow": "return_to", "landing_route": landing})
+        if counter:
+            counter.add(1, {"flow": "return_to", "landing_route": landing})
         logger.info("auth.post_login_landing", extra={"flow": "return_to", "requested_return_to": return_to, "landing_route": landing})
         return landing
 
     project_id = state_payload.get("project_id")
     if project_id:
         landing = f"/app/projects/{project_id}"
-        post_login_landing_success_total.add(1, {"flow": "project_id", "landing_route": landing})
+        if counter:
+            counter.add(1, {"flow": "project_id", "landing_route": landing})
         logger.info("auth.post_login_landing", extra={"flow": "project_id", "project_id": project_id, "landing_route": landing})
         return landing
 
     landing = "/app"
-    post_login_landing_success_total.add(1, {"flow": "default", "landing_route": landing})
+    if counter:
+        counter.add(1, {"flow": "default", "landing_route": landing})
     logger.info("auth.post_login_landing", extra={"flow": "default", "landing_route": landing})
     return landing
 

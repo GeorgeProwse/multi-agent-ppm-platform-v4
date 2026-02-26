@@ -215,6 +215,7 @@ from workspace_state_store import WorkspaceStateStore  # noqa: E402
 
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 from agents.runtime.src.orchestrator import Orchestrator  # noqa: E402
+from observability.tracing import get_trace_id  # noqa: E402
 from packages.version import API_VERSION  # noqa: E402
 from runtime_flags import demo_mode_enabled  # noqa: E402
 from security.config import load_yaml as load_yaml_config  # noqa: E402
@@ -826,3 +827,84 @@ def _ensure_notifications(payload: dict[str, Any], tenant_id: str) -> list[dict[
     if not isinstance(rows, list):
         payload["notifications"] = []
     return payload["notifications"]
+
+
+# ---------------------------------------------------------------------------
+# Approval payload  (used by search, assistant, legacy_pages, enterprise)
+# ---------------------------------------------------------------------------
+
+def _approval_payload() -> dict[str, Any]:
+    if _demo_mode_enabled():
+        seeded = demo_outbox.read("approvals")
+        if seeded:
+            return {
+                "pending_count": len(seeded),
+                "queues": [{"id": "seeded", "label": "Seeded Demo", "count": len(seeded)}],
+                "items": seeded,
+                "history": [],
+            }
+    return {
+        "pending_count": 24,
+        "queues": [
+            {"id": "stage-gates", "label": "Stage Gates", "count": 12},
+            {"id": "budget", "label": "Budget Changes", "count": 6},
+            {"id": "vendor", "label": "Vendor Reviews", "count": 4},
+            {"id": "compliance", "label": "Compliance", "count": 2},
+        ],
+        "items": [
+            {
+                "id": "app-1024",
+                "title": "Gate: Phase 2 Exit",
+                "project": "Phoenix",
+                "risk": "Medium",
+                "due_in": "2d",
+                "sla": "On track",
+                "approvers": [
+                    {"name": "A. Lee", "role": "Primary"},
+                    {"name": "S. Ortiz", "role": "Delegate"},
+                ],
+            },
+            {
+                "id": "app-1025",
+                "title": "Budget Change +12%",
+                "project": "Orion",
+                "risk": "High",
+                "due_in": "8h",
+                "sla": "At risk",
+                "approvers": [
+                    {"name": "S. Patel", "role": "Finance"},
+                    {"name": "M. Chung", "role": "Portfolio"},
+                ],
+            },
+        ],
+        "history": [
+            {
+                "timestamp": "09:32",
+                "action": "Gate Exit Approval",
+                "actor": "A. Lee",
+                "evidence": "Evidence pack attached",
+            },
+            {
+                "timestamp": "09:14",
+                "action": "Budget Review Delegated",
+                "actor": "S. Patel",
+                "evidence": "SLA met",
+            },
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Project loading helper  (used by search, assistant, templates_api)
+# ---------------------------------------------------------------------------
+
+def _load_projects() -> list:
+    """Load all projects from the projects store file.
+
+    Returns a list of ProjectRecord instances (imported lazily to avoid
+    circular imports with ``_models``).
+    """
+    from routes._models import ProjectRecord
+
+    raw = _load_json(PROJECTS_PATH, {"projects": []})
+    return [ProjectRecord.model_validate(p) for p in raw.get("projects", [])]

@@ -9,24 +9,26 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from routes._deps import (
+    LLMGateway,
+    LLMProviderError,
+    _approval_payload,
     _demo_mode_enabled,
     _load_demo_assistant_payload,
     _load_demo_conversation_payload,
+    _load_projects,
+    _orchestrator_client,
     _random_token_hex,
     _require_session,
     _resolve_llm_selection,
     _tenant_id_from_request,
+    build_forward_headers,
     evaluate_prompt,
     get_methodology_map,
     logger,
     workspace_state_store,
     workflow_definition_store,
 )
-from routes._deps import LLMGateway, LLMProviderError, build_forward_headers, httpx
-from routes._deps import _orchestrator_client
-
-# Helpers used only in assistant
-from routes._deps import _load_projects, _approval_payload
+import httpx
 from routes._models import (
     AssistantQueryRequest,
     AssistantQueryResponse,

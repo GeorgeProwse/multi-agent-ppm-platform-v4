@@ -9,6 +9,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from routes._deps import (
+    CanonicalTemplateDefinition,
+    CanonicalTemplateSummary,
     ColumnCreate,
     RowCreate,
     SheetCreate,
@@ -17,6 +19,7 @@ from routes._deps import (
     TemplateType,
     _demo_mode_enabled,
     _document_client,
+    _load_projects,
     _raise_upstream_error,
     _require_roles,
     _require_session,
@@ -35,8 +38,6 @@ from routes._deps import (
     spreadsheet_store,
 )
 from routes._models import (
-    CanonicalTemplateDefinition,
-    CanonicalTemplateSummary,
     ProjectRecord,
     TemplateApplyRequest,
     TemplateApplyResponse,
@@ -86,12 +87,6 @@ def _unique_project_id(base: str, existing: set[str]) -> str:
         if candidate not in existing:
             return candidate
     return f"{base}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-
-
-def _load_projects():
-    from routes._deps import PROJECTS_PATH, _load_json
-    raw = _load_json(PROJECTS_PATH, {"projects": []})
-    return [ProjectRecord.model_validate(p) for p in raw.get("projects", [])]
 
 
 def _persist_projects(projects):
