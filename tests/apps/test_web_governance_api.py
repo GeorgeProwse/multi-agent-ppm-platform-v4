@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -9,9 +10,17 @@ from fastapi.testclient import TestClient
 
 pytest.importorskip("email_validator")
 
+_WEB_SRC = Path(__file__).resolve().parents[2] / "apps" / "web" / "src"
+
 
 def _load_web_app():
-    module_path = Path(__file__).resolve().parents[2] / "apps" / "web" / "src" / "main.py"
+    # Ensure web/src is first in sys.path to prevent config.py namespace collision
+    # with other services (e.g. orchestration-service) that also have a top-level config.py.
+    web_src_str = str(_WEB_SRC.resolve())
+    if web_src_str not in sys.path:
+        sys.path.insert(0, web_src_str)
+
+    module_path = _WEB_SRC / "main.py"
     spec = spec_from_file_location("web_main_governance", module_path)
     module = module_from_spec(spec)
     assert spec and spec.loader
@@ -20,7 +29,17 @@ def _load_web_app():
     return module
 
 
-def test_governance_api_endpoints() -> None:
+def test_governance_api_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Set required env vars so web app config validation passes
+    monkeypatch.setenv("API_GATEWAY_URL", "http://api-gateway:8000")
+    monkeypatch.setenv("IDENTITY_ACCESS_URL", "http://identity:8000")
+    monkeypatch.setenv("WORKFLOW_ENGINE_URL", "http://workflow:8000")
+    # Clear the lru_cache so our env vars take effect
+    try:
+        import config as _web_cfg  # noqa: PLC0415
+        _web_cfg.get_settings.cache_clear()
+    except Exception:  # noqa: BLE001
+        pass
     web = _load_web_app()
     client = TestClient(web.app)
     endpoints = {
