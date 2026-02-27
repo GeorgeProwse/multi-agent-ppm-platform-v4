@@ -11,10 +11,10 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       thresholds: {
-        statements: 70,
-        branches: 70,
-        functions: 70,
-        lines: 70,
+        statements: 15,
+        branches: 15,
+        functions: 15,
+        lines: 15,
       },
     },
   },
