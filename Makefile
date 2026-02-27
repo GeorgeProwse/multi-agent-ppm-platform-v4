@@ -101,6 +101,12 @@ secret-scan: ## Scan repository for secrets (requires gitleaks)
 env-validate: ## Validate service environment configuration schemas
 	$(PYTHON) ops/tools/env_validate.py
 
+check-config-parity: ## Validate config parity across environments
+	$(PYTHON) ops/tools/check_config_parity.py
+
+check-migration-rollback: ## Validate all migrations have working downgrade()
+	$(PYTHON) ops/scripts/test_migration_rollback.py
+
 smoke-workspace-wiring: ## Verify workspace methodology wiring end-to-end locally
 	$(PYTHON) ops/smoke_workspace_wiring.py
 

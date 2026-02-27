@@ -17,6 +17,7 @@ env:
   OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: "http://otel-collector:4318/v1/logs"
   JAEGER_COLLECTOR_ENDPOINT: "jaeger-collector:14250"
   LOKI_ENDPOINT: "http://loki:3100/loki/api/v1/push"
+  WEB_CONCURRENCY: "4"
 
 resources:
   requests:

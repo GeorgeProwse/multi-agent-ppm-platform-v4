@@ -44,6 +44,12 @@ jobs:
       - name: Validate migration/schema registry consistency
         run: python data/migrations/validate_registry_consistency.py
 
+      - name: Validate migration rollback compatibility
+        run: python ops/scripts/test_migration_rollback.py
+
+      - name: Validate environment config parity
+        run: python ops/tools/check_config_parity.py
+
       - name: Validate application configuration
         run: python ops/scripts/validate_config.py
 
@@ -352,7 +358,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Install dependencies (CI profile: ${{ env.CI_TEST_DEPENDENCY_PROFILE }})
+      - name: "Install dependencies (CI profile: ${{ env.CI_TEST_DEPENDENCY_PROFILE }})"
         run: |
           python -m pip install --upgrade pip
           pip install -r ops/requirements/requirements-dev.txt

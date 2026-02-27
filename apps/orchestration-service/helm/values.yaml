@@ -17,6 +17,7 @@ env:
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector:4318/v1/metrics"
   MAX_AGENT_CONCURRENCY: "5"
   AGENT_CALL_TIMEOUT: "30.0"
+  WEB_CONCURRENCY: "4"
 
 leaderElection:
   enabled: true

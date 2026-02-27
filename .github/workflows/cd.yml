@@ -157,10 +157,28 @@ jobs:
         run: |
           helm rollback "${{ matrix.service }}" --namespace "$K8S_NAMESPACE" || true
 
+  smoke-test-staging:
+    name: Staging Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+      - name: Set up Python
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
+        with:
+          python-version: "3.11"
+
+      - name: Run staging smoke tests
+        env:
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+        run: python ops/scripts/smoke_test_staging.py
+
   deploy-production:
     name: Deploy all services to Production
     runs-on: ubuntu-latest
-    needs: deploy-staging
+    needs: smoke-test-staging
     environment:
       name: production
     strategy:

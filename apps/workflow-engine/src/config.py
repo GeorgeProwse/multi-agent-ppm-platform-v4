@@ -21,15 +21,12 @@ from common.env_validation import build_validation_diagnostics, format_validatio
 
 
 class Settings(BaseSettings):
-    environment: Literal["development", "dev", "staging", "production"] = Field(
-        "development", env="ENVIRONMENT"
-    )
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
-        "INFO", env="LOG_LEVEL"
-    )
-    demo_mode: bool = Field(False, env="DEMO_MODE")
-    workflow_engine_url: str = Field(..., env="WORKFLOW_ENGINE_URL")
-    api_gateway_url: str = Field(..., env="API_GATEWAY_URL")
+    environment: Literal["development", "dev", "staging", "production"] = "development"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    demo_mode: bool = False
+    auth_dev_mode: bool = False
+    workflow_engine_url: str
+    api_gateway_url: str
 
     model_config = SettingsConfigDict(
         env_file=(str(REPO_ROOT / ".env"), str(REPO_ROOT / ".env.example")),
@@ -45,7 +42,13 @@ def get_settings() -> Settings:
 
 def validate_startup_config() -> Settings:
     try:
-        return get_settings()
+        settings = get_settings()
     except ValidationError as exc:
         diagnostics = build_validation_diagnostics(exc)
         raise RuntimeError(format_validation_report("workflow-engine", diagnostics)) from exc
+    if settings.auth_dev_mode and settings.environment in ("production", "staging"):
+        raise RuntimeError(
+            "AUTH_DEV_MODE must not be enabled in production or staging. "
+            "Set AUTH_DEV_MODE=false in the environment configuration."
+        )
+    return settings
