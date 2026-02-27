@@ -39,6 +39,8 @@ spec:
               value: {{ .Values.env.MAX_AGENT_CONCURRENCY | quote }}
             - name: AGENT_CALL_TIMEOUT
               value: {{ .Values.env.AGENT_CALL_TIMEOUT | quote }}
+            - name: WEB_CONCURRENCY
+              value: {{ .Values.env.WEB_CONCURRENCY | quote }}
             {{- if .Values.leaderElection.enabled }}
             - name: LEADER_ELECTION_ENABLED
               value: "true"

@@ -70,10 +70,10 @@ def validate_startup_config() -> Settings:
     except ValidationError as exc:
         diagnostics = build_validation_diagnostics(exc)
         raise RuntimeError(format_validation_report("api-gateway", diagnostics)) from exc
-    if settings.auth_dev_mode and settings.environment == "production":
+    if settings.auth_dev_mode and settings.environment in ("production", "staging"):
         raise RuntimeError(
-            "AUTH_DEV_MODE must not be enabled in production. "
-            "Set AUTH_DEV_MODE=false in the production environment."
+            "AUTH_DEV_MODE must not be enabled in production or staging. "
+            "Set AUTH_DEV_MODE=false in the environment configuration."
         )
     reject_placeholder_secrets(
         service_name="api-gateway",

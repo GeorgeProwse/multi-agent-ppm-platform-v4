@@ -208,7 +208,14 @@ WORKFLOW_SUBSCRIPTION_TABLE = Table(
 
 class DatabaseWorkflowStateStore:
     def __init__(self, database_url: str) -> None:
-        self.engine = create_async_engine(database_url, pool_pre_ping=True)
+        self.engine = create_async_engine(
+            database_url,
+            pool_pre_ping=True,
+            pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
+            max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
+            pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),
+        )
         self.session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
             self.engine, expire_on_commit=False
         )

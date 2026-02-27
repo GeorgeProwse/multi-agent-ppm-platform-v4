@@ -17,6 +17,7 @@ env:
   WORKFLOW_ENGINE_URL: "http://workflow-engine:8080"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318/v1/traces"
   OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector:4318/v1/metrics"
+  WEB_CONCURRENCY: "4"
 
 livenessProbe:
   path: /healthz

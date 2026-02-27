@@ -28,6 +28,7 @@ class Settings(BaseSettings):
         "INFO", env="LOG_LEVEL"
     )
     demo_mode: bool = Field(False, env="DEMO_MODE")
+    auth_dev_mode: bool = Field(False, env="AUTH_DEV_MODE")
     database_url: str = Field(..., env="DATABASE_URL")
 
     model_config = SettingsConfigDict(
@@ -44,7 +45,13 @@ def get_settings() -> Settings:
 
 def validate_startup_config() -> Settings:
     try:
-        return get_settings()
+        settings = get_settings()
     except ValidationError as exc:
         diagnostics = build_validation_diagnostics(exc)
         raise RuntimeError(format_validation_report("document-service", diagnostics)) from exc
+    if settings.auth_dev_mode and settings.environment in ("production", "staging"):
+        raise RuntimeError(
+            "AUTH_DEV_MODE must not be enabled in production or staging. "
+            "Set AUTH_DEV_MODE=false in the environment configuration."
+        )
+    return settings

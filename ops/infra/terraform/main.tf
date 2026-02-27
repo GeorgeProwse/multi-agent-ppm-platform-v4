@@ -349,6 +349,24 @@ variable "app_gateway_capacity" {
   default     = 2
 }
 
+variable "app_gateway_ssl_cert_name" {
+  description = "Name for the SSL certificate on the Application Gateway"
+  type        = string
+  default     = "ppm-ssl-cert"
+}
+
+variable "app_gateway_ssl_key_vault_secret_id" {
+  description = "Key Vault secret ID for the TLS certificate (full versioned URI)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "app_gateway_managed_identity_id" {
+  description = "User Assigned Managed Identity resource ID for Key Vault certificate access"
+  type        = string
+  default     = ""
+}
 
 # Monitoring thresholds and retention
 variable "monitoring_log_retention_in_days" {
@@ -527,6 +545,14 @@ resource "azurerm_application_gateway" "main" {
     capacity = var.app_gateway_capacity
   }
 
+  dynamic "identity" {
+    for_each = var.app_gateway_managed_identity_id != "" ? [1] : []
+    content {
+      type         = "UserAssigned"
+      identity_ids = [var.app_gateway_managed_identity_id]
+    }
+  }
+
   gateway_ip_configuration {
     name      = "gateway-ip-config"
     subnet_id = module.networking.app_gateway_subnet_id
@@ -535,6 +561,11 @@ resource "azurerm_application_gateway" "main" {
   frontend_port {
     name = "http"
     port = 80
+  }
+
+  frontend_port {
+    name = "https"
+    port = 443
   }
 
   frontend_ip_configuration {
@@ -555,6 +586,14 @@ resource "azurerm_application_gateway" "main" {
     request_timeout       = 30
   }
 
+  dynamic "ssl_certificate" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id != "" ? [1] : []
+    content {
+      name                = var.app_gateway_ssl_cert_name
+      key_vault_secret_id = var.app_gateway_ssl_key_vault_secret_id
+    }
+  }
+
   http_listener {
     name                           = "http-listener"
     frontend_ip_configuration_name = "public"
@@ -562,12 +601,65 @@ resource "azurerm_application_gateway" "main" {
     protocol                       = "Http"
   }
 
-  request_routing_rule {
-    name                       = "default-route"
-    rule_type                  = "Basic"
-    http_listener_name         = "http-listener"
-    backend_address_pool_name  = "aks-ingress"
-    backend_http_settings_name = "http-settings"
+  dynamic "http_listener" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id != "" ? [1] : []
+    content {
+      name                           = "https-listener"
+      frontend_ip_configuration_name = "public"
+      frontend_port_name             = "https"
+      protocol                       = "Https"
+      ssl_certificate_name           = var.app_gateway_ssl_cert_name
+    }
+  }
+
+  # When TLS is configured, redirect HTTP to HTTPS
+  dynamic "redirect_configuration" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id != "" ? [1] : []
+    content {
+      name                 = "http-to-https"
+      redirect_type        = "Permanent"
+      target_listener_name = "https-listener"
+      include_path         = true
+      include_query_string = true
+    }
+  }
+
+  # When TLS is NOT configured, route HTTP directly to backend (dev/local)
+  dynamic "request_routing_rule" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id == "" ? [1] : []
+    content {
+      name                       = "default-route"
+      rule_type                  = "Basic"
+      http_listener_name         = "http-listener"
+      backend_address_pool_name  = "aks-ingress"
+      backend_http_settings_name = "http-settings"
+      priority                   = 100
+    }
+  }
+
+  # When TLS is configured, redirect HTTP to HTTPS
+  dynamic "request_routing_rule" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id != "" ? [1] : []
+    content {
+      name                        = "http-redirect-rule"
+      rule_type                   = "Basic"
+      http_listener_name          = "http-listener"
+      redirect_configuration_name = "http-to-https"
+      priority                    = 200
+    }
+  }
+
+  # When TLS is configured, route HTTPS to backend
+  dynamic "request_routing_rule" {
+    for_each = var.app_gateway_ssl_key_vault_secret_id != "" ? [1] : []
+    content {
+      name                       = "https-route"
+      rule_type                  = "Basic"
+      http_listener_name         = "https-listener"
+      backend_address_pool_name  = "aks-ingress"
+      backend_http_settings_name = "http-settings"
+      priority                   = 100
+    }
   }
 
   firewall_policy_id = azurerm_web_application_firewall_policy.main.id
