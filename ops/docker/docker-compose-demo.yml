@@ -1,0 +1,183 @@
+version: '3.8'
+
+# SIMPLIFIED DEMO COMPOSITION - DEMO PROFILE ONLY
+# This configuration prioritizes demo stability and quick startup.
+# Use: docker compose -f ops/docker/docker-compose-demo.yml up
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../ops/scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ppm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ppm-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../../apps/api-gateway
+      dockerfile: Dockerfile
+      additional_contexts:
+        repo-root: ../..
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - ORCHESTRATION_STATE_BACKEND=${ORCHESTRATION_STATE_BACKEND}
+      - AUTH_DEV_MODE=${AUTH_DEV_MODE}
+      - AUTH_DEV_ROLES=${AUTH_DEV_ROLES}
+      - AUTH_DEV_TENANT_ID=${AUTH_DEV_TENANT_ID}
+      - DEMO_MODE=${DEMO_MODE}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - LLM_MOCK_RESPONSE_PATH=${LLM_MOCK_RESPONSE_PATH}
+      - PYTHONPATH=/app/vendor/stubs:/app/vendor:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../apps/api-gateway/src:/app/apps/api-gateway/src
+      - ../../apps/orchestration-service/src:/app/apps/orchestration-service/src
+      - ../../agents:/app/agents
+      - ../../tools:/app/tools
+      - ../../ops/config:/app/ops/config
+      - ../../vendor:/app/vendor
+      - ../../examples:/app/examples
+    networks:
+      - ppm-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=10).read()"]
+      interval: 30s
+      timeout: 15s
+      retries: 15
+      start_period: 120s
+    restart: unless-stopped
+
+  workflow-engine:
+    build:
+      context: ../../apps/workflow-engine
+      dockerfile: Dockerfile
+      additional_contexts:
+        repo-root: ../..
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - AUTH_DEV_MODE=${AUTH_DEV_MODE}
+      - AUTH_DEV_ROLES=${AUTH_DEV_ROLES}
+      - AUTH_DEV_TENANT_ID=${AUTH_DEV_TENANT_ID}
+      - DEMO_MODE=${DEMO_MODE}
+      - WORKFLOW_DB_PATH=${WORKFLOW_DB_PATH:-/app/apps/workflow-engine/storage/workflows.db}
+    volumes:
+      - ../../apps/workflow-engine:/app/apps/workflow-engine
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ppm-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=10).read()"]
+      interval: 30s
+      timeout: 15s
+      retries: 15
+      start_period: 120s
+    restart: unless-stopped
+
+  identity-access:
+    build:
+      context: ../../services/identity-access
+      dockerfile: Dockerfile
+      additional_contexts:
+        repo-root: ../..
+    ports:
+      - "8081:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT}
+      - AUTH_DEV_MODE=${AUTH_DEV_MODE}
+      - AUTH_DEV_ROLES=${AUTH_DEV_ROLES}
+      - AUTH_DEV_TENANT_ID=${AUTH_DEV_TENANT_ID}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ppm-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=10).read()"]
+      interval: 30s
+      timeout: 15s
+      retries: 15
+      start_period: 120s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../../apps/web:/app
+    environment:
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-http://api:8000}
+      - IDENTITY_ACCESS_URL=${IDENTITY_ACCESS_URL:-http://identity-access:8000}
+      - WORKFLOW_ENGINE_URL=${WORKFLOW_ENGINE_URL:-http://workflow-engine:8080}
+      - DEMO_MODE=${DEMO_MODE}
+    depends_on:
+      - api
+      - workflow-engine
+      - identity-access
+    networks:
+      - ppm-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/healthz', timeout=10).read()"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ppm-network:
+    driver: bridge
