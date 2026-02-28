@@ -2484,7 +2484,7 @@ Known Issues:
         self.deployment_history.append(record)
         await self.db_service.store(
             "deployment_history",
-            f"{record['deployment_plan_id']}-{record['timestamp']}",
+            f"{record['deployment_plan_id']}-{record['timestamp'].replace(':', '-')}",
             record,
         )
 

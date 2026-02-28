@@ -2013,7 +2013,7 @@ class ChangeConfigurationAgent(BaseAgent):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.change_history.setdefault(change_id, []).append(entry)
-        await self.db_service.store("change_audit", f"{change_id}:{entry['timestamp']}", entry)
+        await self.db_service.store("change_audit", f"{change_id}-{entry['timestamp'].replace(':', '-')}", entry)
 
     async def _notify_stakeholders(
         self,

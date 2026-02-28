@@ -1650,7 +1650,7 @@ class DataSyncAgent(BaseAgent):
             )
 
     def _quality_record_key(self, record: dict[str, Any]) -> str:
-        return f"{record['tenant_id']}:{record['entity_type']}:{record['validated_at']}"
+        return f"{record['tenant_id']}-{record['entity_type']}-{record['validated_at'].replace(':', '-')}"
 
     async def _enqueue_retry(
         self,
@@ -2841,7 +2841,7 @@ class DataSyncAgent(BaseAgent):
 
     async def _store_quality_report(self, tenant_id: str, entity_type: str) -> None:
         report = await self._get_quality_report(tenant_id, entity_type)
-        report_id = f"{tenant_id}:{entity_type}:{datetime.now(timezone.utc).isoformat()}"
+        report_id = f"{tenant_id}-{entity_type}-{datetime.now(timezone.utc).isoformat().replace(':', '-')}"
         await self._store_record("data_quality_reports", report_id, report)
 
     async def _record_sync_log(
