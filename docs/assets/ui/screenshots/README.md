@@ -47,12 +47,20 @@ cd apps/web/frontend && npx vite build
 node ops/scripts/take-screenshot.mjs [optional-output-path]
 ```
 
-The script starts a Vite dev server, mocks backend API responses, and captures the home dashboard and login page at 1920×1080.
+The script starts a Vite dev server, mocks backend API responses, and captures multiple screens at 1920×1080.
 
 ## Recent captures
 
-- `web-login-default-20260228.png`
-- `web-home-three-panel-default-20260228.png`
-- `web-login-default-20260208.png` *(placeholder)*
-- `web-intake-new-project-form-default-20260208.png` *(placeholder)*
-- `web-project-workspace-three-panel-default-20260208.png` *(placeholder)*
+- `web-home-three-panel-default-20260228.png` — Home dashboard
+- `web-portfolio-workspace-default-20260228.png` — Portfolio workspace with KPIs and pipeline
+- `web-intake-new-project-form-default-20260228.png` — Multi-step intake form (Step 1 of 4)
+- `web-portfolios-directory-default-20260228.png` — Portfolio directory with search
+- `web-config-agents-default-20260228.png` — Configuration Center (Agents / Connectors / Workflows)
+- `web-demo-run-agents-default-20260228.png` — Demo Run showing all 25 agent executions
+- `web-login-default-20260228.png` — Login / sign-in page
+
+### Legacy placeholders
+
+- `web-login-default-20260208.png`
+- `web-intake-new-project-form-default-20260208.png`
+- `web-project-workspace-three-panel-default-20260208.png`
