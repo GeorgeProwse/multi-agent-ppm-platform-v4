@@ -49,14 +49,35 @@ node ops/scripts/take-screenshot.mjs [optional-output-path]
 
 The script starts a Vite dev server, mocks backend API responses, and captures multiple screens at 1920×1080.
 
-## Recent captures
+## Recent captures (all nav pages)
 
-- `web-home-three-panel-default-20260228.png` — Home dashboard
-- `web-portfolio-workspace-default-20260228.png` — Portfolio workspace with KPIs and pipeline
-- `web-intake-new-project-form-default-20260228.png` — Multi-step intake form (Step 1 of 4)
-- `web-portfolios-directory-default-20260228.png` — Portfolio directory with search
-- `web-config-agents-default-20260228.png` — Configuration Center (Agents / Connectors / Workflows)
+**Navigate**
+- `web-home-three-panel-default-20260228.png` — Home dashboard with quick-action chips
 - `web-demo-run-agents-default-20260228.png` — Demo Run showing all 25 agent executions
+- `web-enterprise-uplift-default-20260228.png` — Enterprise Uplift with demand table and scenario compare
+- `web-portfolios-directory-default-20260228.png` — Portfolio directory with search
+- `web-programs-directory-default-20260228.png` — Program directory with search
+- `web-projects-directory-default-20260228.png` — Project directory with search
+
+**Work**
+- `web-intake-form-default-20260228.png` — Multi-step intake form (Step 1 of 4)
+- `web-approvals-pending-default-20260228.png` — My Approvals with pending items and audit trail
+- `web-intake-approvals-default-20260228.png` — Intake Approvals with approve/reject cards
+
+**Insights**
+- `web-analytics-dashboard-default-20260228.png` — Analytics Dashboard with trend charts and warnings
+- `web-documents-repository-default-20260228.png` — Document Repository with version sidebar
+- `web-lessons-learned-default-20260228.png` — Lessons Learned with capture form and library
+
+**Admin (Hub Admin)**
+- `web-config-agents-default-20260228.png` — Configuration Center: Agents tab
+- `web-config-connectors-default-20260228.png` — Configuration Center: Connectors tab
+- `web-config-workflows-default-20260228.png` — Configuration Center: Workflows tab
+- `web-config-prompts-default-20260228.png` — Prompt Manager with create form and library
+- `web-workflow-monitor-default-20260228.png` — Workflow Monitoring with instances and timeline
+- `web-methodology-editor-default-20260228.png` — Methodology Editor with stages, activities, and gates
+
+**Auth**
 - `web-login-default-20260228.png` — Login / sign-in page
 
 ### Legacy placeholders
