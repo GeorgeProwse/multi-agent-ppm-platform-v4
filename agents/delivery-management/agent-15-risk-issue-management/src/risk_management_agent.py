@@ -1026,7 +1026,7 @@ class RiskManagementAgent(BaseAgent):
             await self.db_service.store("risks", risk_id, risk)
             await self.db_service.store(
                 "risk_assessments",
-                f"{risk_id}-{risk['last_assessed']}",
+                f"{risk_id}-{risk['last_assessed'].replace(':', '-')}",
                 {
                     "risk_id": risk_id,
                     "assessment": predicted_assessment,
@@ -1036,7 +1036,7 @@ class RiskManagementAgent(BaseAgent):
             )
             await self.db_service.store(
                 "risk_impacts",
-                f"{risk_id}-{risk['last_assessed']}",
+                f"{risk_id}-{risk['last_assessed'].replace(':', '-')}",
                 {
                     "risk_id": risk_id,
                     "quantitative_impact": quantitative_impact,

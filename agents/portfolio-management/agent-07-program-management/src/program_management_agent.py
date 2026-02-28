@@ -953,7 +953,7 @@ class ProgramManagementAgent(BaseAgent):
         if self.db_service:
             await self.db_service.store(
                 "program_status_updates",
-                f"{program_id}:{status_type}:{uuid.uuid4().hex}",
+                f"{program_id}-{status_type}-{uuid.uuid4().hex}",
                 status_payload,
             )
         await self.event_bus.publish(

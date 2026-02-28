@@ -1160,7 +1160,7 @@ class QualityManagementAgent(BaseAgent):
 
         history = self.defect_density_history.setdefault(project_id, [])
         history.append({"defect_density": defect_density, "timestamp": metrics["calculated_at"]})
-        metrics_record_id = f"QMET-{project_id}-{metrics['calculated_at']}"
+        metrics_record_id = f"QMET-{project_id}-{metrics['calculated_at'].replace(':', '-')}"
         await self._store_record("quality_metrics", metrics_record_id, metrics)
         await self._publish_quality_event(
             "quality.metrics.calculated",
@@ -1530,7 +1530,7 @@ class QualityManagementAgent(BaseAgent):
         history = self.coverage_trends.setdefault(project_id, [])
         history.append(snapshot)
         self.coverage_trend_store.upsert(project_id, snapshot["captured_at"], snapshot)
-        await self._store_record("quality_coverage_trends", snapshot["captured_at"], snapshot)
+        await self._store_record("quality_coverage_trends", snapshot["captured_at"].replace(":", "-"), snapshot)
         await self._publish_quality_event(
             "quality.coverage.trend.updated",
             payload=snapshot,
@@ -2798,7 +2798,7 @@ class QualityManagementAgent(BaseAgent):
         ) * 100
         await self._store_record(
             "quality_execution_kpis",
-            f"{project_id}-{datetime.now(timezone.utc).isoformat()}",
+            f"{project_id}-{datetime.now(timezone.utc).isoformat().replace(':', '-')}",
             {
                 "project_id": project_id,
                 "pass_rate_pct": pass_rate,
