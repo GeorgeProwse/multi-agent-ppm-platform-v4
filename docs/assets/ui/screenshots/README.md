@@ -38,8 +38,21 @@ Examples:
 
 PNG screenshots are binary assets, so some PR viewers (especially on mobile) cannot render a text diff and may display a "binary files not supported" message. If you hit that limitation, create the PR from the main GitHub web UI (desktop) or from the CLI; the assets will still be included in the change set even if the diff view fails to render.
 
+## Generating screenshots
+
+Run the Playwright-based capture script (requires a built frontend):
+
+```bash
+cd apps/web/frontend && npx vite build
+node ops/scripts/take-screenshot.mjs [optional-output-path]
+```
+
+The script starts a Vite dev server, mocks backend API responses, and captures the home dashboard and login page at 1920×1080.
+
 ## Recent captures
 
-- `web-login-default-20260208.png`
-- `web-intake-new-project-form-default-20260208.png`
-- `web-project-workspace-three-panel-default-20260208.png`
+- `web-login-default-20260228.png`
+- `web-home-three-panel-default-20260228.png`
+- `web-login-default-20260208.png` *(placeholder)*
+- `web-intake-new-project-form-default-20260208.png` *(placeholder)*
+- `web-project-workspace-three-panel-default-20260208.png` *(placeholder)*
