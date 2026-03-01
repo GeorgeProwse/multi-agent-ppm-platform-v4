@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 JIRA_CONNECTOR_PATH = REPO_ROOT / "connectors" / "jira" / "src"
 for path in (REPO_ROOT, CONNECTOR_SDK_PATH, JIRA_CONNECTOR_PATH):
@@ -18,7 +18,7 @@ for path in (REPO_ROOT, CONNECTOR_SDK_PATH, JIRA_CONNECTOR_PATH):
 
 from base_connector import ConnectorCategory, ConnectorConfig, SyncDirection, SyncFrequency
 from jira_connector import JiraConnector
-from mcp_client.errors import MCPServerError, MCPToolNotFoundError
+from mcp_client import MCPServerError, MCPToolNotFoundError
 
 
 class FakeMCPClient:
@@ -78,7 +78,10 @@ def test_jira_mcp_invocation_and_mapping(jira_config: ConnectorConfig) -> None:
             "name": "App Project",
             "description": None,
             "lead": None,
+            "lead_email": None,
             "project_type": "software",
+            "style": None,
+            "archived": False,
         }
     ]
 
@@ -97,4 +100,16 @@ def test_jira_mcp_fallbacks(jira_config: ConnectorConfig, error: Exception) -> N
     with patch.object(connector, "_read_projects", return_value=rest_records):
         result = connector.read("projects")
 
-    assert result == rest_records
+    assert result == [
+        {
+            "id": "rest-project",
+            "key": "REST",
+            "name": "REST",
+            "description": None,
+            "lead": None,
+            "lead_email": None,
+            "project_type": None,
+            "style": None,
+            "archived": False,
+        }
+    ]

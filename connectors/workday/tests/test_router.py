@@ -22,6 +22,7 @@ class _HttpClientError(Exception):
 
 def _load_router() -> types.ModuleType:
     module_name = "connectors.workday.src.router"
+    _stub_keys = [module_name]
     sys.modules.pop(module_name, None)
 
     sync_router_stub = types.ModuleType("connectors.sdk.src.sync_router")
@@ -29,10 +30,12 @@ def _load_router() -> types.ModuleType:
     sync_router_stub.OutboundSyncRequest = object
     sync_router_stub.map_records = lambda *_args, **_kwargs: [{"id": "mapped-1"}]
     sys.modules[sync_router_stub.__name__] = sync_router_stub
+    _stub_keys.append(sync_router_stub.__name__)
 
     http_stub = types.ModuleType("connectors.sdk.src.http_client")
     http_stub.HttpClientError = _HttpClientError
     sys.modules[http_stub.__name__] = http_stub
+    _stub_keys.append(http_stub.__name__)
 
     main_stub = types.ModuleType("connectors.workday.src.main")
     main_stub.CONNECTOR_ROOT = Path(".")
@@ -48,8 +51,14 @@ def _load_router() -> types.ModuleType:
     main_stub._request_with_refresh = lambda *_args, **_kwargs: types.SimpleNamespace(json=lambda: {"ok": True}, status_code=200)
     main_stub.run_sync = lambda *_args, **_kwargs: []
     sys.modules[main_stub.__name__] = main_stub
+    _stub_keys.append(main_stub.__name__)
 
-    return importlib.import_module(module_name)
+    mod = importlib.import_module(module_name)
+
+    for key in _stub_keys:
+        sys.modules.pop(key, None)
+
+    return mod
 
 
 def test_sync_outbound_dry_run_returns_consistent_shape() -> None:

@@ -29,16 +29,39 @@ def _ensure_path_within(path: Path, parent: Path, description: str) -> Path:
 
 
 def _load_connector_module(module_path: Path, connector_root: Path) -> ModuleType:
+    import sys
+
     if module_path.suffix != ".py":
         raise ValueError("connector module must be a Python file")
 
     _ensure_path_within(module_path, connector_root / "src", "connector module path")
 
-    spec = importlib.util.spec_from_file_location(f"connector_{connector_root.name}", module_path)
+    src_dir = connector_root / "src"
+    pkg_name = f"connector_{connector_root.name}"
+
+    # Register the src directory as a package so relative imports work.
+    if pkg_name not in sys.modules:
+        pkg = ModuleType(pkg_name)
+        pkg.__path__ = [str(src_dir)]
+        pkg.__package__ = pkg_name
+        sys.modules[pkg_name] = pkg
+
+    # Also put the src dir on sys.path so absolute intra-connector imports work.
+    src_str = str(src_dir)
+    if src_str not in sys.path:
+        sys.path.insert(0, src_str)
+
+    mod_name = f"{pkg_name}.{module_path.stem}"
+    spec = importlib.util.spec_from_file_location(
+        mod_name, module_path,
+        submodule_search_locations=[],
+    )
     if spec is None or spec.loader is None:
         raise ImportError(f"unable to load connector module from {module_path}")
 
     module = importlib.util.module_from_spec(spec)
+    module.__package__ = pkg_name
+    sys.modules[mod_name] = module
     spec.loader.exec_module(module)
 
     if not hasattr(module, "run_sync"):

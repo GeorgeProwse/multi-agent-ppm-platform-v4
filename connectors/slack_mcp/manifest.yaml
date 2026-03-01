@@ -4,6 +4,13 @@ name: Slack (MCP)
 description: Sync collaboration metadata and notifications from Slack via an MCP server.
 owner: integration-team
 category: collaboration
+status: beta
+icon: slack
+system: slack
+prefer_mcp: true
+supported_operations:
+- list
+- create
 protocol: mcp
 auth:
   type: api_key
@@ -21,12 +28,20 @@ mcp:
     list_channels: slack.listChannels
     post_message: slack.postMessage
     list_users: slack.listUsers
-mcp_server_url: https://mcp.example.com
-mcp_server_id: slack
-tool_map:
-  list_channels: slack.listChannels
-  post_message: slack.postMessage
-  list_users: slack.listUsers
+config_fields:
+- name: mcp_server_url
+  type: url
+  required: true
+  label: MCP Server URL
+- name: mcp_scopes
+  type: array
+  required: false
+  label: MCP Scopes
+- name: tool_map
+  type: object
+  required: false
+  label: MCP Tool Map
+env_vars: []
 sync:
   modes:
   - full
@@ -34,6 +49,10 @@ sync:
   default_schedule: '*/30 * * * *'
   supports_webhooks: false
   rate_limit_per_minute: 1000
+  directions:
+  - inbound
+  - outbound
+  - bidirectional
 mappings:
 - source: project
   target: project
@@ -53,3 +72,7 @@ maturity:
     idempotent_write: false
     conflict_handling: false
   notes: Baseline declarative mapping coverage
+  exceptions:
+  - rule_id: missing_manifest_mappings
+    expires_on: '2026-06-30'
+    reason: Mapping assets are pending migration to declarative format.

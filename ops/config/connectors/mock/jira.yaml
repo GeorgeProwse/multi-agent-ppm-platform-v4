@@ -2,7 +2,7 @@ connector_id: jira
 mock_connector_id: jira_mock
 enabled_when: DEMO_MODE=true
 auth_type: demo
-manifest_path: integrations/connectors/mock/jira/manifest.yaml
+manifest_path: connectors/mock/jira/manifest.yaml
 supported_objects:
 - projects
 - issues

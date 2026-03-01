@@ -10,6 +10,7 @@ from typing import Any
 class SpanKind(Enum):
     INTERNAL = 1
     SERVER = 2
+    CLIENT = 3
 
 
 class StatusCode(Enum):
@@ -39,8 +40,19 @@ class _Span:
     def set_status(self, status: Status) -> None:
         return None
 
+    def record_exception(self, exception: BaseException, **kwargs: Any) -> None:
+        return None
+
+    def end(self) -> None:
+        return None
+
 
 class _Tracer:
+    def start_span(
+        self, name: str, context: Any | None = None, kind: SpanKind | None = None, **kwargs: Any,
+    ) -> _Span:
+        return _Span()
+
     @contextmanager
     def start_as_current_span(
         self, name: str, context: Any | None = None, kind: SpanKind | None = None
@@ -65,6 +77,15 @@ def get_current_span() -> _Span:
     return _Span()
 
 
+@contextmanager
+def use_span(span: _Span, end_on_exit: bool = False) -> Iterator[_Span]:
+    try:
+        yield span
+    finally:
+        if end_on_exit:
+            span.end()
+
+
 __all__ = [
     "SpanKind",
     "Status",
@@ -72,4 +93,5 @@ __all__ = [
     "get_tracer",
     "get_current_span",
     "set_tracer_provider",
+    "use_span",
 ]

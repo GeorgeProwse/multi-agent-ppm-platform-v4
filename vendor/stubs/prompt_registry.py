@@ -20,7 +20,12 @@ class PromptRecord:
 
 class PromptRegistry:
     def __init__(self, prompts_root: Path | None = None) -> None:
-        self.prompts_root = prompts_root or (Path(__file__).resolve().parents[2] / "prompts")
+        repo_root = Path(__file__).resolve().parents[2]
+        default = repo_root / "prompts"
+        if not default.exists():
+            # Fall back to agents/runtime/prompts which is the canonical location.
+            default = repo_root / "agents" / "runtime" / "prompts"
+        self.prompts_root = prompts_root or default
         self._prompt_cache: dict[tuple[str, int], PromptRecord] = {}
         self._agent_versions: dict[str, list[int]] = {}
 

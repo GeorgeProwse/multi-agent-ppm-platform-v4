@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 IOT_CONNECTOR_PATH = REPO_ROOT / "connectors" / "iot" / "src"
 for path in (CONNECTOR_SDK_PATH, IOT_CONNECTOR_PATH):

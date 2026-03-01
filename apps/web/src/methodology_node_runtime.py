@@ -14,7 +14,6 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 RUNTIME_REGISTRY_PATH = DATA_DIR / "methodology_node_runtime.json"
 CONNECTOR_REGISTRY_PATH = (
     Path(__file__).resolve().parents[3]
-    / "integrations"
     / "connectors"
     / "registry"
     / "connectors.json"

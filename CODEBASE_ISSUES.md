@@ -83,7 +83,7 @@ def ensure_monorepo_paths(repo_root: Path | None = None) -> None:
     ordered = [root / "vendor" / "stubs", root / "vendor", root]
     src_dirs = []
     for base in ("agents", "packages", "integrations/apps",
-                 "integrations/connectors", "integrations/services",
+                 "connectors", "integrations/services",
                  "apps", "services"):
         base_path = root / base
         if base_path.exists():

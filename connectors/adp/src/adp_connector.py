@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _COMMON_SRC = _REPO_ROOT / "packages" / "common" / "src"
 if str(_COMMON_SRC) not in sys.path:
     sys.path.insert(0, str(_COMMON_SRC))

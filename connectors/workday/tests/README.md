@@ -6,7 +6,7 @@ Store fixtures and connector-level test scaffolding for the Workday integration.
 
 ## What's inside
 
-- [fixtures](/integrations/connectors/workday/tests/fixtures): Subdirectory containing fixtures assets for this area.
+- [fixtures](/connectors/workday/tests/fixtures): Subdirectory containing fixtures assets for this area.
 
 ## How it's used
 
@@ -15,7 +15,7 @@ Fixtures in this folder are used by integration tests under `tests/integration/`
 ## How to run / develop / test
 
 ```bash
-pytest integrations/connectors/workday/tests
+pytest connectors/workday/tests
 ```
 
 ## Configuration

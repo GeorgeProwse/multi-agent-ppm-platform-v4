@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _COMMON_SRC = _REPO_ROOT / "packages" / "common" / "src"
 if str(_COMMON_SRC) not in sys.path:
     sys.path.insert(0, str(_COMMON_SRC))
@@ -40,7 +40,14 @@ from connector_secrets import fetch_keyvault_secret, resolve_secret  # noqa: E40
 try:
     from .mappers import map_from_mcp_response, map_to_mcp_params
 except ImportError:
-    from mappers import map_from_mcp_response, map_to_mcp_params
+    import importlib.util as _ilu
+    _mappers_spec = _ilu.spec_from_file_location(
+        "clarity_mappers", Path(__file__).with_name("mappers.py"),
+    )
+    _mappers_mod = _ilu.module_from_spec(_mappers_spec)
+    _mappers_spec.loader.exec_module(_mappers_mod)
+    map_from_mcp_response = _mappers_mod.map_from_mcp_response
+    map_to_mcp_params = _mappers_mod.map_to_mcp_params
 
 DEFAULT_TOKEN_URL = "https://clarity.example.com/oauth/token"
 

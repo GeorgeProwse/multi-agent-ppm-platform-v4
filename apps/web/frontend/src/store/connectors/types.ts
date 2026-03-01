@@ -5,9 +5,7 @@
  */
 import type { IconSemantic } from '@/components/icon/iconMap';
 
-/**
- * Connector categories for organization
- */
+/** Connector categories — must match values in connectors/registry/connectors.json. */
 export type ConnectorCategory =
   | 'ppm'
   | 'pm'
@@ -17,7 +15,8 @@ export type ConnectorCategory =
   | 'collaboration'
   | 'grc'
   | 'compliance'
-  | 'iot';
+  | 'iot'
+  | 'crm';
 
 /**
  * Connector implementation status

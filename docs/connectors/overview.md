@@ -6,15 +6,15 @@ Define how the Multi-Agent PPM Platform integrates with enterprise systems, incl
 
 ## Architecture-level context
 
-Connectors sit between domain agents and external systems of record. They translate canonical schemas in `data/schemas/` into system-specific payloads, enforce auth policies, and emit lineage/quality metadata for every sync. Connector metadata is stored in the registry at `integrations/connectors/registry/`.
+Connectors sit between domain agents and external systems of record. They translate canonical schemas in `data/schemas/` into system-specific payloads, enforce auth policies, and emit lineage/quality metadata for every sync. Connector metadata is stored in the registry at `connectors/registry/`.
 
 The platform uses the Model Context Protocol (MCP), a JSON-RPC protocol that exposes tools, resources, and prompts to AI applications. MCP servers act as the registry and execution layer for connector tools, while REST fallbacks remain available when MCP coverage is incomplete.
 
 ## Connector lifecycle
 
-1. **Register**: add a manifest in `integrations/connectors/<name>/manifest.yaml` and list it in `integrations/connectors/registry/connectors.json`.
-2. **Map**: create mapping YAMLs under `integrations/connectors/<name>/mappings/` for each entity.
-3. **Authenticate**: configure auth profile based on `integrations/connectors/registry/schemas/auth-config.schema.json`.
+1. **Register**: add a manifest in `connectors/<name>/manifest.yaml` and list it in `connectors/registry/connectors.json`.
+2. **Map**: create mapping YAMLs under `connectors/<name>/mappings/` for each entity.
+3. **Authenticate**: configure auth profile based on `connectors/registry/schemas/auth-config.schema.json`.
 4. **Sync**: use the connector runner to pull/push canonical entities.
 5. **Certify**: execute the certification checklist and attach evidence.
 
@@ -34,7 +34,7 @@ REST connector configurations are stored per PPM project using `ProjectConnector
 
 Mappings are declarative YAML that map canonical fields to external system fields. The mapping engine applies transformations (enum, date, currency) and emits quality scores.
 
-**Example mapping file**: `integrations/connectors/jira/mappings/project.yaml`
+**Example mapping file**: `connectors/jira/mappings/project.yaml`
 
 ## Sync strategy and conflict resolution
 
@@ -64,7 +64,7 @@ PlantUML: docs/architecture/diagrams/seq-connector-sync.puml
 Inspect the Jira connector manifest:
 
 ```bash
-sed -n '1,120p' integrations/connectors/jira/manifest.yaml
+sed -n '1,120p' connectors/jira/manifest.yaml
 ```
 
 ## How to verify
@@ -72,7 +72,7 @@ sed -n '1,120p' integrations/connectors/jira/manifest.yaml
 Validate the connector registry lists Jira:
 
 ```bash
-rg -n "jira" integrations/connectors/registry/connectors.json
+rg -n "jira" connectors/registry/connectors.json
 ```
 
 Expected output: a JSON entry for Jira with a manifest path.
@@ -84,7 +84,7 @@ Expected output: a JSON entry for Jira with a manifest path.
 
 ## Related docs
 
-- [Connector README](../../integrations/connectors/README.md)
+- [Connector README](../../connectors/README.md)
 - [Data Model](../data/README.md)
 - [Security Architecture](../architecture/security-architecture.md)
 - [MCP Server Configuration](mcp-server-configuration.md)

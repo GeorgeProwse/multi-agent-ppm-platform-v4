@@ -1,0 +1,68 @@
+id: asana_mcp
+version: 1.0.0
+name: Asana (MCP)
+description: Sync Asana projects and tasks via an MCP server.
+owner: integration-team
+category: pm
+status: beta
+icon: asana
+system: asana
+prefer_mcp: true
+supported_operations:
+- list
+- create
+protocol: mcp
+auth:
+  type: api_key
+  fields:
+  - mcp_server_url
+  - mcp_server_id
+  - tool_map
+  - mcp_api_key
+  - mcp_api_key_header
+mcp:
+  server_url: https://mcp.example.com
+  server_id: asana
+  protocol_version: '2025-06-18'
+  tool_map:
+    list_projects: asana.listProjects
+    list_tasks: asana.listTasks
+config_fields:
+- name: mcp_server_url
+  type: url
+  required: true
+  label: MCP Server URL
+- name: mcp_scopes
+  type: array
+  required: false
+  label: MCP Scopes
+- name: tool_map
+  type: object
+  required: false
+  label: MCP Tool Map
+sync:
+  modes:
+  - full
+  - incremental
+  directions:
+  - inbound
+  - bidirectional
+  default_schedule: 0 */4 * * *
+  supports_webhooks: false
+  rate_limit_per_minute: 300
+mappings:
+- source: project
+  target: project
+  mapping_file: mappings/project.yaml
+maturity:
+  level: 1
+  tier: core
+  business_priority: 99
+  capabilities:
+    read: true
+    write: false
+    webhook: false
+    declarative_mapping: true
+    idempotent_write: false
+    conflict_handling: false
+  notes: Baseline declarative mapping coverage

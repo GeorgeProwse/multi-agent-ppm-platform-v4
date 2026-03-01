@@ -4,6 +4,15 @@ name: SAP (MCP)
 description: Sync SAP ERP data via MCP-backed OData services.
 owner: integration-team
 category: erp
+status: beta
+icon: sap
+system: sap
+prefer_mcp: true
+supported_operations:
+- list_invoices
+- list_goods_receipts
+- list_purchase_orders
+- list_suppliers
 protocol: mcp
 auth:
   type: api_key
@@ -22,13 +31,20 @@ mcp:
     list_goods_receipts: sap.listGoodsReceipts
     list_purchase_orders: sap.listPurchaseOrders
     list_suppliers: sap.listSuppliers
-mcp_server_url: https://mcp.example.com
-mcp_server_id: sap
-tool_map:
-  list_invoices: sap.listInvoices
-  list_goods_receipts: sap.listGoodsReceipts
-  list_purchase_orders: sap.listPurchaseOrders
-  list_suppliers: sap.listSuppliers
+config_fields:
+- name: mcp_server_url
+  type: url
+  required: true
+  label: MCP Server URL
+- name: mcp_scopes
+  type: array
+  required: false
+  label: MCP Scopes
+- name: tool_map
+  type: object
+  required: false
+  label: MCP Tool Map
+env_vars: []
 sync:
   modes:
   - full
@@ -36,6 +52,8 @@ sync:
   default_schedule: 15 */6 * * *
   supports_webhooks: false
   rate_limit_per_minute: 300
+  directions:
+  - inbound
 mappings:
 - source: project
   target: project
@@ -55,3 +73,7 @@ maturity:
     idempotent_write: false
     conflict_handling: false
   notes: Baseline declarative mapping coverage
+  exceptions:
+  - rule_id: missing_manifest_mappings
+    expires_on: '2026-06-30'
+    reason: MCP connector mapping generation not yet wired.

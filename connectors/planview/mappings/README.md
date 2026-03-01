@@ -6,11 +6,11 @@ Define how Planview payloads map into the platform's canonical schemas under `da
 
 ## What's inside
 
-- [project.yaml](/integrations/connectors/planview/mappings/project.yaml): Project mapping definition for connector data.
+- [project.yaml](/connectors/planview/mappings/project.yaml): Project mapping definition for connector data.
 
 ## How it's used
 
-Referenced by `integrations/connectors/planview/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
+Referenced by `connectors/planview/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
 
 ## How to run / develop / test
 
@@ -22,7 +22,7 @@ python -m tools.connector_runner run-connector --name planview --dry-run
 
 ## Configuration
 
-No direct configuration. Connector authentication and sync options live in `integrations/connectors/planview/manifest.yaml` and environment variables referenced by `src/`.
+No direct configuration. Connector authentication and sync options live in `connectors/planview/manifest.yaml` and environment variables referenced by `src/`.
 
 ## Troubleshooting
 

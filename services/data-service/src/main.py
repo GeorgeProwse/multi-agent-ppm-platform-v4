@@ -816,7 +816,6 @@ def _resolve_fixture_path(connector_name: str, fixture_path: str | None) -> Path
         return path
     default_fixture = (
         REPO_ROOT
-        / "integrations"
         / "connectors"
         / connector_name
         / "tests"

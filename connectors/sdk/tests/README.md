@@ -6,8 +6,8 @@ Provide shared helpers and scaffolding for building connectors that conform to t
 
 ## What's inside
 
-- [test_connector_runtime.py](/integrations/connectors/sdk/tests/test_connector_runtime.py): Python module used by this component.
-- [test_http_client.py](/integrations/connectors/sdk/tests/test_http_client.py): Python module used by this component.
+- [test_connector_runtime.py](/connectors/sdk/tests/test_connector_runtime.py): Python module used by this component.
+- [test_http_client.py](/connectors/sdk/tests/test_http_client.py): Python module used by this component.
 
 ## How it's used
 
@@ -16,7 +16,7 @@ The SDK is imported by connector implementations and validated in connector test
 ## How to run / develop / test
 
 ```bash
-pytest integrations/connectors/sdk/tests
+pytest connectors/sdk/tests
 ```
 
 ## Configuration

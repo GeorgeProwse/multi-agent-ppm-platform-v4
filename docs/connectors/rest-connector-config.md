@@ -50,6 +50,14 @@ OAuth 2.0 connectors support additional optional fields:
 | logicgate | api_key | `instance_url`, `subdomain` | `LOGICGATE_API_URL`, `LOGICGATE_API_KEY` |
 | regulatory_compliance | api_key | `endpoint_url`, `api_key`, `supported_regulations` | `REGULATORY_COMPLIANCE_ENDPOINT`, `REGULATORY_COMPLIANCE_API_KEY` |
 | iot | api_key | `protocol`, `device_endpoint`, `auth_token`, `device_ids`, `sensor_types`, `mqtt_broker`, `mqtt_port`, `mqtt_username`, `mqtt_password`, `mqtt_topic`, `poll_interval_seconds` | `IOT_PROTOCOL`, `IOT_DEVICE_ENDPOINT`, `IOT_AUTH_TOKEN`, `IOT_DEVICE_IDS`, `IOT_SENSOR_TYPES`, `IOT_MQTT_BROKER`, `IOT_MQTT_PORT`, `IOT_MQTT_USERNAME`, `IOT_MQTT_PASSWORD`, `IOT_MQTT_TOPIC`, `IOT_POLL_INTERVAL_SECONDS` |
+| azure_communication_services | api_key | `endpoint` | `AZURE_COMMUNICATION_ENDPOINT`, `AZURE_COMMUNICATION_KEY` |
+| google_calendar | oauth2 | `calendar_id`, OAuth rotation fields | `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REFRESH_TOKEN` |
+| m365 | oauth2 | `tenant_id`, OAuth rotation fields | `M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET` |
+| notification_hubs | token | `namespace`, `hub_name` | `NOTIFICATION_HUBS_CONNECTION_STRING` |
+| outlook | oauth2 | `tenant_id`, OAuth rotation fields | `OUTLOOK_CLIENT_ID`, `OUTLOOK_CLIENT_SECRET`, `OUTLOOK_REFRESH_TOKEN`, `OUTLOOK_TENANT_ID` |
+| salesforce | oauth2 | `instance_url`, OAuth rotation fields | `SALESFORCE_INSTANCE_URL`, `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_REFRESH_TOKEN` |
+| smartsheet | api_key | `instance_url` | `SMARTSHEET_API_TOKEN` |
+| twilio | basic | `account_sid` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
 
 ## MCP monitoring
 

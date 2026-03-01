@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import Any
 
 from feature_flags import is_mcp_feature_enabled
@@ -12,43 +13,26 @@ from connectors.sdk.src.connector_registry import (
 )
 from connectors.sdk.src.project_connector_store import ProjectConnectorConfig
 
-_CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = {
-    "jira": ("jira_connector", "JiraConnector"),
-    "jira_mcp": ("jira_connector", "JiraConnector"),
-    "planview": ("planview_connector", "PlanviewConnector"),
-    "planview_mcp": ("planview_connector", "PlanviewConnector"),
-    "clarity": ("clarity_connector", "ClarityConnector"),
-    "clarity_mcp": ("clarity_connector", "ClarityConnector"),
-    "ms_project_server": ("ms_project_server_connector", "MsProjectServerConnector"),
-    "azure_devops": ("azure_devops_connector", "AzureDevOpsConnector"),
-    "monday": ("monday_connector", "MondayConnector"),
-    "asana": ("asana_connector", "AsanaConnector"),
-    "asana_mcp": ("asana_connector", "AsanaConnector"),
-    "sharepoint": ("sharepoint_connector", "SharePointConnector"),
-    "confluence": ("confluence_connector", "ConfluenceConnector"),
-    "google_drive": ("google_drive_connector", "GoogleDriveConnector"),
-    "sap": ("sap_connector", "SapConnector"),
-    "sap_mcp": ("sap_connector", "SapConnector"),
-    "oracle": ("oracle_connector", "OracleConnector"),
-    "netsuite": ("netsuite_connector", "NetSuiteConnector"),
-    "workday": ("workday_connector", "WorkdayConnector"),
-    "workday_mcp": ("workday_connector", "WorkdayConnector"),
-    "sap_successfactors": ("sap_successfactors_connector", "SapSuccessFactorsConnector"),
-    "adp": ("adp_connector", "AdpConnector"),
-    "teams": ("teams_connector", "TeamsConnector"),
-    "teams_mcp": ("teams_connector", "TeamsConnector"),
-    "slack": ("slack_connector", "SlackConnector"),
-    "slack_mcp": ("slack_connector", "SlackConnector"),
-    "zoom": ("zoom_connector", "ZoomConnector"),
-    "servicenow_grc": ("servicenow_grc_connector", "ServiceNowGrcConnector"),
-    "archer": ("archer_connector", "ArcherConnector"),
-    "logicgate": ("logicgate_connector", "LogicGateConnector"),
-    "regulatory_compliance": (
-        "regulatory_compliance_connector",
-        "RegulatoryComplianceConnector",
-    ),
-    "iot": ("iot_connector", "IoTConnector"),
-}
+logger = logging.getLogger(__name__)
+
+_PASCAL = {"iot": "IoT", "sharepoint": "SharePoint", "servicenow": "ServiceNow",
+           "netsuite": "NetSuite", "logicgate": "LogicGate", "devops": "DevOps",
+           "successfactors": "SuccessFactors"}
+
+
+def _build_class_map() -> dict[str, tuple[str, str]]:
+    """Derive connector_id -> (module, class) from manifests.
+    MCP connectors share the module/class of their REST counterpart via ``system``."""
+    base = {d.system: d.connector_id for d in get_all_connectors() if d.auth_type != "mcp"}
+    m: dict[str, tuple[str, str]] = {}
+    for d in get_all_connectors():
+        bid = base.get(d.system, d.connector_id) if d.auth_type == "mcp" else d.connector_id
+        cls = "".join(_PASCAL.get(p, p.capitalize()) for p in bid.split("_")) + "Connector"
+        m[d.connector_id] = (f"{bid}_connector", cls)
+    return m
+
+
+_CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = _build_class_map()
 
 _MCP_CONNECTOR_BY_SYSTEM = {
     definition.system: definition.connector_id
@@ -96,5 +80,9 @@ def get_connector_class(
     if not module_info:
         return None
     module_name, class_name = module_info
-    module = importlib.import_module(module_name)
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        logger.warning("Connector module %s not found for %s", module_name, resolved_id)
+        return None
     return getattr(module, class_name, None)

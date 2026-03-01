@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = Path(__file__).resolve().parents[3]
 _COMMON_SRC = _REPO_ROOT / "packages" / "common" / "src"
 if str(_COMMON_SRC) not in sys.path:
     sys.path.insert(0, str(_COMMON_SRC))

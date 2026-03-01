@@ -33,14 +33,13 @@ def test_certification_records_flow(auth_headers, monkeypatch, tmp_path):
     assert payload["connector_id"] == "jira"
     assert payload["compliance_status"] == "pending"
 
-    files = {"file": ("soc2-report.pdf", b"evidence", "application/pdf")}
     response = client.post(
         "/v1/certifications/jira/documents",
         data={"uploaded_by": "qa-user"},
-        files=files,
+        files={"file": ("soc2-report.pdf", b"evidence", "application/pdf")},
         headers=auth_headers,
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, f"document upload failed: {response.json()}"
     payload = response.json()
     assert payload["documents"][0]["filename"] == "soc2-report.pdf"
 

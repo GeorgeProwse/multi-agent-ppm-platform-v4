@@ -1,6 +1,6 @@
 # Connector Maturity Rubric (Level 0-3)
 
-This rubric defines implementation expectations for connector manifests (`integrations/connectors/*/manifest.yaml`) and CI quality gates.
+This rubric defines implementation expectations for connector manifests (`connectors/*/manifest.yaml`) and CI quality gates.
 
 ## Level definitions
 
@@ -37,6 +37,7 @@ Each connector manifest includes a `maturity` section:
 - `business_priority` (`1` highest)
 - `capabilities` (`read`, `write`, `webhook`, `declarative_mapping`, `idempotent_write`, `conflict_handling`)
 - `notes` (short rationale)
+- `exceptions` (optional list of `{rule_id, expires_on, reason}` waivers for CI quality gates)
 
 ## Current priority cohort
 

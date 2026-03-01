@@ -13,7 +13,7 @@
 - `apps/api-gateway/src/api/middleware/security.py` contains OIDC/JWKS fetch logic.
 
 ## Connector APIs
-- Connector SDK base call path in `integrations/connectors/sdk/src/base_connector.py` with connector implementations inheriting it.
+- Connector SDK base call path in `connectors/sdk/src/base_connector.py` with connector implementations inheriting it.
 - Web/API proxy connector routes in `apps/api-gateway/src/api/routes/connectors.py`.
 
 ## Search and external research clients

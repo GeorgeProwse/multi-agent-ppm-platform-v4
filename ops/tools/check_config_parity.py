@@ -21,7 +21,7 @@ ENV_EXAMPLE = REPO_ROOT / "ops" / "config" / ".env.example"
 HELM_VALUES_DIRS = [
     REPO_ROOT / "apps",
     REPO_ROOT / "services",
-    REPO_ROOT / "integrations" / "apps",
+    REPO_ROOT / "apps",
 ]
 
 # Variables that are intentionally NOT expected in every Helm chart

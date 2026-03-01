@@ -3,6 +3,8 @@ schema: project
 target: jira_project
 fields:
   - source: id
+    target: id
+  - source: id
     target: key
   - source: name
     target: name

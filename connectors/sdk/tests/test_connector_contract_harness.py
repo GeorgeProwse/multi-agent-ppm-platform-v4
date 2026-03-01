@@ -6,7 +6,7 @@ import sys
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "connectors" / "sdk" / "src"))
 from runtime import ConnectorRuntime
 
@@ -15,8 +15,18 @@ REGISTRY_PATH = CONNECTORS_ROOT / "registry" / "connectors.json"
 
 
 def _connector_dirs() -> list[Path]:
+    """Return connector directories that have a full implementation layout.
+
+    Manifest-only connectors (e.g. MCP stubs with no src/) are excluded
+    because the contract harness validates implementation artifacts.
+    """
     registry_entries = json.loads(REGISTRY_PATH.read_text())
-    return sorted(CONNECTORS_ROOT / item["id"] for item in registry_entries)
+    dirs = []
+    for item in registry_entries:
+        d = CONNECTORS_ROOT / item["id"]
+        if d.exists() and (d / "src").is_dir():
+            dirs.append(d)
+    return sorted(dirs)
 
 
 def _manifest_paths() -> list[Path]:

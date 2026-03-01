@@ -12,7 +12,7 @@ This directory contains configuration assets consumed by services, agents, and t
 | [data-synchronisation-agent/](./data-synchronisation-agent/) | the Data Synchronisation agent specific configuration |
 | [workflow-engine-agent/](./workflow-engine-agent/) | the Workflow Engine agent specific configuration |
 | [agents/](./agents/) | Agent runtime and routing configuration (has schema/ subdir) |
-| [integrations/connectors/](../../integrations/connectors/) | Connector integration configuration |
+| [connectors/](../../connectors/) | Connector integration configuration |
 | [data-classification/](./data-classification/) | Data classification levels |
 | [environments/](./environments/) | Environment-specific settings (dev, test, prod) |
 | [feature-flags/](./feature-flags/) | Feature flag toggles |

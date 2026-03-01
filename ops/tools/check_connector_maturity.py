@@ -45,7 +45,20 @@ def _exception_index(policy: dict[str, Any]) -> tuple[dict[tuple[str, str], date
     index: dict[tuple[str, str], date] = {}
     violations: list[Violation] = []
     today = date.today()
-    for entry in policy.get("exceptions", []):
+
+    # Merge exceptions from central policy and individual manifests (deduplicated).
+    all_exc: list[dict[str, Any]] = list(policy.get("exceptions", []))
+    for mp in sorted((REPO_ROOT / "connectors").glob("*/manifest.yaml")):
+        try:
+            d = yaml.safe_load(mp.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        cid = d.get("id")
+        if cid:
+            all_exc.extend({**e, "connector_id": cid} for e in (d.get("maturity") or {}).get("exceptions", []))
+
+    seen: set[tuple[str, str]] = set()
+    for entry in all_exc:
         connector_id = entry.get("connector_id")
         rule_id = entry.get("rule_id")
         expires_on = entry.get("expires_on")
@@ -58,6 +71,11 @@ def _exception_index(policy: dict[str, Any]) -> tuple[dict[tuple[str, str], date
                 )
             )
             continue
+        # De-duplicate — manifest-level exceptions extend (not replace) policy.
+        key = (connector_id, rule_id)
+        if key in seen:
+            continue
+        seen.add(key)
         try:
             expiry = date.fromisoformat(str(expires_on))
         except ValueError:

@@ -1,13 +1,16 @@
 # Integration Connector Configurations
 # See: docs/connectors/overview.md
+#
+# MCP configuration is consolidated under the nested `mcp:` key for each
+# connector.  Do NOT duplicate MCP fields at the top level.
 
 # Project Management Systems
 planview:
   enabled: false
   base_url: "${PLANVIEW_API_URL}"
   mcp:
-    server_id: "mcp_planview"
-    server_url: "https://mcp.example.com/planview"
+    server_id: "${PLANVIEW_MCP_SERVER_ID}"
+    server_url: "${PLANVIEW_MCP_SERVER_URL}"
     client_id: "${PLANVIEW_MCP_CLIENT_ID}"
     client_secret: "${PLANVIEW_MCP_CLIENT_SECRET}"
     auth_scopes: "${PLANVIEW_MCP_SCOPE}"
@@ -18,14 +21,6 @@ planview:
       projects: "projects"
       work_items: "work_items"
       resources: "resources"
-  mcp_server_url: "${PLANVIEW_MCP_SERVER_URL}"
-  mcp_server_id: "${PLANVIEW_MCP_SERVER_ID}"
-  client_id: "${PLANVIEW_MCP_CLIENT_ID}"
-  client_secret: "${PLANVIEW_MCP_CLIENT_SECRET}"
-  scope: "${PLANVIEW_MCP_SCOPE}"
-  tool_map:
-    list_projects: "planview.listProjects"
-    create_work_item: "planview.createWorkItem"
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -43,8 +38,8 @@ clarity:
   enabled: false
   base_url: "${CLARITY_INSTANCE_URL}"
   mcp:
-    server_id: "mcp_clarity"
-    server_url: "https://mcp.example.com/clarity"
+    server_id: "${CLARITY_MCP_SERVER_ID}"
+    server_url: "${CLARITY_MCP_SERVER_URL}"
     client_id: "${CLARITY_MCP_CLIENT_ID}"
     client_secret: "${CLARITY_MCP_CLIENT_SECRET}"
     auth_scopes: "${CLARITY_MCP_SCOPE}"
@@ -54,14 +49,6 @@ clarity:
     tools:
       projects: "projects"
       work_items: "work_items"
-  mcp_server_url: "${CLARITY_MCP_SERVER_URL}"
-  mcp_server_id: "${CLARITY_MCP_SERVER_ID}"
-  client_id: "${CLARITY_MCP_CLIENT_ID}"
-  client_secret: "${CLARITY_MCP_CLIENT_SECRET}"
-  scope: "${CLARITY_MCP_SCOPE}"
-  tool_map:
-    list_projects: "clarity.listProjects"
-    create_work_item: "clarity.createWorkItem"
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -76,8 +63,8 @@ jira:
   enabled: false
   base_url: "${JIRA_URL}"
   mcp:
-    server_id: "mcp_jira"
-    server_url: "https://mcp.example.com/jira"
+    server_id: "${JIRA_MCP_SERVER_ID}"
+    server_url: "${JIRA_MCP_SERVER_URL}"
     client_id: "${JIRA_MCP_CLIENT_ID}"
     client_secret: "${JIRA_MCP_CLIENT_SECRET}"
     auth_scopes: "${JIRA_MCP_SCOPE}"
@@ -86,12 +73,6 @@ jira:
       projects: "projects"
       issues: "work_items"
       sprints: "sprints"
-  mcp_server_url: "${JIRA_MCP_SERVER_URL}"
-  mcp_server_id: "${JIRA_MCP_SERVER_ID}"
-  client_id: "${JIRA_MCP_CLIENT_ID}"
-  client_secret: "${JIRA_MCP_CLIENT_SECRET}"
-  scope: "${JIRA_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "api_token"
@@ -113,8 +94,8 @@ azure_devops:
   enabled: false
   organization: "${AZURE_DEVOPS_ORG}"
   mcp:
-    server_id: "mcp_azure_devops"
-    server_url: "https://mcp.example.com/azure_devops"
+    server_id: "${AZURE_DEVOPS_MCP_SERVER_ID}"
+    server_url: "${AZURE_DEVOPS_MCP_SERVER_URL}"
     client_id: "${AZURE_DEVOPS_MCP_CLIENT_ID}"
     client_secret: "${AZURE_DEVOPS_MCP_CLIENT_SECRET}"
     auth_scopes: "${AZURE_DEVOPS_MCP_SCOPE}"
@@ -123,12 +104,6 @@ azure_devops:
       projects: "projects"
       work_items: "work_items"
       iterations: "iterations"
-  mcp_server_url: "${AZURE_DEVOPS_MCP_SERVER_URL}"
-  mcp_server_id: "${AZURE_DEVOPS_MCP_SERVER_ID}"
-  client_id: "${AZURE_DEVOPS_MCP_CLIENT_ID}"
-  client_secret: "${AZURE_DEVOPS_MCP_CLIENT_SECRET}"
-  scope: "${AZURE_DEVOPS_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "pat"
@@ -142,8 +117,8 @@ sap:
   enabled: false
   base_url: "${SAP_API_URL}"
   mcp:
-    server_id: "mcp_sap"
-    server_url: "https://mcp.example.com/sap"
+    server_id: "${SAP_MCP_SERVER_ID}"
+    server_url: "${SAP_MCP_SERVER_URL}"
     client_id: "${SAP_MCP_CLIENT_ID}"
     client_secret: "${SAP_MCP_CLIENT_SECRET}"
     auth_scopes: "${SAP_MCP_SCOPE}"
@@ -152,12 +127,6 @@ sap:
       projects: "projects"
       cost_centers: "cost_centers"
       actual_costs: "actual_costs"
-  mcp_server_url: "${SAP_MCP_SERVER_URL}"
-  mcp_server_id: "${SAP_MCP_SERVER_ID}"
-  client_id: "${SAP_MCP_CLIENT_ID}"
-  client_secret: "${SAP_MCP_CLIENT_SECRET}"
-  scope: "${SAP_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -170,8 +139,8 @@ workday:
   enabled: false
   base_url: "${WORKDAY_API_URL}"
   mcp:
-    server_id: "mcp_workday"
-    server_url: "https://mcp.example.com/workday"
+    server_id: "${WORKDAY_MCP_SERVER_ID}"
+    server_url: "${WORKDAY_MCP_SERVER_URL}"
     client_id: "${WORKDAY_MCP_CLIENT_ID}"
     client_secret: "${WORKDAY_MCP_CLIENT_SECRET}"
     auth_scopes: "${WORKDAY_MCP_SCOPE}"
@@ -180,12 +149,6 @@ workday:
       workers: "workers"
       cost_centers: "cost_centers"
       suppliers: "suppliers"
-  mcp_server_url: "${WORKDAY_MCP_SERVER_URL}"
-  mcp_server_id: "${WORKDAY_MCP_SERVER_ID}"
-  client_id: "${WORKDAY_MCP_CLIENT_ID}"
-  client_secret: "${WORKDAY_MCP_CLIENT_SECRET}"
-  scope: "${WORKDAY_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -200,8 +163,8 @@ workday:
 slack:
   enabled: false
   mcp:
-    server_id: "mcp_slack"
-    server_url: "https://mcp.example.com/slack"
+    server_id: "${SLACK_MCP_SERVER_ID}"
+    server_url: "${SLACK_MCP_SERVER_URL}"
     client_id: "${SLACK_MCP_CLIENT_ID}"
     client_secret: "${SLACK_MCP_CLIENT_SECRET}"
     auth_scopes: "${SLACK_MCP_SCOPE}"
@@ -213,15 +176,6 @@ slack:
       channels: "channels"
       messages: "messages"
       users: "users"
-  mcp_server_url: "${SLACK_MCP_SERVER_URL}"
-  mcp_server_id: "${SLACK_MCP_SERVER_ID}"
-  client_id: "${SLACK_MCP_CLIENT_ID}"
-  client_secret: "${SLACK_MCP_CLIENT_SECRET}"
-  scope: "${SLACK_MCP_SCOPE}"
-  tool_map:
-    list_projects: "slack.listChannels"
-    send_message: "slack.postMessage"
-    list_users: "slack.listUsers"
   prefer_mcp: false
   auth:
     type: "bot_token"
@@ -234,8 +188,8 @@ slack:
 teams:
   enabled: false
   mcp:
-    server_id: "mcp_teams"
-    server_url: "https://mcp.example.com/teams"
+    server_id: "${TEAMS_MCP_SERVER_ID}"
+    server_url: "${TEAMS_MCP_SERVER_URL}"
     client_id: "${TEAMS_MCP_CLIENT_ID}"
     client_secret: "${TEAMS_MCP_CLIENT_SECRET}"
     auth_scopes: "${TEAMS_MCP_SCOPE}"
@@ -247,15 +201,6 @@ teams:
       teams: "teams"
       channels: "channels"
       messages: "messages"
-  mcp_server_url: "${TEAMS_MCP_SERVER_URL}"
-  mcp_server_id: "${TEAMS_MCP_SERVER_ID}"
-  client_id: "${TEAMS_MCP_CLIENT_ID}"
-  client_secret: "${TEAMS_MCP_CLIENT_SECRET}"
-  scope: "${TEAMS_MCP_SCOPE}"
-  tool_map:
-    list_projects: "teams.listTeams"
-    send_message: "teams.postMessage"
-    list_channels: "teams.listChannels"
   prefer_mcp: false
   auth:
     type: "app_credentials"
@@ -295,8 +240,8 @@ outlook:
   enabled: false
   base_url: "${OUTLOOK_API_URL}"
   mcp:
-    server_id: "mcp_outlook"
-    server_url: "https://mcp.example.com/outlook"
+    server_id: "${OUTLOOK_MCP_SERVER_ID}"
+    server_url: "${OUTLOOK_MCP_SERVER_URL}"
     client_id: "${OUTLOOK_MCP_CLIENT_ID}"
     client_secret: "${OUTLOOK_MCP_CLIENT_SECRET}"
     auth_scopes: "${OUTLOOK_MCP_SCOPE}"
@@ -304,12 +249,6 @@ outlook:
     tools:
       messages: "messages"
       calendars: "calendars"
-  mcp_server_url: "${OUTLOOK_MCP_SERVER_URL}"
-  mcp_server_id: "${OUTLOOK_MCP_SERVER_ID}"
-  client_id: "${OUTLOOK_MCP_CLIENT_ID}"
-  client_secret: "${OUTLOOK_MCP_CLIENT_SECRET}"
-  scope: "${OUTLOOK_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -324,8 +263,8 @@ google_calendar:
   enabled: false
   base_url: "${GOOGLE_CALENDAR_BASE_URL}"
   mcp:
-    server_id: "mcp_google_calendar"
-    server_url: "https://mcp.example.com/google_calendar"
+    server_id: "${GOOGLE_CALENDAR_MCP_SERVER_ID}"
+    server_url: "${GOOGLE_CALENDAR_MCP_SERVER_URL}"
     client_id: "${GOOGLE_CALENDAR_MCP_CLIENT_ID}"
     client_secret: "${GOOGLE_CALENDAR_MCP_CLIENT_SECRET}"
     auth_scopes: "${GOOGLE_CALENDAR_MCP_SCOPE}"
@@ -333,12 +272,6 @@ google_calendar:
     tools:
       calendars: "calendars"
       events: "events"
-  mcp_server_url: "${GOOGLE_CALENDAR_MCP_SERVER_URL}"
-  mcp_server_id: "${GOOGLE_CALENDAR_MCP_SERVER_ID}"
-  client_id: "${GOOGLE_CALENDAR_MCP_CLIENT_ID}"
-  client_secret: "${GOOGLE_CALENDAR_MCP_CLIENT_SECRET}"
-  scope: "${GOOGLE_CALENDAR_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -353,8 +286,8 @@ smartsheet:
   enabled: false
   base_url: "${SMARTSHEET_API_URL}"
   mcp:
-    server_id: "mcp_smartsheet"
-    server_url: "https://mcp.example.com/smartsheet"
+    server_id: "${SMARTSHEET_MCP_SERVER_ID}"
+    server_url: "${SMARTSHEET_MCP_SERVER_URL}"
     client_id: "${SMARTSHEET_MCP_CLIENT_ID}"
     client_secret: "${SMARTSHEET_MCP_CLIENT_SECRET}"
     auth_scopes: "${SMARTSHEET_MCP_SCOPE}"
@@ -362,12 +295,6 @@ smartsheet:
     tools:
       sheets: "sheets"
       rows: "rows"
-  mcp_server_url: "${SMARTSHEET_MCP_SERVER_URL}"
-  mcp_server_id: "${SMARTSHEET_MCP_SERVER_ID}"
-  client_id: "${SMARTSHEET_MCP_CLIENT_ID}"
-  client_secret: "${SMARTSHEET_MCP_CLIENT_SECRET}"
-  scope: "${SMARTSHEET_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "api_token"
@@ -381,8 +308,8 @@ sharepoint:
   enabled: false
   site_url: "${SHAREPOINT_SITE_URL}"
   mcp:
-    server_id: "mcp_sharepoint"
-    server_url: "https://mcp.example.com/sharepoint"
+    server_id: "${SHAREPOINT_MCP_SERVER_ID}"
+    server_url: "${SHAREPOINT_MCP_SERVER_URL}"
     client_id: "${SHAREPOINT_MCP_CLIENT_ID}"
     client_secret: "${SHAREPOINT_MCP_CLIENT_SECRET}"
     auth_scopes: "${SHAREPOINT_MCP_SCOPE}"
@@ -390,12 +317,6 @@ sharepoint:
     tools:
       sites: "sites"
       documents: "documents"
-  mcp_server_url: "${SHAREPOINT_MCP_SERVER_URL}"
-  mcp_server_id: "${SHAREPOINT_MCP_SERVER_ID}"
-  client_id: "${SHAREPOINT_MCP_CLIENT_ID}"
-  client_secret: "${SHAREPOINT_MCP_CLIENT_SECRET}"
-  scope: "${SHAREPOINT_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "azure_ad"
@@ -406,8 +327,8 @@ salesforce:
   enabled: false
   instance_url: "${SALESFORCE_INSTANCE_URL}"
   mcp:
-    server_id: "mcp_salesforce"
-    server_url: "https://mcp.example.com/salesforce"
+    server_id: "${SALESFORCE_MCP_SERVER_ID}"
+    server_url: "${SALESFORCE_MCP_SERVER_URL}"
     client_id: "${SALESFORCE_MCP_CLIENT_ID}"
     client_secret: "${SALESFORCE_MCP_CLIENT_SECRET}"
     auth_scopes: "${SALESFORCE_MCP_SCOPE}"
@@ -416,12 +337,6 @@ salesforce:
       objects: "objects"
       opportunities: "opportunities"
       cases: "cases"
-  mcp_server_url: "${SALESFORCE_MCP_SERVER_URL}"
-  mcp_server_id: "${SALESFORCE_MCP_SERVER_ID}"
-  client_id: "${SALESFORCE_MCP_CLIENT_ID}"
-  client_secret: "${SALESFORCE_MCP_CLIENT_SECRET}"
-  scope: "${SALESFORCE_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "oauth2"
@@ -436,8 +351,8 @@ azure_communication_services:
   enabled: false
   base_url: "${ACS_ENDPOINT}"
   mcp:
-    server_id: "mcp_azure_communication_services"
-    server_url: "https://mcp.example.com/azure_communication_services"
+    server_id: "${AZURE_COMMUNICATION_SERVICES_MCP_SERVER_ID}"
+    server_url: "${AZURE_COMMUNICATION_SERVICES_MCP_SERVER_URL}"
     client_id: "${AZURE_COMMUNICATION_SERVICES_MCP_CLIENT_ID}"
     client_secret: "${AZURE_COMMUNICATION_SERVICES_MCP_CLIENT_SECRET}"
     auth_scopes: "${AZURE_COMMUNICATION_SERVICES_MCP_SCOPE}"
@@ -445,12 +360,6 @@ azure_communication_services:
     tools:
       sms: "sms"
       email: "email"
-  mcp_server_url: "${AZURE_COMMUNICATION_SERVICES_MCP_SERVER_URL}"
-  mcp_server_id: "${AZURE_COMMUNICATION_SERVICES_MCP_SERVER_ID}"
-  client_id: "${AZURE_COMMUNICATION_SERVICES_MCP_CLIENT_ID}"
-  client_secret: "${AZURE_COMMUNICATION_SERVICES_MCP_CLIENT_SECRET}"
-  scope: "${AZURE_COMMUNICATION_SERVICES_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "api_key"
@@ -464,8 +373,8 @@ twilio:
   enabled: false
   base_url: "${TWILIO_API_URL}"
   mcp:
-    server_id: "mcp_twilio"
-    server_url: "https://mcp.example.com/twilio"
+    server_id: "${TWILIO_MCP_SERVER_ID}"
+    server_url: "${TWILIO_MCP_SERVER_URL}"
     client_id: "${TWILIO_MCP_CLIENT_ID}"
     client_secret: "${TWILIO_MCP_CLIENT_SECRET}"
     auth_scopes: "${TWILIO_MCP_SCOPE}"
@@ -473,12 +382,6 @@ twilio:
     tools:
       sms: "sms"
       calls: "calls"
-  mcp_server_url: "${TWILIO_MCP_SERVER_URL}"
-  mcp_server_id: "${TWILIO_MCP_SERVER_ID}"
-  client_id: "${TWILIO_MCP_CLIENT_ID}"
-  client_secret: "${TWILIO_MCP_CLIENT_SECRET}"
-  scope: "${TWILIO_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "basic"
@@ -492,8 +395,8 @@ notification_hubs:
   namespace: "${AZURE_NOTIFICATION_HUBS_NAMESPACE}"
   hub_name: "${AZURE_NOTIFICATION_HUBS_NAME}"
   mcp:
-    server_id: "mcp_notification_hubs"
-    server_url: "https://mcp.example.com/notification_hubs"
+    server_id: "${AZURE_NOTIFICATION_HUBS_MCP_SERVER_ID}"
+    server_url: "${AZURE_NOTIFICATION_HUBS_MCP_SERVER_URL}"
     client_id: "${AZURE_NOTIFICATION_HUBS_MCP_CLIENT_ID}"
     client_secret: "${AZURE_NOTIFICATION_HUBS_MCP_CLIENT_SECRET}"
     auth_scopes: "${AZURE_NOTIFICATION_HUBS_MCP_SCOPE}"
@@ -501,12 +404,6 @@ notification_hubs:
     tools:
       notifications: "notifications"
       registrations: "registrations"
-  mcp_server_url: "${AZURE_NOTIFICATION_HUBS_MCP_SERVER_URL}"
-  mcp_server_id: "${AZURE_NOTIFICATION_HUBS_MCP_SERVER_ID}"
-  client_id: "${AZURE_NOTIFICATION_HUBS_MCP_CLIENT_ID}"
-  client_secret: "${AZURE_NOTIFICATION_HUBS_MCP_CLIENT_SECRET}"
-  scope: "${AZURE_NOTIFICATION_HUBS_MCP_SCOPE}"
-  tool_map: {}
   prefer_mcp: false
   auth:
     type: "sas"
@@ -532,13 +429,14 @@ integration_defaults:
       enabled: true
       failure_threshold: 5
       timeout_seconds: 60
+
 # Asana
 asana:
   enabled: false
   base_url: "${ASANA_INSTANCE_URL}"
   mcp:
-    server_id: "mcp_asana"
-    server_url: "https://mcp.example.com/asana"
+    server_id: "${ASANA_MCP_SERVER_ID}"
+    server_url: "${ASANA_MCP_SERVER_URL}"
     client_id: "${ASANA_MCP_CLIENT_ID}"
     client_secret: "${ASANA_MCP_CLIENT_SECRET}"
     auth_scopes: "${ASANA_MCP_SCOPE}"
@@ -550,15 +448,6 @@ asana:
       projects: "projects"
       tasks: "work_items"
       comments: "comments"
-  mcp_server_url: "${ASANA_MCP_SERVER_URL}"
-  mcp_server_id: "${ASANA_MCP_SERVER_ID}"
-  client_id: "${ASANA_MCP_CLIENT_ID}"
-  client_secret: "${ASANA_MCP_CLIENT_SECRET}"
-  scope: "${ASANA_MCP_SCOPE}"
-  tool_map:
-    list_projects: "asana.listProjects"
-    create_work_item: "asana.createTask"
-    send_message: "asana.addComment"
   prefer_mcp: false
   auth:
     type: "api_token"

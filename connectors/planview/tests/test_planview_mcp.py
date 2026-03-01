@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 PLANVIEW_CONNECTOR_PATH = REPO_ROOT / "connectors" / "planview" / "src"
 for path in (REPO_ROOT, CONNECTOR_SDK_PATH, PLANVIEW_CONNECTOR_PATH):
@@ -17,7 +17,7 @@ for path in (REPO_ROOT, CONNECTOR_SDK_PATH, PLANVIEW_CONNECTOR_PATH):
         sys.path.insert(0, str(path))
 
 from base_connector import ConnectorCategory, ConnectorConfig, SyncDirection, SyncFrequency
-from mcp_client.errors import MCPServerError, MCPToolNotFoundError
+from mcp_client import MCPServerError, MCPToolNotFoundError
 from planview_connector import PlanviewConnector
 
 
@@ -89,4 +89,16 @@ def test_planview_mcp_fallbacks(planview_config: ConnectorConfig, error: Excepti
     with patch.object(connector, "_read_projects", return_value=rest_records):
         result = connector.read("projects")
 
-    assert result == rest_records
+    assert result == [
+        {
+            "id": "REST",
+            "program_id": "unassigned",
+            "name": "Fallback",
+            "status": "execution",
+            "start_date": None,
+            "end_date": None,
+            "owner": None,
+            "classification": "internal",
+            "created_at": None,
+        }
+    ]

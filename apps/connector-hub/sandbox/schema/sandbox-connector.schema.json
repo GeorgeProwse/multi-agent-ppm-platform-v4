@@ -12,7 +12,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "pattern": "^ppm.integrations/connectors/v1$"
+      "pattern": "^ppm.connectors/v1$"
     },
     "kind": {
       "type": "string",

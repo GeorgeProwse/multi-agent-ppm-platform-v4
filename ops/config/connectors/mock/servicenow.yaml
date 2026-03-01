@@ -2,7 +2,7 @@ connector_id: servicenow
 mock_connector_id: servicenow_mock
 enabled_when: DEMO_MODE=true
 auth_type: demo
-manifest_path: integrations/connectors/mock/servicenow/manifest.yaml
+manifest_path: connectors/mock/servicenow/manifest.yaml
 supported_objects:
 - projects
 - issues

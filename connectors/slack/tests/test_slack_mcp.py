@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 SLACK_CONNECTOR_PATH = REPO_ROOT / "connectors" / "slack" / "src"
 for path in (REPO_ROOT, CONNECTOR_SDK_PATH, SLACK_CONNECTOR_PATH):
@@ -18,7 +18,7 @@ for path in (REPO_ROOT, CONNECTOR_SDK_PATH, SLACK_CONNECTOR_PATH):
 
 from base_connector import ConnectorCategory, ConnectorConfig, SyncDirection, SyncFrequency
 from mcp_client import MCPClientError
-from rest_connector import OAuth2RestConnector
+from rest_connector import RestConnector
 from slack_connector import SlackConnector
 
 
@@ -56,7 +56,7 @@ def test_slack_mcp_invocation_and_mapping(slack_config: ConnectorConfig) -> None
     connector = SlackConnector(slack_config)
 
     with patch.object(connector, "_build_mcp_client", return_value=fake_client), patch.object(
-        OAuth2RestConnector, "read", return_value=[]
+        RestConnector, "read", return_value=[]
     ):
         result = connector.read("channels", limit=25, offset=1)
 
@@ -74,7 +74,7 @@ def test_slack_mcp_tool_missing_falls_back(slack_config: ConnectorConfig) -> Non
     connector._mcp_tool_map = {}
     rest_records = [{"id": "rest-channel"}]
 
-    with patch.object(OAuth2RestConnector, "read", return_value=rest_records):
+    with patch.object(RestConnector, "read", return_value=rest_records):
         result = connector.read("channels")
 
     assert result == rest_records
@@ -86,7 +86,7 @@ def test_slack_mcp_error_falls_back(slack_config: ConnectorConfig) -> None:
     fake_client = FakeMCPClient(payload={}, error=MCPClientError("boom"))
 
     with patch.object(connector, "_build_mcp_client", return_value=fake_client), patch.object(
-        OAuth2RestConnector, "read", return_value=rest_records
+        RestConnector, "read", return_value=rest_records
     ):
         result = connector.read("channels")
 

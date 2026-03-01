@@ -10,4 +10,4 @@ RUN groupadd --gid 10001 appuser && useradd --uid 10001 --gid 10001 --create-hom
 
 USER appuser
 
-CMD ["python", "-m", "tools.connector_runner", "--connector-root", "/app/integrations/connectors/workday"]
+CMD ["python", "-m", "tools.connector_runner", "--connector-root", "/app/connectors/workday"]

@@ -46,66 +46,66 @@ Provide the integration layer for synchronizing external systems with the platfo
 
 Registered and packaged connectors include:
 
-- [`integrations/connectors/jira`](./jira/): Jira Cloud sync + webhook scaffolding (inbound projects/work items).
-- [`integrations/connectors/planview`](./planview/): Planview portfolio integration (inbound projects, outbound dry-run mapping).
+- [`connectors/jira`](./jira/): Jira Cloud sync + webhook scaffolding (inbound projects/work items).
+- [`connectors/planview`](./planview/): Planview portfolio integration (inbound projects, outbound dry-run mapping).
   - Configuration: `PLANVIEW_INSTANCE_URL`, `PLANVIEW_CLIENT_ID`, `PLANVIEW_CLIENT_SECRET`, `PLANVIEW_REFRESH_TOKEN`.
-- [`integrations/connectors/clarity`](./clarity/): Clarity PPM integration (inbound projects, outbound dry-run mapping).
+- [`connectors/clarity`](./clarity/): Clarity PPM integration (inbound projects, outbound dry-run mapping).
   - Configuration: `CLARITY_INSTANCE_URL`, `CLARITY_CLIENT_ID`, `CLARITY_CLIENT_SECRET`, `CLARITY_REFRESH_TOKEN`.
-- [`integrations/connectors/azure_devops`](./azure_devops/): Azure DevOps work item sync (inbound and outbound).
-- [`integrations/connectors/servicenow`](./servicenow/): ServiceNow project sync (inbound projects, outbound dry-run mapping).
+- [`connectors/azure_devops`](./azure_devops/): Azure DevOps work item sync (inbound and outbound).
+- [`connectors/servicenow`](./servicenow/): ServiceNow project sync (inbound projects, outbound dry-run mapping).
   - Configuration: `SERVICENOW_URL`, `SERVICENOW_CLIENT_ID`, `SERVICENOW_CLIENT_SECRET`, `SERVICENOW_REFRESH_TOKEN`, `SERVICENOW_TOKEN_URL`.
-- [`integrations/connectors/sap`](./sap/): SAP finance and portfolio sync (inbound projects, outbound dry-run mapping).
+- [`connectors/sap`](./sap/): SAP finance and portfolio sync (inbound projects, outbound dry-run mapping).
   - Configuration: `SAP_URL`, `SAP_USERNAME`, `SAP_PASSWORD`, optional `SAP_CLIENT`.
-- [`integrations/connectors/workday`](./workday/): Workday HR and cost center sync (inbound projects, outbound dry-run mapping).
+- [`connectors/workday`](./workday/): Workday HR and cost center sync (inbound projects, outbound dry-run mapping).
   - Configuration: `WORKDAY_API_URL`, `WORKDAY_CLIENT_ID`, `WORKDAY_CLIENT_SECRET`, `WORKDAY_REFRESH_TOKEN`.
-- [`integrations/connectors/salesforce`](./salesforce/): Salesforce demand and CRM sync (inbound projects, outbound dry-run mapping).
+- [`connectors/salesforce`](./salesforce/): Salesforce demand and CRM sync (inbound projects, outbound dry-run mapping).
   - Configuration: `SALESFORCE_INSTANCE_URL`, `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_REFRESH_TOKEN`.
-- [`integrations/connectors/sharepoint`](./sharepoint/): SharePoint document sync (inbound and outbound).
-- [`integrations/connectors/slack`](./slack/): Slack notifications and commands (inbound channels, outbound messages).
+- [`connectors/sharepoint`](./sharepoint/): SharePoint document sync (inbound and outbound).
+- [`connectors/slack`](./slack/): Slack notifications and commands (inbound channels, outbound messages).
   - Configuration: `SLACK_API_URL`, `SLACK_BOT_TOKEN`.
-- [`integrations/connectors/teams`](./teams/): Microsoft Teams notifications and cards (inbound teams, outbound messages).
+- [`connectors/teams`](./teams/): Microsoft Teams notifications and cards (inbound teams, outbound messages).
   - Configuration: `TEAMS_API_URL`, `TEAMS_CLIENT_ID`, `TEAMS_CLIENT_SECRET`, `TEAMS_REFRESH_TOKEN`.
-- [`integrations/connectors/smartsheet`](./smartsheet/): Smartsheet schedule and sheet sync (inbound sheets, outbound updates).
+- [`connectors/smartsheet`](./smartsheet/): Smartsheet schedule and sheet sync (inbound sheets, outbound updates).
   - Configuration: `SMARTSHEET_API_URL`, `SMARTSHEET_API_TOKEN`.
-- [`integrations/connectors/outlook`](./outlook/): Outlook calendar sync via Microsoft Graph (inbound events, outbound invites).
+- [`connectors/outlook`](./outlook/): Outlook calendar sync via Microsoft Graph (inbound events, outbound invites).
   - Configuration: `OUTLOOK_API_URL`, `OUTLOOK_CLIENT_ID`, `OUTLOOK_CLIENT_SECRET`, `OUTLOOK_REFRESH_TOKEN`.
-- [`integrations/connectors/google_calendar`](./google_calendar/): Google Calendar event sync (inbound events, outbound invites).
+- [`connectors/google_calendar`](./google_calendar/): Google Calendar event sync (inbound events, outbound invites).
   - Configuration: `GOOGLE_CALENDAR_BASE_URL`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REFRESH_TOKEN`.
-- [`integrations/connectors/azure_communication_services`](./azure_communication_services/): Azure Communication Services messaging (outbound SMS/email).
+- [`connectors/azure_communication_services`](./azure_communication_services/): Azure Communication Services messaging (outbound SMS/email).
   - Configuration: `AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING`, `ACS_ENDPOINT`, `ACS_ACCESS_KEY`.
-- [`integrations/connectors/twilio`](./twilio/): Twilio SMS messaging (outbound SMS, inbound message logs).
+- [`connectors/twilio`](./twilio/): Twilio SMS messaging (outbound SMS, inbound message logs).
   - Configuration: `TWILIO_API_URL`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`.
-- [`integrations/connectors/notification_hubs`](./notification_hubs/): Azure Notification Hubs push notifications.
+- [`connectors/notification_hubs`](./notification_hubs/): Azure Notification Hubs push notifications.
   - Configuration: `AZURE_NOTIFICATION_HUBS_NAMESPACE`, `AZURE_NOTIFICATION_HUBS_NAME`, `AZURE_NOTIFICATION_HUBS_SAS_KEY_NAME`, `AZURE_NOTIFICATION_HUBS_SAS_KEY`.
 
 Additional connector folders for future expansion:
 
-- [`integrations/connectors/adp`](./adp/): ADP HR integration.
-- [`integrations/connectors/archer`](./archer/): RSA Archer GRC integration.
-- [`integrations/connectors/asana`](./asana/): Asana project management.
-- [`integrations/connectors/confluence`](./confluence/): Confluence document integration.
-- [`integrations/connectors/google_drive`](./google_drive/): Google Drive document integration.
-- [`integrations/connectors/iot`](./iot/): IoT sensor data integration.
-- [`integrations/connectors/logicgate`](./logicgate/): LogicGate GRC integration.
-- [`integrations/connectors/monday`](./monday/): Monday.com project management.
-- [`integrations/connectors/ms_project_server`](./ms_project_server/): Microsoft Project Server integration.
-- [`integrations/connectors/netsuite`](./netsuite/): NetSuite ERP integration.
-- [`integrations/connectors/oracle`](./oracle/): Oracle ERP integration.
-- [`integrations/connectors/sap_successfactors`](./sap_successfactors/): SAP SuccessFactors HR integration.
-- [`integrations/connectors/zoom`](./zoom/): Zoom video conferencing integration.
+- [`connectors/adp`](./adp/): ADP HR integration.
+- [`connectors/archer`](./archer/): RSA Archer GRC integration.
+- [`connectors/asana`](./asana/): Asana project management.
+- [`connectors/confluence`](./confluence/): Confluence document integration.
+- [`connectors/google_drive`](./google_drive/): Google Drive document integration.
+- [`connectors/iot`](./iot/): IoT sensor data integration.
+- [`connectors/logicgate`](./logicgate/): LogicGate GRC integration.
+- [`connectors/monday`](./monday/): Monday.com project management.
+- [`connectors/ms_project_server`](./ms_project_server/): Microsoft Project Server integration.
+- [`connectors/netsuite`](./netsuite/): NetSuite ERP integration.
+- [`connectors/oracle`](./oracle/): Oracle ERP integration.
+- [`connectors/sap_successfactors`](./sap_successfactors/): SAP SuccessFactors HR integration.
+- [`connectors/zoom`](./zoom/): Zoom video conferencing integration.
 
 These can be promoted by adding manifests, mappings, and registry entries.
 
-Connector metadata is stored in [`integrations/connectors/registry/connectors.json`](./registry/) and each connector includes a `manifest.yaml` plus mapping definitions under `mappings/`.
+Connector metadata is stored in [`connectors/registry/connectors.json`](./registry/) and each connector includes a `manifest.yaml` plus mapping definitions under `mappings/`.
 
 Shared utilities:
 
-- [`integrations/connectors/sdk`](./sdk/): Shared helpers and scaffolding for building connectors.
-- [`integrations/connectors/integration`](./integration/): Integration framework with base connector classes and connector registry.
+- [`connectors/sdk`](./sdk/): Shared helpers and scaffolding for building connectors.
+- [`connectors/integration`](./integration/): Integration framework with base connector classes and connector registry.
 
 ## How it's used
 
-Connectors are discovered by `tools.connector_runner` and referenced by the registry metadata in [`integrations/connectors/registry/`](./registry/). Each connector includes a manifest and mapping files.
+Connectors are discovered by `tools.connector_runner` and referenced by the registry metadata in [`connectors/registry/`](./registry/). Each connector includes a manifest and mapping files.
 
 ## How to run / develop / test
 

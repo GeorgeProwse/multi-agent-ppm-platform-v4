@@ -53,8 +53,7 @@ class ConnectorRuntime:
     def _load_manifest(self, path: Path) -> ConnectorManifest:
         data = yaml.safe_load(path.read_text())
         schema_path = (
-            Path(__file__).resolve().parents[4]
-            / "integrations"
+            Path(__file__).resolve().parents[3]
             / "connectors"
             / "registry"
             / "schemas"
@@ -66,13 +65,14 @@ class ConnectorRuntime:
         if errors:
             formatted = "; ".join(error.message for error in errors)
             raise ValueError(f"Connector manifest validation failed: {formatted}")
-        return ConnectorManifest(**data)
+        manifest_fields = {f.name for f in ConnectorManifest.__dataclass_fields__.values()}
+        filtered = {k: v for k, v in data.items() if k in manifest_fields}
+        return ConnectorManifest(**filtered)
 
     def _load_mapping(self, path: Path) -> MappingSpec:
         data = yaml.safe_load(path.read_text())
         schema_path = (
-            Path(__file__).resolve().parents[4]
-            / "integrations"
+            Path(__file__).resolve().parents[3]
             / "connectors"
             / "registry"
             / "schemas"
