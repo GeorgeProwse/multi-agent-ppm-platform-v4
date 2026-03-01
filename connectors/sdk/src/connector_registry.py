@@ -140,7 +140,7 @@ _CATEGORY_MAP: dict[str, ConnectorCategory] = {
     "it-service": ConnectorCategory.GRC,
     "compliance": ConnectorCategory.COMPLIANCE,
     "iot": ConnectorCategory.IOT,
-    "crm": ConnectorCategory.ERP,
+    "crm": ConnectorCategory.CRM,
     "mock": ConnectorCategory.PM,
 }
 

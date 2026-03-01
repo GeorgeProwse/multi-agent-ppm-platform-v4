@@ -17,7 +17,7 @@ for path in (REPO_ROOT, CONNECTOR_SDK_PATH, PLANVIEW_CONNECTOR_PATH):
         sys.path.insert(0, str(path))
 
 from base_connector import ConnectorCategory, ConnectorConfig, SyncDirection, SyncFrequency
-from mcp_client.errors import MCPServerError, MCPToolNotFoundError
+from mcp_client import MCPServerError, MCPToolNotFoundError
 from planview_connector import PlanviewConnector
 
 

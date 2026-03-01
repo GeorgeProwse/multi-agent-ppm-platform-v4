@@ -27,12 +27,13 @@ env_vars:
 - JIRA_API_TOKEN
 sync:
   modes:
-  - bi-directional
+  - full
+  - incremental
   default_schedule: 0 */4 * * *
   supports_webhooks: true
   rate_limit_per_minute: 600
   directions:
-  - inbound
+  - bidirectional
 mappings:
 - source: project
   target: project

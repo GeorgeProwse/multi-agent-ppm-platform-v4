@@ -21,8 +21,8 @@ OUTPUT_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 
 # Category normalization for the JSON registry.
 # NOTE: keep in sync with _CATEGORY_MAP in connectors/sdk/src/connector_registry.py.
-# We duplicate here because generate.py must run standalone without the full
-# app dependency chain.  The validate_types.py script catches drift.
+# Duplicated here because generate.py must run standalone without the full
+# app dependency chain.
 _CATEGORY_NORMALIZE: dict[str, str] = {
     "ppm": "ppm",
     "project-portfolio-management": "ppm",

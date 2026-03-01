@@ -88,6 +88,7 @@ class ConnectorCategory(str, Enum):
     GRC = "grc"  # GRC (ServiceNow GRC, Archer, LogicGate)
     COMPLIANCE = "compliance"  # Compliance (Regulatory compliance platforms)
     IOT = "iot"  # IoT Integrations (custom hardware and sensors)
+    CRM = "crm"  # CRM (Salesforce)
 
 
 class SyncDirection(str, Enum):

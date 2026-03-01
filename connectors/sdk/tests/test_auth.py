@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 import sys
 from typing import Any
@@ -8,11 +9,25 @@ import httpx
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
-if str(SDK_PATH) not in sys.path:
-    sys.path.insert(0, str(SDK_PATH))
 
-from auth import OAuth2TokenManager
-from http_client import HttpClient
+
+def _load_sdk_module(name: str):
+    """Load a connector-SDK module by explicit file path so it is not
+    shadowed by ``packages/contracts/src/auth`` (which occupies the same
+    top-level ``auth`` name on *sys.path*)."""
+    spec = importlib.util.spec_from_file_location(name, SDK_PATH / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # register before exec so intra-SDK imports work
+    spec.loader.exec_module(mod)
+    return mod
+
+
+# http_client must load first because auth imports it.
+_http_client_mod = _load_sdk_module("http_client")
+_auth_mod = _load_sdk_module("auth")
+
+OAuth2TokenManager = _auth_mod.OAuth2TokenManager
+HttpClient = _http_client_mod.HttpClient
 
 
 class QueueTransport(httpx.BaseTransport):

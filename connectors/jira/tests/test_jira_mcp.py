@@ -18,7 +18,7 @@ for path in (REPO_ROOT, CONNECTOR_SDK_PATH, JIRA_CONNECTOR_PATH):
 
 from base_connector import ConnectorCategory, ConnectorConfig, SyncDirection, SyncFrequency
 from jira_connector import JiraConnector
-from mcp_client.errors import MCPServerError, MCPToolNotFoundError
+from mcp_client import MCPServerError, MCPToolNotFoundError
 
 
 class FakeMCPClient:
