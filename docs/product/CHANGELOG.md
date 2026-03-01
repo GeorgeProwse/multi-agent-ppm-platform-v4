@@ -57,7 +57,7 @@ The `02-solution-design/` and `03-delivery-and-quality/` folders have been remov
 
 ### Codebase Accuracy Updates
 
-- Updated connector count from "38+" to "32 unique target systems (40 connector directories including MCP variants)" per actual codebase
+- Updated connector count from "38+" to "32 unique target systems, 38 production-ready connectors (including MCP variants), 2 in development" per actual codebase
 - Verified 25 agents across 4 groups (core orchestration, delivery, operations, portfolio)
 - Verified tech stack: React 18, TypeScript 5.3, FastAPI 0.115+, PostgreSQL 15, Redis 7
 

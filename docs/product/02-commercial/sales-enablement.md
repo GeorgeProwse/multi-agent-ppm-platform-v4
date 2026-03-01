@@ -36,7 +36,7 @@ Use the 2-minute pitch above, then walk through a demo scenario using the [Demo 
 
 | Persona | Primary Pain Point | Key Message | Proof Points |
 |---|---|---|---|
-| CIO / CTO | Tool sprawl and integration cost | Protect existing investments; add AI intelligence without rip-and-replace | 32 target-system connectors, event-driven sync, open API |
+| CIO / CTO | Tool sprawl and integration cost | Protect existing investments; add AI intelligence without rip-and-replace | 38 production-ready connectors across 32 systems, event-driven sync, open API |
 | PMO Director | Manual reporting and stale dashboards | Real-time portfolio visibility and predictive support | Automated dashboards, AI health scoring, stage-gate enforcement |
 | CFO / Finance | Budget overruns and poor forecasting | Better financial confidence with variance analysis and EVM | ERP integration (SAP, Oracle, NetSuite), automated forecasting |
 | Project Manager | Administrative burden | Guided, compliant workflows with reduced admin load | AI-generated charters, automated risk registers, methodology map |
