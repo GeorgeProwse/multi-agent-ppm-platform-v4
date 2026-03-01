@@ -16,7 +16,11 @@ auth:
   - client_secret
   - refresh_token
 config_fields: []
-env_vars: []
+env_vars:
+- GOOGLE_CALENDAR_BASE_URL
+- GOOGLE_CALENDAR_CLIENT_ID
+- GOOGLE_CALENDAR_CLIENT_SECRET
+- GOOGLE_CALENDAR_REFRESH_TOKEN
 sync:
   modes:
   - full

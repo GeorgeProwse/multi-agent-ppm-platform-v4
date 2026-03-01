@@ -31,13 +31,6 @@ mcp:
     list_job_profiles: workday.listJobProfiles
     list_positions: workday.listPositions
     list_organizations: workday.listOrganizations
-mcp_server_url: https://mcp.example.com
-mcp_server_id: workday
-tool_map:
-  list_workers: workday.listWorkers
-  list_job_profiles: workday.listJobProfiles
-  list_positions: workday.listPositions
-  list_organizations: workday.listOrganizations
 config_fields:
 - name: mcp_server_url
   type: url
@@ -80,3 +73,7 @@ maturity:
     idempotent_write: false
     conflict_handling: false
   notes: Baseline declarative mapping coverage
+  exceptions:
+  - rule_id: missing_manifest_mappings
+    expires_on: '2026-06-30'
+    reason: MCP parity work scheduled before waiver expiry.

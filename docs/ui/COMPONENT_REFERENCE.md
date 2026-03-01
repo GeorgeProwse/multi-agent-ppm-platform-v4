@@ -588,7 +588,7 @@ All fixture paths relative to repo root:
 | `dashboard_workflow` | `apps/web/data/demo_dashboards/workflow-monitoring.json` |
 | `dashboard_executive` | `apps/web/data/demo_dashboards/executive_portfolio.json` |
 
-Agent capability metadata is parsed directly from `agents/AGENT_CATALOG.md`. Connector metadata is parsed from `integrations/connectors/*/manifest.yaml`.
+Agent capability metadata is parsed directly from `agents/AGENT_CATALOG.md`. Connector metadata is parsed from `connectors/*/manifest.yaml`.
 
 ### Outbox Event Types
 

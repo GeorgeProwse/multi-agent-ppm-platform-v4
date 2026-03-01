@@ -17,7 +17,10 @@ auth:
   - refresh_token
   - instance_url
 config_fields: []
-env_vars: []
+env_vars:
+- SALESFORCE_INSTANCE_URL
+- SALESFORCE_CLIENT_ID
+- SALESFORCE_CLIENT_SECRET
 sync:
   modes:
   - full

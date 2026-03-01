@@ -12,7 +12,9 @@ auth:
   - api_token
   - base_url
 config_fields: []
-env_vars: []
+env_vars:
+- SMARTSHEET_API_URL
+- SMARTSHEET_API_TOKEN
 sync:
   modes:
   - full

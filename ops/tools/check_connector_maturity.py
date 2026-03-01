@@ -41,11 +41,36 @@ def _load_inventory(path: Path | None) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def _collect_manifest_exceptions() -> list[dict[str, Any]]:
+    """Read ``maturity.exceptions`` from every connector manifest.yaml."""
+    connectors_root = REPO_ROOT / "connectors"
+    entries: list[dict[str, Any]] = []
+    for manifest_path in sorted(connectors_root.glob("*/manifest.yaml")):
+        try:
+            data = yaml.safe_load(manifest_path.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        connector_id = data.get("id")
+        if not connector_id:
+            continue
+        for exc in (data.get("maturity") or {}).get("exceptions", []):
+            entries.append({**exc, "connector_id": connector_id})
+    return entries
+
+
 def _exception_index(policy: dict[str, Any]) -> tuple[dict[tuple[str, str], date], list[Violation]]:
     index: dict[tuple[str, str], date] = {}
     violations: list[Violation] = []
     today = date.today()
-    for entry in policy.get("exceptions", []):
+
+    # Merge exceptions from the central policy file AND individual manifests.
+    # Manifest-level exceptions are the preferred location going forward;
+    # the central policy file is kept for global thresholds only.
+    all_exceptions: list[dict[str, Any]] = list(policy.get("exceptions", []))
+    all_exceptions.extend(_collect_manifest_exceptions())
+
+    seen: set[tuple[str, str]] = set()
+    for entry in all_exceptions:
         connector_id = entry.get("connector_id")
         rule_id = entry.get("rule_id")
         expires_on = entry.get("expires_on")
@@ -58,6 +83,11 @@ def _exception_index(policy: dict[str, Any]) -> tuple[dict[tuple[str, str], date
                 )
             )
             continue
+        # De-duplicate — manifest-level exceptions extend (not replace) policy.
+        key = (connector_id, rule_id)
+        if key in seen:
+            continue
+        seen.add(key)
         try:
             expiry = date.fromisoformat(str(expires_on))
         except ValueError:

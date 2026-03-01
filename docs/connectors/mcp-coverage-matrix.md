@@ -7,8 +7,8 @@ This matrix shows which SAP and Workday operations are currently backed by Model
 ## SAP
 
 **Sources:**
-- MCP tool map: `integrations/connectors/sap_mcp/manifest.yaml`
-- REST connector mappings: `integrations/connectors/sap/manifest.yaml`
+- MCP tool map: `connectors/sap_mcp/manifest.yaml`
+- REST connector mappings: `connectors/sap/manifest.yaml`
 
 | Operation / entity | MCP tool (tool_map key → tool) | MCP read support | REST read support | Write support & fallback | Gaps / notes |
 | --- | --- | --- | --- | --- | --- |
@@ -21,8 +21,8 @@ This matrix shows which SAP and Workday operations are currently backed by Model
 ## Workday
 
 **Sources:**
-- MCP tool map: `integrations/connectors/workday_mcp/manifest.yaml`
-- REST connector mappings: `integrations/connectors/workday/manifest.yaml`
+- MCP tool map: `connectors/workday_mcp/manifest.yaml`
+- REST connector mappings: `connectors/workday/manifest.yaml`
 
 | Operation / entity | MCP tool (tool_map key → tool) | MCP read support | REST read support | Write support & fallback | Gaps / notes |
 | --- | --- | --- | --- | --- | --- |
@@ -41,7 +41,7 @@ This matrix shows which SAP and Workday operations are currently backed by Model
 ## Extending MCP coverage
 
 1. **Add or expand MCP tool mappings**
-   - Update the MCP manifest `mcp.tool_map` for the connector (e.g., `integrations/connectors/sap_mcp/manifest.yaml`, `integrations/connectors/workday_mcp/manifest.yaml`).
+   - Update the MCP manifest `mcp.tool_map` for the connector (e.g., `connectors/sap_mcp/manifest.yaml`, `connectors/workday_mcp/manifest.yaml`).
    - If you’re wiring MCP support into connector configs, populate `tool_map` in `ConnectorConfig` (this is the authoritative map the MCP client uses).
 
 2. **Decide MCP vs REST routing**

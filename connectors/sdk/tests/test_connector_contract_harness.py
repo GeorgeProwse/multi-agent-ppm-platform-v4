@@ -6,7 +6,7 @@ import sys
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "connectors" / "sdk" / "src"))
 from runtime import ConnectorRuntime
 

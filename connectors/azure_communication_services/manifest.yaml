@@ -13,7 +13,10 @@ auth:
   - endpoint
   - access_key
 config_fields: []
-env_vars: []
+env_vars:
+- ACS_ENDPOINT
+- ACS_ACCESS_KEY
+- AZURE_COMMUNICATION_SERVICES_CONNECTION_STRING
 sync:
   modes:
   - incremental

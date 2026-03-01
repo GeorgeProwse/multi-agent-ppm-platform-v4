@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Document the assets stored under integrations/connectors/registry/signing/public-keys.
+Document the assets stored under connectors/registry/signing/public-keys.
 
 ## What's inside
 
@@ -15,7 +15,7 @@ Used by the platform build and documentation workflows.
 ## How to run / develop / test
 
 ```bash
-ls integrations/connectors/registry/signing/public-keys
+ls connectors/registry/signing/public-keys
 ```
 
 ## Configuration

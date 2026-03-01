@@ -31,13 +31,6 @@ mcp:
     list_goods_receipts: sap.listGoodsReceipts
     list_purchase_orders: sap.listPurchaseOrders
     list_suppliers: sap.listSuppliers
-mcp_server_url: https://mcp.example.com
-mcp_server_id: sap
-tool_map:
-  list_invoices: sap.listInvoices
-  list_goods_receipts: sap.listGoodsReceipts
-  list_purchase_orders: sap.listPurchaseOrders
-  list_suppliers: sap.listSuppliers
 config_fields:
 - name: mcp_server_url
   type: url
@@ -80,3 +73,7 @@ maturity:
     idempotent_write: false
     conflict_handling: false
   notes: Baseline declarative mapping coverage
+  exceptions:
+  - rule_id: missing_manifest_mappings
+    expires_on: '2026-06-30'
+    reason: MCP connector mapping generation not yet wired.

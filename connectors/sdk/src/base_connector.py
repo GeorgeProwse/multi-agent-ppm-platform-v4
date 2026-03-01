@@ -596,7 +596,7 @@ class BaseConnector(ABC):
 
     def _load_pricing_config(self) -> dict[str, Any]:
         candidate = os.getenv("PRICING_CONFIG_PATH") or str(
-            Path(__file__).resolve().parents[4] / "ops" / "config" / "pricing.yaml"
+            Path(__file__).resolve().parents[3] / "ops" / "config" / "pricing.yaml"
         )
         pricing_path = Path(candidate)
         if not pricing_path.exists():

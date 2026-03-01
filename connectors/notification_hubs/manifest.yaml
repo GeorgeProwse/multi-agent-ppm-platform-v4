@@ -14,7 +14,11 @@ auth:
   - sas_key_name
   - sas_key
 config_fields: []
-env_vars: []
+env_vars:
+- AZURE_NOTIFICATION_HUBS_NAMESPACE
+- AZURE_NOTIFICATION_HUBS_NAME
+- AZURE_NOTIFICATION_HUBS_SAS_KEY_NAME
+- AZURE_NOTIFICATION_HUBS_SAS_KEY
 sync:
   modes:
   - incremental

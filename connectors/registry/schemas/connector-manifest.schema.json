@@ -23,6 +23,37 @@
     "category": {
       "type": "string"
     },
+    "status": {
+      "type": "string",
+      "enum": ["available", "production", "beta", "coming_soon", "coming-soon"]
+    },
+    "icon": {
+      "type": "string"
+    },
+    "system": {
+      "type": "string"
+    },
+    "prefer_mcp": {
+      "type": "boolean"
+    },
+    "supported_operations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "config_fields": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "env_vars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "protocol": {
       "type": "string",
       "enum": [
@@ -137,6 +168,13 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "directions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["inbound", "outbound", "bidirectional", "bi-directional"]
           }
         }
       },
@@ -264,6 +302,18 @@
         },
         "notes": {
           "type": "string"
+        },
+        "exceptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rule_id": { "type": "string" },
+              "expires_on": { "type": "string" },
+              "reason": { "type": "string" }
+            },
+            "required": ["rule_id"]
+          }
         }
       },
       "required": [

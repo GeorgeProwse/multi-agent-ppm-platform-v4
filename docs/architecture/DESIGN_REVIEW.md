@@ -118,7 +118,7 @@ The data models in `data/migrations/models.py` reference parent entities by ID (
 
 **3.2.2 - Connector Configuration Stored in Local JSON Files**
 
-The `ConnectorConfigStore` (`integrations/connectors/sdk/src/base_connector.py:383-503`) persists configuration to a local JSON file (`data/connectors/config.json`). This creates several problems:
+The `ConnectorConfigStore` (`connectors/sdk/src/base_connector.py:383-503`) persists configuration to a local JSON file (`data/connectors/config.json`). This creates several problems:
 - In a Kubernetes environment with multiple API replicas, each pod has its own copy of the file.
 - Changes on one pod are invisible to others.
 - There is no transactional guarantee on concurrent read-modify-write operations.
@@ -186,7 +186,7 @@ While the exact dev-mode bypass wasn't fully visible in the reviewed files, the 
 
 ### 5.1 Strengths
 
-- The connector SDK (`integrations/connectors/sdk/src/base_connector.py`) provides a clean abstraction with consistent interface methods (authenticate, test_connection, read, write).
+- The connector SDK (`connectors/sdk/src/base_connector.py`) provides a clean abstraction with consistent interface methods (authenticate, test_connection, read, write).
 - Mutual exclusivity enforcement per category prevents conflicting integrations.
 - MCP (Model Context Protocol) integration allows agents to interact with connectors through a standardized tool interface.
 

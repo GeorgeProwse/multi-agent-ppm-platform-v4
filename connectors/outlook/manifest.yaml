@@ -18,7 +18,11 @@ auth:
   - refresh_token
   - tenant_id
 config_fields: []
-env_vars: []
+env_vars:
+- OUTLOOK_API_URL
+- OUTLOOK_CLIENT_ID
+- OUTLOOK_CLIENT_SECRET
+- OUTLOOK_REFRESH_TOKEN
 sync:
   modes:
   - full

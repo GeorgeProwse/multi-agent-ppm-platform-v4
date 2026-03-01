@@ -6,12 +6,12 @@ Provide shared helpers and scaffolding for building connectors that conform to t
 
 ## What's inside
 
-- [src](/integrations/connectors/sdk/src): Implementation source for this component.
-- [tests](/integrations/connectors/sdk/tests): Test suites and fixtures.
+- [src](/connectors/sdk/src): Implementation source for this component.
+- [tests](/connectors/sdk/tests): Test suites and fixtures.
 
 ## Connector implementation checklist
 
-Use this checklist for every connector in `integrations/connectors/<connector_id>`:
+Use this checklist for every connector in `connectors/<connector_id>`:
 
 - [ ] **Runtime entrypoint**: include `src/main.py` and route execution through `ConnectorRuntime`.
 - [ ] **Manifest completeness**: include `manifest.yaml` that validates against `registry/schemas/connector-manifest.schema.json`.
@@ -29,7 +29,7 @@ The SDK is imported by connector implementations and validated in connector test
 ## How to run / develop / test
 
 ```bash
-pytest integrations/connectors/sdk/tests
+pytest connectors/sdk/tests
 ```
 
 ## Configuration

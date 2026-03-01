@@ -6,7 +6,11 @@
 import type { IconSemantic } from '@/components/icon/iconMap';
 
 /**
- * Connector categories for organization
+ * Connector categories for organization.
+ *
+ * Keep in sync with the categories emitted by connectors/registry/generate.py
+ * (derived from connector manifests).  Run `python connectors/registry/validate_types.py`
+ * to verify alignment.
  */
 export type ConnectorCategory =
   | 'ppm'
@@ -17,7 +21,8 @@ export type ConnectorCategory =
   | 'collaboration'
   | 'grc'
   | 'compliance'
-  | 'iot';
+  | 'iot'
+  | 'crm';
 
 /**
  * Connector implementation status

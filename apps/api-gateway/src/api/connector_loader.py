@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import Any
 
 from feature_flags import is_mcp_feature_enabled
@@ -12,43 +13,53 @@ from connectors.sdk.src.connector_registry import (
 )
 from connectors.sdk.src.project_connector_store import ProjectConnectorConfig
 
-_CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = {
-    "jira": ("jira_connector", "JiraConnector"),
-    "jira_mcp": ("jira_connector", "JiraConnector"),
-    "planview": ("planview_connector", "PlanviewConnector"),
-    "planview_mcp": ("planview_connector", "PlanviewConnector"),
-    "clarity": ("clarity_connector", "ClarityConnector"),
-    "clarity_mcp": ("clarity_connector", "ClarityConnector"),
-    "ms_project_server": ("ms_project_server_connector", "MsProjectServerConnector"),
-    "azure_devops": ("azure_devops_connector", "AzureDevOpsConnector"),
-    "monday": ("monday_connector", "MondayConnector"),
-    "asana": ("asana_connector", "AsanaConnector"),
-    "asana_mcp": ("asana_connector", "AsanaConnector"),
-    "sharepoint": ("sharepoint_connector", "SharePointConnector"),
-    "confluence": ("confluence_connector", "ConfluenceConnector"),
-    "google_drive": ("google_drive_connector", "GoogleDriveConnector"),
-    "sap": ("sap_connector", "SapConnector"),
-    "sap_mcp": ("sap_connector", "SapConnector"),
-    "oracle": ("oracle_connector", "OracleConnector"),
-    "netsuite": ("netsuite_connector", "NetSuiteConnector"),
-    "workday": ("workday_connector", "WorkdayConnector"),
-    "workday_mcp": ("workday_connector", "WorkdayConnector"),
-    "sap_successfactors": ("sap_successfactors_connector", "SapSuccessFactorsConnector"),
-    "adp": ("adp_connector", "AdpConnector"),
-    "teams": ("teams_connector", "TeamsConnector"),
-    "teams_mcp": ("teams_connector", "TeamsConnector"),
-    "slack": ("slack_connector", "SlackConnector"),
-    "slack_mcp": ("slack_connector", "SlackConnector"),
-    "zoom": ("zoom_connector", "ZoomConnector"),
-    "servicenow_grc": ("servicenow_grc_connector", "ServiceNowGrcConnector"),
-    "archer": ("archer_connector", "ArcherConnector"),
-    "logicgate": ("logicgate_connector", "LogicGateConnector"),
-    "regulatory_compliance": (
-        "regulatory_compliance_connector",
-        "RegulatoryComplianceConnector",
-    ),
-    "iot": ("iot_connector", "IoTConnector"),
+logger = logging.getLogger(__name__)
+
+# PascalCase segments that don't follow simple str.capitalize()
+_PASCAL_OVERRIDES: dict[str, str] = {
+    "iot": "IoT",
+    "sharepoint": "SharePoint",
+    "servicenow": "ServiceNow",
+    "netsuite": "NetSuite",
+    "logicgate": "LogicGate",
+    "devops": "DevOps",
+    "successfactors": "SuccessFactors",
 }
+
+
+def _to_class_name(connector_id: str) -> str:
+    """Convert a connector_id like 'azure_devops' to 'AzureDevOpsConnector'."""
+    parts = connector_id.split("_")
+    return "".join(_PASCAL_OVERRIDES.get(p, p.capitalize()) for p in parts) + "Connector"
+
+
+def _build_connector_class_map() -> dict[str, tuple[str, str]]:
+    """Derive connector_id → (module_name, class_name) from manifests.
+
+    REST connectors use their own id for the module.
+    MCP connectors share the module/class of their REST counterpart
+    (identified via the ``system`` field).
+    """
+    # First pass: collect base (non-MCP) connectors keyed by system
+    system_to_base_id: dict[str, str] = {}
+    for defn in get_all_connectors():
+        if defn.auth_type != "mcp":
+            system_to_base_id[defn.system] = defn.connector_id
+
+    class_map: dict[str, tuple[str, str]] = {}
+    for defn in get_all_connectors():
+        if defn.auth_type == "mcp":
+            base_id = system_to_base_id.get(defn.system, defn.connector_id)
+        else:
+            base_id = defn.connector_id
+        module_name = f"{base_id}_connector"
+        class_name = _to_class_name(base_id)
+        class_map[defn.connector_id] = (module_name, class_name)
+
+    return class_map
+
+
+_CONNECTOR_CLASS_MAP: dict[str, tuple[str, str]] = _build_connector_class_map()
 
 _MCP_CONNECTOR_BY_SYSTEM = {
     definition.system: definition.connector_id
@@ -96,5 +107,9 @@ def get_connector_class(
     if not module_info:
         return None
     module_name, class_name = module_info
-    module = importlib.import_module(module_name)
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError:
+        logger.warning("Connector module %s not found for %s", module_name, resolved_id)
+        return None
     return getattr(module, class_name, None)

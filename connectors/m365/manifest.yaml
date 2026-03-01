@@ -38,9 +38,6 @@ mcp:
     list_workloads: m365.listWorkloads
     list_items: m365.listItems
     get_item: m365.getItem
-mcp_server_url: https://mcp.example.com
-mcp_server_id: m365
-tool_map: tool_map.yaml
 config_fields:
 - name: instance_url
   type: url
@@ -153,3 +150,7 @@ maturity:
     idempotent_write: false
     conflict_handling: false
   notes: Baseline declarative mapping coverage
+  exceptions:
+  - rule_id: missing_manifest_mappings
+    expires_on: '2026-06-30'
+    reason: Manifest references placeholder mappings pending connector refactor.

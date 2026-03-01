@@ -13,7 +13,10 @@ auth:
   - auth_token
   - base_url
 config_fields: []
-env_vars: []
+env_vars:
+- TWILIO_API_URL
+- TWILIO_ACCOUNT_SID
+- TWILIO_AUTH_TOKEN
 sync:
   modes:
   - incremental

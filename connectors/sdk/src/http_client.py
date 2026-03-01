@@ -14,7 +14,7 @@ import httpx
 from opentelemetry import trace
 from opentelemetry.trace import SpanKind, Status, StatusCode
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 _COMMON_SRC = REPO_ROOT / "packages" / "common" / "src"
 if str(_COMMON_SRC) not in sys.path:
     sys.path.insert(0, str(_COMMON_SRC))

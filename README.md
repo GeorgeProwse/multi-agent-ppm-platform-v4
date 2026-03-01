@@ -17,7 +17,7 @@ The repository delivers a production-ready, multi-agent PPM platform with valida
 | [agents/](./agents/) | 25 domain agents plus runtime scaffolding, prompts, and tests |
 | [apps/](./apps/) | User-facing applications (API gateway, web console, admin console, mobile) and Helm packaging |
 | [ops/ops/config/](./ops/ops/config/) | Tenant, environment, and agent configuration assets |
-| [integrations/connectors/](./integrations/connectors/) | Integration manifests, mappings, SDK, and registry assets for external systems |
+| [connectors/](./connectors/) | Integration manifests, mappings, SDK, and registry assets for external systems |
 | [data/](./data/) | Canonical JSON schemas, lineage, quality rules, and migration specs |
 | [packages/ui-kit/design-system/](./packages/ui-kit/design-system/) | Design tokens and icon system |
 | [docs/](./docs/) | Architecture, methodology, agent catalog, and solution overview |
@@ -313,7 +313,7 @@ For deeper operational guidance, start with [ops/ops/infra/README.md](./ops/ops/
 
 - **Agents** → [agents/](./agents/) and [docs/agents/](./docs/agents/).
 - **Services** → [services/](./services/).
-- **Connectors** → [integrations/connectors/](./integrations/connectors/) and [docs/connectors/](./docs/connectors/).
+- **Connectors** → [connectors/](./connectors/) and [docs/connectors/](./docs/connectors/).
 - **Data model** → [data/schemas/](./data/schemas/) and [docs/data/](./docs/data/).
 
 ## How to verify documentation links

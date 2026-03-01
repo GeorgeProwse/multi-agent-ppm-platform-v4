@@ -1,4 +1,4 @@
-apiVersion: ppm.integrations/connectors/v1
+apiVersion: ppm.connectors/v1
 kind: ConnectorSandbox
 metadata:
   name: github-sandbox

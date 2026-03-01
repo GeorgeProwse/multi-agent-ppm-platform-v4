@@ -276,7 +276,7 @@ def register_webhook(
         dict with keys: connector_id, status, webhook_id, webhook_url,
         subscribed_events (on success) or error (on failure).
     """
-    _repo_root = Path(__file__).resolve().parents[4]
+    _repo_root = Path(__file__).resolve().parents[3]
     _common_src = _repo_root / "packages" / "common" / "src"
     if str(_common_src) not in sys.path:
         sys.path.insert(0, str(_common_src))

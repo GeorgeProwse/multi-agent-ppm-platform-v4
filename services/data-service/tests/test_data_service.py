@@ -97,7 +97,6 @@ def test_connector_ingest(monkeypatch, tmp_path) -> None:
 
     fixture = (
         Path(__file__).resolve().parents[3]
-        / "integrations"
         / "connectors"
         / "jira"
         / "tests"

@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # Add connector paths to sys.path
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 JIRA_CONNECTOR_PATH = REPO_ROOT / "connectors" / "jira" / "src"
 

@@ -6,11 +6,11 @@ Define how Salesforce payloads map into the platform's canonical schemas under `
 
 ## What's inside
 
-- [project.yaml](/integrations/connectors/salesforce/mappings/project.yaml): Project mapping definition for connector data.
+- [project.yaml](/connectors/salesforce/mappings/project.yaml): Project mapping definition for connector data.
 
 ## How it's used
 
-Referenced by `integrations/connectors/salesforce/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
+Referenced by `connectors/salesforce/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
 
 ## How to run / develop / test
 
@@ -22,7 +22,7 @@ python -m tools.connector_runner run-connector --name salesforce --dry-run
 
 ## Configuration
 
-No direct configuration. Connector authentication and sync options live in `integrations/connectors/salesforce/manifest.yaml` and environment variables referenced by `src/`.
+No direct configuration. Connector authentication and sync options live in `connectors/salesforce/manifest.yaml` and environment variables referenced by `src/`.
 
 ## Troubleshooting
 

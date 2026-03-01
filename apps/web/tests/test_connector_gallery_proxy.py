@@ -39,7 +39,6 @@ def test_types_reads_registry_file(client):
     payload = response.json()
     registry_path = (
         Path(__file__).resolve().parents[3]
-        / "integrations"
         / "connectors"
         / "registry"
         / "connectors.json"

@@ -19,7 +19,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONNECTORS_ROOT = REPO_ROOT / "connectors"
 OUTPUT_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 
-# Map manifest categories to the canonical short names used in connectors.json
+# Category normalization for the JSON registry.
+# NOTE: keep in sync with _CATEGORY_MAP in connectors/sdk/src/connector_registry.py.
+# We duplicate here because generate.py must run standalone without the full
+# app dependency chain.  The validate_types.py script catches drift.
 _CATEGORY_NORMALIZE: dict[str, str] = {
     "ppm": "ppm",
     "project-portfolio-management": "ppm",

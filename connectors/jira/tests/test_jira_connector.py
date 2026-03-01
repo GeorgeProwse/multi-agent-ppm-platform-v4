@@ -18,7 +18,7 @@ import httpx
 import pytest
 
 # Add connector paths
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 JIRA_CONNECTOR_PATH = REPO_ROOT / "connectors" / "jira" / "src"
 for path in (CONNECTOR_SDK_PATH, JIRA_CONNECTOR_PATH):

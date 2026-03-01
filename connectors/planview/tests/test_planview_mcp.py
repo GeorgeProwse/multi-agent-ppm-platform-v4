@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"
 PLANVIEW_CONNECTOR_PATH = REPO_ROOT / "connectors" / "planview" / "src"
 for path in (REPO_ROOT, CONNECTOR_SDK_PATH, PLANVIEW_CONNECTOR_PATH):

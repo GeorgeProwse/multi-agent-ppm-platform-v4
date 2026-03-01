@@ -6,11 +6,11 @@ Define how Workday payloads map into the platform's canonical schemas under `dat
 
 ## What's inside
 
-- [project.yaml](/integrations/connectors/workday/mappings/project.yaml): Project mapping definition for connector data.
+- [project.yaml](/connectors/workday/mappings/project.yaml): Project mapping definition for connector data.
 
 ## How it's used
 
-Referenced by `integrations/connectors/workday/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
+Referenced by `connectors/workday/manifest.yaml` and loaded by `tools.connector_runner` when synchronizing data.
 
 ## How to run / develop / test
 
@@ -22,7 +22,7 @@ python -m tools.connector_runner run-connector --name workday --dry-run
 
 ## Configuration
 
-No direct configuration. Connector authentication and sync options live in `integrations/connectors/workday/manifest.yaml` and environment variables referenced by `src/`.
+No direct configuration. Connector authentication and sync options live in `connectors/workday/manifest.yaml` and environment variables referenced by `src/`.
 
 ## Troubleshooting
 
