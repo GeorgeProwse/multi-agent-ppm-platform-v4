@@ -114,7 +114,7 @@ class DataSyncAgent(BaseAgent):
     - Synchronization monitoring
     """
 
-    def __init__(self, agent_id: str = "data-synchronisation", config: dict[str, Any] | None = None):
+    def __init__(self, agent_id: str = "data-synchronisation-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         self.secret_context: SecretContext = (

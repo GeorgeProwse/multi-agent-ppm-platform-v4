@@ -17,7 +17,7 @@
       },
       {
         "success": true,
-        "agent_id": "agent-04-demand-intake"
+        "agent_id": "demand-intake-agent"
       },
       {
         "success": true,
@@ -132,7 +132,7 @@
         "status": "success"
       },
       {
-        "agent_id": "agent-04-demand-intake",
+        "agent_id": "demand-intake-agent",
         "started_at": "2026-01-01T00:00:06.000Z",
         "completed_at": "2026-01-01T00:00:07.000Z",
         "duration_ms": 1000,

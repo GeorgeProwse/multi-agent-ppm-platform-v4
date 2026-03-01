@@ -115,7 +115,7 @@ class SystemHealthAgent(BaseAgent):
     - Capacity planning and scaling recommendations
     """
 
-    def __init__(self, agent_id: str = "system-health-monitoring", config: dict[str, Any] | None = None):
+    def __init__(self, agent_id: str = "system-health-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters

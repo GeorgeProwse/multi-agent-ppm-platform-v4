@@ -237,7 +237,7 @@ class KnowledgeManagementAgent(BaseAgent):
     - Access control and permissions
     """
 
-    def __init__(self, agent_id: str = "knowledge-management", config: dict[str, Any] | None = None):
+    def __init__(self, agent_id: str = "knowledge-management-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         # Configuration parameters

@@ -41,7 +41,7 @@ class WorkflowEngineAgent(BaseAgent):
     - Exception handling and compensation
     """
 
-    def __init__(self, agent_id: str = "workflow-process-engine", config: dict[str, Any] | None = None):
+    def __init__(self, agent_id: str = "workflow-engine-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
 
         config = config or {}

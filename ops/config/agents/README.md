@@ -39,7 +39,7 @@ Complex agents with many config files use a dedicated subdirectory:
 ## Notes
 
 **Intent routing — design vs runtime config:**
-`intent-routing.yaml` in this directory is the canonical design reference. Agents 13–25 are intended to have descriptive IDs (e.g. `risk-management`). The live runtime config at `services/agent-runtime/src/config/intent-routing.yaml` currently uses numeric IDs (e.g. `agent_015`) because that is how those agents are registered in `runtime.py`. Both files should be kept in sync for intent names and non-ID fields.
+`intent-routing.yaml` in this directory is the canonical design reference. Agents 13–25 are intended to have descriptive IDs (e.g. `risk-management-agent`). The live runtime config at `services/agent-runtime/src/config/intent-routing.yaml` currently uses numeric IDs (e.g. `agent_015`) because that is how those agents are registered in `runtime.py`. Both files should be kept in sync for intent names and non-ID fields.
 
 **Validation:**
 
