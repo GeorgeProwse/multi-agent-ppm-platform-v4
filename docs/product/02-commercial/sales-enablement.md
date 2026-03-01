@@ -36,7 +36,7 @@ Use the 2-minute pitch above, then walk through a demo scenario using the [Demo 
 
 | Persona | Primary Pain Point | Key Message | Proof Points |
 |---|---|---|---|
-| CIO / CTO | Tool sprawl and integration cost | Protect existing investments; add AI intelligence without rip-and-replace | 44 connectors, event-driven sync, open API |
+| CIO / CTO | Tool sprawl and integration cost | Protect existing investments; add AI intelligence without rip-and-replace | 32 target-system connectors, event-driven sync, open API |
 | PMO Director | Manual reporting and stale dashboards | Real-time portfolio visibility and predictive support | Automated dashboards, AI health scoring, stage-gate enforcement |
 | CFO / Finance | Budget overruns and poor forecasting | Better financial confidence with variance analysis and EVM | ERP integration (SAP, Oracle, NetSuite), automated forecasting |
 | Project Manager | Administrative burden | Guided, compliant workflows with reduced admin load | AI-generated charters, automated risk registers, methodology map |
@@ -79,7 +79,7 @@ For a structured demo walkthrough, use the [Demo Environment Guide](../../demo-e
 | Pricing and packaging | [Packaging and Pricing](packaging-and-pricing.md) |
 | GTM execution plan | [Go-to-Market Plan](go-to-market-plan.md) |
 | Agent capabilities (25 agents) | [Agent Catalog](../../agents/) |
-| Connector ecosystem (44 integrations) | [Connector Documentation](../../connectors/) |
+| Connector ecosystem (32 target systems) | [Connector Documentation](../../connectors/) |
 | Architecture and security | [Architecture Documentation](../../architecture/) |
 | Compliance and regulatory | [Compliance Documentation](../../compliance/) |
 | Demo environment setup | [Demo Environment Guide](../../demo-environment.md) |

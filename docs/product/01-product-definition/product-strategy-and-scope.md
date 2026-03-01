@@ -54,7 +54,7 @@ The platform covers the full project and portfolio lifecycle:
 - **Project delivery** — charter generation, scope management, scheduling, resource management, financial tracking, vendor procurement, quality assurance, risk and issue management, compliance, change management, release management, and knowledge management.
 - **Platform operations** — workflow automation, analytics and reporting, data synchronisation, system health monitoring.
 - **Governance** — stage-gate enforcement, approval workflows, audit logging, RBAC.
-- **Connectors** — bi-directional integration with 44 enterprise systems (17 production-ready, 27 in development) across PPM, ERP, HRIS, collaboration, and GRC categories. For the full connector catalog, see [Connector Documentation](../../connectors/).
+- **Connectors** — bi-directional integration with 32 enterprise systems (40 connector directories including MCP variants) across PPM, ERP, HRIS, collaboration, and GRC categories. For the full connector catalog, see [Connector Documentation](../../connectors/).
 
 ### Out of Scope
 
