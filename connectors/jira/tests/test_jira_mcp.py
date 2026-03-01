@@ -78,7 +78,10 @@ def test_jira_mcp_invocation_and_mapping(jira_config: ConnectorConfig) -> None:
             "name": "App Project",
             "description": None,
             "lead": None,
+            "lead_email": None,
             "project_type": "software",
+            "style": None,
+            "archived": False,
         }
     ]
 
@@ -97,4 +100,16 @@ def test_jira_mcp_fallbacks(jira_config: ConnectorConfig, error: Exception) -> N
     with patch.object(connector, "_read_projects", return_value=rest_records):
         result = connector.read("projects")
 
-    assert result == rest_records
+    assert result == [
+        {
+            "id": "rest-project",
+            "key": "REST",
+            "name": "REST",
+            "description": None,
+            "lead": None,
+            "lead_email": None,
+            "project_type": None,
+            "style": None,
+            "archived": False,
+        }
+    ]

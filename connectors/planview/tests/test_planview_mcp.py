@@ -89,4 +89,16 @@ def test_planview_mcp_fallbacks(planview_config: ConnectorConfig, error: Excepti
     with patch.object(connector, "_read_projects", return_value=rest_records):
         result = connector.read("projects")
 
-    assert result == rest_records
+    assert result == [
+        {
+            "id": "REST",
+            "program_id": "unassigned",
+            "name": "Fallback",
+            "status": "execution",
+            "start_date": None,
+            "end_date": None,
+            "owner": None,
+            "classification": "internal",
+            "created_at": None,
+        }
+    ]

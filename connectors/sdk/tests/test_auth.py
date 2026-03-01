@@ -51,7 +51,7 @@ def test_oauth_token_refresh_on_expiry(monkeypatch):
     transport = QueueTransport(responses)
     client = HttpClient(base_url="https://auth.example.com", transport=transport)
     manager = OAuth2TokenManager(
-        token_url="/oauth/token",
+        token_url="https://auth.example.com/oauth/token",
         client_id="client-id",
         client_secret="client-secret",
         refresh_token="refresh-0",
