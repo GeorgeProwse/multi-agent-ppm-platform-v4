@@ -42,8 +42,8 @@ mappings:
   target: audit_trail
   mapping_file: mappings/audit_trail.yaml
 maturity:
-  level: 0
-  tier: candidate
+  level: 1
+  tier: core
   business_priority: 99
   capabilities:
     read: true
@@ -52,4 +52,4 @@ maturity:
     declarative_mapping: true
     idempotent_write: false
     conflict_handling: false
-  notes: Early-stage compliance connector
+  notes: Baseline declarative mapping coverage

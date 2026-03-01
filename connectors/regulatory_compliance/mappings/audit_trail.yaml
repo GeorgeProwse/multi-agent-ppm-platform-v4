@@ -1,0 +1,14 @@
+source: audit_trail
+target: audit_trail
+schema: audit_trail
+fields:
+- source: id
+  target: id
+- source: regulation
+  target: regulation
+- source: event_type
+  target: event_type
+- source: timestamp
+  target: timestamp
+- source: status
+  target: status
