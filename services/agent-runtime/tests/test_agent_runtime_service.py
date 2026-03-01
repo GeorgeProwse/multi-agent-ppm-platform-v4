@@ -108,7 +108,7 @@ def test_connector_action_is_returned(monkeypatch) -> None:
 
 def test_approval_workflow_escalation_metadata() -> None:
     response = client.post(
-        "/v1/agents/agent_003_approval_workflow/execute",
+        "/v1/agents/approval-workflow/execute",
         json={
             "payload": {
                 "request_type": "budget_change",

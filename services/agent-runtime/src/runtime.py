@@ -677,7 +677,7 @@ class AgentRuntime:
 
         workflow_result: dict[str, Any] | None = None
         if workflow_action:
-            workflow_agent = self._agent_registry.get("agent_024")
+            workflow_agent = self._agent_registry.get("workflow-process-engine")
             if workflow_agent:
                 workflow_client = WorkflowEngineClient(workflow_agent)
                 workflow_result = await workflow_client.execute(
@@ -772,7 +772,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_003_approval_workflow",
+                agent_id="approval-workflow",
                 path=AGENTS_ROOT
                 / "core-orchestration"
                 / "agent-03-approval-workflow"
@@ -910,7 +910,7 @@ class AgentRuntime:
                 class_name="FinancialManagementAgent",
             ),
             AgentSpec(
-                agent_id="agent_013",
+                agent_id="vendor-procurement",
                 path=AGENTS_ROOT
                 / "delivery-management"
                 / "agent-13-vendor-procurement"
@@ -925,7 +925,7 @@ class AgentRuntime:
                 class_name="VendorProcurementAgent",
             ),
             AgentSpec(
-                agent_id="agent_014",
+                agent_id="quality-management",
                 path=AGENTS_ROOT
                 / "delivery-management"
                 / "agent-14-quality-management"
@@ -940,7 +940,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_015",
+                agent_id="risk-management",
                 path=AGENTS_ROOT
                 / "delivery-management"
                 / "agent-15-risk-issue-management"
@@ -952,7 +952,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_016",
+                agent_id="compliance-governance",
                 path=AGENTS_ROOT
                 / "delivery-management"
                 / "agent-16-compliance-regulatory"
@@ -964,7 +964,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_017",
+                agent_id="change-configuration",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-17-change-configuration"
@@ -978,7 +978,7 @@ class AgentRuntime:
                 class_name="ChangeConfigurationAgent",
             ),
             AgentSpec(
-                agent_id="agent_018",
+                agent_id="release-deployment",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-18-release-deployment"
@@ -992,7 +992,7 @@ class AgentRuntime:
                 class_name="ReleaseDeploymentAgent",
             ),
             AgentSpec(
-                agent_id="agent_019",
+                agent_id="knowledge-management",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-19-knowledge-document-management"
@@ -1004,7 +1004,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_020",
+                agent_id="continuous-improvement",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-20-continuous-improvement-process-mining"
@@ -1016,7 +1016,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_021",
+                agent_id="stakeholder-communications",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-21-stakeholder-comms"
@@ -1028,7 +1028,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_022",
+                agent_id="analytics-insights",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-22-analytics-insights"
@@ -1045,7 +1045,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_023",
+                agent_id="data-synchronisation",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-23-data-synchronisation-quality"
@@ -1060,7 +1060,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_024",
+                agent_id="workflow-process-engine",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-24-workflow-process-engine"
@@ -1080,7 +1080,7 @@ class AgentRuntime:
                 },
             ),
             AgentSpec(
-                agent_id="agent_025",
+                agent_id="system-health-monitoring",
                 path=AGENTS_ROOT
                 / "operations-management"
                 / "agent-25-system-health-monitoring"

@@ -2,7 +2,7 @@
   "agents": {
     "agent-15-risk-issue-management": {
       "catalog_id": "agent-15-risk-issue-management",
-      "agent_id": "agent_015",
+      "agent_id": "risk-management",
       "display_name": "Risk & Issue Management",
       "description": "Identifies, assesses, and manages project risks and issues",
       "category": "operations",
@@ -49,9 +49,9 @@
   },
   "project_configs": {
     "project-apollo": {
-      "agent_015": {
+      "risk-management": {
         "project_id": "project-apollo",
-        "agent_id": "agent_015",
+        "agent_id": "risk-management",
         "enabled": true,
         "parameter_overrides": {
           "risk_assessment_method": "monte_carlo"

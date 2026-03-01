@@ -439,7 +439,7 @@ class AgentConfigStore:
         # Governance Agents
         agents["agent-03-approval-workflow"] = AgentConfig(
             catalog_id="agent-03-approval-workflow",
-            agent_id="agent_003_approval_workflow",
+            agent_id="approval-workflow",
             display_name="Approval Workflow",
             description="Manages approval workflows and gate reviews",
             category=AgentCategory.GOVERNANCE,
@@ -783,7 +783,7 @@ class AgentConfigStore:
         # Operations Agents
         agents["agent-13-vendor-procurement"] = AgentConfig(
             catalog_id="agent-13-vendor-procurement",
-            agent_id="agent_013",
+            agent_id="vendor-procurement",
             display_name="Vendor & Procurement",
             description="Manages vendor relationships and procurement processes",
             category=AgentCategory.OPERATIONS,
@@ -851,7 +851,7 @@ class AgentConfigStore:
 
         agents["agent-14-quality-management"] = AgentConfig(
             catalog_id="agent-14-quality-management",
-            agent_id="agent_014",
+            agent_id="quality-management",
             display_name="Quality Management",
             description="Manages quality assurance and quality control processes",
             category=AgentCategory.OPERATIONS,
@@ -898,7 +898,7 @@ class AgentConfigStore:
         # Risk & Issue Management Agent - with detailed parameters
         agents["agent-15-risk-issue-management"] = AgentConfig(
             catalog_id="agent-15-risk-issue-management",
-            agent_id="agent_015",
+            agent_id="risk-management",
             display_name="Risk & Issue Management",
             description="Identifies, assesses, and manages project risks and issues",
             category=AgentCategory.OPERATIONS,
@@ -974,7 +974,7 @@ class AgentConfigStore:
         # Platform Agents
         agents["agent-16-compliance-regulatory"] = AgentConfig(
             catalog_id="agent-16-compliance-regulatory",
-            agent_id="agent_016",
+            agent_id="compliance-governance",
             display_name="Compliance & Regulatory",
             description="Manages compliance requirements and regulatory adherence",
             category=AgentCategory.GOVERNANCE,
@@ -1003,7 +1003,7 @@ class AgentConfigStore:
 
         agents["agent-17-change-configuration"] = AgentConfig(
             catalog_id="agent-17-change-configuration",
-            agent_id="agent_017",
+            agent_id="change-configuration",
             display_name="Change & Configuration",
             description="Manages change requests and configuration management",
             category=AgentCategory.OPERATIONS,
@@ -1056,7 +1056,7 @@ class AgentConfigStore:
 
         agents["agent-18-release-deployment"] = AgentConfig(
             catalog_id="agent-18-release-deployment",
-            agent_id="agent_018",
+            agent_id="release-deployment",
             display_name="Release & Deployment",
             description="Manages release planning and deployment coordination",
             category=AgentCategory.OPERATIONS,
@@ -1102,7 +1102,7 @@ class AgentConfigStore:
 
         agents["agent-19-knowledge-document-management"] = AgentConfig(
             catalog_id="agent-19-knowledge-document-management",
-            agent_id="agent_019",
+            agent_id="knowledge-management",
             display_name="Knowledge & Document Management",
             description="Manages project documentation and knowledge base",
             category=AgentCategory.PLATFORM,
@@ -1169,7 +1169,7 @@ class AgentConfigStore:
 
         agents["agent-20-continuous-improvement-process-mining"] = AgentConfig(
             catalog_id="agent-20-continuous-improvement-process-mining",
-            agent_id="agent_020",
+            agent_id="continuous-improvement",
             display_name="Continuous Improvement",
             description="Analyzes processes and identifies improvement opportunities",
             category=AgentCategory.PLATFORM,
@@ -1216,7 +1216,7 @@ class AgentConfigStore:
 
         agents["agent-21-stakeholder-comms"] = AgentConfig(
             catalog_id="agent-21-stakeholder-comms",
-            agent_id="agent_021",
+            agent_id="stakeholder-communications",
             display_name="Stakeholder & Communications",
             description="Manages stakeholder engagement and communications",
             category=AgentCategory.PLATFORM,
@@ -1253,7 +1253,7 @@ class AgentConfigStore:
 
         agents["agent-22-analytics-insights"] = AgentConfig(
             catalog_id="agent-22-analytics-insights",
-            agent_id="agent_022",
+            agent_id="analytics-insights",
             display_name="Analytics & Insights",
             description="Provides analytics, dashboards, and business insights",
             category=AgentCategory.PLATFORM,
@@ -1292,7 +1292,7 @@ class AgentConfigStore:
 
         agents["agent-23-data-synchronisation-quality"] = AgentConfig(
             catalog_id="agent-23-data-synchronisation-quality",
-            agent_id="agent_023",
+            agent_id="data-synchronisation",
             display_name="Data Synchronization & Quality",
             description="Ensures data quality and synchronization across systems",
             category=AgentCategory.PLATFORM,
@@ -1330,7 +1330,7 @@ class AgentConfigStore:
 
         agents["agent-24-workflow-process-engine"] = AgentConfig(
             catalog_id="agent-24-workflow-process-engine",
-            agent_id="agent_024",
+            agent_id="workflow-process-engine",
             display_name="Workflow & Process Engine",
             description="Executes and manages automated workflows",
             category=AgentCategory.PLATFORM,
@@ -1369,7 +1369,7 @@ class AgentConfigStore:
 
         agents["agent-25-system-health-monitoring"] = AgentConfig(
             catalog_id="agent-25-system-health-monitoring",
-            agent_id="agent_025",
+            agent_id="system-health-monitoring",
             display_name="System Health & Monitoring",
             description="Monitors system health and performance",
             category=AgentCategory.PLATFORM,

@@ -62,7 +62,7 @@
           "project-lifecycle-governance"
         ],
         "approve": [
-          "agent_003_approval_workflow"
+          "approval-workflow"
         ],
         "publish": [
           "response-orchestration"
@@ -203,7 +203,7 @@
           "project-lifecycle-governance"
         ],
         "approve": [
-          "agent_003_approval_workflow"
+          "approval-workflow"
         ],
         "publish": [
           "response-orchestration"
@@ -340,10 +340,10 @@
         ],
         "review": [
           "project-lifecycle-governance",
-          "agent_003_approval_workflow"
+          "approval-workflow"
         ],
         "approve": [
-          "agent_003_approval_workflow"
+          "approval-workflow"
         ],
         "publish": [
           "response-orchestration"

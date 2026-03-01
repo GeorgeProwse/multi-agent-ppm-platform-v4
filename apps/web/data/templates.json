@@ -158,7 +158,7 @@
         "enabled": [
           "intent-router",
           "schedule-planning",
-          "agent_015"
+          "risk-management"
         ],
         "disabled": [
           "financial-management"
@@ -423,7 +423,7 @@
           "intent-router",
           "schedule-planning",
           "financial-management",
-          "agent_015"
+          "risk-management"
         ],
         "disabled": []
       },
@@ -686,7 +686,7 @@
           "intent-router",
           "schedule-planning",
           "financial-management",
-          "agent_015"
+          "risk-management"
         ],
         "disabled": []
       },

@@ -11,5 +11,5 @@ agents:
     demoEnabled: true
   - agentId: project-lifecycle-governance
     demoEnabled: true
-  - agentId: agent_023
+  - agentId: data-synchronisation
     demoEnabled: true
