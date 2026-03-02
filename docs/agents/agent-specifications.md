@@ -46,11 +46,9 @@
 
 Two deliberate architectural changes shape the current agent catalog:
 
-### Merging the workflow engine into the Approval Workflow agent
+### The Approval Workflow agent as unified workflow engine
 
-Approvals are a specialised workflow pattern — a human decision step with routing, deadlines, escalation, and an immutable outcome record. Maintaining a separate workflow engine agent and a separate approval agent duplicated concepts (state persistence, task inboxes, notification logic, monitoring, audit trails) and forced other agents to decide which of the two to call for multi-step processes.
-
-The merged Approval Workflow agent is now the platform's single canonical orchestration authority for long-running workflows. Every multi-step process — including approvals, automated task sequences, retry/compensation flows, and event-driven process automation — is defined and executed through one agent with a unified execution record and audit trail. Approval steps are represented as a first-class workflow step type (`approval_gate`) within the `ppm.workflow/v1` specification.
+Approvals are a specialised workflow pattern — a human decision step with routing, deadlines, escalation, and an immutable outcome record. The Approval Workflow agent is the platform's single canonical orchestration authority for long-running workflows. Every multi-step process — including approvals, automated task sequences, retry/compensation flows, and event-driven process automation — is defined and executed through one agent with a unified execution record and audit trail. Approval steps are represented as a first-class workflow step type (`approval_gate`) within the `ppm.workflow/v1` specification.
 
 **Operational benefits:**
 - One workflow definition language and one execution engine for all structured processes.

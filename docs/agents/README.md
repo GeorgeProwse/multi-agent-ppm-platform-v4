@@ -56,7 +56,7 @@ All agent runtime configuration lives under `ops/config/agents/`. The table belo
 | `ops/config/agents/portfolio.yaml` | Domain agent configuration for demand, business case, portfolio strategy, and program management. | `demand_intake.*`, `business_case.*`, `portfolio_strategy.*`, `program_management.*` |
 | `ops/config/agents/demo-participants.yaml` | Demo participant configuration for local and demo environments. | `participants[].name`, `participants[].role` |
 | `ops/config/agents/data-synchronisation-agent/` | Per-agent config for the Data Synchronisation agent (data sync): mapping rules, quality thresholds, pipelines, schema registry, validation rules. | — |
-| `ops/config/agents/workflow-engine-agent/` | Workflow engine configuration (durable workflow definitions and templates). **Note:** `workflow-engine-agent` is retired as a separate agent; config consumed by the Approval Workflow agent. | — |
+| `ops/config/agents/approval-workflow-agent/` | Approval Workflow agent workflow configuration (durable workflow definitions and templates). | — |
 
 > **Note on runtime config:** `services/agent-runtime/src/config/intent-routing.yaml` is a separate runtime-only copy that uses descriptive agent IDs (e.g. `risk-management-agent`) matching the IDs registered in `services/agent-runtime/src/runtime.py`. See the comment at the top of that file for details.
 

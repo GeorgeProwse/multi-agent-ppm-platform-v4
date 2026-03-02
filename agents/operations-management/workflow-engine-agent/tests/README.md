@@ -1,26 +1,12 @@
-# Workflow Process Engine Tests
+# Workflow Engine Library Tests
 
-## Purpose
+Tests for the workflow engine library (workflow spec parsing, state store, task queue, BPMN import, event criteria matching).
 
-Hold test assets for Workflow Process Engine to validate prompts, policies, and orchestration behavior.
-
-## What's inside
-
-- `README.md`: Documentation for this directory.
-
-## How it's used
-
-These tests are collected by `pytest` when running `make test` and help validate agent-specific behavior alongside shared agent runtime checks.
-
-## How to run / develop / test
+## How to run
 
 ```bash
 pytest agents/operations-management/workflow-engine-agent/tests
 ```
-
-## Configuration
-
-No component-specific configuration; tests rely on shared repo fixtures in `tests/` and `.env`.
 
 ## Troubleshooting
 

@@ -34,7 +34,7 @@ pytest agents/core-orchestration/approval-workflow-agent/tests
 
 Agent runtime configuration is centralized in `.env` (see `ops/config/.env.example`) and shared agent settings such as `MAX_AGENT_CONCURRENCY` and `AGENT_TIMEOUT_SECONDS`. Check the agent implementation under `src/` for any additional required environment variables.
 
-Workflow definitions and templates are loaded from `ops/config/agents/workflow-engine-agent/` (durable workflow definitions and workflow templates).
+Workflow definitions and templates are loaded from `ops/config/agents/approval-workflow-agent/` (durable workflow definitions and workflow templates).
 
 ### Dynamic escalation policy
 
@@ -321,7 +321,7 @@ The approval-workflow-agent consumes the following shared integration services f
 | **DatabaseStorageService** | Persist workflow definitions, workflow instance state, task inbox entries, and approval decision records. |
 | **CalendarIntegrationService** (optional) | Schedule approval deadline reminders and review meetings in Outlook/Google Calendar. |
 
-Workflow instance state is also backed by the shared library modules in `agents/operations-management/workflow-engine-agent/src/` (`workflow_state_store.py` for database-backed persistence, `workflow_task_queue.py` for queue-driven task distribution).
+Workflow instance state is also backed by `workflow_state_store.py` (database-backed persistence) and `workflow_task_queue.py` (queue-driven task distribution) under `src/`.
 
 ## Troubleshooting
 
