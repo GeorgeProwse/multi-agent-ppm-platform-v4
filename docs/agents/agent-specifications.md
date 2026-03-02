@@ -71,6 +71,42 @@ The Workspace Setup agent introduces a mandatory "setup wizard" phase between th
 
 The agent publishes a `workspace.setup.completed` event that the Lifecycle Governance agent uses as a gate — no project can progress past initiation until workspace setup is complete. This eliminates a class of downstream failures and gives project teams confidence that their tools are ready before they begin work.
 
+### Integration service taxonomy
+
+Agents interact with external systems through a set of shared integration services defined in `agents/common/connector_integration.py`. The taxonomy below reflects the corrected classification following the Agent-Connector Usage Analysis review:
+
+| Service | Responsibility | Connectors |
+| --- | --- | --- |
+| **DocumentManagementService** | Document CRUD, metadata, publishing (SharePoint, Confluence) | SharePoint, Confluence |
+| **DocumentationPublishingService** | Thin facade over DocumentManagementService adding Confluence-first publish with SharePoint fallback | Confluence (primary), SharePoint (fallback) |
+| **ERPFinanceService** (alias `ERPIntegrationService`) | Financial data sync — GL, cost centres, journal entries | SAP, Oracle, NetSuite, Dynamics 365 |
+| **HRISService** | HR data sync — employees, org structure, resource capacity | Workday, SuccessFactors, ADP |
+| **ProjectManagementService** | Project/task CRUD, schedule sync | Planview, MS Project, Jira, Azure DevOps, Smartsheet |
+| **ITSMIntegrationService** | Incident, change, and service request management | ServiceNow, Jira Service Management, BMC Remedy |
+| **GRCIntegrationService** | Governance, risk, and compliance record management | ServiceNow GRC, RSA Archer |
+| **NotificationService** | Multi-channel notifications — email, Teams, Slack, SMS, push | SMTP/SendGrid, Teams, Slack, Twilio, Azure Notification Hubs |
+| **CalendarIntegrationService** | Calendar event CRUD and availability checks | Outlook, Google Calendar |
+| **DatabaseStorageService** | Persistent agent data storage | Azure SQL, Cosmos DB, local JSON |
+| **MLPredictionService** | Classification, forecasting, anomaly detection | Azure ML |
+
+**Key changes from the original taxonomy:**
+- **Workday reclassified:** Moved from `ERPIntegrationService` to the new `HRISService`. The ERP service now covers finance-only systems (SAP, Oracle, NetSuite, Dynamics 365).
+- **DocumentationPublishingService marked as facade:** It delegates to `DocumentManagementService` and adds Confluence as a primary publishing target. It is not a separate storage layer.
+- **ConnectorWriteGate added:** All services should check the write gate before external writes. The gate enforces: connector configured + connected, approval present if policy requires, dry-run passed if required, idempotency key generated, and audit entry emitted.
+- **Governed connector runtime for Data Synchronisation:** The Data Synchronisation agent now exposes a `governed_connector_write()` method that routes all writes through `ConnectorWriteGate` rather than directly instantiating connectors.
+
+#### Agent-to-service usage
+
+| Agent | Primary services | Optional services |
+| --- | --- | --- |
+| workspace-setup-agent | DocumentManagementService, ProjectManagementService, NotificationService, DatabaseStorageService | CalendarIntegrationService |
+| approval-workflow-agent | NotificationService, DatabaseStorageService | CalendarIntegrationService |
+| data-synchronisation-agent | DatabaseStorageService, ConnectorWriteGate (governed runtime) | — |
+| financial-management-agent | ERPFinanceService, DatabaseStorageService, NotificationService | — |
+| resource-management-agent | HRISService, DatabaseStorageService | CalendarIntegrationService |
+| risk-management-agent | GRCIntegrationService, DocumentManagementService, DocumentationPublishingService, MLPredictionService, DatabaseStorageService | — |
+| release-deployment-agent | DocumentationPublishingService, DatabaseStorageService, CalendarIntegrationService | — |
+
 ---
 
 ## Agent Specifications

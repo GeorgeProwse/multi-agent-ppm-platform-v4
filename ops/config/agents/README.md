@@ -10,7 +10,7 @@ This directory contains agent runtime, orchestration, and intent routing configu
 | --- | --- |
 | [schema/](./schema/) | JSON schema for intent routing configuration validation |
 | [data-synchronisation-agent/](./data-synchronisation-agent/) | Per-agent config for the Data Synchronisation agent – Data Synchronization & Quality |
-| [workflow-engine-agent/](./workflow-engine-agent/) | Workflow engine configuration (durable workflow definitions and templates), consumed by approval-workflow-agent |
+| [workflow-engine-agent/](./workflow-engine-agent/) | Workflow engine configuration (durable workflow definitions and templates). **Note:** `workflow-engine-agent` is retired as a separate agent; this config directory is consumed by the Approval Workflow agent. |
 
 ## Key files
 
@@ -34,7 +34,7 @@ Complex agents with many config files use a dedicated subdirectory:
 | Directory | Agent | Files |
 | --- | --- | --- |
 | [data-synchronisation-agent/](./data-synchronisation-agent/) | the Data Synchronisation agent – Data Sync | `mapping_rules.yaml`, `quality_thresholds.yaml`, `pipelines.yaml`, `schema_registry.yaml`, `validation_rules.yaml` |
-| [workflow-engine-agent/](./workflow-engine-agent/) | Approval Workflow agent – Workflow Engine config | `durable_workflows.yaml`, `workflow_templates.yaml` |
+| [workflow-engine-agent/](./workflow-engine-agent/) | Approval Workflow agent – Workflow Engine config (retired agent; config consumed by Approval Workflow agent) | `durable_workflows.yaml`, `workflow_templates.yaml` |
 
 ## Notes
 

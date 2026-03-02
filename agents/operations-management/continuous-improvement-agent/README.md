@@ -57,7 +57,7 @@ The Continuous Improvement agent is responsible for:
 
 The Continuous Improvement agent is not responsible for:
 
-- Approving or executing workflow changes (The Workflow Engine agent handles workflow execution).
+- Approving or executing workflow changes (the Approval Workflow agent handles workflow execution).
 - Curating enterprise-wide analytics models/warehouses (Agents 22/25).
 - Authoring enterprise policy or compliance rules (handled by governance agents).
 
@@ -86,12 +86,12 @@ The Continuous Improvement agent is not responsible for:
 - **Handoff**: the Continuous Improvement agent publishes process insights and benefit realization events; analytics
   agent consumes these events for enterprise reporting and forecasting.
 
-### Workflow engine (The Workflow Engine agent)
+### Approval Workflow agent (workflow engine)
 
 - **Overlap**: Both agents operate on process models.
-- **Boundary**: the Continuous Improvement agent discovers as-is models and recommends improvements; the Workflow Engine agent owns the
+- **Boundary**: the Continuous Improvement agent discovers as-is models and recommends improvements; the Approval Workflow agent owns the
   execution of to-be workflows and orchestration definitions.
-- **Handoff**: the Continuous Improvement agent emits `workflow.improvement.recommendation` events to the Workflow Engine agent; the Workflow Engine agent
+- **Handoff**: the Continuous Improvement agent emits `workflow.improvement.recommendation` events to the Approval Workflow agent; the Approval Workflow agent
   updates workflows, approvals, and execution state.
 
 ## Functional gaps and required alignment
@@ -109,7 +109,7 @@ The Continuous Improvement agent is not responsible for:
   analytics KPIs to avoid overlap with Agents 22/25.
 - **Tooling**: Align event schemas with analytics ingestion (`events.ingested`,
   `process.discovered`, `benefits.realized`) to avoid schema drift.
-- **Templates**: Provide a standard improvement initiative template shared with the Workflow Engine agent to
+- **Templates**: Provide a standard improvement initiative template shared with the Approval Workflow agent to
   translate recommendations into workflow updates.
 - **Connectors**: Ensure task-sync integration is configured for improvement backlog handoff.
 - **UI**: Expose improvement backlog, conformance reports, and benefit tracking dashboards
@@ -122,8 +122,8 @@ The Continuous Improvement agent is not responsible for:
 3. **Assess**: Run conformance, bottleneck, and deviation analyses.
 4. **Diagnose**: Perform root cause analysis for prioritized issues.
 5. **Recommend**: Generate improvement initiatives with expected benefits and priority scoring.
-6. **Handoff**: Emit `workflow.improvement.recommendation` events to the Workflow Engine agent and create tasks.
-7. **Implement**: Workflow engine executes approved changes (The Workflow Engine agent responsibility).
+6. **Handoff**: Emit `workflow.improvement.recommendation` events to the Approval Workflow agent and create tasks.
+7. **Implement**: Workflow engine executes approved changes (Approval Workflow agent responsibility).
 8. **Track**: Measure realized benefits, update KPIs, and publish benefit events.
 9. **Benchmark**: Compare against internal/external benchmarks for continuous calibration.
 

@@ -8,14 +8,16 @@ Explain how durable workflows are defined, executed, and audited across the plat
 
 Workflows are the backbone for stage-gate execution, approvals, and multi-step orchestration. The platform uses a dedicated workflow engine service (`apps/workflow-engine`) and the Approval Workflow agent (`agents/core-orchestration/approval-workflow-agent`) to execute workflow instances, persist state in an external database, and emit audit entries to the audit log service. Orchestration services and agents call the workflow engine to start, resume, and inspect workflow runs while worker nodes pull tasks from a shared queue.
 
+> **Note:** The former `workflow-engine-agent` has been retired as a separate active agent. All workflow orchestration is now owned by the **Approval Workflow agent**. The shared library modules (`workflow_state_store.py`, `workflow_task_queue.py`) remain at their original paths under `agents/operations-management/workflow-engine-agent/src/` and are consumed by the Approval Workflow agent.
+
 ## Core components
 
 | Component | Location | Responsibility |
 | --- | --- | --- |
 | Workflow engine API | `apps/workflow-engine/src/main.py` | REST API for workflow lifecycle (start/status/resume). |
 | Approval Workflow agent (workflow engine) | `agents/core-orchestration/approval-workflow-agent/src/approval_workflow_agent.py` | Orchestrates workflow execution, approval chains, and task routing across worker nodes. |
-| Workflow storage | `agents/operations-management/workflow-engine-agent/src/workflow_state_store.py` | External database-backed state store for workflow definitions, instances, and tasks (consumed by approval-workflow-agent). |
-| Workflow task queue | `agents/operations-management/workflow-engine-agent/src/workflow_task_queue.py` | Queue-backed coordination for distributing workflow tasks to workers (consumed by approval-workflow-agent). |
+| Workflow storage (shared library) | `agents/operations-management/workflow-engine-agent/src/workflow_state_store.py` | External database-backed state store for workflow definitions, instances, and tasks (consumed by the Approval Workflow agent). |
+| Workflow task queue (shared library) | `agents/operations-management/workflow-engine-agent/src/workflow_task_queue.py` | Queue-backed coordination for distributing workflow tasks to workers (consumed by the Approval Workflow agent). |
 | Workflow definitions | `apps/workflow-engine/workflows/definitions/*.workflow.yaml` | Declarative workflow definitions. |
 | Workflow registry | `apps/workflow-engine/workflow_registry.py` | Discovery of workflow definitions. |
 | Orchestration service | `apps/orchestration-service/src/main.py` | Calls workflow engine and coordinates agent plans. |

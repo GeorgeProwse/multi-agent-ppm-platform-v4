@@ -2834,7 +2834,7 @@
             "Event bus: Azure Service Bus / Event Grid.",
             "**Downstream dependencies**",
             "Analytics agent (The Analytics Insights agent): quality metrics, reports, and sync telemetry.",
-            "the Approval Workflow agent Workflow Engine: conflict and retry orchestration.",
+            "Approval Workflow agent: conflict and retry orchestration.",
             "Data stores: SQL/Cosmos for master records and audit history.",
             "**Key events**",
             "`sync.start`, `sync.complete`, `conflict.detected`."

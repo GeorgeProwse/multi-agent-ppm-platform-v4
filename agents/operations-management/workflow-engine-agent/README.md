@@ -1,8 +1,20 @@
 # Workflow Process Engine Specification
 
-## Purpose
+> **DEPRECATED** — This agent has been retired as a separate active component.
+> All workflow orchestration capabilities are now owned by the
+> **Approval Workflow agent** (`agents/core-orchestration/approval-workflow-agent`).
+>
+> The source files in this directory (`workflow_state_store.py`,
+> `workflow_task_queue.py`, `workflow_spec.py`) are consumed as shared
+> libraries by the Approval Workflow agent and remain in place for that
+> purpose. **Do not register `workflow-engine-agent` as an active agent in
+> catalogs, routing tables, or deployment manifests.**
+>
+> See the Approval Workflow agent README for the canonical specification.
 
-Define the responsibilities, workflows, and integration points for Workflow Process Engine. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+## Purpose (historical)
+
+Define the responsibilities, workflows, and integration points for the Workflow Process Engine. This README is retained for historical reference. The capabilities described below are now part of the Approval Workflow agent.
 
 ## Scope validation (The Workflow Engine agent)
 
