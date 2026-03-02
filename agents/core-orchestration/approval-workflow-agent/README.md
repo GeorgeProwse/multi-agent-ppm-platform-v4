@@ -1,4 +1,4 @@
-# Approval Workflow Specification
+# Approval Workflow Agent Specification
 
 ## Purpose
 

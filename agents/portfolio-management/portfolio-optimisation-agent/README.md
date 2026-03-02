@@ -1,8 +1,8 @@
-# Portfolio Strategy Optimisation Specification
+# Portfolio Strategy & Optimisation Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Portfolio Strategy Optimisation. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Portfolio Strategy & Optimisation Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## Scope validation (intended behaviors)
 

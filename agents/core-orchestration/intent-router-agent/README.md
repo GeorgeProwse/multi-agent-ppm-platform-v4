@@ -1,8 +1,8 @@
-# Intent Router Specification
+# Intent Router Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Intent Router. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Intent Router Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## Scope and decision responsibilities
 

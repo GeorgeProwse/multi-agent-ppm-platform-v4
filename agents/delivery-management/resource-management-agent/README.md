@@ -1,8 +1,8 @@
-# Resource Capacity Specification
+# Resource & Capacity Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Resource Capacity. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Resource & Capacity Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## What's inside
 

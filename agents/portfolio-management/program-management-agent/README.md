@@ -1,8 +1,8 @@
-# Program Management Specification
+# Program Management Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Program Management. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Program Management Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## Scope validation (intended behavior)
 

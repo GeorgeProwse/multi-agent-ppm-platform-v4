@@ -1,4 +1,4 @@
-# Workspace Setup Specification
+# Workspace Setup Agent Specification
 
 ## Purpose
 
