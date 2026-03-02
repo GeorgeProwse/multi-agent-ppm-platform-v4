@@ -4,12 +4,12 @@
     "data": {
       "demo": true,
       "agent_id": "approval-workflow-agent",
-      "summary": "Demo fixture for workflow engine library was executed successfully and produced deterministic artifacts for downstream orchestration checks.",
+      "summary": "Demo fixture for the Approval Workflow agent was executed successfully and produced deterministic artifacts for downstream orchestration checks.",
       "artifacts": [
         {
           "type": "policy",
           "id": "approval-workflow-agent-artifact-001",
-          "title": "Workflow Engine Library Demo Artifact"
+          "title": "Approval Workflow Agent Demo Artifact"
         }
       ]
     }

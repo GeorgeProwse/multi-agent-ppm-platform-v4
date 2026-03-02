@@ -115,7 +115,7 @@ class WorkflowEngineAgent(BaseAgent):
                     self.event_bus = None
 
     async def initialize(self) -> None:
-        """Initialize workflow engine, orchestration services, and integrations."""
+        """Initialize workflow orchestration services and integrations."""
         await super().initialize()
         self.logger.info("Initializing Workflow & Process Engine Agent...")
         await self.state_store.initialize()

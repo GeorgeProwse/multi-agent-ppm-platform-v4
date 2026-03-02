@@ -752,7 +752,7 @@ class ProcessMiningAgent(BaseAgent):
     async def _emit_improvement_recommendation(
         self, tenant_id: str, improvement: dict[str, Any]
     ) -> None:
-        """Emit improvement recommendation to workflow engine."""
+        """Emit improvement recommendation to the Approval Workflow agent."""
         event_payload = {
             "event_type": "workflow.improvement.recommendation",
             "data": {

@@ -46,7 +46,7 @@
 
 Two deliberate architectural changes shape the current agent catalog:
 
-### The Approval Workflow agent as unified workflow engine
+### The Approval Workflow agent as unified orchestration authority
 
 Approvals are a specialised workflow pattern — a human decision step with routing, deadlines, escalation, and an immutable outcome record. The Approval Workflow agent is the platform's single canonical orchestration authority for long-running workflows. Every multi-step process — including approvals, automated task sequences, retry/compensation flows, and event-driven process automation — is defined and executed through one agent with a unified execution record and audit trail. Approval steps are represented as a first-class workflow step type (`approval_gate`) within the `ppm.workflow/v1` specification.
 
@@ -1966,7 +1966,7 @@ It turns the accumulated data from every project on the platform into actionable
 
 ## How It Works
 
-The agent ingests event logs from the platform's audit trail, workflow engine, and domain agents. It applies process mining algorithms to build process models and perform conformance analysis. Waiting time analysis identifies bottleneck stages. Correlation analysis links process characteristics to outcomes. The improvement backlog is persisted and managed as a structured data store, with priority scoring that combines benefit size, implementation effort, and strategic alignment.
+The agent ingests event logs from the platform's audit trail, orchestration services, and domain agents. It applies process mining algorithms to build process models and perform conformance analysis. Waiting time analysis identifies bottleneck stages. Correlation analysis links process characteristics to outcomes. The improvement backlog is persisted and managed as a structured data store, with priority scoring that combines benefit size, implementation effort, and strategic alignment.
 
 A test suite verifies the event ingestion logic, the accuracy of process discovery, the conformance checking algorithm, and the compliance rate calculation methodology.
 
@@ -1974,7 +1974,7 @@ A test suite verifies the event ingestion logic, the accuracy of process discove
 
 ## What It Uses
 
-- Event logs from the platform's audit trail and workflow engine
+- Event logs from the platform's audit trail and orchestration services
 - Process events from all domain agents
 - Analytics reports from the Analytics Insights agent — Analytics and Insights
 - The knowledge base from the Knowledge Management agent — Knowledge and Document Management for best practice recommendations

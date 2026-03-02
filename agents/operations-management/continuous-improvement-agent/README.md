@@ -9,7 +9,7 @@ Define the responsibilities, workflows, and integration points for Continuous Im
 The Continuous Improvement agent owns continuous improvement and process mining for operational workflows. It ingests
 execution event logs, discovers as-is process models, checks conformance against designed
 processes, detects bottlenecks/deviations, and turns findings into improvement initiatives with
-benefit tracking. It is not a general analytics warehouse or workflow engine; it is the
+benefit tracking. It is not a general analytics warehouse or orchestration engine; it is the
 process-insight-to-improvement loop.
 
 ### Primary responsibilities
@@ -19,7 +19,7 @@ process-insight-to-improvement loop.
 - Detect bottlenecks, deviations, and root causes.
 - Generate improvement recommendations and backlog items.
 - Track benefit realization and benchmark performance.
-- Share best practices with the knowledge agent and notify workflow engine of improvement
+- Share best practices with the knowledge agent and notify the Approval Workflow agent of improvement
   recommendations.
 
 ## Inputs and outputs
@@ -53,7 +53,7 @@ The Continuous Improvement agent is responsible for:
 - Selecting mining algorithms for discovery (defaulting to heuristic miner).
 - Determining bottleneck thresholds and deviation thresholds for alerts.
 - Prioritizing improvements based on benefits and feasibility scoring.
-- Emitting workflow improvement recommendations to the workflow engine.
+- Emitting workflow improvement recommendations to the Approval Workflow agent.
 
 The Continuous Improvement agent is not responsible for:
 
@@ -67,12 +67,12 @@ The Continuous Improvement agent is not responsible for:
 
 - Validate action inputs before processing.
 - Persist event logs, models, conformance reports, and recommendations by tenant.
-- Emit improvement recommendation events to the workflow engine when improvements are created.
+- Emit improvement recommendation events to the Approval Workflow agent when improvements are created.
 - Publish process discovery and benefit realization events to the event bus.
 
 ### Must not
 
-- Trigger workflow execution directly outside of the workflow engine interface.
+- Trigger workflow execution directly outside of the Approval Workflow agent.
 - Overwrite curated analytics KPIs owned by analytics agents.
 - Generate recommendations without traceable evidence from event logs/metrics.
 
@@ -86,7 +86,7 @@ The Continuous Improvement agent is not responsible for:
 - **Handoff**: the Continuous Improvement agent publishes process insights and benefit realization events; analytics
   agent consumes these events for enterprise reporting and forecasting.
 
-### Approval Workflow agent (workflow engine)
+### Approval Workflow agent
 
 - **Overlap**: Both agents operate on process models.
 - **Boundary**: the Continuous Improvement agent discovers as-is models and recommends improvements; the Approval Workflow agent owns the
@@ -123,7 +123,7 @@ The Continuous Improvement agent is not responsible for:
 4. **Diagnose**: Perform root cause analysis for prioritized issues.
 5. **Recommend**: Generate improvement initiatives with expected benefits and priority scoring.
 6. **Handoff**: Emit `workflow.improvement.recommendation` events to the Approval Workflow agent and create tasks.
-7. **Implement**: Workflow engine executes approved changes (Approval Workflow agent responsibility).
+7. **Implement**: The Approval Workflow agent executes approved changes.
 8. **Track**: Measure realized benefits, update KPIs, and publish benefit events.
 9. **Benchmark**: Compare against internal/external benchmarks for continuous calibration.
 

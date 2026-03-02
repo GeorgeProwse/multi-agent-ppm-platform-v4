@@ -134,7 +134,7 @@ Example payload:
 
 **Must not**
 - Deploy releases directly or manage runtime deployment plans.
-- Modify workflow templates or orchestration definitions owned by the workflow engine.
+- Modify workflow templates or orchestration definitions owned by the Approval Workflow agent.
 - Bypass approval requirements when thresholds dictate approval.
 
 ## Overlap analysis and handoff boundaries
@@ -148,7 +148,7 @@ Example payload:
 - the Change Control agent **initiates** deployment coordination via `release_deployment_endpoint` and only tracks deployment status updates (e.g., `cicd_webhook`).
 - the Release Deployment agent **executes** release/deployment orchestration, scheduling, and rollout mechanics, then reports status back.
 
-### Approval Workflow agent (workflow engine)
+### Approval Workflow agent
 
 **Potential overlap**
 - Both handle workflow orchestration; the Change Control agent builds a change workflow instance.

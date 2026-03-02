@@ -1,6 +1,6 @@
-# Workflow Engine Library Tests
+# Workflow Library Tests
 
-Tests for the workflow engine library (workflow spec parsing, state store, task queue, BPMN import, event criteria matching).
+Tests for the workflow library (workflow spec parsing, state store, task queue, BPMN import, event criteria matching).
 
 ## How to run
 

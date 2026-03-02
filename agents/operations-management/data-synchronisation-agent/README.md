@@ -70,7 +70,7 @@ Referenced by the agent runtime and orchestration docs when routing requests, an
 - **Handoff boundary**: the Data Synchronisation agent publishes quality events/metrics; the Analytics Insights agent consumes, aggregates, and generates dashboards, KPIs, narratives, and forecasting.
 - **Leakage to avoid**: the Data Synchronisation agent should not compute portfolio-level KPIs, forecasts, or narrative summaries.
 
-### Approval Workflow agent (workflow engine)
+### Approval Workflow agent
 
 - **Overlap risk**: the Approval Workflow agent can orchestrate retries/compensation workflows. the Data Synchronisation agent owns data sync quality decisions and retry eligibility.
 - **Handoff boundary**: the Data Synchronisation agent emits `sync.complete` and `conflict.detected` events and publishes retry queue status; the Approval Workflow agent uses these signals to trigger workflows (e.g., human review for manual conflict resolution).
