@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     demo_mode: bool = False
     auth_dev_mode: bool = False
-    workflow_engine_url: str = "http://localhost:8080"
+    workflow_service_url: str = "http://localhost:8080"
     api_gateway_url: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
@@ -45,7 +45,7 @@ def validate_startup_config() -> Settings:
         settings = get_settings()
     except ValidationError as exc:
         diagnostics = build_validation_diagnostics(exc)
-        raise RuntimeError(format_validation_report("workflow-engine", diagnostics)) from exc
+        raise RuntimeError(format_validation_report("workflow-service", diagnostics)) from exc
     if settings.auth_dev_mode and settings.environment in ("production", "staging"):
         raise RuntimeError(
             "AUTH_DEV_MODE must not be enabled in production or staging. "

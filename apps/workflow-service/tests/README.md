@@ -1,20 +1,12 @@
-# Workflow Engine: Workflows
+# Workflow Service: Tests
 
 ## Purpose
 
-Document the workflows assets for the Workflow Engine application.
+Document the tests assets for the Workflow Service application.
 
 ## What's inside
 
-- [definitions](/apps/workflow-engine/workflows/definitions): Subdirectory containing definitions assets for this area.
-- [schema](/apps/workflow-engine/workflows/schema): Schemas or validation rules for component assets.
-
-Sample workflow templates included:
-- `change-request`
-- `deployment-rollback`
-- `project-initiation`
-- `quality-audit`
-- `risk-mitigation`
+- `README.md`: Documentation for this directory.
 
 ## How it's used
 
@@ -25,7 +17,7 @@ These assets are consumed by the parent app during build, runtime, or deployment
 Validate assets by listing files or running the parent app locally.
 
 ```bash
-ls apps/workflow-engine/workflows
+ls apps/workflow-service/tests
 ```
 
 ## Configuration

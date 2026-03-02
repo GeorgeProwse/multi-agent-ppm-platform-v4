@@ -1,8 +1,8 @@
-# Workflow Engine: Tests
+# Workflow Service: Migrations
 
 ## Purpose
 
-Document the tests assets for the Workflow Engine application.
+Document the migrations assets for the Workflow Service application.
 
 ## What's inside
 
@@ -17,7 +17,7 @@ These assets are consumed by the parent app during build, runtime, or deployment
 Validate assets by listing files or running the parent app locally.
 
 ```bash
-ls apps/workflow-engine/tests
+ls apps/workflow-service/migrations
 ```
 
 ## Configuration

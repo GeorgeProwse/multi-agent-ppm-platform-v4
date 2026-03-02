@@ -1,12 +1,20 @@
-# Workflow Engine: Migrations
+# Workflow Service: Workflows
 
 ## Purpose
 
-Document the migrations assets for the Workflow Engine application.
+Document the workflows assets for the Workflow Service application.
 
 ## What's inside
 
-- `README.md`: Documentation for this directory.
+- [definitions](/apps/workflow-service/workflows/definitions): Subdirectory containing definitions assets for this area.
+- [schema](/apps/workflow-service/workflows/schema): Schemas or validation rules for component assets.
+
+Sample workflow templates included:
+- `change-request`
+- `deployment-rollback`
+- `project-initiation`
+- `quality-audit`
+- `risk-mitigation`
 
 ## How it's used
 
@@ -17,7 +25,7 @@ These assets are consumed by the parent app during build, runtime, or deployment
 Validate assets by listing files or running the parent app locally.
 
 ```bash
-ls apps/workflow-engine/migrations
+ls apps/workflow-service/workflows
 ```
 
 ## Configuration

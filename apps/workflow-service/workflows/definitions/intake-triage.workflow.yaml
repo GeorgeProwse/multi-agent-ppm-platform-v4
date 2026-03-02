@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: intake-triage
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Route new portfolio intake requests to the right agent.
 steps:
   - id: capture-intake

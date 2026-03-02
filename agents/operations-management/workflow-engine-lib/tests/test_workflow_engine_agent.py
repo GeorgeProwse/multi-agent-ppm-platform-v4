@@ -21,7 +21,7 @@ async def test_parse_workflow_spec_builds_dependencies() -> None:
     spec = {
         "apiVersion": "ppm.workflow/v1",
         "kind": "Workflow",
-        "metadata": {"name": "Parallel Example", "version": "1", "owner": "workflow-engine"},
+        "metadata": {"name": "Parallel Example", "version": "1", "owner": "workflow-service"},
         "steps": [
             {"id": "start", "type": "task", "task_type": "automated", "initial": True},
             {
@@ -64,7 +64,7 @@ async def test_workflow_engine_executes_parallel_join(tmp_path: Path) -> None:
         "workflow_id": "parallel-join",
         "apiVersion": "ppm.workflow/v1",
         "kind": "Workflow",
-        "metadata": {"name": "Parallel Join", "version": "1", "owner": "workflow-engine"},
+        "metadata": {"name": "Parallel Join", "version": "1", "owner": "workflow-service"},
         "steps": [
             {"id": "start", "type": "task", "task_type": "automated", "initial": True},
             {

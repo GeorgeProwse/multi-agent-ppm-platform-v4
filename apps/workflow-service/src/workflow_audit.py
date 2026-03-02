@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 
-logger = logging.getLogger("workflow-engine-audit")
+logger = logging.getLogger("workflow-service-audit")
 
 
 def emit_audit_event(

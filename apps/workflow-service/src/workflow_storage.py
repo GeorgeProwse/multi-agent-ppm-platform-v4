@@ -167,11 +167,11 @@ def resolve_workflow_storage(
             connection_url=connection_url,
         )
 
-    default_path = "apps/workflow-engine/storage/workflows.db"
+    default_path = "apps/workflow-service/storage/workflows.db"
     selected = configured_db_path or os.getenv("WORKFLOW_DB_PATH") or default_path
     used_default = not (configured_db_path or os.getenv("WORKFLOW_DB_PATH"))
     enforce_no_default_file_backed_storage(
-        service_name="workflow-engine",
+        service_name="workflow-service",
         setting_names=("WORKFLOW_DB_PATH", "WORKFLOW_DB_URL"),
         selected_value=selected,
         used_default=used_default,

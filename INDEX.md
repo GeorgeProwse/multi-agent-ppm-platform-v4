@@ -265,13 +265,13 @@ multi-agent-ppm-platform-v4/
 │   │   │   ├── demo-fixtures
 │   │   │   │   └── sample-response.json
 │   │   │   ├── src
-│   │   │   │   ├── workflow_engine.py
+│   │   │   │   ├── workflow_engine_agent.py
 │   │   │   │   ├── workflow_spec.py
 │   │   │   │   ├── workflow_state_store.py
 │   │   │   │   └── workflow_task_queue.py
 │   │   │   ├── tests
 │   │   │   │   ├── README.md
-│   │   │   │   └── test_workflow_engine.py
+│   │   │   │   └── test_workflow_engine_agent.py
 │   │   │   ├── workflows
 │   │   │   │   └── schema
 │   │   │   │       └── workflow_spec.schema.json
@@ -1026,7 +1026,7 @@ multi-agent-ppm-platform-v4/
 │   │   │   │   │   │   ├── index.ts
 │   │   │   │   │   │   ├── useProjectConnectorStore.test.ts
 │   │   │   │   │   │   └── useProjectConnectorStore.ts
-│   ├── workflow-engine
+│   ├── workflow-service
 │   │   ├── helm
 │   │   │   ├── templates
 │   │   │   │   ├── _helpers.tpl
@@ -7019,7 +7019,7 @@ multi-agent-ppm-platform-v4/
 │   │   │   ├── 0001-record-architecture.md
 │   │   │   ├── 0002-llm-provider-abstraction.md
 │   │   │   ├── 0003-eventing-and-message-bus.md
-│   │   │   ├── 0004-workflow-engine-selection.md
+│   │   │   ├── 0004-workflow-service-selection.md
 │   │   │   ├── 0005-rbac-abac-field-level-security.md
 │   │   │   ├── 0006-data-lineage-and-audit.md
 │   │   │   ├── 0007-connector-certification.md

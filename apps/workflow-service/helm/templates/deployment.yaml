@@ -40,7 +40,7 @@ spec:
               value: {{ .Values.env.WORKFLOW_RESULT_BACKEND | quote }}
             - name: WORKFLOW_DB_PATH
               value: {{ .Values.env.WORKFLOW_DB_PATH | quote }}
-            - name: WORKFLOW_ENGINE_RATE_LIMIT
+            - name: WORKFLOW_SERVICE_RATE_LIMIT
               value: {{ .Values.rateLimit | quote }}
             - name: WEB_CONCURRENCY
               value: {{ .Values.env.WEB_CONCURRENCY | quote }}

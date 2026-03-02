@@ -1,4 +1,4 @@
-# Workflow Engine Helm Chart
+# Workflow Service Helm Chart
 
 ## Purpose
 
@@ -6,9 +6,9 @@ Package Kubernetes deployment manifests for this component.
 
 ## What's inside
 
-- [templates](/apps/workflow-engine/helm/templates): Templates used by the component (deployment or message content).
-- [Chart.yaml](/apps/workflow-engine/helm/Chart.yaml): Helm chart metadata and versioning.
-- [values.yaml](/apps/workflow-engine/helm/values.yaml): Helm values for environment-specific overrides.
+- [templates](/apps/workflow-service/helm/templates): Templates used by the component (deployment or message content).
+- [Chart.yaml](/apps/workflow-service/helm/Chart.yaml): Helm chart metadata and versioning.
+- [values.yaml](/apps/workflow-service/helm/values.yaml): Helm values for environment-specific overrides.
 
 ## How it's used
 
@@ -19,8 +19,8 @@ Used by deployment pipelines and `helm` to render Kubernetes manifests.
 Lint and render the chart locally:
 
 ```bash
-helm lint apps/workflow-engine/helm
-helm template workflow-engine apps/workflow-engine/helm
+helm lint apps/workflow-service/helm
+helm template workflow-service apps/workflow-service/helm
 ```
 
 ## Configuration

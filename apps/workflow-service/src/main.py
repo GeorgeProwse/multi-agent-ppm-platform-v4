@@ -18,7 +18,7 @@ from tools.runtime_paths import bootstrap_runtime_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 # Ensure this service's own src directory is first on sys.path so that
-# ``from config import ...`` resolves to workflow-engine/src/config.py and
+# ``from config import ...`` resolves to workflow-service/src/config.py and
 # not to another service's config.py (e.g. apps/web/src/config.py) which
 # may appear earlier on sys.path when running under the test harness.
 _OWN_SRC = Path(__file__).resolve().parent
@@ -53,7 +53,7 @@ from workflow_storage import WorkflowStore, resolve_workflow_storage  # noqa: E4
 from config import validate_startup_config  # noqa: E402
 from packages.version import API_VERSION  # noqa: E402
 
-logger = logging.getLogger("workflow-engine")
+logger = logging.getLogger("workflow-service")
 logging.basicConfig(level=logging.INFO)
 
 settings = validate_startup_config()
@@ -65,22 +65,22 @@ ENVIRONMENT = environment_value(os.environ)
 WORKFLOW_STORAGE = resolve_workflow_storage(environment=ENVIRONMENT)
 DB_PATH = WORKFLOW_STORAGE.db_path
 SCHEMA_PATH = WORKFLOW_ROOT / "workflows" / "schema" / "workflow.schema.json"
-RATE_LIMIT = os.getenv("WORKFLOW_ENGINE_RATE_LIMIT", "100/minute")
+RATE_LIMIT = os.getenv("WORKFLOW_SERVICE_RATE_LIMIT", "100/minute")
 
-app = FastAPI(title="Workflow Engine", version=API_VERSION)
+app = FastAPI(title="Workflow Service", version=API_VERSION)
 api_router = APIRouter(prefix="/v1")
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(AuthTenantMiddleware, exempt_paths={"/healthz", "/version"})
 app.add_middleware(SlowAPIMiddleware)
-configure_tracing("workflow-engine")
-configure_metrics("workflow-engine")
-app.add_middleware(TraceMiddleware, service_name="workflow-engine")
-app.add_middleware(RequestMetricsMiddleware, service_name="workflow-engine")
-apply_api_governance(app, service_name="workflow-engine")
+configure_tracing("workflow-service")
+configure_metrics("workflow-service")
+app.add_middleware(TraceMiddleware, service_name="workflow-service")
+app.add_middleware(RequestMetricsMiddleware, service_name="workflow-service")
+apply_api_governance(app, service_name="workflow-service")
 logger.info(
-    "workflow-engine persistence configuration",
+    "workflow-service persistence configuration",
     extra={
         "environment": ENVIRONMENT,
         "storage_backend": WORKFLOW_STORAGE.backend,
@@ -101,7 +101,7 @@ dispatcher = WorkflowDispatcher()
 
 class HealthResponse(BaseModel):
     status: str = "ok"
-    service: str = "workflow-engine"
+    service: str = "workflow-service"
     dependencies: dict[str, str] = Field(default_factory=dict)
 
 
@@ -260,7 +260,7 @@ async def healthz(response: Response) -> HealthResponse:
 
 @app.get("/version")
 async def version() -> dict[str, str]:
-    return version_response_payload("workflow-engine")
+    return version_response_payload("workflow-service")
 
 
 @app.on_event("startup")
@@ -548,7 +548,7 @@ async def update_workflow(
         raise HTTPException(status_code=403, detail="Tenant mismatch")
     emit_audit_event(
         tenant_id=instance.tenant_id,
-        actor={"id": "workflow-engine", "type": "system", "roles": ["integration_service"]},
+        actor={"id": "workflow-service", "type": "system", "roles": ["integration_service"]},
         action="workflow.updated",
         resource={"id": run_id, "type": "workflow", "status": request.status},
         classification="internal",

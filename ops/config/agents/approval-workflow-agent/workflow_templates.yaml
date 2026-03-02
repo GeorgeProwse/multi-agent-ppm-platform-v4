@@ -5,7 +5,7 @@ templates:
     metadata:
       name: Project Initiation
       version: "1"
-      owner: workflow-engine
+      owner: workflow-service
       description: Intake-to-charter workflow for new project requests.
     steps:
       - id: intake
@@ -52,7 +52,7 @@ templates:
     metadata:
       name: Change Request Handling
       version: "1"
-      owner: workflow-engine
+      owner: workflow-service
       description: Coordinate parallel impact reviews and CAB approval.
     steps:
       - id: log-request

@@ -13,7 +13,7 @@ COPY --from=repo-root tools ./tools
 COPY --from=repo-root config ./config
 COPY --from=repo-root packages ./packages
 COPY --from=repo-root agents ./agents
-COPY . /app/apps/workflow-engine
+COPY . /app/apps/workflow-service
 
 RUN mkdir -p /app/services
 
@@ -33,4 +33,4 @@ RUN groupadd --gid 10001 appuser && useradd --uid 10001 --gid 10001 --create-hom
 
 USER appuser
 
-CMD ["python", "-m", "tools.component_runner", "--component-type", "app", "--component-name", "workflow-engine", "--component-root", "/app/apps/workflow-engine"]
+CMD ["python", "-m", "tools.component_runner", "--component-type", "app", "--component-name", "workflow-service", "--component-root", "/app/apps/workflow-service"]

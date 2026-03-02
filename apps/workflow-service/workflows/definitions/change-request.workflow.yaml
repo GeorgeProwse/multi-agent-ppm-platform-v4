@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: change-request
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Route change requests with impact analysis and approvals.
 steps:
   - id: intake-change

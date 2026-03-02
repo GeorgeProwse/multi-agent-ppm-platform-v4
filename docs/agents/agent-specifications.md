@@ -2439,7 +2439,7 @@ Every capability the platform offers depends on its component services working c
 
 ## What It Does
 
-**It monitors service health.** The agent continuously checks the health endpoints of every platform service — the API gateway, orchestration service, workflow engine, document service, analytics service, identity and access service, and all others — at configured intervals. Each check records the response status, the response time, and whether the service is reporting healthy or degraded. Services that fail health checks are flagged immediately.
+**It monitors service health.** The agent continuously checks the health endpoints of every platform service — the API gateway, orchestration service, workflow service, document service, analytics service, identity and access service, and all others — at configured intervals. Each check records the response status, the response time, and whether the service is reporting healthy or degraded. Services that fail health checks are flagged immediately.
 
 **It collects infrastructure metrics.** Beyond service-level health, the agent collects infrastructure metrics from the platform's compute and storage resources: CPU utilisation, memory utilisation, disk usage, network throughput, and queue depths. These metrics are ingested from Prometheus endpoints, parsed, and stored as time series for trend analysis and alerting.
 

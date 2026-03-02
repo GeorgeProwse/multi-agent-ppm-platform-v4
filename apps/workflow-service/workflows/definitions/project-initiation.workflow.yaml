@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: project-initiation
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Initiate a new project with parallel discovery and approval gates.
 steps:
   - id: register-request

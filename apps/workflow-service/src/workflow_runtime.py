@@ -32,7 +32,7 @@ class WorkflowRuntime:
         self.circuit_breakers = circuit_breakers or CircuitBreakerRegistry()
         self.event_bus = event_bus or self._load_event_bus()
         self._workflow_business_metrics = build_business_workflow_metrics(
-            "workflow-engine", "workflow"
+            "workflow-service", "workflow"
         )
 
     def _require_instance(self, run_id: str) -> WorkflowInstance:
@@ -79,7 +79,7 @@ class WorkflowRuntime:
         self, instance: WorkflowInstance, started: float, status: str
     ) -> None:
         attributes = {
-            "service.name": "workflow-engine",
+            "service.name": "workflow-service",
             "tenant.id": instance.tenant_id,
             "trace.id": instance.run_id,
             "workflow": instance.workflow_id,

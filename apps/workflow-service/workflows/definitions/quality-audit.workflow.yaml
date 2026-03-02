@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: quality-audit
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Execute a quality audit with parallel evidence collection.
 steps:
   - id: audit-intake

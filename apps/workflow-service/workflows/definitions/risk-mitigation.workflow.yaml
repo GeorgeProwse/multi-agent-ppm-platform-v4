@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: risk-mitigation
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Mitigate high risks with monitoring loop and notifications.
 steps:
   - id: register-risk

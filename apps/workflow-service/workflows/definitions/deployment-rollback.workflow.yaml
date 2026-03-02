@@ -3,7 +3,7 @@ kind: Workflow
 metadata:
   name: deployment-rollback
   version: "1.0.0"
-  owner: workflow-engine
+  owner: workflow-service
   description: Roll back deployments with validation checks and notifications.
 steps:
   - id: detect-issue
