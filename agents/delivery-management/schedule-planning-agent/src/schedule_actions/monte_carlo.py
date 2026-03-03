@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 
-from actions.critical_path import forward_pass, forward_pass_sync
+from schedule_actions.critical_path import forward_pass, forward_pass_sync
 from schedule_utils import (
     persist_simulation,
     publish_schedule_simulated,

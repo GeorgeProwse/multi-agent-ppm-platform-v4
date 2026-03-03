@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING, Any
 
 from knowledge_utils import extract_document_attributes, generate_ingestion_id
 
-from agents.common.connector_integration import ConnectorCategory, ConnectorConfig
-
 if TYPE_CHECKING:
     from knowledge_management_agent import KnowledgeManagementAgent
 
@@ -244,6 +242,7 @@ def _get_confluence_connector(agent: KnowledgeManagementAgent) -> Any | None:
         return agent._confluence_connector
     try:
         from confluence_connector import ConfluenceConnector
+        from agents.common.connector_integration import ConnectorCategory, ConnectorConfig
 
         connector_config = ConnectorConfig(
             connector_id="confluence",

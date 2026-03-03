@@ -262,7 +262,7 @@ async def initialize_health_probes(agent: SystemHealthAgent) -> None:
 
 
 async def periodic_health_probes(agent: SystemHealthAgent) -> None:
-    from actions.check_health import check_all_services_health
+    from health_actions.check_health import check_all_services_health
 
     while True:
         try:

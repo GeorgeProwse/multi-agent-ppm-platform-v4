@@ -39,8 +39,16 @@ from release_actions import (
     verify_post_deployment,
 )
 
-# -- shared utilities used by event handlers kept in the main class --
-from release_utils import publish_event
+# -- shared utilities used by event handlers and backward-compat stubs --
+from release_utils import (
+    publish_event,
+    release_environment_allocation as _release_env_alloc,
+    reserve_environment as _reserve_env,
+    suggest_alternative_windows as _suggest_alt_windows,
+)
+from release_actions.verify_post_deployment import (
+    _detect_post_deployment_anomalies as _detect_pd_anomalies,
+)
 
 
 class ReleaseDeploymentAgent(BaseAgent):

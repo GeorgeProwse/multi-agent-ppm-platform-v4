@@ -7,6 +7,7 @@ Each module contains a focused set of action logic:
 - escalation_actions: Escalation scheduling and notification
 - notification_actions: Notification subscription management
 - notification_delivery: Notification sending, dispatch, and metrics
+- lifecycle: Service Bus and Microsoft Graph initialization
 """
 
 from actions.create_approval import (

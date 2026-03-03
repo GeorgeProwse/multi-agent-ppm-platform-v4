@@ -16,12 +16,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from observability.tracing import get_trace_id
+
+from tools.runtime_paths import bootstrap_runtime_paths
+
+bootstrap_runtime_paths()
+
 # Ensure this agent's src/ directory is first on sys.path so that
 # ``from actions import …`` resolves to *our* actions package rather than
 # one belonging to a different agent that may already be on the path.
 _SRC_DIR = str(Path(__file__).resolve().parent)
-if _SRC_DIR not in sys.path:
-    sys.path.insert(0, _SRC_DIR)
+if _SRC_DIR in sys.path:
+    sys.path.remove(_SRC_DIR)
+sys.path.insert(0, _SRC_DIR)
 # If a stale ``actions`` module was loaded from another agent, remove it
 # so that our local actions package is discovered.
 _stale_actions = sys.modules.get("actions")
@@ -29,16 +36,9 @@ if _stale_actions is not None:
     _actions_file = getattr(_stale_actions, "__file__", "") or ""
     if _SRC_DIR not in _actions_file:
         del sys.modules["actions"]
-        # Also remove any cached sub-modules
         for _key in list(sys.modules):
             if _key.startswith("actions."):
                 del sys.modules[_key]
-
-from observability.tracing import get_trace_id
-
-from tools.runtime_paths import bootstrap_runtime_paths
-
-bootstrap_runtime_paths()
 
 from llm.client import LLMGateway  # noqa: E402
 

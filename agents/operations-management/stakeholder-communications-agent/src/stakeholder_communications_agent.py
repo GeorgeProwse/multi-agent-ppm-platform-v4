@@ -48,14 +48,6 @@ if not globals().get("__package__"):
     globals()["__package__"] = _PKG
     globals()["__spec__"] = None  # clear stale spec
 
-    # Pre-register the actions sub-package skeleton so its __init__.py
-    # relative imports (.classify_stakeholder, etc.) resolve correctly
-    _actions_mod = _types.ModuleType(f"{_PKG}.actions")
-    _actions_mod.__path__ = [os.path.join(_SRC_DIR, "actions")]  # type: ignore[attr-defined]
-    _actions_mod.__package__ = f"{_PKG}.actions"
-    _actions_mod.__file__ = os.path.join(_SRC_DIR, "actions", "__init__.py")
-    sys.modules.setdefault(f"{_PKG}.actions", _actions_mod)
-
 # Now relative imports work regardless of how this module was loaded.
 from .stakeholder_models import CommunicationHistoryStore, ServiceBusPublisher  # noqa: E402
 from .stakeholder_utils import (  # noqa: E402

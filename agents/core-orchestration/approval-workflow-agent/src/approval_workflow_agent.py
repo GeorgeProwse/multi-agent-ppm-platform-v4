@@ -6,7 +6,6 @@ Handles routing, escalation, delegation, and audit trail for governance complian
 """
 
 import asyncio
-import json
 import os
 import uuid
 from datetime import datetime, timezone

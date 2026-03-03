@@ -71,7 +71,7 @@ async def detect_anomalies(
                 },
             )
             # Import here to avoid circular dependency at module level
-            from actions.alert_management import create_alert
+            from health_actions.alert_management import create_alert
 
             await create_alert(
                 agent,

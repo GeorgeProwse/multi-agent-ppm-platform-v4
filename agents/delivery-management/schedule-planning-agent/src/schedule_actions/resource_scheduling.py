@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Any
 
-from actions.critical_path import forward_pass
-from actions.create_schedule import calculate_project_duration
+from schedule_actions.critical_path import forward_pass
+from schedule_actions.create_schedule import calculate_project_duration
 from schedule_utils import (
     merge_external_resource_availability,
     normalize_resource_availability,

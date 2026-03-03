@@ -113,7 +113,7 @@ async def get_health_dashboard(
     agent: SystemHealthAgent, tenant_id: str, time_range: dict[str, Any]
 ) -> dict[str, Any]:
     """Generate health dashboard data with real-time and historical metrics."""
-    from actions.check_health import get_system_status
+    from health_actions.check_health import get_system_status
 
     system_status = await get_system_status(agent)
     metrics_summary = summarize_metrics_history(agent, time_range, tenant_id=tenant_id)

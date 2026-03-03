@@ -45,7 +45,7 @@ async def create_schedule(
     tasks = await wbs_to_tasks(wbs)
 
     # Estimate durations for all tasks
-    from actions.estimate_duration import estimate_duration
+    from schedule_actions.estimate_duration import estimate_duration
 
     duration_estimates = await estimate_duration(agent, tasks, {"project_id": project_id})
 
@@ -62,7 +62,7 @@ async def create_schedule(
         await publish_dependency_added(agent, {"schedule_id": schedule_id}, dependency)
 
     # Calculate early/late start/finish dates using CPM
-    from actions.critical_path import calculate_cpm_dates
+    from schedule_actions.critical_path import calculate_cpm_dates
 
     scheduled_tasks = await calculate_cpm_dates(agent, tasks_with_durations, dependencies)
 

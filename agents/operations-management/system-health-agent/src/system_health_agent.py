@@ -46,7 +46,7 @@ else:
 # ---------------------------------------------------------------------------
 # Action handler imports (delegated modules)
 # ---------------------------------------------------------------------------
-from actions import (  # noqa: E402
+from health_actions import (  # noqa: E402
     acknowledge_alert,
     analyze_root_cause,
     apply_anomaly_detection,
