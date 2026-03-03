@@ -1,1 +1,58 @@
-{}
+{
+  "P-002": {
+    "ES-P-002-20260303093138": {
+      "snapshot_id": "ES-P-002-20260303093138",
+      "project_id": "P-002",
+      "collected_at": "2026-03-03T09:31:38.642587+00:00",
+      "sources": [
+        "risk_mitigations",
+        "quality_results",
+        "audit_logs",
+        "deployment_evidence",
+        "privacy_impact_assessed"
+      ],
+      "metadata": {
+        "agent_id": "compliance-governance-agent"
+      },
+      "payload": {
+        "risk_mitigations": [
+          "risk register updated"
+        ],
+        "quality_results": [
+          "unit tests passed"
+        ],
+        "audit_logs": [
+          "deployment audit"
+        ],
+        "deployment_evidence": [
+          "release ok"
+        ],
+        "privacy_impact_assessed": true,
+        "security_scans": []
+      },
+      "_id": "ES-P-002-20260303093138",
+      "_updated_at": "2026-03-03T09:31:38.642950+00:00"
+    }
+  },
+  "P-003": {
+    "ES-P-003-20260303093138": {
+      "snapshot_id": "ES-P-003-20260303093138",
+      "project_id": "P-003",
+      "collected_at": "2026-03-03T09:31:38.713189+00:00",
+      "sources": [],
+      "metadata": {
+        "agent_id": "compliance-governance-agent"
+      },
+      "payload": {
+        "risk_mitigations": [],
+        "quality_results": [],
+        "audit_logs": [],
+        "deployment_evidence": [],
+        "privacy_impact_assessed": false,
+        "security_scans": []
+      },
+      "_id": "ES-P-003-20260303093138",
+      "_updated_at": "2026-03-03T09:31:38.713408+00:00"
+    }
+  }
+}
