@@ -11,7 +11,6 @@ Specification: agents/operations-management/stakeholder-communications-agent/REA
 
 from __future__ import annotations
 
-import importlib
 import os
 import sys
 from pathlib import Path
@@ -327,29 +326,7 @@ class StakeholderCommunicationsAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     async def process(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Process stakeholder and communications management requests.
-
-        Args:
-            input_data: {
-                "action": "register_stakeholder" | "classify_stakeholder" |
-                          "create_communication_plan" | "generate_message" |
-                          "send_message" | "collect_feedback" | "analyze_sentiment" |
-                          "schedule_event" | "track_engagement" |
-                          "get_stakeholder_dashboard" | "generate_communication_report",
-                "stakeholder": Stakeholder data,
-                "plan": Communication plan data,
-                "message": Message data,
-                "feedback": Feedback data,
-                "event": Event data,
-                "stakeholder_id": Stakeholder identifier,
-                "project_id": Project identifier,
-                "filters": Query filters
-            }
-
-        Returns:
-            Response based on action
-        """
+        """Process stakeholder and communications management requests."""
         action = input_data.get("action", "get_stakeholder_dashboard")
         tenant_id = (
             input_data.get("tenant_id")

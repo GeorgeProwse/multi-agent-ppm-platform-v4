@@ -485,6 +485,45 @@ class KnowledgeManagementAgent(BaseAgent):
     async def _matches_search_filters(self, document: dict[str, Any], filters: dict[str, Any]) -> bool:
         return matches_search_filters(document, filters)
 
+    # ------------------------------------------------------------------
+    # Thin delegation wrappers (preserve API used by tests & other callers)
+    # ------------------------------------------------------------------
+
+    async def _upload_document(self, tenant_id: str, document_data: dict[str, Any]) -> dict[str, Any]:
+        return await _act_upload_document(self, tenant_id, document_data)
+
+    async def _ingest_sources(self, tenant_id: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
+        return await _act_ingest_sources(self, tenant_id, sources)
+
+    async def _search_documents(self, query: str, filters: dict[str, Any],
+                                access_context: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+        return await _act_search_documents(self, query, filters, access_context, tenant_id)
+
+    async def _extract_entities(self, document_id: str, tenant_id: str) -> dict[str, Any]:
+        return await _act_extract_entities(self, document_id, tenant_id)
+
+    async def _build_knowledge_graph(self, document_id: str, tenant_id: str) -> dict[str, Any]:
+        return await _act_build_knowledge_graph(self, document_id, tenant_id)
+
+    async def _annotate_document(self, document_id: str, annotation: dict[str, Any],
+                                 access_context: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+        return await _act_annotate_document(self, document_id, annotation, access_context, tenant_id)
+
+    async def _review_document(self, document_id: str, review: dict[str, Any],
+                               access_context: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+        return await _act_review_document(self, document_id, review, access_context, tenant_id)
+
+    async def _approve_document(self, document_id: str, approval: dict[str, Any],
+                                access_context: dict[str, Any], tenant_id: str) -> dict[str, Any]:
+        return await _act_approve_document(self, document_id, approval, access_context, tenant_id)
+
+    async def _generate_excerpts(self, results: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+        from knowledge_actions.search_actions import _generate_excerpts
+        return await _generate_excerpts(results, query)
+
+    async def _extract_entities_from_text(self, text: str) -> list[dict[str, Any]]:
+        return self.entity_extractor.extract(text, limit=20)
+
     def _load_document(self, tenant_id: str, document_id: str) -> dict[str, Any] | None:
         """Load document from memory or persistent store."""
         document = self.documents.get(document_id)

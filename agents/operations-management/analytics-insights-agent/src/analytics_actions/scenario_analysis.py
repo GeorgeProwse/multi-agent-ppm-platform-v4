@@ -79,8 +79,6 @@ async def _calculate_scenario_metrics(
     agent: AnalyticsInsightsAgent, baseline: dict[str, Any], parameters: dict[str, Any]
 ) -> dict[str, Any]:
     """Calculate metrics under scenario."""
-    from analytics_actions.run_prediction import handle_run_prediction
-
     scenario_metrics = baseline.copy()
     assumptions = parameters.get("assumptions", {})
     for metric, adjustment in assumptions.items():
@@ -94,8 +92,9 @@ async def _calculate_scenario_metrics(
             continue
         input_payload = kpi_model.get("input_data", {})
         input_payload.update(assumptions)
-        prediction = await handle_run_prediction(
-            agent, input_payload.get("tenant_id", "default"), model_type, input_payload
+        # Call through agent delegate so tests can monkey-patch _run_prediction
+        prediction = await agent._run_prediction(
+            input_payload.get("tenant_id", "default"), model_type, input_payload
         )
         scenario_metrics[model_type] = prediction.get("prediction")
 

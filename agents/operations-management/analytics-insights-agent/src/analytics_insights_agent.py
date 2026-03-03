@@ -319,6 +319,25 @@ class AnalyticsInsightsAgent(BaseAgent):
         await self.stream_analytics_manager.stream_events([payload])
 
     # ------------------------------------------------------------------
+    # Delegate methods (allow direct calls & monkey-patching in tests)
+    # ------------------------------------------------------------------
+
+    async def _run_prediction(self, tenant_id: str, model_type: str, input_data: dict[str, Any]) -> dict[str, Any]:
+        return await handle_run_prediction(self, tenant_id, model_type, input_data)
+
+    async def _track_kpi(self, tenant_id: str, kpi_config: dict[str, Any]) -> dict[str, Any]:
+        return await handle_track_kpi(self, tenant_id, kpi_config)
+
+    async def _generate_report(self, tenant_id: str, report_spec: dict[str, Any]) -> dict[str, Any]:
+        return await handle_generate_report(self, tenant_id, report_spec)
+
+    async def _compute_kpis_batch(self, tenant_id: str, event_type: str | None, kpis: list[dict[str, Any]] | None) -> dict[str, Any]:
+        return await handle_compute_kpis_batch(self, tenant_id, event_type, kpis)
+
+    async def _ingest_sources(self, tenant_id: str, sources: list[str] | None, parameters: dict[str, Any]) -> dict[str, Any]:
+        return await handle_ingest_sources(self, tenant_id, sources, parameters)
+
+    # ------------------------------------------------------------------
     # Cleanup / capabilities
     # ------------------------------------------------------------------
 
