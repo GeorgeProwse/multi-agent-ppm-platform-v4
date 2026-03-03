@@ -1,8 +1,8 @@
-# Continuous Improvement Process Mining Specification
+# Continuous Improvement Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Continuous Improvement Process Mining. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Continuous Improvement Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## Intended scope
 

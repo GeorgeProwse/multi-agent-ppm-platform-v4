@@ -1,8 +1,8 @@
-# Project Definition Scope Specification
+# Scope Definition Agent Specification
 
 ## Purpose
 
-Define the responsibilities, workflows, and integration points for Project Definition Scope. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
+Define the responsibilities, workflows, and integration points for the Scope Definition Agent. This README captures how the agent is expected to behave in the multi-agent orchestration flow.
 
 ## What's inside
 
