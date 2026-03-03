@@ -427,6 +427,14 @@ class VendorProcurementAgent(BaseAgent):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    async def _run_compliance_checks(self, vendor_data: dict[str, Any]) -> dict[str, Any]:
+        from vendor_utils import run_compliance_checks
+        return await run_compliance_checks(self, vendor_data)
+
+    async def _check_budget_availability(self, request_data: dict[str, Any]) -> dict[str, Any]:
+        from vendor_utils import check_budget_availability
+        return await check_budget_availability(self, request_data)
+
     def _resolve_approval_agent(self) -> type:
         module = importlib.import_module("approval_workflow_agent")
         return getattr(module, "ApprovalWorkflowAgent")

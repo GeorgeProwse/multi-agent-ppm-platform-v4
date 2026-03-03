@@ -56,6 +56,14 @@ from sync_actions import (  # noqa: E402
 )
 import sync_infrastructure as infra  # noqa: E402
 
+# Re-export Azure SDK classes so monkeypatching in tests works against this module
+try:
+    from azure.identity import DefaultAzureCredential  # noqa: E402, F811
+    from azure.keyvault.secrets import SecretClient  # noqa: E402, F811
+except ImportError:  # pragma: no cover - optional dependencies
+    DefaultAzureCredential = None  # type: ignore[assignment,misc]
+    SecretClient = None  # type: ignore[assignment,misc]
+
 
 class DataSyncAgent(BaseAgent):
     """
@@ -429,3 +437,44 @@ class DataSyncAgent(BaseAgent):
 
     async def _ingest_quality_metric(self, record):
         return await infra.ingest_quality_metric(self, record)
+
+    # Config loaders (delegates to infra, exposed for tests)
+    def _load_validation_rules(self):
+        return infra.load_validation_rules(self)
+
+    def _load_quality_thresholds(self):
+        return infra.load_quality_thresholds(self)
+
+    def _load_schema_registry(self):
+        return infra.load_schema_registry(self)
+
+    def _load_mapping_rules(self):
+        return infra.load_mapping_rules(self)
+
+    def _load_pipeline_config(self):
+        return infra.load_pipeline_config(self)
+
+    # Azure initialization (delegates to infra, exposed for tests)
+    async def _initialize_key_vault_secrets(self):
+        return await infra.initialize_key_vault_secrets(self)
+
+    async def _initialize_connectors(self):
+        return await infra.initialize_connectors(self)
+
+    async def _initialize_service_bus(self):
+        return await infra.initialize_service_bus(self)
+
+    async def _initialize_event_grid(self):
+        return await infra.initialize_event_grid(self)
+
+    async def _initialize_datastores(self):
+        return await infra.initialize_datastores(self)
+
+    async def _initialize_data_factory(self):
+        return await infra.initialize_data_factory(self)
+
+    async def _initialize_functions(self):
+        return await infra.initialize_functions(self)
+
+    async def _initialize_monitoring(self):
+        return await infra.initialize_monitoring(self)

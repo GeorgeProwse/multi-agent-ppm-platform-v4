@@ -23,7 +23,7 @@ from health_actions.collect_metrics import (
     collect_metrics,
     collect_platform_metrics,
 )
-from actions.dashboard_reporting import (
+from health_actions.dashboard_reporting import (
     get_deployment_baseline,
     get_deployment_metrics,
     get_grafana_dashboard,
@@ -32,7 +32,7 @@ from actions.dashboard_reporting import (
     get_postmortem_report,
     query_historical_metrics,
 )
-from actions.incident_management import (
+from health_actions.incident_management import (
     analyze_root_cause,
     create_incident,
     resolve_incident,

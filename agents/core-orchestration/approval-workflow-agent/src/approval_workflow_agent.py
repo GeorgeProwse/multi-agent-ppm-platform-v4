@@ -33,6 +33,7 @@ from approval_utils import (  # noqa: E402
     NotificationTemplateEngine,
     RoleLookupClient,
     default_notification_templates,
+    load_approval_policies,
 )
 from actions import (  # noqa: E402
     assess_risk_and_criticality,
@@ -135,52 +136,6 @@ class ApprovalWorkflowAgent(BaseAgent):
         except (OSError, yaml.YAMLError):
             return {}
 
-    async def _load_approval_policies(self) -> dict[str, Any]:
-        """Load approval policies and routing rules from configuration."""
-        default_policies = {
-            "budget_thresholds": [10000, 50000, 100000],
-            "escalation_timeout_hours": 48,
-            "risk_thresholds": {"high": 12, "medium": 24, "low": 48},
-            "criticality_levels": {"critical": 6, "high": 12, "normal": 24, "low": 48},
-            "reminder_before_deadline_hours": 24,
-            "default_chain_type": "sequential",
-            "digest_interval_minutes": 60,
-            "response_time_threshold_hours": 48,
-        }
-        config_path = Path(
-            self.config.get("approval_policies_path", "ops/config/agents/approval_policies.yaml")
-            if self.config
-            else "ops/config/agents/approval_policies.yaml"
-        )
-        fallback_path = Path("ops/config/approval_policies.json")
-        if not config_path.exists():
-            if not fallback_path.exists():
-                self.logger.warning(
-                    "Approval policies file not found at %s; using defaults.", config_path
-                )
-                return default_policies
-            config_path = fallback_path
-        try:
-            with config_path.open("r", encoding="utf-8") as handle:
-                if config_path.suffix in {".yaml", ".yml"}:
-                    data = yaml.safe_load(handle)
-                else:
-                    data = json.load(handle)
-            if not isinstance(data, dict):
-                self.logger.warning(
-                    "Approval policies file %s did not contain an object; using defaults.",
-                    config_path,
-                )
-                return default_policies
-            return {**default_policies, **data}
-        except (json.JSONDecodeError, yaml.YAMLError, OSError) as exc:
-            self.logger.warning(
-                "Failed to load approval policies from %s: %s; using defaults.",
-                config_path,
-                exc,
-            )
-            return default_policies
-
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -191,7 +146,7 @@ class ApprovalWorkflowAgent(BaseAgent):
         self.logger.info("Initializing Approval Workflow Agent...")
 
         # Load approval policies and routing rules
-        self.approval_policies = await self._load_approval_policies()
+        self.approval_policies = load_approval_policies(self.config, self.logger)
         self.notification_service = NotificationService(
             self.config.get("notification", {}) if self.config else None
         )

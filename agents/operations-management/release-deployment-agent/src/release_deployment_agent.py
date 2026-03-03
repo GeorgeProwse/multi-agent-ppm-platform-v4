@@ -503,3 +503,7 @@ class ReleaseDeploymentAgent(BaseAgent):
     async def _release_environment_allocation(self, release_id, deployment_plan_id):
         from release_utils import release_environment_allocation
         return await release_environment_allocation(self, release_id, deployment_plan_id)
+
+    async def _detect_post_deployment_anomalies(self, deployment_plan):
+        from release_actions.verify_post_deployment import _detect_post_deployment_anomalies
+        return await _detect_post_deployment_anomalies(self, deployment_plan)
