@@ -182,34 +182,20 @@ class KnowledgeManagementAgent(BaseAgent):
         self.graph_edges: list[dict[str, Any]] = []
         self.ingestion_runs: list[dict[str, Any]] = []
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
     async def initialize(self) -> None:
-        """Initialize document storage, search services, and AI models."""
         await super().initialize()
         self.logger.info("Initializing Knowledge & Document Management Agent...")
-
         self._register_integrations()
-
         self._train_classifier_seed()
-
         if self.event_bus and hasattr(self.event_bus, "subscribe"):
             self.event_bus.subscribe("cognitive.summary.created", self._handle_cognitive_summary)
             self.event_bus.subscribe("agent.summary.created", self._handle_cognitive_summary)
-
         self.logger.info("Knowledge & Document Management Agent initialized")
 
     async def cleanup(self) -> None:
-        """Cleanup resources."""
         self.logger.info("Cleaning up Knowledge & Document Management Agent...")
         if self.event_bus and hasattr(self.event_bus, "stop"):
             await self.event_bus.stop()
-
-    # ------------------------------------------------------------------
-    # Validation
-    # ------------------------------------------------------------------
 
     _VALID_ACTIONS = {
         "upload_document", "ingest_sources", "ingest_agent_output",

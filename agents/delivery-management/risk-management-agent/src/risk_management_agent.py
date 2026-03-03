@@ -40,6 +40,7 @@ from risk_models import (  # noqa: E402, F401
 )
 from risk_utils import (  # noqa: E402
     apply_config,
+    calculate_quantitative_impact,
     handle_cost_overrun_event,
     handle_financial_update_event,
     handle_milestone_missed_event,
@@ -48,6 +49,7 @@ from risk_utils import (  # noqa: E402
     handle_schedule_baseline_event,
     handle_schedule_delay_event,
     initialize_project_management_services,
+    perform_monte_carlo_simulation,
     prime_risk_extractor,
 )
 
@@ -439,6 +441,48 @@ class RiskManagementAgent(BaseAgent):
             "knowledge_base_guidance",
             "pm_connector_risk_signals",
         ]
+
+    # ------------------------------------------------------------------
+    # Private-method delegates (preserve API used by existing tests)
+    # ------------------------------------------------------------------
+
+    async def _perform_monte_carlo_simulation(
+        self,
+        project_id: str,
+        risks: list[dict[str, Any]],
+        iterations: int,
+        schedule_distribution: dict[str, Any] | None = None,
+        financial_distribution: dict[str, Any] | None = None,
+    ) -> dict[str, list[float]]:
+        return await perform_monte_carlo_simulation(
+            project_id, risks, iterations,
+            schedule_distribution=schedule_distribution,
+            financial_distribution=financial_distribution,
+        )
+
+    async def _calculate_quantitative_impact(self, risk: dict[str, Any]) -> dict[str, Any]:
+        return await calculate_quantitative_impact(self, risk)
+
+    async def _run_monte_carlo(
+        self, project_id: str, iterations: int = 10000
+    ) -> dict[str, Any]:
+        return await run_monte_carlo(self, project_id, iterations)
+
+    async def _create_mitigation_plan(
+        self, risk_id: str, mitigation_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await create_mitigation_plan(self, risk_id, mitigation_data)
+
+    async def _identify_risk(
+        self,
+        risk_data: dict[str, Any],
+        *,
+        tenant_id: str = "unknown",
+        correlation_id: str = "",
+    ) -> dict[str, Any]:
+        return await identify_risk(
+            self, risk_data, tenant_id=tenant_id, correlation_id=correlation_id
+        )
 
     # ------------------------------------------------------------------
     # Event handler delegates (thin wrappers to preserve bound-method API)
