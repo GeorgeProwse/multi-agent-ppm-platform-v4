@@ -32,9 +32,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # Monorepo path bootstrap
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 

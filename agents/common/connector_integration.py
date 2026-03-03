@@ -42,10 +42,6 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
-_COMMON_SRC = Path(__file__).resolve().parents[2] / "packages" / "common" / "src"
-if str(_COMMON_SRC) not in sys.path:
-    sys.path.insert(0, str(_COMMON_SRC))
-
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
 

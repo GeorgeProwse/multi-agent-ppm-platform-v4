@@ -19,9 +19,6 @@ from jsonschema import Draft202012Validator, FormatChecker
 from sqlalchemy.exc import SQLAlchemyError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
@@ -30,6 +27,7 @@ from common.env_validation import (  # noqa: E402
     durability_mode_for_storage,
     enforce_no_default_file_backed_storage,
     environment_value,
+    reject_placeholder_secrets,
 )
 from feature_flags import is_feature_enabled  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
@@ -154,6 +152,18 @@ class RetentionStatusResponse(BaseModel):
     last_pruned_at: str | None
     last_pruned_count: int
 
+
+reject_placeholder_secrets(
+    service_name="data-service",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "DATABASE_URL": os.getenv("DATA_SERVICE_DATABASE_URL") or os.getenv("DATABASE_URL", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(title="Data Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")

@@ -8,14 +8,6 @@ from fastapi import APIRouter, FastAPI, File, HTTPException, Query, Request, Res
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_own_src = str(Path(__file__).resolve().parent)
-_common_src = str(REPO_ROOT / "packages" / "common" / "src")
-# Ensure this service's own src/ appears first so local modules (e.g. orchestrator.py,
-# config.py) are resolved before identically-named modules elsewhere in the monorepo.
-for _p in (_own_src, _common_src):
-    if _p in sys.path:
-        sys.path.remove(_p)
-    sys.path.insert(0, _p)
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)

@@ -1,0 +1,12 @@
+{
+  "tenant-a": {
+    "EVENT-1": {
+      "event_id": "EVENT-1",
+      "entity_type": "projects",
+      "master_id": "MASTER-PROJECTS-20260303092941",
+      "source_system": "planview",
+      "status": "success",
+      "timestamp": "2026-03-03T09:29:41.200194+00:00"
+    }
+  }
+}

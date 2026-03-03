@@ -19,6 +19,25 @@ class AgentContext(BaseModel):
     user_id: str | None = None
 
 
+class AgentInput(BaseModel):
+    """Typed input contract for agent execution.
+
+    This provides a structured alternative to the raw ``dict[str, Any]``
+    accepted by :meth:`BaseAgent.process`.  Agents that want stronger
+    compile-time guarantees should accept ``AgentInput`` (or a subclass)
+    and call ``AgentInput.model_validate(input_data)`` at the top of
+    their ``process()`` implementation.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    action: str = Field(description="The action the agent should perform")
+    data: dict[str, Any] = Field(default_factory=dict, description="Action-specific payload")
+    context: dict[str, Any] = Field(default_factory=dict, description="Execution context")
+    tenant_id: str = "unknown"
+    correlation_id: str | None = None
+
+
 class AgentRequest(BaseModel):
     """Standard agent request wrapper."""
 

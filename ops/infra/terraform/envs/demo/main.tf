@@ -31,7 +31,7 @@ resource "azurerm_postgresql_flexible_server" "demo" {
   location               = azurerm_resource_group.demo.location
   version                = "15"
   administrator_login    = "ppmadmin"
-  administrator_password = "ChangeMe-DemoOnly-123!"
+  administrator_password = var.pg_admin_password
   zone                   = "1"
   sku_name               = var.postgres_sku_name
   storage_mb             = var.postgres_storage_mb

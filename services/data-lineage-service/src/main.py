@@ -16,9 +16,6 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, 
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
@@ -36,6 +33,7 @@ from security.api_governance import (  # noqa: E402
 from security.auth import AuthContext, AuthTenantMiddleware  # noqa: E402
 from security.lineage import mask_lineage_payload  # noqa: E402
 from storage import LineageRecord, LineageStore  # noqa: E402
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
 from security.config import load_yaml  # noqa: E402
@@ -159,6 +157,18 @@ async def lifespan(application: FastAPI):
     if scheduler:
         scheduler.stop()
 
+
+reject_placeholder_secrets(
+    service_name="data-lineage-service",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "LINEAGE_MASK_SALT": os.getenv("LINEAGE_MASK_SALT", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(
     title="Data Lineage Service",

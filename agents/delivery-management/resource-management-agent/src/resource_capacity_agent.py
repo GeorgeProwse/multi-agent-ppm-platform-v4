@@ -20,10 +20,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 
-_COMMON_SRC = Path(__file__).resolve().parents[4] / "packages" / "common" / "src"
-if str(_COMMON_SRC) not in sys.path:
-    sys.path.insert(0, str(_COMMON_SRC))
-
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
 ensure_monorepo_paths()

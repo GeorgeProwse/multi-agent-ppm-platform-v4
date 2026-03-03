@@ -212,16 +212,18 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 strict_optional = true
 exclude = [
-  '(apps|services|agents)/.*/src/main\\.py',
-  '(apps|services|agents)/.*/main\\.py',
+  # Specific files with known complex typing issues
   'services/agent-config/src/__init__\\.py',
   'packages/ui-kit/src/__init__\\.py',
   'services/data-lineage-service/src/retention_scheduler\\.py',
   'services/data-service/src/retention_scheduler\\.py',
-  '(apps|services|agents)/.*/src/(storage|persistence|config|models|auth|metrics|circuit_breaker|leader_election|retention_scheduler|orchestrator|dependencies|connectors|analytics|documents|health|lineage|prompts|scope_research|assistant|audit|workflow|workspace|web_search|router)\\.py',
+  # Complex infrastructure modules excluded until incremental migration
+  '(apps|services|agents)/.*/src/(storage|persistence|metrics|circuit_breaker|leader_election|retention_scheduler|orchestrator|dependencies|connectors|analytics|documents|health|lineage|prompts|scope_research|assistant|audit|workflow|workspace|web_search|router)\\.py',
+  # Vendor stubs and third-party code
   '^vendor/stubs/(email_validator|events|prompt_registry|pydantic_settings|requests|runtime_flags)\\.py$',
   '^vendor/(sqlalchemy|jinja2|jsonschema|multipart|numpy)/.*',
   '^(sqlalchemy|integrations)/.*',
+  # Test files — typing enforcement deferred
   '.*/tests/.*',
 ]
 

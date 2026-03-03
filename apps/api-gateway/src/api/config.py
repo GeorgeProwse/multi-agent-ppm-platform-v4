@@ -10,9 +10,6 @@ from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-COMMON_ROOT = REPO_ROOT / "packages" / "common" / "src"
-if str(COMMON_ROOT) not in sys.path:
-    sys.path.insert(0, str(COMMON_ROOT))  # bootstrap: packages/common/src for env_validation
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 

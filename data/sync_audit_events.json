@@ -3845,5 +3845,88 @@
       "trace_id": null,
       "correlation_id": null
     }
+  },
+  "tenant-a": {
+    "evt-1d3eda69da6d4a4485e60c42defa7e25": {
+      "id": "evt-1d3eda69da6d4a4485e60c42defa7e25",
+      "timestamp": "2026-03-03T09:27:55.698374+00:00",
+      "tenant_id": "tenant-a",
+      "action": "master_record.created",
+      "outcome": "success",
+      "classification": "internal",
+      "actor": {
+        "id": "data-synchronisation-agent",
+        "type": "service",
+        "roles": []
+      },
+      "resource": {
+        "id": "MASTER-PROJECTS-20260303092755",
+        "type": "projects",
+        "attributes": {
+          "version": 1
+        }
+      },
+      "metadata": {
+        "version": 1
+      },
+      "legal_basis": "legitimate_interest",
+      "retention_period": "P1Y",
+      "trace_id": null,
+      "correlation_id": null
+    },
+    "evt-45cc35f33fbb45ccaa62ef480db20701": {
+      "id": "evt-45cc35f33fbb45ccaa62ef480db20701",
+      "timestamp": "2026-03-03T09:29:05.083683+00:00",
+      "tenant_id": "tenant-a",
+      "action": "master_record.created",
+      "outcome": "success",
+      "classification": "internal",
+      "actor": {
+        "id": "data-synchronisation-agent",
+        "type": "service",
+        "roles": []
+      },
+      "resource": {
+        "id": "MASTER-PROJECTS-20260303092905",
+        "type": "projects",
+        "attributes": {
+          "version": 1
+        }
+      },
+      "metadata": {
+        "version": 1
+      },
+      "legal_basis": "legitimate_interest",
+      "retention_period": "P1Y",
+      "trace_id": null,
+      "correlation_id": null
+    },
+    "evt-45162a17babd4b7187c38dfecfaaf054": {
+      "id": "evt-45162a17babd4b7187c38dfecfaaf054",
+      "timestamp": "2026-03-03T09:29:41.193720+00:00",
+      "tenant_id": "tenant-a",
+      "action": "master_record.created",
+      "outcome": "success",
+      "classification": "internal",
+      "actor": {
+        "id": "data-synchronisation-agent",
+        "type": "service",
+        "roles": []
+      },
+      "resource": {
+        "id": "MASTER-PROJECTS-20260303092941",
+        "type": "projects",
+        "attributes": {
+          "version": 1
+        }
+      },
+      "metadata": {
+        "version": 1
+      },
+      "legal_basis": "legitimate_interest",
+      "retention_period": "P1Y",
+      "trace_id": null,
+      "correlation_id": null
+    }
   }
 }
