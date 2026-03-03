@@ -405,42 +405,32 @@ class KnowledgeManagementAgent(BaseAgent):
                                         "service_bus": self.event_bus is not None})
 
     async def _publish_document_external(self, document: dict[str, Any]) -> None:
-        metadata = {
-            "title": document.get("title", ""),
-            "description": document.get("description", ""),
-            "classification": document.get("classification", "internal"),
-            "tags": document.get("tags", []),
-            "owner": document.get("owner") or document.get("author") or "",
-            "retention_days": document.get("retention_days", 365),
-        }
-        if self.document_management_service:
-            await self.document_management_service.publish_document(
-                document_content=document.get("content", ""),
-                metadata=DocumentMetadata(**metadata),
-            )
+        if not self.document_management_service:
+            return
+        meta = DocumentMetadata(
+            title=document.get("title", ""), description=document.get("description", ""),
+            classification=document.get("classification", "internal"),
+            tags=document.get("tags", []),
+            owner=document.get("owner") or document.get("author") or "",
+            retention_days=document.get("retention_days", 365),
+        )
+        await self.document_management_service.publish_document(
+            document_content=document.get("content", ""), metadata=meta)
 
     async def summarise_document(self, text: str) -> str:
-        """Create concise summary using LLM/prompt registry with prompt-injection sanitisation."""
+        """Create concise summary with prompt-injection sanitisation."""
         sanitized_text = sanitize_prompt(text)
         if detect_injection(text):
-            self.logger.warning(
-                "Potential prompt injection detected in summary input; sanitized text used"
-            )
-
+            self.logger.warning("Potential prompt injection detected; sanitized text used")
         prompt_template = self._load_summary_prompt_template()
         prompt = prompt_template.format(text=sanitized_text, token_limit=self.summary_token_limit)
         if self.summarizer:
-            payload = {
-                "prompt": prompt,
-                "text": sanitized_text,
-                "max_tokens": self.summary_token_limit,
-            }
-            result = await self._invoke_summarizer(payload)
+            result = await self._invoke_summarizer(
+                {"prompt": prompt, "text": sanitized_text, "max_tokens": self.summary_token_limit})
             if result:
                 return result
-
-        fallback_char_limit = max(self.max_summary_length, self.summary_token_limit * 5)
-        return await self._generate_summary(sanitized_text, fallback_char_limit)
+        return await self._generate_summary(
+            sanitized_text, max(self.max_summary_length, self.summary_token_limit * 5))
 
     async def _invoke_summarizer(self, payload: dict[str, Any]) -> str:
         if not self.summarizer:
@@ -462,12 +452,9 @@ class KnowledgeManagementAgent(BaseAgent):
         return self.summary_prompt_template
 
     async def _generate_summary(self, content: str, max_length: int) -> str:
-        """Generate summary using NLG."""
         if len(content) <= max_length:
             return content
-
-        sentences = content.split(". ")
-        summary = ". ".join(sentences[:3])
+        summary = ". ".join(content.split(". ")[:3])
         return summary[:max_length] + ("..." if len(summary) > max_length else "")
 
     async def _validate_document_schema(self, record: dict[str, Any]) -> None:
