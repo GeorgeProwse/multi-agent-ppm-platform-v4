@@ -20,7 +20,7 @@ from agents.common.connector_integration import DatabaseStorageService
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 
-from actions import (
+from program_actions import (
     handle_aggregate_benefits,
     handle_analyze_change_impact,
     handle_coordinate_resources,
@@ -449,5 +449,5 @@ class ProgramManagementAgent(BaseAgent):
     # Backward-compatible public method
     async def analyze_synergies(self, project_details: dict[str, Any]) -> dict[str, Any]:
         """Analyze synergies using Azure Cognitive Services Text Analytics."""
-        from actions.identify_synergies import analyze_synergies as _analyze
+        from program_actions.identify_synergies import analyze_synergies as _analyze
         return await _analyze(self, project_details)

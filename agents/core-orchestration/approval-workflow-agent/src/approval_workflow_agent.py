@@ -32,6 +32,7 @@ from approval_utils import (  # noqa: E402
     NotificationSubscriptionStore,
     NotificationTemplateEngine,
     RoleLookupClient,
+    default_notification_templates,
 )
 from actions import (  # noqa: E402
     assess_risk_and_criticality,
@@ -100,7 +101,7 @@ class ApprovalWorkflowAgent(BaseAgent):
         default_locale = (config or {}).get("default_locale", "en")
         self.template_engine = NotificationTemplateEngine(templates, default_locale, template_root)
         if not self.template_engine.templates:
-            self.template_engine.templates = self._default_templates()
+            self.template_engine.templates = default_notification_templates()
         _notification_store_path = (config or {}).get("notification_store_path")
         self.notification_store = NotificationSubscriptionStore(
             Path(_notification_store_path) if _notification_store_path else None

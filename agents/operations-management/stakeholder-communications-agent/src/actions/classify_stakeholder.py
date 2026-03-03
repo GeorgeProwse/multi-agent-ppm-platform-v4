@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
-from ..stakeholder_utils import determine_engagement_strategy, load_stakeholder
+from stakeholder_utils import determine_engagement_strategy, load_stakeholder
 
 if TYPE_CHECKING:
-    from ..stakeholder_communications_agent import StakeholderCommunicationsAgent
+    from stakeholder_communications_agent import StakeholderCommunicationsAgent
 
 
 async def classify_stakeholder(

@@ -15,7 +15,7 @@ async def handle_deploy_bpmn_workflow(
     bpmn_xml: str,
     workflow_name: str | None = None,
 ) -> dict[str, Any]:
-    from actions.define_workflow import handle_define_workflow
+    from workflow_actions.define_workflow import handle_define_workflow
 
     workflow_config = {
         "name": workflow_name or "BPMN Workflow",

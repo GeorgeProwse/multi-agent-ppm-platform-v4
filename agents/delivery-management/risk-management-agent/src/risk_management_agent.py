@@ -11,7 +11,6 @@ Specification: agents/delivery-management/risk-management-agent/README.md
 
 import os
 import uuid
-from pathlib import Path
 from typing import Any
 
 from tools.runtime_paths import bootstrap_runtime_paths
@@ -40,6 +39,7 @@ from risk_models import (  # noqa: E402, F401
     RiskNLPExtractor,
 )
 from risk_utils import (  # noqa: E402
+    apply_config,
     handle_cost_overrun_event,
     handle_financial_update_event,
     handle_milestone_missed_event,
@@ -87,136 +87,7 @@ class RiskManagementAgent(BaseAgent):
 
     def __init__(self, agent_id: str = "risk-management-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
-
-        # Configuration parameters
-        self.risk_categories = (
-            config.get(
-                "risk_categories",
-                ["technical", "schedule", "financial", "compliance", "external", "resource"],
-            )
-            if config
-            else ["technical", "schedule", "financial", "compliance", "external", "resource"]
-        )
-        self.enable_external_risk_research = (
-            config.get("enable_external_risk_research", False) if config else False
-        )
-        self.risk_search_keywords = (
-            config.get(
-                "risk_search_keywords",
-                [
-                    "risk",
-                    "failure",
-                    "incident",
-                    "disruption",
-                    "regulatory change",
-                    "supplier",
-                ],
-            )
-            if config
-            else [
-                "risk",
-                "failure",
-                "incident",
-                "disruption",
-                "regulatory change",
-                "supplier",
-            ]
-        )
-        self.risk_search_result_limit = (
-            int(config.get("risk_search_result_limit", 5)) if config else 5
-        )
-
-        self.probability_scale = (
-            config.get("probability_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
-        )
-        self.impact_scale = (
-            config.get("impact_scale", [1, 2, 3, 4, 5]) if config else [1, 2, 3, 4, 5]
-        )
-        self.high_risk_threshold = config.get("high_risk_threshold", 15) if config else 15
-        self.risk_schema_path = (
-            Path(config.get("risk_schema_path", "data/schemas/risk.schema.json"))
-            if config
-            else Path("data/schemas/risk.schema.json")
-        )
-
-        risk_store_path = (
-            Path(config.get("risk_store_path", "data/risk_register.json"))
-            if config
-            else Path("data/risk_register.json")
-        )
-        self.risk_store = TenantStateStore(risk_store_path)
-
-        # Data stores
-        self.risk_register: dict[str, Any] = {}
-        self.mitigation_plans: dict[str, Any] = {}
-        self.triggers: dict[str, Any] = {}
-        self.risk_histories: dict[str, Any] = {}
-        self.db_service: DatabaseStorageService | None = None
-        self.grc_service: GRCIntegrationService | None = None
-        self.document_service: DocumentManagementService | None = None
-        self.documentation_service: DocumentationPublishingService | None = None
-        self.ml_service: MLPredictionService | None = None
-        self.project_management_services: dict[str, Any] = {}
-        self.cognitive_search_service: CognitiveSearchService | None = None
-        self.knowledge_base_service: KnowledgeBaseQueryService | None = None
-        self.resource_management_service = (
-            config.get("resource_management_service") if config else None
-        )
-        self.data_lake_manager: DataLakeManager | None = None
-        self.synapse_manager: SynapseManager | None = None
-        self.event_bus = None
-        self.risk_events: list[dict[str, Any]] = []
-        self.risk_trigger_thresholds = (
-            config.get(
-                "risk_trigger_thresholds",
-                {
-                    "cost_overrun_pct": 0.1,
-                    "schedule_delay_days": 10,
-                    "quality_defect_rate": 0.05,
-                    "resource_utilization": 0.9,
-                },
-            )
-            if config
-            else {
-                "cost_overrun_pct": 0.1,
-                "schedule_delay_days": 10,
-                "quality_defect_rate": 0.05,
-                "resource_utilization": 0.9,
-            }
-        )
-        self.risk_nlp_extractor = config.get("risk_nlp_extractor") if config else None
-        if not self.risk_nlp_extractor:
-            self.risk_nlp_extractor = RiskNLPExtractor(
-                model_name=(config.get("risk_nlp_model_name") if config else "bert-base-uncased"),
-                pipeline_task=(
-                    config.get("risk_nlp_pipeline_task") if config else "zero-shot-classification"
-                ),
-                labels=(config.get("risk_nlp_labels") if config else None),
-                threshold=float(config.get("risk_nlp_threshold", 0.6)) if config else 0.6,
-                max_sentences=int(config.get("risk_nlp_max_sentences", 80)) if config else 80,
-                training_keywords=(
-                    tuple(config.get("risk_nlp_training_keywords"))
-                    if config and config.get("risk_nlp_training_keywords")
-                    else None
-                ),
-            )
-        self.schedule_agent_endpoint = (
-            config.get("schedule_agent_endpoint") if config else None
-        ) or (config.get("related_agent_endpoints", {}).get("schedule") if config else None)
-        self.financial_agent_endpoint = (
-            config.get("financial_agent_endpoint") if config else None
-        ) or (config.get("related_agent_endpoints", {}).get("financial") if config else None)
-        self.schedule_baseline_fixture = (
-            config.get("schedule_baseline_fixture", {}) if config else {}
-        )
-        self.financial_distribution_fixture = (
-            config.get("financial_distribution_fixture", {}) if config else {}
-        )
-        self.simulation_offload = config.get("simulation_offload", {}) if config else {}
-        self.latest_schedule_signals: dict[str, Any] = {}
-        self.latest_financial_signals: dict[str, Any] = {}
-        self._local_probability_model = None
-        self._local_impact_model = None
+        apply_config(self, config)
 
     # ------------------------------------------------------------------
     # Lifecycle

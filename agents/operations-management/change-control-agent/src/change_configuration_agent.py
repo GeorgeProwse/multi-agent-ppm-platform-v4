@@ -41,7 +41,7 @@ from change_utils import (  # noqa: F401
 )
 
 # Action handlers ----------------------------------------------------------
-from actions import (
+from change_actions import (
     approve_change,
     assess_impact,
     audit_changes,
@@ -150,84 +150,58 @@ class ChangeConfigurationAgent(BaseAgent):
         """Initialize database connections, ITSM integrations, and AI models."""
         await super().initialize()
         self.logger.info("Initializing Change & Configuration Management Agent...")
+        cfg = self.config or {}
 
-        # Initialize Database Storage Service
-        db_config = self.config.get("database_storage", {}) if self.config else {}
-        self.db_service = DatabaseStorageService(db_config)
-        self.logger.info("Database Storage Service initialized")
+        self.db_service = DatabaseStorageService(cfg.get("database_storage", {}))
+        self.itsm_service = ITSMIntegrationService(cfg.get("itsm_integration", {}))
 
-        # Initialize ITSM Integration Service
-        itsm_config = self.config.get("itsm_integration", {}) if self.config else {}
-        self.itsm_service = ITSMIntegrationService(itsm_config)
-        self.logger.info("ITSM Integration Service initialized")
-
-        # Initialize change classification model
+        # Change classification model
         self.text_classifier = ChangeRequestClassifier(labels=self.change_types)
-        training_samples = (
-            self.config.get("change_classification_samples", []) if self.config else []
-        )
-        if not training_samples:
-            training_samples = [
-                ("emergency fix for production outage", "emergency"),
-                ("critical security patch rollout", "emergency"),
-                ("routine maintenance window update", "standard"),
-                ("standard patching for monthly updates", "standard"),
-                ("feature enhancement request", "normal"),
-                ("configuration change for new capability", "normal"),
-            ]
+        training_samples = cfg.get("change_classification_samples", []) or [
+            ("emergency fix for production outage", "emergency"),
+            ("critical security patch rollout", "emergency"),
+            ("routine maintenance window update", "standard"),
+            ("standard patching for monthly updates", "standard"),
+            ("feature enhancement request", "normal"),
+            ("configuration change for new capability", "normal"),
+        ]
         self.text_classifier.train(training_samples)
-        self.logger.info("Change classification model initialized")
 
         self.repo_service = RepositoryIntegrationService(self.logger)
         self.iac_parser = IaCChangeParser(self.logger)
-        orchestrator = "durable_functions"
-        if self.config and self.config.get("workflow_orchestrator"):
-            orchestrator = self.config["workflow_orchestrator"]
-        workflow_config = self.config.get("workflow_config", {}) if self.config else {}
+        orchestrator = cfg.get("workflow_orchestrator", "durable_functions")
         self.workflow_orchestrator = ChangeWorkflowOrchestrator(
-            self.db_service, orchestrator, workflow_config
+            self.db_service, orchestrator, cfg.get("workflow_config", {})
         )
 
-        impact_samples = self.config.get("impact_model_samples", []) if self.config else []
-        if not impact_samples:
-            impact_samples = [
-                ImpactTrainingSample(2.0, 0.1, 3, "medium", 0.85),
-                ImpactTrainingSample(4.0, 0.3, 8, "high", 0.6),
-                ImpactTrainingSample(1.0, 0.05, 1, "low", 0.92),
-            ]
+        # Impact prediction model
+        impact_samples = cfg.get("impact_model_samples", []) or [
+            ImpactTrainingSample(2.0, 0.1, 3, "medium", 0.85),
+            ImpactTrainingSample(4.0, 0.3, 8, "high", 0.6),
+            ImpactTrainingSample(1.0, 0.05, 1, "low", 0.92),
+        ]
         normalized_samples: list[ImpactTrainingSample] = []
         for sample in impact_samples:
             if isinstance(sample, ImpactTrainingSample):
                 normalized_samples.append(sample)
             elif isinstance(sample, dict):
-                normalized_samples.append(
-                    ImpactTrainingSample(
-                        sample.get("complexity", 1.0),
-                        sample.get("historical_failure_rate", 0.1),
-                        sample.get("affected_services", 1),
-                        sample.get("risk_category", "medium"),
-                        sample.get("success_probability", 0.8),
-                    )
-                )
+                normalized_samples.append(ImpactTrainingSample(
+                    sample.get("complexity", 1.0), sample.get("historical_failure_rate", 0.1),
+                    sample.get("affected_services", 1), sample.get("risk_category", "medium"),
+                    sample.get("success_probability", 0.8),
+                ))
         self.impact_model = ChangeImpactModel()
         self.impact_model.train(normalized_samples)
 
         if not self.document_service:
-            document_config = self.config.get("document_management", {}) if self.config else {}
-            self.document_service = DocumentManagementService(document_config)
-
+            self.document_service = DocumentManagementService(cfg.get("document_management", {}))
         if not self.event_publisher:
-            event_config = self.config.get("event_bus", {}) if self.config else {}
-            self.event_publisher = ChangeEventPublisher(event_config, self.logger)
-
+            self.event_publisher = ChangeEventPublisher(cfg.get("event_bus", {}), self.logger)
         if not self.dependency_graph:
-            graph_config = self.config.get("graph", {}) if self.config else {}
-            self.dependency_graph = DependencyGraphService(self.logger, graph_config)
+            self.dependency_graph = DependencyGraphService(self.logger, cfg.get("graph", {}))
         self.dependency_graph.load_cmdb(self.cmdb)
 
-        cicd_config = self.config.get("cicd_subscriptions", []) if self.config else []
-        self.cicd_subscriptions = await subscribe_cicd_webhooks(self, cicd_config)
-
+        self.cicd_subscriptions = await subscribe_cicd_webhooks(self, cfg.get("cicd_subscriptions", []))
         self.logger.info("Change & Configuration Management Agent initialized")
 
     async def validate_input(self, input_data: dict[str, Any]) -> bool:

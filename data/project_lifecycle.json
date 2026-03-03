@@ -3,7 +3,7 @@
     "P-100": {
       "project_id": "P-100",
       "current_phase": "Plan",
-      "phase_start_date": "2026-03-03T09:20:50.954027+00:00",
+      "phase_start_date": "2026-03-03T09:22:14.670639+00:00",
       "methodology_map": {
         "initial_phase": "Initiate",
         "phases": {
@@ -58,7 +58,7 @@
           "from_phase": "Initiate",
           "to_phase": "Plan",
           "gate_name": "Initiate_to_Plan_gate",
-          "transitioned_at": "2026-03-03T09:20:50.954015+00:00",
+          "transitioned_at": "2026-03-03T09:22:14.670634+00:00",
           "transitioned_by": "user-1"
         }
       ],
@@ -72,7 +72,7 @@
     "P-200": {
       "project_id": "P-200",
       "current_phase": "Initiate",
-      "phase_start_date": "2026-03-03T09:20:51.012076+00:00",
+      "phase_start_date": "2026-03-03T09:22:14.720796+00:00",
       "methodology_map": {
         "initial_phase": "Initiate",
         "phases": {

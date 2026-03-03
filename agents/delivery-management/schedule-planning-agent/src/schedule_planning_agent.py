@@ -8,10 +8,17 @@ and performs critical path analysis. Supports both predictive and adaptive plann
 Specification: agents/delivery-management/schedule-planning-agent/README.md
 """
 
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Ensure the src directory is on sys.path so sibling modules (actions/, schedule_utils)
+# can be imported when this file is loaded via importlib.spec_from_file_location.
+_SRC_DIR = str(Path(__file__).resolve().parent)
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
 
 import yaml
 from change_configuration_agent import ChangeConfigurationAgent

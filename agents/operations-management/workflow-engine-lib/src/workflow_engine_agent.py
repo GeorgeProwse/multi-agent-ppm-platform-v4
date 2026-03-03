@@ -22,7 +22,7 @@ from workflow_task_queue import WorkflowTaskQueue, build_task_message, build_tas
 from agents.runtime import BaseAgent, ServiceBusEventBus, get_event_bus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 
-from actions import (
+from workflow_actions import (
     handle_assign_task,
     handle_cancel_workflow,
     handle_complete_task,

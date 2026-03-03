@@ -34,7 +34,7 @@ async def handle_handle_event(
         if await event_matches_criteria(event_data, subscription.get("criteria", {})):
             # Start or advance workflow
             if subscription.get("action") == "start":
-                from actions.start_workflow import handle_start_workflow
+                from workflow_actions.start_workflow import handle_start_workflow
 
                 result = await handle_start_workflow(
                     agent, tenant_id, subscription.get("workflow_id"), event_data  # type: ignore

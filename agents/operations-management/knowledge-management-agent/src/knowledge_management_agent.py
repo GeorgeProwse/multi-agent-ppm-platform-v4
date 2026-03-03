@@ -93,146 +93,82 @@ class KnowledgeManagementAgent(BaseAgent):
     - Access control and permissions
     """
 
+    _DEFAULT_DOC_TYPES = [
+        "charter", "requirements", "design", "test_plan", "meeting_minutes",
+        "lessons_learned", "policy", "procedure", "report",
+    ]
+    _DEFAULT_SUMMARY_PROMPT = (
+        "Summarize the document below for enterprise knowledge retrieval. "
+        "Limit output to {token_limit} tokens and keep factual points concise.\n\n"
+        "Document:\n{text}"
+    )
+
     def __init__(self, agent_id: str = "knowledge-management-agent", config: dict[str, Any] | None = None):
         super().__init__(agent_id, config)
+        _c = config or {}
 
-        # Configuration parameters
-        self.max_summary_length = config.get("max_summary_length", 500) if config else 500
-        self.search_result_limit = config.get("search_result_limit", 50) if config else 50
-        self.similarity_threshold = config.get("similarity_threshold", 0.75) if config else 0.75
-        self.embedding_dimensions = config.get("embedding_dimensions", 128) if config else 128
-        self.embedding_model = (
-            config.get("embedding_model", "all-MiniLM-L6-v2") if config else "all-MiniLM-L6-v2"
-        )
-        self.semantic_result_limit = config.get("semantic_result_limit", 5) if config else 5
-        self.summary_token_limit = config.get("summary_token_limit", 120) if config else 120
+        # Scalar configuration
+        self.max_summary_length: int = _c.get("max_summary_length", 500)
+        self.search_result_limit: int = _c.get("search_result_limit", 50)
+        self.similarity_threshold: float = _c.get("similarity_threshold", 0.75)
+        self.embedding_dimensions: int = _c.get("embedding_dimensions", 128)
+        self.embedding_model: str = _c.get("embedding_model", "all-MiniLM-L6-v2")
+        self.semantic_result_limit: int = _c.get("semantic_result_limit", 5)
+        self.summary_token_limit: int = _c.get("summary_token_limit", 120)
+        self.async_processing_enabled: bool = _c.get("async_processing_enabled", True)
+        self.ingestion_max_files: int = _c.get("ingestion_max_files", 200)
+        self.github_extensions: list[str] = _c.get("github_extensions", [".md", ".txt", ".rst"])
+        self.document_types: list[str] = _c.get("document_types", self._DEFAULT_DOC_TYPES)
+        self.summary_prompt_agent_id: str = _c.get("summary_prompt_agent_id", "knowledge-agent")
+        self.summary_prompt_template: str = _c.get("summary_prompt_template", self._DEFAULT_SUMMARY_PROMPT)
 
-        document_store_path = (
-            Path(config.get("document_store_path", "data/knowledge_documents.json"))
-            if config
-            else Path("data/knowledge_documents.json")
-        )
-        knowledge_db_path = (
-            Path(config.get("knowledge_db_path", "data/knowledge_management.db"))
-            if config
-            else Path("data/knowledge_management.db")
-        )
-        schema_path = (
-            Path(config.get("document_schema_path", "data/schemas/document.schema.json"))
-            if config
-            else Path("data/schemas/document.schema.json")
-        )
+        # Persistent stores
+        self.document_store = TenantStateStore(Path(_c.get("document_store_path", "data/knowledge_documents.json")))
+        self.document_schema = json.loads(Path(_c.get("document_schema_path", "data/schemas/document.schema.json")).read_text())
+        self.knowledge_db = KnowledgeDatabase(Path(_c.get("knowledge_db_path", "data/knowledge_management.db")))
 
-        self.document_store = TenantStateStore(document_store_path)
-        self.document_schema = json.loads(schema_path.read_text())
-        self.knowledge_db = KnowledgeDatabase(knowledge_db_path)
-
-        # Document categories
-        self.document_types = (
-            config.get(
-                "document_types",
-                [
-                    "charter",
-                    "requirements",
-                    "design",
-                    "test_plan",
-                    "meeting_minutes",
-                    "lessons_learned",
-                    "policy",
-                    "procedure",
-                    "report",
-                ],
-            )
-            if config
-            else [
-                "charter",
-                "requirements",
-                "design",
-                "test_plan",
-                "meeting_minutes",
-                "lessons_learned",
-                "policy",
-                "procedure",
-                "report",
-            ]
-        )
-
-        self.event_bus = config.get("event_bus") if config else None
+        # Event bus
+        self.event_bus = _c.get("event_bus")
         if self.event_bus is None:
             try:
                 self.event_bus = get_event_bus()
             except ValueError:
                 self.event_bus = None
 
+        # External services
         self.document_management_service = DocumentManagementService(config)
         self.prompt_registry = PromptRegistry()
-        self.summary_prompt_agent_id = (
-            config.get("summary_prompt_agent_id", "knowledge-agent")
-            if config
-            else "knowledge-agent"
-        )
-        self.summary_prompt_template = (
-            config.get(
-                "summary_prompt_template",
-                (
-                    "Summarize the document below for enterprise knowledge retrieval. "
-                    "Limit output to {token_limit} tokens and keep factual points concise.\n\n"
-                    "Document:\n{text}"
-                ),
-            )
-            if config
-            else (
-                "Summarize the document below for enterprise knowledge retrieval. "
-                "Limit output to {token_limit} tokens and keep factual points concise.\n\n"
-                "Document:\n{text}"
-            )
-        )
 
+        # Embedding / vector index
         fallback_embedding_service = LocalEmbeddingService(self.embedding_dimensions)
         self.embedding_service = SemanticEmbeddingService(
-            self.embedding_model,
-            fallback_service=fallback_embedding_service,
-            encoder=config.get("embedding_encoder") if config else None,
+            self.embedding_model, fallback_service=fallback_embedding_service,
+            encoder=_c.get("embedding_encoder"),
         )
-        self.vector_store_backend = (
-            config.get("vector_store_backend", "in_memory") if config else "in_memory"
-        )
+        self.vector_store_backend: str = _c.get("vector_store_backend", "in_memory")
         if self.vector_store_backend == "faiss":
             self.vector_index = FaissBackedVectorSearchIndex(
-                self.embedding_service,
-                index_name="knowledge_agent",
-                config_path=(
-                    Path(config.get("vector_store_config_path"))
-                    if config and config.get("vector_store_config_path")
-                    else None
-                ),
+                self.embedding_service, index_name="knowledge_agent",
+                config_path=Path(_c["vector_store_config_path"]) if _c.get("vector_store_config_path") else None,
             )
         else:
             self.vector_index = VectorSearchIndex(self.embedding_service)
 
-        self.summarizer: Callable[[dict[str, Any]], Any] | None = (
-            config.get("summarizer") if config else None
-        )
+        # NLP components
+        self.summarizer: Callable[[dict[str, Any]], Any] | None = _c.get("summarizer")
         self.entity_extractor = EntityExtractionPipeline(
-            backend=config.get("entity_extraction_backend", "auto") if config else "auto",
-            custom_extractor=config.get("entity_extractor") if config else None,
+            backend=_c.get("entity_extraction_backend", "auto"),
+            custom_extractor=_c.get("entity_extractor"),
         )
         self.classifier = NaiveBayesTextClassifier(self.document_types)
         self.classifier_trained = False
-        self._confluence_connector = None
-        self.integration_clients = config.get("integration_clients", {}) if config else {}
-        self.integration_status: dict[str, bool] = {}
-        self.async_processing_enabled = (
-            config.get("async_processing_enabled", True) if config else True
-        )
-        self.github_extensions = (
-            config.get("github_extensions", [".md", ".txt", ".rst"])
-            if config
-            else [".md", ".txt", ".rst"]
-        )
-        self.ingestion_max_files = config.get("ingestion_max_files", 200) if config else 200
 
-        # Data stores (will be replaced with database)
+        # Integration clients
+        self._confluence_connector = None
+        self.integration_clients: dict[str, Any] = _c.get("integration_clients", {})
+        self.integration_status: dict[str, bool] = {}
+
+        # In-memory data stores
         self.documents: dict[str, Any] = {}
         self.document_versions: dict[str, Any] = {}
         self.summaries: dict[str, Any] = {}
@@ -478,32 +414,20 @@ class KnowledgeManagementAgent(BaseAgent):
             return
         try:
             await self.event_bus.publish(topic, payload)
-        except (
-            ConnectionError,
-            TimeoutError,
-            ValueError,
-            KeyError,
-            TypeError,
-            RuntimeError,
-            OSError,
-        ) as exc:
+        except (ConnectionError, TimeoutError, ValueError, KeyError,
+                TypeError, RuntimeError, OSError) as exc:
             self.logger.warning("Failed to publish event %s: %s", topic, exc)
 
     def _register_integrations(self) -> None:
+        ic = self.integration_clients
         self.integration_status = {
-            "blob_storage": bool(self.integration_clients.get("blob_storage")),
-            "data_lake": bool(self.integration_clients.get("data_lake")),
-            "metadata_db": True,
-            "cognitive_search": bool(self.integration_clients.get("cognitive_search")),
-            "summarization": bool(self.integration_clients.get("summarizer")),
-            "graph_store": True,
-            "sharepoint": bool(self.integration_clients.get("sharepoint")),
-            "office_online": bool(self.integration_clients.get("office_online")),
-            "form_recognizer": bool(self.integration_clients.get("form_recognizer")),
-            "git_repos": bool(self.integration_clients.get("git_repos")),
-            "service_bus": self.event_bus is not None,
-            "rbac": bool(self.integration_clients.get("rbac")),
+            k: bool(ic.get(k)) for k in [
+                "blob_storage", "data_lake", "cognitive_search", "summarization",
+                "sharepoint", "office_online", "form_recognizer", "git_repos", "rbac",
+            ]
         }
+        self.integration_status.update({"metadata_db": True, "graph_store": True,
+                                        "service_bus": self.event_bus is not None})
 
     async def _publish_document_external(self, document: dict[str, Any]) -> None:
         metadata = {

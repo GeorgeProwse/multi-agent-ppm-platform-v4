@@ -329,167 +329,52 @@ class VendorProcurementAgent(BaseAgent):
         )
         actor_id = context.get("user_id") or input_data.get("actor_id") or "system"
 
+        # Shorthand for common keyword args
+        ctx = dict(tenant_id=tenant_id, correlation_id=correlation_id, actor_id=actor_id)
+        g = input_data.get
+
         if action == "onboard_vendor":
-            return await handle_onboard_vendor(
-                self,
-                input_data.get("vendor", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "create_procurement_request":
-            return await handle_create_procurement_request(
-                self,
-                input_data.get("request", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "generate_rfp":
-            return await handle_generate_rfp(
-                self,
-                input_data.get("request_id"),
-                input_data.get("rfp", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "submit_proposal":
-            return await handle_submit_proposal(
-                self,
-                input_data.get("rfp_id"),  # type: ignore
-                input_data.get("vendor_id"),  # type: ignore
-                input_data.get("proposal", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "evaluate_proposals":
-            return await handle_evaluate_proposals(
-                self,
-                input_data.get("rfp_id"), input_data.get("criteria", {})  # type: ignore
-            )
-
-        elif action == "select_vendor":
-            return await handle_select_vendor(
-                self,
-                input_data.get("rfp_id"),
-                input_data.get("vendor_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "create_contract":
-            return await handle_create_contract(
-                self,
-                input_data.get("contract", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "create_purchase_order":
-            return await handle_create_purchase_order(
-                self,
-                input_data.get("purchase_order", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "submit_invoice":
-            return await handle_submit_invoice(
-                self,
-                input_data.get("invoice", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )
-
-        elif action == "reconcile_invoice":
-            return await handle_reconcile_invoice(
-                self,
-                input_data.get("invoice_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "track_vendor_performance":
-            return await handle_track_vendor_performance(
-                self,
-                input_data.get("vendor_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "get_vendor_scorecard":
-            return await handle_get_vendor_scorecard(
-                self,
-                input_data.get("vendor_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "research_vendor":
+            return await handle_onboard_vendor(self, g("vendor", {}), **ctx)
+        if action == "create_procurement_request":
+            return await handle_create_procurement_request(self, g("request", {}), **ctx)
+        if action == "generate_rfp":
+            return await handle_generate_rfp(self, g("request_id"), g("rfp", {}), **ctx)  # type: ignore
+        if action == "submit_proposal":
+            return await handle_submit_proposal(self, g("rfp_id"), g("vendor_id"), g("proposal", {}), **ctx)  # type: ignore
+        if action == "evaluate_proposals":
+            return await handle_evaluate_proposals(self, g("rfp_id"), g("criteria", {}))  # type: ignore
+        if action == "select_vendor":
+            return await handle_select_vendor(self, g("rfp_id"), g("vendor_id"), **ctx)  # type: ignore
+        if action == "create_contract":
+            return await handle_create_contract(self, g("contract", {}), **ctx)
+        if action == "create_purchase_order":
+            return await handle_create_purchase_order(self, g("purchase_order", {}), **ctx)
+        if action == "submit_invoice":
+            return await handle_submit_invoice(self, g("invoice", {}), **ctx)
+        if action == "reconcile_invoice":
+            return await handle_reconcile_invoice(self, g("invoice_id"), **ctx)  # type: ignore
+        if action == "track_vendor_performance":
+            return await handle_track_vendor_performance(self, g("vendor_id"), **ctx)  # type: ignore
+        if action == "get_vendor_scorecard":
+            return await handle_get_vendor_scorecard(self, g("vendor_id"), **ctx)  # type: ignore
+        if action == "research_vendor":
             return await handle_research_vendor(
-                self,
-                vendor_id=input_data.get("vendor_id"),
-                vendor_name=input_data.get("vendor_name"),
-                domain=input_data.get("domain"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
+                self, vendor_id=g("vendor_id"), vendor_name=g("vendor_name"),
+                domain=g("domain"), tenant_id=tenant_id, correlation_id=correlation_id,
             )
-
-        elif action == "get_vendor_profile":
-            return await handle_get_vendor_profile(
-                self,
-                input_data.get("vendor_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-            )  # type: ignore
-
-        elif action == "update_vendor_profile":
-            return await handle_update_vendor_profile(
-                self,
-                input_data.get("vendor_id"),
-                input_data.get("updates", {}),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "list_vendor_profiles":
-            return await handle_list_vendor_profiles(
-                self,
-                input_data.get("criteria", {}),
-                tenant_id=tenant_id,
-            )
-
-        elif action == "sign_contract":
-            return await handle_sign_contract(
-                self,
-                input_data.get("contract_id"),
-                tenant_id=tenant_id,
-                correlation_id=correlation_id,
-                actor_id=actor_id,
-            )  # type: ignore
-
-        elif action == "search_vendors":
-            return await handle_search_vendors(self, input_data.get("criteria", {}))
-
-        elif action == "get_procurement_status":
-            return await handle_get_procurement_status(self, input_data.get("request_id"))  # type: ignore
-
-        else:
-            raise ValueError(f"Unknown action: {action}")
+        if action == "get_vendor_profile":
+            return await handle_get_vendor_profile(self, g("vendor_id"), tenant_id=tenant_id, correlation_id=correlation_id)  # type: ignore
+        if action == "update_vendor_profile":
+            return await handle_update_vendor_profile(self, g("vendor_id"), g("updates", {}), **ctx)  # type: ignore
+        if action == "list_vendor_profiles":
+            return await handle_list_vendor_profiles(self, g("criteria", {}), tenant_id=tenant_id)
+        if action == "sign_contract":
+            return await handle_sign_contract(self, g("contract_id"), **ctx)  # type: ignore
+        if action == "search_vendors":
+            return await handle_search_vendors(self, g("criteria", {}))
+        if action == "get_procurement_status":
+            return await handle_get_procurement_status(self, g("request_id"))  # type: ignore
+        raise ValueError(f"Unknown action: {action}")
 
     # ------------------------------------------------------------------
     # Public research method (kept on class for backward compat)
