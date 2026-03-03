@@ -120,6 +120,8 @@ async def flush_digest_notifications(
         for item in items:
             try:
                 send_after = datetime.fromisoformat(item["send_after"])
+                if send_after.tzinfo is None:
+                    send_after = send_after.replace(tzinfo=timezone.utc)
             except (TypeError, ValueError):
                 send_after = now
             if send_after <= now:

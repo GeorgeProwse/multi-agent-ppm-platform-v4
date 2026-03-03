@@ -143,7 +143,7 @@ async def handle_ingest_realtime_event(
 
 async def _handle_realtime_event(agent: AnalyticsInsightsAgent, event: dict[str, Any]) -> None:
     """Stream real-time events through Event Hub and Stream Analytics."""
-    from actions.compute_kpis import update_kpis_from_definitions
+    from analytics_actions.compute_kpis import update_kpis_from_definitions
 
     payload = event.get("payload", event)
     event_type = event.get("event_type") or event.get("type") or "realtime.event"

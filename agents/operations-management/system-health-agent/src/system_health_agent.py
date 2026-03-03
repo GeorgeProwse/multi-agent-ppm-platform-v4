@@ -366,6 +366,19 @@ class SystemHealthAgent(BaseAgent):
     def _sanitize_text(self, value: str) -> str:
         return sanitize_text(value)
 
+    async def _publish_health_status(self, services: dict[str, dict[str, Any]]) -> None:
+        from health_actions.check_health import publish_health_status
+        await publish_health_status(self, services)
+
+    async def _get_grafana_dashboard(self) -> dict[str, Any]:
+        return await get_grafana_dashboard(self)
+
+    async def _get_health_dashboard(self, tenant_id: str, time_range: dict[str, Any]) -> dict[str, Any]:
+        return await get_health_dashboard(self, tenant_id, time_range)
+
+    async def _get_postmortem_report(self, tenant_id: str, time_range: dict[str, Any]) -> dict[str, Any]:
+        return await get_postmortem_report(self, tenant_id, time_range)
+
     # ------------------------------------------------------------------
     # Public convenience methods (called by other agents / orchestrator)
     # ------------------------------------------------------------------

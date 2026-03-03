@@ -31,7 +31,7 @@ async def handle_generate_report(
     visualizations = await _generate_visualizations(data, report_spec)
 
     # Generate narrative summary
-    from actions.generate_narrative import handle_generate_narrative
+    from analytics_actions.generate_narrative import handle_generate_narrative
 
     narrative = await handle_generate_narrative(agent, tenant_id, data)
 
