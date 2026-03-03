@@ -12,6 +12,19 @@
       "version": 1,
       "created_at": "2026-03-03T09:27:55.697666+00:00",
       "updated_at": "2026-03-03T09:27:55.697668+00:00"
+    },
+    "MASTER-PROJECTS-20260303092905": {
+      "master_id": "MASTER-PROJECTS-20260303092905",
+      "entity_type": "projects",
+      "data": {
+        "id": "P-100",
+        "name": "Apollo",
+        "status": "Active"
+      },
+      "source_systems": {},
+      "version": 1,
+      "created_at": "2026-03-03T09:29:05.082041+00:00",
+      "updated_at": "2026-03-03T09:29:05.082044+00:00"
     }
   }
 }

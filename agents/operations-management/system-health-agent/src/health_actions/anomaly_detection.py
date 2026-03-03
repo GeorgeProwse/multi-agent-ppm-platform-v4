@@ -7,7 +7,7 @@ import statistics
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from health_utils import recommend_actions_for_anomaly, generate_anomaly_id
+from health_utils import generate_anomaly_id, recommend_actions_for_anomaly
 
 if TYPE_CHECKING:
     from system_health_agent import SystemHealthAgent
@@ -60,8 +60,8 @@ async def detect_anomalies(
             "detected_at": datetime.now(timezone.utc).isoformat(),
         }
         if anomaly.get("severity") == "critical":
-            await create_servicenow_incident(
-                agent,
+            # Route through agent methods so tests can monkeypatch them
+            await agent._create_servicenow_incident(
                 {
                     "title": f"{service_name} anomaly detected",
                     "description": f"{anomaly.get('metric')} value {anomaly.get('value')}",
@@ -69,11 +69,7 @@ async def detect_anomalies(
                     "affected_services": [service_name],
                 },
             )
-            # Import here to avoid circular dependency at module level
-            from health_actions.alert_management import create_alert
-
-            await create_alert(
-                agent,
+            await agent._create_alert(
                 tenant_id,
                 {
                     "name": f"{service_name} anomaly detected",
@@ -86,8 +82,8 @@ async def detect_anomalies(
             )
 
     if anomalies:
-        await emit_event_hub_event(
-            agent,
+        # Route through agent method so tests can monkeypatch it
+        await agent._emit_event_hub_event(
             {
                 "event_name": "system_health.alert",
                 "type": "system_health.alert",

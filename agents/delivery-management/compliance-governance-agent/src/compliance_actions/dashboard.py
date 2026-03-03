@@ -31,7 +31,7 @@ async def handle_get_compliance_dashboard(
     external_monitoring = None
     if agent.enable_regulatory_monitoring and domain:
         try:
-            from actions.monitor_regulatory import handle_monitor_regulations
+            from compliance_actions.monitor_regulatory import handle_monitor_regulations
 
             external_monitoring = await handle_monitor_regulations(agent, domain, region)
         except (
@@ -57,7 +57,7 @@ async def handle_get_compliance_dashboard(
     # Get compliance assessment
     assessment = None
     if project_id:
-        from actions.assess_compliance import handle_assess_compliance
+        from compliance_actions.assess_compliance import handle_assess_compliance
 
         assessment = await handle_assess_compliance(agent, project_id, {})
 

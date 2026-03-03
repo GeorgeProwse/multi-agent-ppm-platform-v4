@@ -41,20 +41,20 @@ from packages.llm.prompt_sanitizer import detect_injection, sanitize_prompt
 from prompt_registry import PromptRegistry
 
 # Action handlers -----------------------------------------------------------
-from actions.classification_actions import (
+from knowledge_actions.classification_actions import (
     auto_classify_document as _act_auto_classify_document,
     capture_lesson_learned as _act_capture_lesson_learned,
     classify_document as _act_classify_document,
     manage_taxonomy as _act_manage_taxonomy,
     summarize_document as _act_summarize_document,
 )
-from actions.collaboration_actions import (
+from knowledge_actions.collaboration_actions import (
     annotate_document as _act_annotate_document,
     approve_document as _act_approve_document,
     link_documents as _act_link_documents,
     review_document as _act_review_document,
 )
-from actions.document_actions import (
+from knowledge_actions.document_actions import (
     delete_document as _act_delete_document,
     get_document as _act_get_document,
     get_document_version_history as _act_get_document_version_history,
@@ -62,17 +62,17 @@ from actions.document_actions import (
     update_document as _act_update_document,
     upload_document as _act_upload_document,
 )
-from actions.ingestion_actions import (
+from knowledge_actions.ingestion_actions import (
     handle_cognitive_summary as _act_handle_cognitive_summary,
     ingest_agent_output as _act_ingest_agent_output,
     ingest_sources as _act_ingest_sources,
 )
-from actions.knowledge_graph_actions import (
+from knowledge_actions.knowledge_graph_actions import (
     build_knowledge_graph as _act_build_knowledge_graph,
     extract_entities as _act_extract_entities,
     query_knowledge_graph as _act_query_knowledge_graph,
 )
-from actions.search_actions import (
+from knowledge_actions.search_actions import (
     recommend_documents as _act_recommend_documents,
     search_documents as _act_search_documents,
 )

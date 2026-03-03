@@ -120,7 +120,7 @@ async def _generate_audit_report(
     agent: ComplianceRegulatoryAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     """Generate audit report."""
-    from actions.audit import _generate_control_summary
+    from compliance_actions.audit import _generate_control_summary
 
     project_id = filters.get("project_id")
     audits = [
