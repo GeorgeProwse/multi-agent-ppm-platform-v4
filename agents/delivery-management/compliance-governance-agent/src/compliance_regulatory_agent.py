@@ -363,6 +363,18 @@ class ComplianceRegulatoryAgent(BaseAgent):
             self, project_id, mapping_data, tenant_id=tenant_id, correlation_id=correlation_id,
         )
 
+    async def _assess_compliance(
+        self, project_id: str, assessment_data: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Thin wrapper preserving the original internal API."""
+        return await handle_assess_compliance(self, project_id, assessment_data)
+
+    async def _generate_compliance_report(
+        self, report_type: str, filters: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Thin wrapper preserving the original internal API."""
+        return await handle_generate_compliance_report(self, report_type, filters)
+
     # ------------------------------------------------------------------
     # Shared internal helpers (used by multiple action modules)
     # ------------------------------------------------------------------
