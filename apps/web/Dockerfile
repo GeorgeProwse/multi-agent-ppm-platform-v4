@@ -39,6 +39,10 @@ RUN groupadd --gid 10001 appuser && useradd --uid 10001 --gid 10001 --create-hom
 
 USER appuser
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/vendor/stubs:/app/vendor:/app:/app/packages/common/src:/app/packages/observability/src:/app/packages/security/src:/app/packages/llm/src:/app/packages/workflow/src:/app/packages/event-bus/src:/app/services/agent-config/src
+
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8501/healthz"]

@@ -1,0 +1,130 @@
+{
+  "tenant-a": {
+    "P-100": {
+      "project_id": "P-100",
+      "current_phase": "Plan",
+      "phase_start_date": "2026-03-03T09:20:50.954027+00:00",
+      "methodology_map": {
+        "initial_phase": "Initiate",
+        "phases": {
+          "Initiate": {
+            "name": "Initiate",
+            "next_phases": [
+              "Plan"
+            ],
+            "gates": [
+              "charter_approved"
+            ]
+          },
+          "Plan": {
+            "name": "Plan",
+            "next_phases": [
+              "Execute"
+            ],
+            "gates": [
+              "baseline_approved"
+            ]
+          },
+          "Execute": {
+            "name": "Execute",
+            "next_phases": [
+              "Monitor",
+              "Close"
+            ],
+            "gates": [
+              "deliverables_complete"
+            ]
+          },
+          "Monitor": {
+            "name": "Monitor",
+            "next_phases": [
+              "Close"
+            ],
+            "gates": [
+              "acceptance_complete"
+            ]
+          },
+          "Close": {
+            "name": "Close",
+            "next_phases": [],
+            "gates": [
+              "closure_approved"
+            ]
+          }
+        }
+      },
+      "transitions": [
+        {
+          "from_phase": "Initiate",
+          "to_phase": "Plan",
+          "gate_name": "Initiate_to_Plan_gate",
+          "transitioned_at": "2026-03-03T09:20:50.954015+00:00",
+          "transitioned_by": "user-1"
+        }
+      ],
+      "gates_passed": [
+        "Initiate_to_Plan_gate"
+      ],
+      "gates_pending": []
+    }
+  },
+  "tenant-b": {
+    "P-200": {
+      "project_id": "P-200",
+      "current_phase": "Initiate",
+      "phase_start_date": "2026-03-03T09:20:51.012076+00:00",
+      "methodology_map": {
+        "initial_phase": "Initiate",
+        "phases": {
+          "Initiate": {
+            "name": "Initiate",
+            "next_phases": [
+              "Plan"
+            ],
+            "gates": [
+              "charter_approved"
+            ]
+          },
+          "Plan": {
+            "name": "Plan",
+            "next_phases": [
+              "Execute"
+            ],
+            "gates": [
+              "baseline_approved"
+            ]
+          },
+          "Execute": {
+            "name": "Execute",
+            "next_phases": [
+              "Monitor",
+              "Close"
+            ],
+            "gates": [
+              "deliverables_complete"
+            ]
+          },
+          "Monitor": {
+            "name": "Monitor",
+            "next_phases": [
+              "Close"
+            ],
+            "gates": [
+              "acceptance_complete"
+            ]
+          },
+          "Close": {
+            "name": "Close",
+            "next_phases": [],
+            "gates": [
+              "closure_approved"
+            ]
+          }
+        }
+      },
+      "transitions": [],
+      "gates_passed": [],
+      "gates_pending": []
+    }
+  }
+}

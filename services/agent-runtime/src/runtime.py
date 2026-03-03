@@ -19,10 +19,6 @@ AGENTS_ROOT = REPO_ROOT / "agents"
 CONNECTOR_REGISTRY_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 RUNTIME_CONFIG_DIR = Path(__file__).resolve().parent / "config"
 
-_COMMON_SRC = PACKAGES_ROOT / "common" / "src"
-if str(_COMMON_SRC) not in sys.path:
-    sys.path.insert(0, str(_COMMON_SRC))
-
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
 ensure_monorepo_paths(REPO_ROOT)

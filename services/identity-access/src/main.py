@@ -20,9 +20,6 @@ from jwt import InvalidTokenError
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
@@ -56,6 +53,7 @@ from security.api_governance import (  # noqa: E402
 from security.auth import authenticate_request  # noqa: E402
 from security.errors import error_payload  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
 
@@ -103,6 +101,19 @@ class JwksCache:
 JWKS_CACHE = JwksCache()
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCIM_DB_PATH = SERVICE_ROOT / "storage" / "scim.db"
+
+reject_placeholder_secrets(
+    service_name="identity-access",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "IDENTITY_JWT_SECRET": os.getenv("IDENTITY_JWT_SECRET", ""),
+            "SCIM_SERVICE_TOKEN": os.getenv("SCIM_SERVICE_TOKEN", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(title="Identity Access Service", version=API_VERSION)
 api_router = APIRouter(prefix="/v1")

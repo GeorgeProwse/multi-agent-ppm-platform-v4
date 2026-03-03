@@ -13,9 +13,6 @@ from fastapi import APIRouter, FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
@@ -34,6 +31,7 @@ from security.api_governance import (  # noqa: E402
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.lineage import mask_lineage_payload  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from sync_log_store import get_sync_log_store  # noqa: E402
 from sync_registry import (  # noqa: E402
     build_default_registry,
@@ -164,6 +162,18 @@ class PropagationResponse(BaseModel):
     actions: list[PropagationActionResponse]
     dry_run: bool
 
+
+reject_placeholder_secrets(
+    service_name="data-sync-service",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "SERVICE_BUS_CONNECTION_STRING": os.getenv("SERVICE_BUS_CONNECTION_STRING", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(title="Data Sync Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")

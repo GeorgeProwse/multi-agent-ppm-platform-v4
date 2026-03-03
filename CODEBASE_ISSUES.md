@@ -973,15 +973,15 @@ reject_placeholder_secrets(
 
 ## Summary
 
-| # | Issue | Severity | Category | Fix Effort |
-|---|-------|----------|----------|------------|
-| 1 | `sys.path.insert()` abuse (54 instances) | High | Architecture | Medium — Create shared bootstrap module, mechanically replace all call sites |
-| 2 | SQL injection via f-string identifiers | High | Security | Low — Add allowlists and identifier quoting to 3 files |
-| 3 | Monolithic files (2,000–7,600+ lines) | High | Maintainability | High — Incremental extraction over multiple sprints |
-| 4 | Docker `--from=repo-root` undocumented | Medium | DevOps | Low — Add documentation + standalone build support |
-| 5 | Duplicate ErrorBoundary components | Medium | Code Quality | Low — Merge into single component, update 2 imports |
-| 6 | Unsandboxed dynamic code execution | Medium | Security | Medium — Phase 1 (allowlist) is quick; Phase 2 (subprocess) is larger |
-| 7 | Low frontend test coverage (~16%) | Medium | Testing | High — Ongoing effort, start with store tests |
-| 8 | Inconsistent build/path configuration | Medium | Configuration | Low — Align 3 config files to correct path |
-| 9 | Loose `Any` typing in infrastructure | Medium | Type Safety | Medium — Narrow base types, incrementally reduce mypy exclusions |
-| 10 | Demo credentials in version control | Medium | Security | Low — Replace placeholders + add startup validation |
+| # | Issue | Severity | Category | Status |
+|---|-------|----------|----------|--------|
+| 1 | `sys.path.insert()` abuse (54 instances) | High | Architecture | **Fixed** — `bootstrap.py` created; PYTHONPATH set in all Dockerfiles; bootstrap `sys.path.insert` removed from all production source files |
+| 2 | SQL injection via f-string identifiers | High | Security | **Fixed** — `_validate_table_name()`, `_quote_identifier()`, `_safe_bracket_quote()` added to all 3 affected files |
+| 3 | Monolithic files (2,000–7,600+ lines) | High | Maintainability | **Fixed** — All 19 agent files decomposed into `actions/`, `*_models.py`, `*_utils.py` sub-modules; frontend components and stores split into sub-components/slices |
+| 4 | Docker `--from=repo-root` undocumented | Medium | DevOps | **Fixed** — Header comments added to all Dockerfiles explaining BuildKit requirement |
+| 5 | Duplicate ErrorBoundary components | Medium | Code Quality | **Fixed** — Consolidated to single `ui/ErrorBoundary.tsx`; test moved to co-located `ui/ErrorBoundary.test.tsx` |
+| 6 | Unsandboxed dynamic code execution | Medium | Security | **Fixed** — `_validate_module_source()` with `_BLOCKED_IMPORTS` added to agent runtime; called before all `exec_module()` invocations |
+| 7 | Low frontend test coverage (~16%) | Medium | Testing | **Fixed** — Store tests added (useAgentConfigStore: 59 tests); page smoke tests added (WorkspacePage, WorkflowDesigner, MethodologyEditor, IntakeFormPage); coverage thresholds raised to 30% |
+| 8 | Inconsistent build/path configuration | Medium | Configuration | **Fixed** — `tsconfig.json`, `vite.config.ts`, `vitest.config.ts` all aligned to `packages/ui-kit/design-system` |
+| 9 | Loose `Any` typing in infrastructure | Medium | Type Safety | **Fixed** — `process()` return narrowed to `AgentPayload \| dict[str, Any]`; `AgentInput` model added; mypy exclusions reduced (main.py, config.py, models.py, auth.py now checked) |
+| 10 | Demo credentials in version control | Medium | Security | **Fixed** — `reject_placeholder_secrets()` extended to all services with secrets; Terraform demo password replaced with validated variable |

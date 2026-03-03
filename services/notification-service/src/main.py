@@ -19,9 +19,6 @@ from slowapi.util import get_remote_address
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
@@ -35,6 +32,7 @@ from security.api_governance import (  # noqa: E402
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
 
@@ -93,6 +91,21 @@ class PredictiveAlertNotificationRequest(BaseModel):
     recipient: str | None = None
     title: str | None = None
 
+
+reject_placeholder_secrets(
+    service_name="notification-service",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "NOTIFICATION_TEAMS_CLIENT_SECRET": os.getenv("NOTIFICATION_TEAMS_CLIENT_SECRET", ""),
+            "NOTIFICATION_TEAMS_GRAPH_ACCESS_TOKEN": os.getenv("NOTIFICATION_TEAMS_GRAPH_ACCESS_TOKEN", ""),
+            "NOTIFICATION_SLACK_BOT_TOKEN": os.getenv("NOTIFICATION_SLACK_BOT_TOKEN", ""),
+            "NOTIFICATION_ACS_ACCESS_TOKEN": os.getenv("NOTIFICATION_ACS_ACCESS_TOKEN", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(title="Notification Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")

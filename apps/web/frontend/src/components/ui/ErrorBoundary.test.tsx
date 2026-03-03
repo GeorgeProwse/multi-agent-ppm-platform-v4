@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ErrorBoundary } from '../ui/ErrorBoundary';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const ThrowingChild = () => {
   throw new Error('Boom from child');

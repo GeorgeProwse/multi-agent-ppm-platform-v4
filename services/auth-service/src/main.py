@@ -13,14 +13,12 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_common_src = REPO_ROOT / "packages" / "common" / "src"
-if str(_common_src) not in sys.path:
-    sys.path.insert(0, str(_common_src))
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths(REPO_ROOT)
 
 from auth import authenticate_request, validate_token  # noqa: E402
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from security.api_governance import (  # noqa: E402
@@ -33,6 +31,18 @@ from packages.version import API_VERSION
 
 logger = logging.getLogger("auth-service")
 logging.basicConfig(level=logging.INFO)
+
+reject_placeholder_secrets(
+    service_name="auth-service",
+    environment=os.getenv("ENVIRONMENT"),
+    secret_vars={
+        k: v
+        for k, v in {
+            "AUTH_CLIENT_SECRET": os.getenv("AUTH_CLIENT_SECRET", ""),
+        }.items()
+        if v
+    },
+)
 
 app = FastAPI(title="Auth Service", version=API_VERSION, openapi_prefix="/v1")
 api_router = APIRouter(prefix="/v1")

@@ -54,7 +54,7 @@ USER appuser
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app \
+    PYTHONPATH=/app/vendor/stubs:/app/vendor:/app:/app/packages/common/src:/app/packages/observability/src:/app/packages/security/src:/app/packages/llm/src:/app/packages/workflow/src:/app/packages/event-bus/src:/app/services/agent-config/src \
     PATH="/home/appuser/.local/bin:${PATH}"
 
 # Expose port

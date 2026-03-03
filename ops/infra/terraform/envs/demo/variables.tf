@@ -42,3 +42,14 @@ variable "postgres_storage_mb" {
   type        = number
   default     = 32768
 }
+
+variable "pg_admin_password" {
+  description = "Administrator password for the demo PostgreSQL instance. Must be provided via TF_VAR_pg_admin_password or a secrets manager."
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = !can(regex("(?i)(changeme|replace.me|not.a.real)", var.pg_admin_password))
+    error_message = "pg_admin_password must not contain placeholder values (e.g. ChangeMe, replace-me). Provide a real password via TF_VAR_pg_admin_password."
+  }
+}
