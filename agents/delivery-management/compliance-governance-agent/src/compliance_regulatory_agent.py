@@ -10,7 +10,6 @@ Specification: agents/delivery-management/compliance-governance-agent/README.md
 """
 
 import os
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,24 +20,6 @@ from observability.tracing import get_trace_id
 from tools.runtime_paths import bootstrap_runtime_paths
 
 bootstrap_runtime_paths()
-
-# Ensure this agent's src/ directory is first on sys.path so that
-# ``from actions import …`` resolves to *our* actions package rather than
-# one belonging to a different agent that may already be on the path.
-_SRC_DIR = str(Path(__file__).resolve().parent)
-if _SRC_DIR in sys.path:
-    sys.path.remove(_SRC_DIR)
-sys.path.insert(0, _SRC_DIR)
-# If a stale ``actions`` module was loaded from another agent, remove it
-# so that our local actions package is discovered.
-_stale_actions = sys.modules.get("actions")
-if _stale_actions is not None:
-    _actions_file = getattr(_stale_actions, "__file__", "") or ""
-    if _SRC_DIR not in _actions_file:
-        del sys.modules["actions"]
-        for _key in list(sys.modules):
-            if _key.startswith("actions."):
-                del sys.modules[_key]
 
 from llm.client import LLMGateway  # noqa: E402
 
@@ -64,7 +45,7 @@ from compliance_seed import (  # noqa: E402
     extract_regulation_metadata,
     seed_regulatory_frameworks,
 )
-from actions import (  # noqa: E402
+from compliance_actions import (  # noqa: E402
     handle_add_regulation,
     handle_assess_compliance,
     handle_conduct_audit,
@@ -316,7 +297,7 @@ class ComplianceRegulatoryAgent(BaseAgent):
                 self, input_data.get("project_id"), input_data.get("assessment", {}),  # type: ignore
             )
         elif action == "test_control":
-            from actions.test_control import handle_test_control
+            from compliance_actions.test_control import handle_test_control
             return await handle_test_control(
                 self, input_data.get("control_id"), input_data.get("test", {}),  # type: ignore
             )

@@ -259,6 +259,20 @@
       "reason": "LINEAGE_MASK_SALT is required to mask lineage payloads",
       "attempts": 0,
       "queued_at": "2026-03-03T09:29:05.089086+00:00"
+    },
+    "RETRY-e81d6eae-e8c8-4fae-a755-891405d0250c": {
+      "retry_id": "RETRY-e81d6eae-e8c8-4fae-a755-891405d0250c",
+      "tenant_id": "tenant-a",
+      "entity_type": "projects",
+      "source_system": "planview",
+      "data": {
+        "id": "P-100",
+        "name": "Apollo",
+        "status": "Active"
+      },
+      "reason": "LINEAGE_MASK_SALT is required to mask lineage payloads",
+      "attempts": 0,
+      "queued_at": "2026-03-03T09:29:41.201466+00:00"
     }
   }
 }

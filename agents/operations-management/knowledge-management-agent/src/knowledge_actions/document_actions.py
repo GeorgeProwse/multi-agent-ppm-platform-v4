@@ -26,7 +26,7 @@ async def upload_document(
     document_id = await generate_document_id()
 
     # Extract metadata
-    from actions.classification_actions import auto_classify_document, extract_metadata, generate_tags
+    from knowledge_actions.classification_actions import auto_classify_document, extract_metadata, generate_tags
 
     metadata = await extract_metadata(agent, document_data)
 
@@ -97,8 +97,8 @@ async def upload_document(
     agent.document_versions[document_id] = [document.copy()]
 
     # Generate summary asynchronously
-    from actions.classification_actions import summarize_document
-    from actions.knowledge_graph_actions import extract_entities
+    from knowledge_actions.classification_actions import summarize_document
+    from knowledge_actions.knowledge_graph_actions import extract_entities
 
     if agent.async_processing_enabled:
         asyncio.create_task(summarize_document(agent, document_id, tenant_id))
@@ -173,7 +173,7 @@ async def get_document(
     summary = agent.summaries.get(document_id, {}).get("content")
 
     # Get related documents
-    from actions.search_actions import find_related_documents
+    from knowledge_actions.search_actions import find_related_documents
 
     related_documents = await find_related_documents(agent, document_id)
 
@@ -238,7 +238,7 @@ async def update_document(
 
     # Re-classify if content changed
     if "content" in updates:
-        from actions.classification_actions import auto_classify_document, summarize_document
+        from knowledge_actions.classification_actions import auto_classify_document, summarize_document
 
         classification = await auto_classify_document(agent, document)
         document["type"] = classification.get("type")

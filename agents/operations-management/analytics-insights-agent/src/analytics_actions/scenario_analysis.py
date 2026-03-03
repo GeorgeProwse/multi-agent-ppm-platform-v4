@@ -79,7 +79,7 @@ async def _calculate_scenario_metrics(
     agent: AnalyticsInsightsAgent, baseline: dict[str, Any], parameters: dict[str, Any]
 ) -> dict[str, Any]:
     """Calculate metrics under scenario."""
-    from actions.run_prediction import handle_run_prediction
+    from analytics_actions.run_prediction import handle_run_prediction
 
     scenario_metrics = baseline.copy()
     assumptions = parameters.get("assumptions", {})

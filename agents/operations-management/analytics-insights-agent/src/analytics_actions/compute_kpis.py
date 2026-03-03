@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from actions.track_kpi import handle_track_kpi
+from analytics_actions.track_kpi import handle_track_kpi
 
 if TYPE_CHECKING:
     from analytics_insights_agent import AnalyticsInsightsAgent

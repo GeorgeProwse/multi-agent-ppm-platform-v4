@@ -17,7 +17,7 @@ async def ingest_sources(
     agent: KnowledgeManagementAgent, tenant_id: str, sources: list[dict[str, Any]]
 ) -> dict[str, Any]:
     """Ingest documents from configured sources."""
-    from actions.document_actions import upload_document
+    from knowledge_actions.document_actions import upload_document
 
     ingestion_id = await generate_ingestion_id()
     ingested_documents: list[str] = []
@@ -69,7 +69,7 @@ async def ingest_agent_output(
     agent: KnowledgeManagementAgent, tenant_id: str, payload: dict[str, Any]
 ) -> dict[str, Any]:
     """Ingest agent output summaries as knowledge artifacts."""
-    from actions.document_actions import upload_document
+    from knowledge_actions.document_actions import upload_document
 
     document_data = await _build_agent_output_document(payload)
     result = await upload_document(agent, tenant_id, document_data)

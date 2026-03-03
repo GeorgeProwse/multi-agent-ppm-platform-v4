@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from actions.insights import (
+from analytics_actions.insights import (
     collect_insights_data,
     detect_anomalies,
     generate_insights,
