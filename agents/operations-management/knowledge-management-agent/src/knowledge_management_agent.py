@@ -303,26 +303,13 @@ class KnowledgeManagementAgent(BaseAgent):
     # ------------------------------------------------------------------
 
     def get_capabilities(self) -> list[str]:
-        """Return list of agent capabilities."""
         return [
-            "document_repository",
-            "document_versioning",
-            "document_classification",
-            "semantic_search",
-            "document_summarization",
-            "entity_extraction",
-            "knowledge_graph",
-            "knowledge_ingestion",
-            "knowledge_graph_traversal",
-            "lessons_learned_capture",
-            "document_recommendations",
-            "taxonomy_management",
-            "collaborative_editing",
-            "document_curation",
-            "access_control",
-            "audit_logging",
-            "nlp_processing",
-            "content_analysis",
+            "document_repository", "document_versioning", "document_classification",
+            "semantic_search", "document_summarization", "entity_extraction",
+            "knowledge_graph", "knowledge_ingestion", "knowledge_graph_traversal",
+            "lessons_learned_capture", "document_recommendations", "taxonomy_management",
+            "collaborative_editing", "document_curation", "access_control",
+            "audit_logging", "nlp_processing", "content_analysis",
         ]
 
     # ------------------------------------------------------------------
@@ -332,30 +319,28 @@ class KnowledgeManagementAgent(BaseAgent):
     async def _handle_cognitive_summary(self, payload: dict[str, Any]) -> None:
         await _act_handle_cognitive_summary(self, payload)
 
+    _SEED_SAMPLES = [
+        ("project charter objectives scope", "charter"),
+        ("functional requirements shall must", "requirements"),
+        ("test plan verification validation", "test_plan"),
+        ("lessons learned retrospective", "lessons_learned"),
+        ("meeting minutes decisions action items", "meeting_minutes"),
+        ("policy procedure compliance", "policy"),
+        ("design specification architecture", "design"),
+        ("status report metrics", "report"),
+    ]
+
     def _train_classifier_seed(self) -> None:
-        """Train classifier with seed samples for bootstrapping."""
         if self.classifier_trained:
             return
-        seed_samples = [
-            ("project charter objectives scope", "charter"),
-            ("functional requirements shall must", "requirements"),
-            ("test plan verification validation", "test_plan"),
-            ("lessons learned retrospective", "lessons_learned"),
-            ("meeting minutes decisions action items", "meeting_minutes"),
-            ("policy procedure compliance", "policy"),
-            ("design specification architecture", "design"),
-            ("status report metrics", "report"),
-        ]
-        self.classifier.fit(seed_samples)
+        self.classifier.fit(self._SEED_SAMPLES)
         self.classifier_trained = True
 
     def _update_classifier_with_document(self, document: dict[str, Any]) -> None:
-        content = document.get("content")
-        label = document.get("type")
-        if not content or not label:
-            return
-        self.classifier.fit([(content, label)])
-        self.classifier_trained = True
+        content, label = document.get("content"), document.get("type")
+        if content and label:
+            self.classifier.fit([(content, label)])
+            self.classifier_trained = True
 
     def _index_document(self, document: dict[str, Any]) -> None:
         """Index document into the vector search index."""
