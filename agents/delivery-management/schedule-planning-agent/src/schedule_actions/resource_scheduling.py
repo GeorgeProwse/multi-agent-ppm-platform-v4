@@ -56,7 +56,7 @@ async def resource_constrained_schedule(
     leveled_schedule = await resource_leveling(agent, tasks, dependencies, resource_availability)
 
     # Recalculate critical path with resource constraints
-    from actions.critical_path import calculate_critical_path
+    from schedule_actions.critical_path import calculate_critical_path
 
     resource_critical_path = await calculate_critical_path(agent, schedule_id)
 

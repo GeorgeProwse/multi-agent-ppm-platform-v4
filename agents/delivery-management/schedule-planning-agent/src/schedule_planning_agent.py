@@ -34,7 +34,7 @@ from integrations.services.integration import (
 from integrations.services.integration.ml import AzureMLClient
 
 # Action handlers
-from actions import (
+from schedule_actions import (
     calculate_critical_path as _act_critical_path,
     create_schedule as _act_create_schedule,
     estimate_duration as _act_estimate_duration,
@@ -51,7 +51,7 @@ from actions import (
     update_schedule as _act_update,
     what_if_analysis as _act_what_if,
 )
-from actions.resource_scheduling import (
+from schedule_actions.resource_scheduling import (
     get_resource_availability as _act_get_resource_avail,
     resource_leveling as _act_resource_leveling,
 )

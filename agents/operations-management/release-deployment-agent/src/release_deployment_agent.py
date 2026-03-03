@@ -444,55 +444,50 @@ class ReleaseDeploymentAgent(BaseAgent):
         ]
 
     # ------------------------------------------------------------------
-    # Backward-compatible private method stubs
-    #
-    # Tests and internal callers may still reference the underscore-prefixed
-    # methods on the agent instance (e.g. ``agent._assess_readiness(...)``).
-    # These thin wrappers delegate to the extracted module functions so that
-    # existing call-sites continue to work without modification.
+    # Backward-compatible private method stubs -- delegate to modules
     # ------------------------------------------------------------------
 
-    async def _plan_release(self, release_data, *, tenant_id, correlation_id, actor_id):
-        return await plan_release(self, release_data, tenant_id=tenant_id, correlation_id=correlation_id, actor_id=actor_id)
+    async def _plan_release(self, rd, *, tenant_id, correlation_id, actor_id):
+        return await plan_release(self, rd, tenant_id=tenant_id, correlation_id=correlation_id, actor_id=actor_id)
 
-    async def _assess_readiness(self, release_id):
-        return await assess_readiness(self, release_id)
+    async def _assess_readiness(self, rid):
+        return await assess_readiness(self, rid)
 
-    async def _create_deployment_plan(self, release_id, plan_data, *, tenant_id):
-        return await create_deployment_plan(self, release_id, plan_data, tenant_id=tenant_id)
+    async def _create_deployment_plan(self, rid, pd, *, tenant_id):
+        return await create_deployment_plan(self, rid, pd, tenant_id=tenant_id)
 
-    async def _execute_deployment(self, deployment_plan_id, *, tenant_id, correlation_id):
-        return await execute_deployment(self, deployment_plan_id, tenant_id=tenant_id, correlation_id=correlation_id)
+    async def _execute_deployment(self, dpid, *, tenant_id, correlation_id):
+        return await execute_deployment(self, dpid, tenant_id=tenant_id, correlation_id=correlation_id)
 
-    async def _rollback_deployment(self, deployment_plan_id):
-        return await rollback_deployment(self, deployment_plan_id)
+    async def _rollback_deployment(self, dpid):
+        return await rollback_deployment(self, dpid)
 
-    async def _manage_environment(self, environment_data):
-        return await manage_environment(self, environment_data)
+    async def _manage_environment(self, ed):
+        return await manage_environment(self, ed)
 
-    async def _check_configuration_drift(self, environment_id):
-        return await check_configuration_drift(self, environment_id)
+    async def _check_configuration_drift(self, eid):
+        return await check_configuration_drift(self, eid)
 
-    async def _generate_release_notes(self, release_id):
-        return await generate_release_notes(self, release_id)
+    async def _generate_release_notes(self, rid):
+        return await generate_release_notes(self, rid)
 
-    async def _track_deployment_metrics(self, release_id):
-        return await track_deployment_metrics(self, release_id)
+    async def _track_deployment_metrics(self, rid):
+        return await track_deployment_metrics(self, rid)
 
-    async def _schedule_deployment_window(self, release_id, preferred_window):
-        return await schedule_deployment_window(self, release_id, preferred_window)
+    async def _schedule_deployment_window(self, rid, pw):
+        return await schedule_deployment_window(self, rid, pw)
 
-    async def _verify_post_deployment(self, deployment_plan_id, verification_params):
-        return await verify_post_deployment(self, deployment_plan_id, verification_params)
+    async def _verify_post_deployment(self, dpid, vp):
+        return await verify_post_deployment(self, dpid, vp)
 
-    async def _get_release_calendar(self, filters):
-        return await get_release_calendar(self, filters)
+    async def _get_release_calendar(self, f):
+        return await get_release_calendar(self, f)
 
-    async def _get_release_status(self, release_id):
-        return await get_release_status(self, release_id)
+    async def _get_release_status(self, rid):
+        return await get_release_status(self, rid)
 
-    async def _get_deployment_status(self, deployment_plan_id):
-        return await get_deployment_status(self, deployment_plan_id)
+    async def _get_deployment_status(self, dpid):
+        return await get_deployment_status(self, dpid)
 
     async def _get_deployment_history(self, *, filters, limit):
         return await get_deployment_history(self, filters=filters, limit=limit)
@@ -500,18 +495,14 @@ class ReleaseDeploymentAgent(BaseAgent):
     async def _publish_event(self, topic, payload):
         return await publish_event(self, topic, payload)
 
-    async def _suggest_alternative_windows(self, planned_date, environment):
-        from release_utils import suggest_alternative_windows
-        return await suggest_alternative_windows(self, planned_date, environment)
+    async def _suggest_alternative_windows(self, pd, env):
+        return await _suggest_alt_windows(self, pd, env)
 
-    async def _reserve_environment(self, environment, planned_date, release_id):
-        from release_utils import reserve_environment
-        return await reserve_environment(self, environment, planned_date, release_id)
+    async def _reserve_environment(self, env, pd, rid):
+        return await _reserve_env(self, env, pd, rid)
 
-    async def _release_environment_allocation(self, release_id, deployment_plan_id):
-        from release_utils import release_environment_allocation
-        return await release_environment_allocation(self, release_id, deployment_plan_id)
+    async def _release_environment_allocation(self, rid, dpid):
+        return await _release_env_alloc(self, rid, dpid)
 
-    async def _detect_post_deployment_anomalies(self, deployment_plan):
-        from release_actions.verify_post_deployment import _detect_post_deployment_anomalies
-        return await _detect_post_deployment_anomalies(self, deployment_plan)
+    async def _detect_post_deployment_anomalies(self, dp):
+        return await _detect_pd_anomalies(self, dp)
