@@ -1,1 +1,17 @@
-{}
+{
+  "tenant-a": {
+    "MASTER-PROJECTS-20260303092755": {
+      "master_id": "MASTER-PROJECTS-20260303092755",
+      "entity_type": "projects",
+      "data": {
+        "id": "P-100",
+        "name": "Apollo",
+        "status": "Active"
+      },
+      "source_systems": {},
+      "version": 1,
+      "created_at": "2026-03-03T09:27:55.697666+00:00",
+      "updated_at": "2026-03-03T09:27:55.697668+00:00"
+    }
+  }
+}

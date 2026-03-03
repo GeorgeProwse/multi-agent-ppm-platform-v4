@@ -1,1 +1,13 @@
-{}
+{
+  "tenant-a": {
+    "planview:projects": {
+      "source_system": "planview",
+      "entity_type": "projects",
+      "last_synced_at": "2026-03-03T09:27:55.706837+00:00",
+      "cursor": null,
+      "mode": "full",
+      "record_count": 1,
+      "updated_at": "2026-03-03T09:27:55.706837+00:00"
+    }
+  }
+}

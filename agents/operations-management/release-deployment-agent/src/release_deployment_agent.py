@@ -203,24 +203,14 @@ class ReleaseDeploymentAgent(BaseAgent):
             self.logger.warning("No action specified")
             return False
 
-        valid_actions = [
-            "plan_release",
-            "assess_readiness",
-            "create_deployment_plan",
-            "execute_deployment",
-            "rollback_deployment",
-            "manage_environment",
-            "check_configuration_drift",
-            "generate_release_notes",
-            "track_deployment_metrics",
-            "schedule_deployment_window",
-            "verify_post_deployment",
-            "get_release_calendar",
-            "get_release_status",
-            "get_deployment_status",
-            "get_deployment_history",
-            "trigger_deployment",
-        ]
+        valid_actions = {
+            "plan_release", "assess_readiness", "create_deployment_plan",
+            "execute_deployment", "rollback_deployment", "manage_environment",
+            "check_configuration_drift", "generate_release_notes",
+            "track_deployment_metrics", "schedule_deployment_window",
+            "verify_post_deployment", "get_release_calendar", "get_release_status",
+            "get_deployment_status", "get_deployment_history", "trigger_deployment",
+        }
 
         if action not in valid_actions:
             self.logger.warning("Invalid action: %s", action)
