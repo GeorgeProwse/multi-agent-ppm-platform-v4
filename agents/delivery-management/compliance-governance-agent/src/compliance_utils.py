@@ -227,6 +227,9 @@ async def is_recently_tested(control: dict[str, Any], status: dict[str, Any]) ->
         return False
 
     last_test_date = datetime.fromisoformat(last_test_date_str)
+    # Handle both naive and aware datetimes
+    if last_test_date.tzinfo is None:
+        last_test_date = last_test_date.replace(tzinfo=timezone.utc)
     test_frequency = control.get("test_frequency", "quarterly")
 
     frequency_days = {"monthly": 30, "quarterly": 90, "semi-annually": 180, "annually": 365}
