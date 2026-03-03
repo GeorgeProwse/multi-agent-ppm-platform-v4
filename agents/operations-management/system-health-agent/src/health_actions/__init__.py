@@ -1,24 +1,24 @@
 """Action handlers for the System Health & Monitoring Agent."""
 
-from actions.alert_management import (
+from health_actions.alert_management import (
     acknowledge_alert,
     check_metric_thresholds,
     create_alert,
     get_alerts,
 )
-from actions.anomaly_detection import apply_anomaly_detection, detect_anomalies
-from actions.capacity_planning import (
+from health_actions.anomaly_detection import apply_anomaly_detection, detect_anomalies
+from health_actions.capacity_planning import (
     forecast_capacity,
     get_capacity_recommendations,
 )
-from actions.check_health import (
+from health_actions.check_health import (
     check_all_services_health,
     check_health,
     get_environment_health,
     get_health_endpoints,
     get_system_status,
 )
-from actions.collect_metrics import (
+from health_actions.collect_metrics import (
     collect_application_metrics,
     collect_metrics,
     collect_platform_metrics,

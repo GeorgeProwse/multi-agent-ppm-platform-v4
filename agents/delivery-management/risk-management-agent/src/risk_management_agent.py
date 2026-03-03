@@ -52,7 +52,7 @@ from risk_utils import (  # noqa: E402
 )
 
 # Action handlers ---------------------------------------------------------
-from actions import (  # noqa: E402
+from risk_actions import (  # noqa: E402
     assess_risk,
     create_mitigation_plan,
     generate_risk_matrix,

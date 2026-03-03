@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING
 
-from stakeholder_utils import (
+from ..stakeholder_utils import (
     enrich_stakeholder_profile,
     generate_stakeholder_id,
     publish_event,
@@ -15,7 +15,7 @@ from stakeholder_utils import (
 )
 
 if TYPE_CHECKING:
-    from stakeholder_communications_agent import StakeholderCommunicationsAgent
+    from ..stakeholder_communications_agent import StakeholderCommunicationsAgent
 
 
 async def register_stakeholder(

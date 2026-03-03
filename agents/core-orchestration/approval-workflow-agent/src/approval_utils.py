@@ -5,6 +5,8 @@ Contains storage adapters, role lookup, delegation management,
 notification template rendering, and subscription management.
 """
 
+import json
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from string import Template
@@ -332,3 +334,53 @@ def default_notification_templates() -> dict[str, dict[str, str]]:
             ),
         },
     }
+
+
+def load_approval_policies(
+    config: dict[str, Any] | None,
+    logger: logging.Logger,
+) -> dict[str, Any]:
+    """Load approval policies and routing rules from configuration."""
+    default_policies = {
+        "budget_thresholds": [10000, 50000, 100000],
+        "escalation_timeout_hours": 48,
+        "risk_thresholds": {"high": 12, "medium": 24, "low": 48},
+        "criticality_levels": {"critical": 6, "high": 12, "normal": 24, "low": 48},
+        "reminder_before_deadline_hours": 24,
+        "default_chain_type": "sequential",
+        "digest_interval_minutes": 60,
+        "response_time_threshold_hours": 48,
+    }
+    config_path = Path(
+        config.get("approval_policies_path", "ops/config/agents/approval_policies.yaml")
+        if config
+        else "ops/config/agents/approval_policies.yaml"
+    )
+    fallback_path = Path("ops/config/approval_policies.json")
+    if not config_path.exists():
+        if not fallback_path.exists():
+            logger.warning(
+                "Approval policies file not found at %s; using defaults.", config_path
+            )
+            return default_policies
+        config_path = fallback_path
+    try:
+        with config_path.open("r", encoding="utf-8") as handle:
+            if config_path.suffix in {".yaml", ".yml"}:
+                data = yaml.safe_load(handle)
+            else:
+                data = json.load(handle)
+        if not isinstance(data, dict):
+            logger.warning(
+                "Approval policies file %s did not contain an object; using defaults.",
+                config_path,
+            )
+            return default_policies
+        return {**default_policies, **data}
+    except (json.JSONDecodeError, yaml.YAMLError, OSError) as exc:
+        logger.warning(
+            "Failed to load approval policies from %s: %s; using defaults.",
+            config_path,
+            exc,
+        )
+        return default_policies

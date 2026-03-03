@@ -164,7 +164,7 @@ async def execute_deployment(
         # Check if auto-rollback is needed
         if await _should_auto_rollback(agent, deployment_results):
             agent.logger.warning("Auto-rollback triggered")
-            from actions.rollback_deployment import rollback_deployment
+            from release_actions.rollback_deployment import rollback_deployment
 
             await rollback_deployment(agent, deployment_plan_id)
 
@@ -201,7 +201,7 @@ async def execute_deployment(
 
     if not verification_results.get("success") and agent.auto_rollback_on_anomaly:
         agent.logger.warning("Post-deployment verification failed; triggering rollback")
-        from actions.rollback_deployment import rollback_deployment
+        from release_actions.rollback_deployment import rollback_deployment
 
         await rollback_deployment(agent, deployment_plan_id)
 

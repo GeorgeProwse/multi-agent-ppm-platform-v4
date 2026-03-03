@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING
 
-from stakeholder_utils import generate_plan_id
+from ..stakeholder_utils import generate_plan_id
 
 if TYPE_CHECKING:
     from ..stakeholder_communications_agent import StakeholderCommunicationsAgent

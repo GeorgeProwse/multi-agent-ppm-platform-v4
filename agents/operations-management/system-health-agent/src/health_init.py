@@ -110,8 +110,15 @@ async def configure_opentelemetry_exporters(agent: SystemHealthAgent) -> None:
     if not agent.azure_monitor_connection_string:
         agent.logger.info("Azure Monitor connection string not configured")
         return
-    if _configure_azure_monitor:
-        _configure_azure_monitor(connection_string=agent.azure_monitor_connection_string)
+    # Look up _configure_azure_monitor from the main module at call time so that
+    # tests can monkeypatch ``system_health_module._configure_azure_monitor``.
+    import sys
+    sha_module = sys.modules.get("system_health_agent")
+    cfg_fn = getattr(sha_module, "_configure_azure_monitor", None) if sha_module else _configure_azure_monitor
+    if cfg_fn is None:
+        cfg_fn = _configure_azure_monitor
+    if cfg_fn:
+        cfg_fn(connection_string=agent.azure_monitor_connection_string)
         agent._azure_monitor_configured = True
         agent.logger.info("Azure Monitor OpenTelemetry configured via SDK")
         return

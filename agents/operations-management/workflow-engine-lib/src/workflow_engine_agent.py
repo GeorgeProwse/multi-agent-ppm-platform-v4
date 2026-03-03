@@ -455,6 +455,14 @@ class WorkflowEngineAgent(BaseAgent):
                 self.event_subscriptions[subscription["subscription_id"]] = subscription
         return subscriptions
 
+    async def _event_matches_criteria(
+        self, event_data: dict[str, Any], criteria: dict[str, Any]
+    ) -> bool:
+        """Delegate to engine_utils.event_matches_criteria (kept for backward compat)."""
+        from engine_utils import event_matches_criteria
+
+        return await event_matches_criteria(event_data, criteria)
+
     # ------------------------------------------------------------------
     # Eventing / notifications / telemetry
     # ------------------------------------------------------------------

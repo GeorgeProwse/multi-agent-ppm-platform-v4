@@ -16,7 +16,7 @@ async def get_top_risks(
 
     Returns list of top risks.
     """
-    from actions.prioritize_risks import prioritize_risks
+    from risk_actions.prioritize_risks import prioritize_risks
 
     # Filter and prioritize
     prioritization = await prioritize_risks(agent, project_id, None)

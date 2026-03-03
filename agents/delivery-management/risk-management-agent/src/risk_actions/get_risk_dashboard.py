@@ -25,10 +25,10 @@ async def get_risk_dashboard(
     Returns dashboard data and visualizations.
     """
     # Import sibling actions for internal delegation
-    from actions.generate_risk_matrix import generate_risk_matrix
-    from actions.get_top_risks import get_top_risks
-    from actions.prioritize_risks import prioritize_risks
-    from actions.research_risks import research_risks_action
+    from risk_actions.generate_risk_matrix import generate_risk_matrix
+    from risk_actions.get_top_risks import get_top_risks
+    from risk_actions.prioritize_risks import prioritize_risks
+    from risk_actions.research_risks import research_risks_action
 
     agent.logger.info(
         "Getting risk dashboard for project=%s, portfolio=%s", project_id, portfolio_id

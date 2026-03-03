@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 from urllib import request
 
-from actions.submit_change import publish_event
+from change_actions.submit_change import publish_event
 
 if TYPE_CHECKING:
     from change_configuration_agent import ChangeConfigurationAgent

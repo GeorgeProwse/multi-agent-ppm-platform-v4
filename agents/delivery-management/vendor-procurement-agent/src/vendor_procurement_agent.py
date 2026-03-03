@@ -77,7 +77,7 @@ from vendor_actions.event_handlers import register_event_handlers  # noqa: E402
 # Utilities used directly by the agent class
 from vendor_utils import (  # noqa: E402
     extract_sources as _extract_sources,
-    extract_vendor_insights as _extract_vendor_insights,
+    extract_vendor_insights as _extract_vendor_insights_fn,
     score_vendor_research as _score_vendor_research,
 )
 
@@ -407,7 +407,7 @@ class VendorProcurementAgent(BaseAgent):
             return {"summary": "", "insights": [], "sources": [], "used_external_research": False}
 
         summary = await summarize_snippets(snippets, llm_client=llm_client, purpose="vendor")
-        insights = await _extract_vendor_insights(self, summary, snippets, llm_client=llm_client)
+        insights = await self._extract_vendor_insights(summary, snippets, llm_client=llm_client)
         sources = _extract_sources(snippets)
         return {
             "summary": summary,
@@ -437,6 +437,11 @@ class VendorProcurementAgent(BaseAgent):
                 vendor_id = vendor.get("vendor_id")
                 if vendor_id:
                     self.vendors[vendor_id] = vendor
+
+    async def _extract_vendor_insights(
+        self, summary: str, snippets: list[str], *, llm_client: LLMGateway | None = None
+    ) -> list[dict[str, Any]]:
+        return await _extract_vendor_insights_fn(self, summary, snippets, llm_client=llm_client)
 
     def _extract_sources(self, snippets: list[str]) -> list[dict[str, str]]:
         return _extract_sources(snippets)

@@ -203,7 +203,7 @@ async def _merge_external_risks(
     tenant_id: str,
     correlation_id: str,
 ) -> list[dict[str, Any]]:
-    from actions.identify_risk import identify_risk
+    from risk_actions.identify_risk import identify_risk
 
     if not project_id or not external_risks:
         return []

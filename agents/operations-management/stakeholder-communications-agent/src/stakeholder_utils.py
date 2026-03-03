@@ -16,7 +16,7 @@ import requests
 from connector_secrets import fetch_keyvault_secret, resolve_secret
 
 if TYPE_CHECKING:
-    from stakeholder_communications_agent import StakeholderCommunicationsAgent
+    from .stakeholder_communications_agent import StakeholderCommunicationsAgent
 
 
 # ---------------------------------------------------------------------------
