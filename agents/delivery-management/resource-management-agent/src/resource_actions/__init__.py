@@ -8,10 +8,12 @@ the monolithic ResourceCapacityAgent class.
 from resource_actions.allocation import (
     handle_add_resource,
     handle_allocate_resource,
-    handle_approve_request,
     handle_delete_resource,
-    handle_request_resource,
     handle_update_resource,
+)
+from resource_actions.demand_management import (
+    handle_approve_request,
+    handle_request_resource,
 )
 from resource_actions.analytics import (
     handle_get_availability,
@@ -74,10 +76,11 @@ __all__ = [
     # allocation
     "handle_add_resource",
     "handle_allocate_resource",
-    "handle_approve_request",
     "handle_delete_resource",
-    "handle_request_resource",
     "handle_update_resource",
+    # demand_management
+    "handle_approve_request",
+    "handle_request_resource",
     # analytics
     "handle_get_availability",
     "handle_get_utilization",
