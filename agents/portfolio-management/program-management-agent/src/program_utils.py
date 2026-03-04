@@ -13,7 +13,6 @@ from datetime import datetime, timedelta, timezone
 from itertools import combinations
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Date helpers
 # ---------------------------------------------------------------------------

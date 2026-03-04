@@ -7,7 +7,6 @@ import inspect
 import json
 import logging
 import os
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +42,8 @@ except Exception:  # pragma: no cover - optional import fallback for isolated te
     ConnectorCallFailedError = type("ConnectorCallFailedError", (Exception,), {})
     ConnectorSchemaValidationError = type("ConnectorSchemaValidationError", (Exception,), {})
 
+from runtime_flags import demo_mode_enabled  # noqa: E402
+
 from agents.runtime import (  # noqa: E402
     AGENT_CATALOG,
     BaseAgent,
@@ -50,7 +51,6 @@ from agents.runtime import (  # noqa: E402
     get_event_bus,
 )
 from agents.runtime.src.agent_catalog import get_catalog_entry  # noqa: E402
-from runtime_flags import demo_mode_enabled  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -707,8 +707,7 @@ class AgentRuntime:
         )
 
     def _load_agent_class(self, path: Path, class_name: str | None = None) -> type[BaseAgent]:
-        if str(path.parent) not in sys.path:
-            sys.path.insert(0, str(path.parent))
+        # ensure_monorepo_paths() called at module load already covers all agent src dirs
         _validate_module_source(path)
         module_name = f"agent_module_{path.stem}_{hash(path)}"
         spec = importlib.util.spec_from_file_location(module_name, path)
@@ -1105,10 +1104,7 @@ class AgentRuntime:
         if self._demo_mode:
             return
 
-        for spec in specs:
-            if str(spec.path.parent) not in sys.path:
-                sys.path.insert(0, str(spec.path.parent))
-
+        # ensure_monorepo_paths() at module load already covers all agent src dirs
         for spec in specs:
             agent_cls = self._load_agent_class(spec.path, spec.class_name)
             agent = agent_cls(agent_id=spec.agent_id, config=spec.config)

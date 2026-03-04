@@ -6,7 +6,6 @@ Handles routing, escalation, delegation, and audit trail for governance complian
 """
 
 import asyncio
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,22 +17,6 @@ ensure_monorepo_paths()
 
 import httpx  # noqa: E402
 import yaml  # noqa: E402
-
-from agents.common.connector_integration import NotificationService  # noqa: E402
-from agents.runtime import BaseAgent  # noqa: E402
-from integrations.services.integration import AnalyticsClient, EventBusClient, EventEnvelope  # noqa: E402
-from observability.tracing import get_trace_id  # noqa: E402
-from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-
-from approval_utils import (  # noqa: E402
-    ApprovalStore,
-    DelegationClient,
-    NotificationSubscriptionStore,
-    NotificationTemplateEngine,
-    RoleLookupClient,
-    default_notification_templates,
-    load_approval_policies,
-)
 from actions import (  # noqa: E402
     assess_risk_and_criticality,
     create_approval_chain,
@@ -44,11 +27,30 @@ from actions import (  # noqa: E402
     schedule_escalations,
     send_approval_notifications,
 )
-from actions.notification_delivery import send_digest_notifications  # noqa: E402
 from actions.lifecycle import (  # noqa: E402
     initialize_graph_client,
     initialize_service_bus,
     prime_graph_approval_queue,
+)
+from actions.notification_delivery import send_digest_notifications  # noqa: E402
+from approval_utils import (  # noqa: E402
+    ApprovalStore,
+    DelegationClient,
+    NotificationSubscriptionStore,
+    NotificationTemplateEngine,
+    RoleLookupClient,
+    default_notification_templates,
+    load_approval_policies,
+)
+from observability.tracing import get_trace_id  # noqa: E402
+
+from agents.common.connector_integration import NotificationService  # noqa: E402
+from agents.runtime import BaseAgent  # noqa: E402
+from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from integrations.services.integration import (  # noqa: E402
+    AnalyticsClient,
+    EventBusClient,
+    EventEnvelope,
 )
 
 

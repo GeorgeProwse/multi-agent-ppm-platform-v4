@@ -102,8 +102,8 @@ class AgentConfigRBACStore:
         RBAC_METADATA.create_all(self.engine)
         # create_all is a no-op in stub environments; fall back to raw SQLite DDL.
         if self.database_url.startswith("sqlite"):
-            import sqlite3
             import re as _re
+            import sqlite3
             m = _re.search(r"sqlite:///(.+)", self.database_url)
             if m:
                 db_path = m.group(1)

@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from analytics_utils import generate_report_id
+
 from analytics_actions.insights import (
     collect_insights_data,
     detect_anomalies,
@@ -12,7 +14,6 @@ from analytics_actions.insights import (
     generate_recommendations,
     identify_patterns,
 )
-from analytics_utils import generate_report_id
 
 if TYPE_CHECKING:
     from analytics_insights_agent import AnalyticsInsightsAgent

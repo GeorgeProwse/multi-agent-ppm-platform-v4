@@ -29,13 +29,12 @@ class _GatewayHttpxNamespace:
 # references within this module (e.g. ``_evaluate_rbac``) use the subclass.
 httpx = _GatewayHttpxNamespace()
 
+import security.auth as _security_auth  # noqa: E402
 from fastapi import HTTPException, Request  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
 from starlette.responses import Response  # noqa: E402
 from starlette.types import ASGIApp  # noqa: E402
-
-import security.auth as _security_auth  # noqa: E402
 
 # Redirect security.auth's httpx reference so its HTTP calls go through our
 # patchable client.  This ensures that patching
@@ -44,8 +43,8 @@ import security.auth as _security_auth  # noqa: E402
 _security_auth.httpx = httpx  # type: ignore[assignment]
 
 from security.auth import AuthContext, authenticate_request  # noqa: E402
-from security.config import load_yaml
-from security.errors import error_payload
+from security.config import load_yaml  # noqa: E402
+from security.errors import error_payload  # noqa: E402
 
 logger = logging.getLogger("api-gateway-security")
 

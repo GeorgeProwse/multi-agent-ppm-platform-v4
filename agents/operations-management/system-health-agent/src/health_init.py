@@ -90,9 +90,9 @@ async def initialize_azure_monitoring(agent: SystemHealthAgent) -> None:
     if _HAS_AZURE_MONITOR_QUERY and (
         agent.monitor_workspace_id or agent.app_insights_resource_id
     ):
-        from azure.identity import DefaultAzureCredential as DAC
+        from azure.identity import DefaultAzureCredential
 
-        credential = DAC()
+        credential = DefaultAzureCredential()
         agent._logs_query_client = LogsQueryClient(credential)
         agent._metrics_query_client = MetricsQueryClient(credential)
         agent.logger.info(

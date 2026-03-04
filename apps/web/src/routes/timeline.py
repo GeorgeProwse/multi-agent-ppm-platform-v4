@@ -6,13 +6,15 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
-from routes._deps import _require_session, logger, timeline_store
 from routes._deps import (
     Milestone,
     MilestoneCreate,
     MilestoneUpdate,
     TimelineExportResponse,
     TimelineResponse,
+    _require_session,
+    logger,
+    timeline_store,
 )
 
 router = APIRouter()

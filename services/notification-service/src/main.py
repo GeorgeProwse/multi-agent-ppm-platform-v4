@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,8 +20,10 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
@@ -32,7 +33,6 @@ from security.api_governance import (  # noqa: E402
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
-from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
 

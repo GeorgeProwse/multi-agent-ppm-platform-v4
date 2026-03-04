@@ -9,8 +9,8 @@ from mining_models import MiningAgentProtocol
 from mining_utils import (
     build_traces,
     calculate_average_waiting_time,
-    get_start_end_activities,
     get_process_events,
+    get_start_end_activities,
     pairwise,
     safe_parse_timestamp,
 )

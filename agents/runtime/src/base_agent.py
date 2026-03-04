@@ -6,11 +6,9 @@ This module provides the abstract base class that all agents inherit from.
 
 import logging
 import os
-import sys
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402

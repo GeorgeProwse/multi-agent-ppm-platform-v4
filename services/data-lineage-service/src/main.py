@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -10,16 +10,16 @@ from sqlite3 import Error as SqliteError
 from typing import Any
 from uuid import uuid4
 
-from contextlib import asynccontextmanager
-
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from data_quality.remediation import RemediationResult, remediate_payload  # noqa: E402
 from data_quality.rules import evaluate_quality_rules  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
@@ -31,12 +31,11 @@ from security.api_governance import (  # noqa: E402
     version_response_payload,
 )
 from security.auth import AuthContext, AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 from security.lineage import mask_lineage_payload  # noqa: E402
 from storage import LineageRecord, LineageStore  # noqa: E402
-from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
-from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("data-lineage-service")
 logging.basicConfig(level=logging.INFO)

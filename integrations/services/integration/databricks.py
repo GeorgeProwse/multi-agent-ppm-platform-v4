@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
 class SimulationResult:
     iterations: int
-    results: List[float]
-    percentiles: Dict[int, float]
-    statistics: Dict[str, float]
+    results: list[float]
+    percentiles: dict[int, float]
+    statistics: dict[str, float]
 
 
 class DatabricksMonteCarloClient:
@@ -26,10 +26,10 @@ class DatabricksMonteCarloClient:
         iterations: int,
         sampler: Callable[[int, random.Random], float],
         percentiles: Iterable[int] = (50, 80, 90, 95),
-        rng: Optional[random.Random] = None,
+        rng: random.Random | None = None,
     ) -> SimulationResult:
         rng = rng or random.Random(self.seed)
-        results: List[float] = []
+        results: list[float] = []
         for i in range(iterations):
             results.append(float(sampler(i, rng)))
 
@@ -46,7 +46,7 @@ class DatabricksMonteCarloClient:
             statistics=stats,
         )
 
-    def _percentile(self, data: List[float], percentile: int) -> float:
+    def _percentile(self, data: list[float], percentile: int) -> float:
         if not data:
             return 0.0
         ordered = sorted(data)

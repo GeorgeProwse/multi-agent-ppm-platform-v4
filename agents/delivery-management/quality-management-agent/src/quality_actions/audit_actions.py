@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from quality_models import build_audit
@@ -18,7 +17,7 @@ if TYPE_CHECKING:
 
 
 async def conduct_audit(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     audit_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -73,7 +72,7 @@ async def conduct_audit(
 
 
 async def _perform_audit_checks(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
     checklist: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
@@ -115,7 +114,7 @@ async def _perform_audit_checks(
 
 
 async def _publish_audit_document(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     audit: dict[str, Any],
     audit_data: dict[str, Any],
 ) -> dict[str, Any] | None:

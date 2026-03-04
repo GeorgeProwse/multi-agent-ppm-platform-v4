@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 async def define_metrics(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
     metrics: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -60,7 +60,7 @@ async def define_metrics(
 
 
 async def calculate_metrics(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
 ) -> dict[str, Any]:
     """Calculate quality metrics for project.
@@ -143,7 +143,7 @@ async def calculate_metrics(
 
 
 async def _calculate_defect_density(
-    agent: "QualityManagementAgent", project_id: str, total_defects: int
+    agent: QualityManagementAgent, project_id: str, total_defects: int
 ) -> float:
     code_size = await _get_code_size_metrics(agent, project_id)
     loc = code_size.get("loc")
@@ -152,7 +152,7 @@ async def _calculate_defect_density(
 
 
 async def _calculate_defect_density_per_fp(
-    agent: "QualityManagementAgent", project_id: str, total_defects: int
+    agent: QualityManagementAgent, project_id: str, total_defects: int
 ) -> float | None:
     code_size = await _get_code_size_metrics(agent, project_id)
     function_points = code_size.get("function_points")
@@ -162,7 +162,7 @@ async def _calculate_defect_density_per_fp(
 
 
 async def _get_latest_test_coverage(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> float:
     executions = []
     for execution in agent.test_executions.values():
@@ -181,7 +181,7 @@ async def _get_latest_test_coverage(
 
 
 async def _calculate_mttr(
-    agent: "QualityManagementAgent", defects: list[dict[str, Any]]
+    agent: QualityManagementAgent, defects: list[dict[str, Any]]
 ) -> float:
     resolved_defects = [
         d for d in defects if d.get("status") in ["Resolved", "Closed", "Verified"]
@@ -196,7 +196,7 @@ async def _calculate_mttr(
 
 
 async def _calculate_pass_rate(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> float:
     executions = [
         execution
@@ -211,7 +211,7 @@ async def _calculate_pass_rate(
 
 
 async def _calculate_quality_score(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect_density: float,
     test_coverage: float,
     pass_rate: float,
@@ -225,7 +225,7 @@ async def _calculate_quality_score(
 
 
 async def _calculate_coverage_trend(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any]:
     history = agent.coverage_trends.get(project_id, [])
     if len(history) < 2:
@@ -237,7 +237,7 @@ async def _calculate_coverage_trend(
 
 
 async def _get_code_size_metrics(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any]:
     repo_config = agent.integration_config.get("code_repos", {})
     size_data = repo_config.get("size_by_project", {}).get(project_id)
@@ -247,7 +247,7 @@ async def _get_code_size_metrics(
 
 
 async def _fetch_coverage_metrics(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any]:
     repo_config = agent.integration_config.get("code_repos", {})
     coverage_data = repo_config.get("coverage_by_project", {}).get(project_id)
@@ -261,7 +261,7 @@ async def _fetch_coverage_metrics(
 
 
 async def _train_defect_prediction_model(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any]:
     model_version = datetime.now(timezone.utc).strftime("v%Y%m%d%H%M%S")
     model_info = {
@@ -279,7 +279,7 @@ async def _train_defect_prediction_model(
 
 
 async def _train_defect_subsystem_model(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
     defects: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -302,7 +302,7 @@ async def _train_defect_subsystem_model(
 
 
 async def _generate_quality_improvement_recommendations(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
     defects: list[dict[str, Any]],
     coverage_pct: float,
@@ -344,11 +344,10 @@ async def _recommend_refactoring_targets(defects: list[dict[str, Any]]) -> list[
 
 
 async def _summarize_defect_clusters(
-    agent: "QualityManagementAgent", defects: list[dict[str, Any]]
+    agent: QualityManagementAgent, defects: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     if not defects:
         return []
-    from quality_utils import kmeans, vectorize_defects
 
     if not agent.defect_cluster_model or not agent.defect_cluster_model.get("clusters"):
         agent.defect_cluster_model = await _train_defect_cluster_model_inline(agent)
@@ -367,7 +366,7 @@ async def _summarize_defect_clusters(
 
 
 async def _train_defect_cluster_model_inline(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
 ) -> dict[str, Any]:
     from quality_utils import kmeans, vectorize_defects
 
@@ -389,7 +388,7 @@ async def _train_defect_cluster_model_inline(
 
 
 async def _publish_improvement_recommendations(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
     recommendations: list[str],
 ) -> None:

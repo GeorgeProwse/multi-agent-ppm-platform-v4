@@ -10,7 +10,11 @@ from compliance_actions.assess_compliance import handle_assess_compliance
 from compliance_actions.audit import handle_conduct_audit, handle_prepare_audit
 from compliance_actions.dashboard import handle_get_compliance_dashboard
 from compliance_actions.define_control import handle_define_control
-from compliance_actions.evidence import handle_get_evidence, handle_list_evidence, handle_upload_evidence
+from compliance_actions.evidence import (
+    handle_get_evidence,
+    handle_list_evidence,
+    handle_upload_evidence,
+)
 from compliance_actions.manage_policy import handle_manage_policy
 from compliance_actions.map_controls import handle_map_controls_to_project
 from compliance_actions.monitor_regulatory import (
@@ -18,7 +22,11 @@ from compliance_actions.monitor_regulatory import (
     handle_monitor_regulatory_changes,
 )
 from compliance_actions.release_compliance import handle_verify_release_compliance
-from compliance_actions.reporting import handle_generate_compliance_report, handle_get_report, handle_list_reports
+from compliance_actions.reporting import (
+    handle_generate_compliance_report,
+    handle_get_report,
+    handle_list_reports,
+)
 
 __all__ = [
     "handle_add_regulation",

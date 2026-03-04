@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import GRCControl
-
 from compliance_utils import (
     build_control_embeddings,
     cosine_similarity,
     embed_text,
     generate_control_id,
 )
+
+from agents.common.connector_integration import GRCControl
 
 if TYPE_CHECKING:
     from compliance_regulatory_agent import ComplianceRegulatoryAgent

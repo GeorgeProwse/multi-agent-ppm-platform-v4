@@ -9,7 +9,6 @@ Specification: agents/operations-management/data-synchronisation-agent/README.md
 """
 
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,15 +16,9 @@ from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
 ensure_monorepo_paths()
 
-from observability.metrics import build_business_workflow_metrics  # noqa: E402
-
-from agents.common.connector_integration import ConnectorWriteGate, DatabaseStorageService  # noqa: E402
-from agents.runtime import BaseAgent  # noqa: E402
-from agents.runtime.src.event_bus import EventBus  # noqa: E402
-from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
+import sync_infrastructure as infra  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
-
-from sync_models import InMemorySecretContext, SecretContext  # noqa: E402
+from observability.metrics import build_business_workflow_metrics  # noqa: E402
 from sync_actions import (  # noqa: E402
     apply_conflict_resolution,
     detect_update_conflicts,
@@ -54,7 +47,15 @@ from sync_actions import (  # noqa: E402
     record_conflicts,
     record_quality_metrics,
 )
-import sync_infrastructure as infra  # noqa: E402
+from sync_models import InMemorySecretContext, SecretContext  # noqa: E402
+
+from agents.common.connector_integration import (  # noqa: E402
+    ConnectorWriteGate,
+    DatabaseStorageService,
+)
+from agents.runtime import BaseAgent  # noqa: E402
+from agents.runtime.src.event_bus import EventBus  # noqa: E402
+from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
 
 # Re-export Azure SDK classes so monkeypatching in tests works against this module
 try:

@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
 
-from routes._deps import _require_session, logger, tree_store
 from routes._deps import (
     TreeDeleteResult,
     TreeExportResponse,
@@ -14,6 +13,9 @@ from routes._deps import (
     TreeNode,
     TreeNodeCreate,
     TreeNodeUpdate,
+    _require_session,
+    logger,
+    tree_store,
 )
 
 router = APIRouter()

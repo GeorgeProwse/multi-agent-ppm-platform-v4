@@ -1,8 +1,4 @@
-"""
-Action handlers for capacity planning and forecasting:
-  - forecast_capacity
-  - plan_capacity
-"""
+"""Action handlers: forecast_capacity, plan_capacity, scenario_analysis."""
 
 from __future__ import annotations
 
@@ -13,12 +9,22 @@ from typing import TYPE_CHECKING, Any, cast
 
 from resource_models import TimeSeriesForecaster
 
+from resource_actions.helpers import (
+    build_capacity_demand_history,
+    calculate_total_capacity,
+    calculate_total_demand,
+    create_baseline_scenario,
+    optimize_resource_allocations,
+    train_forecasting_models,
+)
+
 if TYPE_CHECKING:
     from resource_capacity_agent import ResourceCapacityAgent
 
 
-async def forecast_capacity(
-    agent: ResourceCapacityAgent, filters: dict[str, Any]
+async def handle_forecast_capacity(
+    agent: ResourceCapacityAgent,
+    filters: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Forecast future capacity vs demand.
@@ -29,7 +35,9 @@ async def forecast_capacity(
 
     history_months = int(filters.get("history_months", 6))
     tenant_id = filters.get("tenant_id") or agent.default_tenant_id
-    cache_key = f"capacity_forecast:{tenant_id}:{history_months}:{agent.forecast_horizon_months}"
+    cache_key = (
+        f"capacity_forecast:{tenant_id}:{history_months}:{agent.forecast_horizon_months}"
+    )
     if agent.redis_client:
         cached = agent.redis_client.get(cache_key)
         if cached:
@@ -38,16 +46,14 @@ async def forecast_capacity(
             except json.JSONDecodeError:
                 pass
 
-    # Calculate current capacity
-    current_capacity = await agent._calculate_total_capacity()
-
-    # Get current demand
+    # Calculate current capacity and demand
+    current_capacity = await calculate_total_capacity(agent)
     risk_data = filters.get("risk_data") if isinstance(filters.get("risk_data"), dict) else None
-    current_demand = await agent._calculate_total_demand(risk_data)
+    current_demand = await calculate_total_demand(agent, risk_data)
 
-    capacity_series, demand_series = await agent._build_capacity_demand_history(history_months)
-    ml_metadata = await agent._train_forecasting_models(
-        capacity_series, demand_series, tenant_id=tenant_id, history_months=history_months
+    capacity_series, demand_series = await build_capacity_demand_history(agent, history_months)
+    ml_metadata = await train_forecasting_models(
+        agent, capacity_series, demand_series, tenant_id=tenant_id, history_months=history_months
     )
     capacity_forecast = None
     demand_forecast = None
@@ -68,10 +74,8 @@ async def forecast_capacity(
     future_capacity = agent._adjust_capacity_forecast(capacity_forecast)
     future_demand = agent._adjust_demand_forecast(demand_forecast)
 
-    # Identify bottlenecks
+    # Identify bottlenecks and generate recommendations
     bottlenecks = await agent._identify_capacity_bottlenecks(future_capacity, future_demand)
-
-    # Generate recommendations
     recommendations = await agent._generate_capacity_recommendations(bottlenecks)
     assumptions = {
         "attrition_rate": agent._get_attrition_rate(),
@@ -84,7 +88,9 @@ async def forecast_capacity(
         "forecast_horizon_months": agent.forecast_horizon_months,
         "current_capacity": current_capacity,
         "current_demand": current_demand,
-        "current_utilization": current_demand / current_capacity if current_capacity > 0 else 0,
+        "current_utilization": (
+            current_demand / current_capacity if current_capacity > 0 else 0
+        ),
         "history": {
             "months": history_months,
             "capacity_series": capacity_series,
@@ -123,8 +129,9 @@ async def forecast_capacity(
     return forecast_payload
 
 
-async def plan_capacity(
-    agent: ResourceCapacityAgent, planning_horizon: dict[str, Any]
+async def handle_plan_capacity(
+    agent: ResourceCapacityAgent,
+    planning_horizon: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Create capacity plan.
@@ -139,28 +146,14 @@ async def plan_capacity(
         if isinstance(planning_horizon.get("risk_data"), dict)
         else None
     )
-    forecast = await agent._forecast_capacity({"risk_data": risk_data} if risk_data else {})
+    forecast = await handle_forecast_capacity(
+        agent, {"risk_data": risk_data} if risk_data else {}
+    )
 
-    # Identify gaps
+    # Identify gaps and mitigation strategies
     gaps = await agent._identify_capacity_gaps(forecast)
-
-    # Generate mitigation strategies
     strategies = await agent._generate_mitigation_strategies(gaps)
-    if agent.resource_optimization_enabled:
-        optimization = await agent._optimize_resource_allocations(planning_horizon)
-    else:
-        optimization = {
-            "status": "disabled",
-            "reason": "resource_optimization feature flag is disabled",
-            "constraints": {
-                "feature_flag": "resource_optimization",
-                "enabled": False,
-            },
-            "scoring": {},
-            "proposed_allocations": [],
-            "unfilled_requests": [],
-            "remaining_capacity": {},
-        }
+    optimization = await optimize_resource_allocations(agent, planning_horizon)
 
     # Create capacity plan
     plan = {
@@ -176,3 +169,37 @@ async def plan_capacity(
     }
 
     return plan
+
+
+async def handle_scenario_analysis(
+    agent: ResourceCapacityAgent,
+    scenario_params: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Perform what-if scenario analysis.
+
+    Returns scenario comparison metrics.
+    """
+    agent.logger.info("Running scenario analysis")
+
+    scenario_name = scenario_params.get("scenario_name", "Unnamed Scenario")
+    changes = scenario_params.get("changes", {})
+
+    baseline = await create_baseline_scenario(agent)
+    scenario_output = await agent.scenario_engine.run_scenario(
+        baseline=baseline,
+        scenario_params=changes,
+        scenario_builder=agent._apply_scenario_changes,
+        metrics_builder=agent._calculate_scenario_metrics,
+        comparison_builder=agent._compare_scenarios,
+        recommendation_builder=agent._generate_scenario_recommendation,
+    )
+
+    return {
+        "scenario_name": scenario_name,
+        "scenario_params": scenario_params,
+        "baseline_metrics": scenario_output["baseline_metrics"],
+        "scenario_metrics": scenario_output["scenario_metrics"],
+        "comparison": scenario_output["comparison"],
+        "recommendation": scenario_output.get("recommendation"),
+    }

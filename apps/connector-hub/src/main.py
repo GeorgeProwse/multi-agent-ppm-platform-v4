@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -13,9 +12,9 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
-from packages.version import API_VERSION  # noqa: E402
 from connector_storage import ConnectorStore  # noqa: E402
 from observability.metrics import (  # noqa: E402
     RequestMetricsMiddleware,
@@ -26,6 +25,8 @@ from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E4
 from security.auth import AuthTenantMiddleware  # noqa: E402
 from security.errors import register_error_handlers  # noqa: E402
 from security.headers import SecurityHeadersMiddleware  # noqa: E402
+
+from packages.version import API_VERSION  # noqa: E402
 
 logger = logging.getLogger("connector-hub")
 logging.basicConfig(level=logging.INFO)

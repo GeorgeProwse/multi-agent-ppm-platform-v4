@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-
 # Default configuration constants
 DEFAULT_SEVERITY_LEVELS = ["critical", "high", "medium", "low"]
 DEFAULT_QUALITY_STANDARDS = ["ISO 9001", "CMMI", "IEEE 829"]

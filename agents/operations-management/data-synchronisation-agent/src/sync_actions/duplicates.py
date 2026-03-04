@@ -7,9 +7,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from observability.tracing import get_trace_id
 from sync_utils import find_potential_duplicates
+
+from agents.runtime.src.audit import build_audit_event, emit_audit_event
 
 if TYPE_CHECKING:
     from data_sync_agent import DataSyncAgent

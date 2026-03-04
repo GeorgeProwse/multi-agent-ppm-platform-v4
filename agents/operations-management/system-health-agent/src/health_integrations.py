@@ -42,7 +42,6 @@ else:
 
 _HAS_AZURE_AUTOMATION = _HAS_AZURE and _safe_find_spec("azure.mgmt.automation")
 if _HAS_AZURE_AUTOMATION:
-    from azure.identity import DefaultAzureCredential
     from azure.mgmt.automation import AutomationClient
     from azure.mgmt.automation.models import JobCreateParameters, RunbookAssociationProperty
 else:

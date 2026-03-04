@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import builtins
 import statistics
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class ModelTask(str, Enum):
+class ModelTask(StrEnum):
     SCHEDULE_ESTIMATION = "schedule_estimation"
     RISK_PREDICTION = "risk_prediction"
     VENDOR_SCORING = "vendor_scoring"
@@ -21,7 +23,7 @@ class ModelTask(str, Enum):
     READINESS_SCORING = "readiness_scoring"
 
 
-class ModelStage(str, Enum):
+class ModelStage(StrEnum):
     TRAINED = "trained"
     EVALUATED = "evaluated"
     DEPLOYED = "deployed"
@@ -31,8 +33,8 @@ class AIModelSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AI_MODEL_", env_file=".env")
 
     provider: str = "in_memory"
-    azure_ml_endpoint: Optional[str] = None
-    azure_ml_api_key: Optional[str] = None
+    azure_ml_endpoint: str | None = None
+    azure_ml_api_key: str | None = None
     default_task: ModelTask = ModelTask.SCHEDULE_ESTIMATION
 
 
@@ -42,20 +44,20 @@ class ModelRecord:
     task: ModelTask
     stage: ModelStage
     trained_at: datetime
-    metrics: Dict[str, Any]
-    artifact: Dict[str, Any]
+    metrics: dict[str, Any]
+    artifact: dict[str, Any]
 
 
 @dataclass
 class TrainingResult:
     record: ModelRecord
-    summary: Dict[str, Any]
+    summary: dict[str, Any]
 
 
 @dataclass
 class EvaluationResult:
     model_id: str
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
     evaluated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -63,15 +65,15 @@ class ModelRegistry:
     """In-memory registry for model artifacts."""
 
     def __init__(self) -> None:
-        self._records: Dict[str, ModelRecord] = {}
+        self._records: dict[str, ModelRecord] = {}
 
     def register(self, record: ModelRecord) -> None:
         self._records[record.model_id] = record
 
-    def get(self, model_id: str) -> Optional[ModelRecord]:
+    def get(self, model_id: str) -> ModelRecord | None:
         return self._records.get(model_id)
 
-    def list(self, task: Optional[ModelTask] = None) -> List[ModelRecord]:
+    def list(self, task: ModelTask | None = None) -> builtins.list[ModelRecord]:
         records = list(self._records.values())
         if task:
             records = [record for record in records if record.task == task]
@@ -146,7 +148,7 @@ class InferenceService:
     def __init__(self, registry: ModelRegistry) -> None:
         self._registry = registry
 
-    def predict(self, model_id: str, features: Dict[str, Any]) -> float:
+    def predict(self, model_id: str, features: dict[str, Any]) -> float:
         record = self._registry.get(model_id)
         if not record:
             raise ValueError("Unknown model_id")
@@ -161,8 +163,8 @@ class AIModelService:
 
     def __init__(
         self,
-        settings: Optional[AIModelSettings] = None,
-        registry: Optional[ModelRegistry] = None,
+        settings: AIModelSettings | None = None,
+        registry: ModelRegistry | None = None,
     ) -> None:
         self.settings = settings or AIModelSettings()
         self.registry = registry or ModelRegistry()
@@ -180,7 +182,7 @@ class AIModelService:
     def deploy_model(self, model_id: str) -> ModelRecord:
         return self.deployment.deploy(model_id)
 
-    def predict(self, model_id: str, features: Dict[str, Any]) -> float:
+    def predict(self, model_id: str, features: dict[str, Any]) -> float:
         return self.inference.predict(model_id, features)
 
 

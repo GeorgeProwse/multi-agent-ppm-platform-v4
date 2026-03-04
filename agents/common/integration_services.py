@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import yaml
 
-import numpy as np
 from packages.vector_store import FaissVectorStore
 
 

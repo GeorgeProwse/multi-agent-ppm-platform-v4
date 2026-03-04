@@ -8,13 +8,13 @@ Supports budgeting, cost tracking, forecasting, variance analysis and profitabil
 Specification: agents/delivery-management/financial-management-agent/README.md
 """
 
-import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import httpx
+from connector_secrets import fetch_keyvault_secret
 from data_quality.rules import evaluate_quality_rules
 from observability.tracing import get_trace_id
 
@@ -24,7 +24,28 @@ from agents.common.scenario import ScenarioEngine
 from agents.runtime import BaseAgent, ServiceBusEventBus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.state_store import TenantStateStore
-from connector_secrets import fetch_keyvault_secret
+from financial_actions import (
+    analyze_variance as _act_analyze_variance,
+    approve_budget as _act_approve_budget,
+    calculate_evm as _act_calculate_evm,
+    calculate_profitability as _act_calculate_profitability,
+    convert_currency as _act_convert_currency,
+    create_budget as _act_create_budget,
+    generate_financial_variants as _act_generate_financial_variants,
+    generate_forecast as _act_generate_forecast,
+    generate_report as _act_generate_report,
+    get_financial_summary as _act_get_financial_summary,
+    track_costs as _act_track_costs,
+    update_budget as _act_update_budget,
+)
+from financial_models import DataFactoryPipelineManager, ExchangeRateProvider, TaxRateProvider
+from financial_utils import (
+    calculate_confidence_interval,
+    calculate_irr,
+    calculate_npv,
+    calculate_payback_period,
+    generate_budget_id,
+)
 
 
 class FinancialManagementAgent(BaseAgent):
@@ -254,7 +275,8 @@ class FinancialManagementAgent(BaseAgent):
         actor_id = context.get("user_id") or input_data.get("actor_id") or "system"
 
         if action == "create_budget":
-            return await self._create_budget(
+            return await _act_create_budget(
+                self,
                 input_data.get("budget", {}),
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
@@ -262,46 +284,50 @@ class FinancialManagementAgent(BaseAgent):
             )
 
         elif action == "track_costs":
-            return await self._track_costs(
-                input_data.get("costs", {}), tenant_id=tenant_id, actor_id=actor_id
+            return await _act_track_costs(
+                self, input_data.get("costs", {}), tenant_id=tenant_id, actor_id=actor_id
             )
 
         elif action == "generate_forecast":
-            return await self._generate_forecast(
+            return await _act_generate_forecast(
+                self,
                 input_data.get("project_id"),  # type: ignore
                 input_data.get("time_period", {}),
                 tenant_id=tenant_id,
             )
 
         elif action == "analyze_variance":
-            return await self._analyze_variance(
-                input_data.get("project_id"), input_data.get("time_period", {}), tenant_id=tenant_id  # type: ignore
+            return await _act_analyze_variance(
+                self, input_data.get("project_id"), input_data.get("time_period", {}), tenant_id=tenant_id  # type: ignore
             )
 
         elif action == "calculate_evm":
-            return await self._calculate_evm(input_data.get("project_id"), tenant_id=tenant_id)  # type: ignore
+            return await _act_calculate_evm(self, input_data.get("project_id"), tenant_id=tenant_id)  # type: ignore
 
         elif action == "get_financial_summary":
-            return await self._get_financial_summary(
-                input_data.get("project_id"), input_data.get("portfolio_id"), tenant_id=tenant_id
+            return await _act_get_financial_summary(
+                self, input_data.get("project_id"), input_data.get("portfolio_id"), tenant_id=tenant_id
             )
 
         elif action == "generate_financial_variants":
-            return await self._generate_financial_variants(
+            return await _act_generate_financial_variants(
+                self,
                 input_data.get("project_id"),
                 input_data.get("scenarios", []),
                 tenant_id=tenant_id,
             )
 
         elif action == "generate_report":
-            return await self._generate_report(
+            return await _act_generate_report(
+                self,
                 input_data.get("report_type", "summary"),
                 input_data.get("filters", {}),
                 tenant_id=tenant_id,
             )
 
         elif action == "update_budget":
-            return await self._update_budget(
+            return await _act_update_budget(
+                self,
                 input_data.get("budget_id"),  # type: ignore
                 input_data.get("updates", {}),
                 tenant_id=tenant_id,
@@ -310,7 +336,8 @@ class FinancialManagementAgent(BaseAgent):
             )
 
         elif action == "approve_budget":
-            return await self._approve_budget(
+            return await _act_approve_budget(
+                self,
                 input_data.get("budget_id"),  # type: ignore
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
@@ -318,15 +345,16 @@ class FinancialManagementAgent(BaseAgent):
             )
 
         elif action == "convert_currency":
-            return await self._convert_currency(
+            return await _act_convert_currency(
+                self,
                 input_data.get("amount"),  # type: ignore
                 input_data.get("from_currency"),  # type: ignore
                 input_data.get("to_currency"),  # type: ignore
             )
 
         elif action == "calculate_profitability":
-            return await self._calculate_profitability(
-                input_data.get("project_id"), tenant_id=tenant_id  # type: ignore
+            return await _act_calculate_profitability(
+                self, input_data.get("project_id"), tenant_id=tenant_id  # type: ignore
             )
 
         else:
@@ -1084,8 +1112,7 @@ class FinancialManagementAgent(BaseAgent):
 
     async def _generate_budget_id(self) -> str:
         """Generate unique budget ID."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        return f"BDG-{timestamp}-{uuid.uuid4().hex[:6]}"
+        return generate_budget_id()
 
     async def _validate_budget_record(
         self, budget: dict[str, Any], *, tenant_id: str, portfolio_id: str | None
@@ -1394,16 +1421,7 @@ class FinancialManagementAgent(BaseAgent):
     async def _calculate_confidence_interval(self, forecast: dict[str, Any]) -> dict[str, Any]:
         """Calculate forecast confidence interval."""
         monthly = forecast.get("monthly_forecast", [])
-        if not monthly:
-            return {"lower_bound": 0, "upper_bound": 0, "confidence_level": 0.95}
-        mean = sum(monthly) / len(monthly)
-        variance = sum((x - mean) ** 2 for x in monthly) / len(monthly)
-        std_dev = variance**0.5
-        return {
-            "lower_bound": max(0.0, mean - 1.28 * std_dev),
-            "upper_bound": mean + 1.28 * std_dev,
-            "confidence_level": 0.8,
-        }
+        return calculate_confidence_interval(monthly)
 
     async def _get_budget_for_project(
         self, project_id: str, *, tenant_id: str
@@ -1704,41 +1722,16 @@ class FinancialManagementAgent(BaseAgent):
 
     async def _calculate_npv(self, total_cost: float, cash_flows: list[float]) -> float:
         """Calculate Net Present Value."""
-        discount_rate = self.config.get("discount_rate", 0.10)
-        npv = -total_cost
-        for i, cash_flow in enumerate(cash_flows, start=1):
-            npv += cash_flow / ((1 + discount_rate) ** i)
-        return npv
+        discount_rate = self.config.get("discount_rate", 0.10) if self.config else 0.10
+        return calculate_npv(total_cost, cash_flows, discount_rate)
 
     async def _calculate_irr(self, total_cost: float, cash_flows: list[float]) -> float:
         """Calculate Internal Rate of Return."""
-        cash_series = [-total_cost] + cash_flows
-
-        def npv_for_rate(rate: float) -> float:
-            return sum(value / ((1 + rate) ** idx) for idx, value in enumerate(cash_series))
-
-        lower, upper = -0.9, 1.5
-        for _ in range(50):
-            mid = (lower + upper) / 2
-            value = npv_for_rate(mid)
-            if abs(value) < 1e-6:
-                return mid
-            if value > 0:
-                lower = mid
-            else:
-                upper = mid
-        return (lower + upper) / 2
+        return calculate_irr(total_cost, cash_flows)
 
     async def _calculate_payback_period(self, total_cost: float, cash_flows: list[float]) -> int:
         """Calculate payback period in months."""
-        if not cash_flows:
-            return 999
-        cumulative = 0.0
-        for index, cash_flow in enumerate(cash_flows, start=1):
-            cumulative += cash_flow
-            if cumulative >= total_cost:
-                return index
-        return 999
+        return calculate_payback_period(total_cost, cash_flows)
 
     async def cleanup(self) -> None:
         """Cleanup resources."""
@@ -1773,83 +1766,3 @@ class FinancialManagementAgent(BaseAgent):
         ]
 
 
-class ExchangeRateProvider:
-    """Exchange rate provider with caching and optional API fetch."""
-
-    def __init__(self, fixture_path: Path, ttl_seconds: int, api_url: str | None = None):
-        self.fixture_path = fixture_path
-        self.ttl_seconds = ttl_seconds
-        self.api_url = api_url
-        self._cache: dict[str, Any] | None = None
-        self._last_loaded: datetime | None = None
-
-    async def get_rates(self) -> dict[str, Any]:
-        if self._cache and self._last_loaded:
-            age = (datetime.now(timezone.utc) - self._last_loaded).total_seconds()
-            if age < self.ttl_seconds:
-                return self._cache
-
-        if self.api_url:
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(self.api_url)
-                response.raise_for_status()
-                data = response.json()
-        else:
-            data = json.loads(self.fixture_path.read_text())
-
-        self._cache = {
-            "base": data.get("base", "AUD"),
-            "rates": data.get("rates", {}),
-            "as_of": data.get("as_of", datetime.now(timezone.utc).isoformat()),
-        }
-        self._last_loaded = datetime.now(timezone.utc)
-        return self._cache
-
-
-class TaxRateProvider:
-    """Tax rate provider with caching and optional API fetch."""
-
-    def __init__(self, fixture_path: Path, ttl_seconds: int, api_url: str | None = None):
-        self.fixture_path = fixture_path
-        self.ttl_seconds = ttl_seconds
-        self.api_url = api_url
-        self._cache: dict[str, Any] | None = None
-        self._last_loaded: datetime | None = None
-
-    async def get_rates(self) -> dict[str, Any]:
-        if self._cache and self._last_loaded:
-            age = (datetime.now(timezone.utc) - self._last_loaded).total_seconds()
-            if age < self.ttl_seconds:
-                return self._cache
-
-        if self.api_url:
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.get(self.api_url)
-                response.raise_for_status()
-                data = response.json()
-        else:
-            data = json.loads(self.fixture_path.read_text())
-
-        self._cache = {
-            "default_rate": data.get("default_rate", 0),
-            "default_region": data.get("default_region", "AU"),
-            "rates": data.get("rates", {}),
-            "as_of": data.get("as_of", datetime.now(timezone.utc).isoformat()),
-        }
-        self._last_loaded = datetime.now(timezone.utc)
-        return self._cache
-
-
-class DataFactoryPipelineManager:
-    """Lightweight wrapper to schedule Data Factory pipelines."""
-
-    def __init__(self, data_factory_client: Any | None = None) -> None:
-        self.data_factory_client = data_factory_client
-
-    async def schedule_pipeline(self, pipeline_name: str, parameters: dict[str, Any]) -> str:
-        if self.data_factory_client and hasattr(self.data_factory_client, "pipelines"):
-            response = self.data_factory_client.pipelines.create_run(
-                pipeline_name, parameters=parameters
-            )
-            return getattr(response, "run_id", "unknown")
-        return f"run-{pipeline_name}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"

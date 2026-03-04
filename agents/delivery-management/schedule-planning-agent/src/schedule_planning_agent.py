@@ -8,58 +8,93 @@ and performs critical path analysis. Supports both predictive and adaptive plann
 Specification: agents/delivery-management/schedule-planning-agent/README.md
 """
 
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# Ensure the src directory is on sys.path so sibling modules (actions/, schedule_utils)
-# can be imported when this file is loaded via importlib.spec_from_file_location.
-_SRC_DIR = str(Path(__file__).resolve().parent)
-if _SRC_DIR not in sys.path:
-    sys.path.insert(0, _SRC_DIR)
-
 import yaml
 from change_configuration_agent import ChangeConfigurationAgent
+
+# Action handlers
+from schedule_actions import (
+    calculate_critical_path as _act_critical_path,
+)
+from schedule_actions import (
+    create_schedule as _act_create_schedule,
+)
+from schedule_actions import (
+    estimate_duration as _act_estimate_duration,
+)
+from schedule_actions import (
+    generate_schedule_variants as _act_gen_variants,
+)
+from schedule_actions import (
+    get_schedule as _act_get_schedule,
+)
+from schedule_actions import (
+    manage_baseline as _act_manage_baseline,
+)
+from schedule_actions import (
+    map_dependencies as _act_map_deps,
+)
+from schedule_actions import (
+    optimize_schedule as _act_optimize,
+)
+from schedule_actions import (
+    resource_constrained_schedule as _act_resource_sched,
+)
+from schedule_actions import (
+    run_monte_carlo as _act_monte_carlo,
+)
+from schedule_actions import (
+    sprint_planning as _act_sprint,
+)
+from schedule_actions import (
+    track_milestones as _act_milestones,
+)
+from schedule_actions import (
+    track_variance as _act_variance,
+)
+from schedule_actions import (
+    update_schedule as _act_update,
+)
+from schedule_actions import (
+    what_if_analysis as _act_what_if,
+)
+from schedule_actions.resource_scheduling import (
+    get_resource_availability as _act_get_resource_avail,
+)
+from schedule_actions.resource_scheduling import (
+    resource_leveling as _act_resource_leveling,
+)
+from schedule_utils import (
+    get_schedule_state as _get_schedule_state,
+)
+from schedule_utils import (
+    load_schedule_from_db as _load_schedule_from_db,
+)
+from schedule_utils import (
+    sync_external_tools as _sync_external_tools,
+)
 
 from agents.common.scenario import ScenarioEngine
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
 from integrations.services.integration import (
-    AIModelService, AnalyticsClient, Base, CacheClient, CacheSettings,
-    DatabricksMonteCarloClient, EventBusClient, ExternalSyncClient,
-    ExternalSyncSettings, PersistenceSettings, create_sql_engine,
+    AIModelService,
+    AnalyticsClient,
+    Base,
+    CacheClient,
+    CacheSettings,
+    DatabricksMonteCarloClient,
+    EventBusClient,
+    ExternalSyncClient,
+    ExternalSyncSettings,
+    PersistenceSettings,
+    create_sql_engine,
 )
 from integrations.services.integration.ml import AzureMLClient
-
-# Action handlers
-from schedule_actions import (
-    calculate_critical_path as _act_critical_path,
-    create_schedule as _act_create_schedule,
-    estimate_duration as _act_estimate_duration,
-    generate_schedule_variants as _act_gen_variants,
-    get_schedule as _act_get_schedule,
-    manage_baseline as _act_manage_baseline,
-    map_dependencies as _act_map_deps,
-    optimize_schedule as _act_optimize,
-    resource_constrained_schedule as _act_resource_sched,
-    run_monte_carlo as _act_monte_carlo,
-    sprint_planning as _act_sprint,
-    track_milestones as _act_milestones,
-    track_variance as _act_variance,
-    update_schedule as _act_update,
-    what_if_analysis as _act_what_if,
-)
-from schedule_actions.resource_scheduling import (
-    get_resource_availability as _act_get_resource_avail,
-    resource_leveling as _act_resource_leveling,
-)
-from schedule_utils import (
-    get_schedule_state as _get_schedule_state,
-    load_schedule_from_db as _load_schedule_from_db,
-    sync_external_tools as _sync_external_tools,
-)
 
 
 class SchedulePlanningAgent(BaseAgent):

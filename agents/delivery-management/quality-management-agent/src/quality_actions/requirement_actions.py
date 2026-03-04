@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 async def link_test_case_requirements(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     link_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -49,7 +49,7 @@ async def link_test_case_requirements(
 
 
 async def update_test_case_links(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     link_id: str,
     updates: dict[str, Any],
 ) -> dict[str, Any]:
@@ -71,7 +71,7 @@ async def update_test_case_links(
 
 
 async def get_requirement_links(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     filters: dict[str, Any],
     *,
     tenant_id: str,
@@ -103,7 +103,7 @@ async def get_requirement_links(
 
 
 async def _link_to_requirements(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     requirement_ids: list[str],
     project_id: str | None,
 ) -> list[dict[str, Any]]:
@@ -127,7 +127,7 @@ async def _link_to_requirements(
 
 
 async def _fetch_project_requirements(
-    agent: "QualityManagementAgent", project_id: str | None
+    agent: QualityManagementAgent, project_id: str | None
 ) -> list[dict[str, Any]]:
     if not project_id:
         return []

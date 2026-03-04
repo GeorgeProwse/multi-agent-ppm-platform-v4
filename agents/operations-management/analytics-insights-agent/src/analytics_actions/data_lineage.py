@@ -5,9 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from security.lineage import mask_lineage_payload
-
 from analytics_utils import generate_lineage_id
+from security.lineage import mask_lineage_payload
 
 if TYPE_CHECKING:
     from analytics_insights_agent import AnalyticsInsightsAgent

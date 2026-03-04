@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.metrics_catalog import get_metric_value, normalize_metric_value
-
 from analytics_utils import (
     calculate_kpi_trend,
     calculate_kpi_value,
@@ -15,6 +13,8 @@ from analytics_utils import (
     get_kpi_history,
     store_kpi_history,
 )
+
+from agents.common.metrics_catalog import get_metric_value, normalize_metric_value
 
 if TYPE_CHECKING:
     from analytics_insights_agent import AnalyticsInsightsAgent

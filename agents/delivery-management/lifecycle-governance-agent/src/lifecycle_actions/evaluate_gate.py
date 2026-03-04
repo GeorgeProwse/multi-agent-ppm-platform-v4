@@ -6,17 +6,16 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from orchestration import (
-    DurableTask,
-    DurableWorkflow,
-    OrchestrationContext,
-)
-
 from lifecycle_utils import (
     check_criterion,
     get_criterion_description,
     get_gate_criteria,
     get_lifecycle_state,
+)
+from orchestration import (
+    DurableTask,
+    DurableWorkflow,
+    OrchestrationContext,
 )
 
 if TYPE_CHECKING:

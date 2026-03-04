@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-import logging
-import sys
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 CONNECTORS_ROOT = REPO_ROOT / "connectors"
@@ -40,7 +39,7 @@ class ExternalSyncSettings:
 class ExternalSyncRecord:
     system: str
     schedule_id: str
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -49,14 +48,14 @@ class ExternalSyncClient:
 
     def __init__(
         self,
-        settings: Optional[ExternalSyncSettings] = None,
+        settings: ExternalSyncSettings | None = None,
         *,
-        connectors: Optional[dict[str, Any]] = None,
+        connectors: dict[str, Any] | None = None,
     ) -> None:
         self.settings = settings or ExternalSyncSettings()
-        self._pushed: List[ExternalSyncRecord] = []
-        self._pulled: List[ExternalSyncRecord] = []
-        self._calendar_events: List[ExternalSyncRecord] = []
+        self._pushed: list[ExternalSyncRecord] = []
+        self._pulled: list[ExternalSyncRecord] = []
+        self._calendar_events: list[ExternalSyncRecord] = []
         self._connectors: dict[str, Any] = connectors or {}
 
         if self.settings.enable_smartsheet or self.settings.enable_outlook or self.settings.enable_google_calendar:
@@ -103,7 +102,7 @@ class ExternalSyncClient:
             logger.warning("Failed to initialize %s connector: %s", connector_type, exc)
             return None
 
-    def push_schedule(self, schedule_id: str, payload: Dict[str, Any]) -> None:
+    def push_schedule(self, schedule_id: str, payload: dict[str, Any]) -> None:
         for system in self._enabled_systems():
             connector = self._get_connector(system)
             if connector and hasattr(connector, "write"):
@@ -113,14 +112,14 @@ class ExternalSyncClient:
                     logger.warning("Failed to push schedule to %s: %s", system, exc)
             self._pushed.append(ExternalSyncRecord(system=system, schedule_id=schedule_id, payload=payload))
 
-    def pull_updates(self, schedule_id: str) -> List[ExternalSyncRecord]:
+    def pull_updates(self, schedule_id: str) -> list[ExternalSyncRecord]:
         updates = [record for record in self._pulled if record.schedule_id == schedule_id]
         return updates
 
-    def record_pull(self, system: str, schedule_id: str, payload: Dict[str, Any]) -> None:
+    def record_pull(self, system: str, schedule_id: str, payload: dict[str, Any]) -> None:
         self._pulled.append(ExternalSyncRecord(system=system, schedule_id=schedule_id, payload=payload))
 
-    def sync_calendar(self, schedule_id: str, milestones: List[Dict[str, Any]]) -> None:
+    def sync_calendar(self, schedule_id: str, milestones: list[dict[str, Any]]) -> None:
         for system in self._enabled_calendar_systems():
             connector = self._get_connector(system)
             if connector and hasattr(connector, "write"):
@@ -140,7 +139,7 @@ class ExternalSyncClient:
                 ExternalSyncRecord(system=system, schedule_id=schedule_id, payload={"milestones": milestones})
             )
 
-    def _enabled_systems(self) -> List[str]:
+    def _enabled_systems(self) -> list[str]:
         systems = []
         if self.settings.enable_ms_project:
             systems.append("ms_project")
@@ -152,7 +151,7 @@ class ExternalSyncClient:
             systems.append("smartsheet")
         return systems
 
-    def _enabled_calendar_systems(self) -> List[str]:
+    def _enabled_calendar_systems(self) -> list[str]:
         systems = []
         if self.settings.enable_outlook:
             systems.append("outlook")
@@ -161,11 +160,11 @@ class ExternalSyncClient:
         return systems
 
     @property
-    def pushed(self) -> List[ExternalSyncRecord]:
+    def pushed(self) -> list[ExternalSyncRecord]:
         return self._pushed
 
     @property
-    def calendar_events(self) -> List[ExternalSyncRecord]:
+    def calendar_events(self) -> list[ExternalSyncRecord]:
         return self._calendar_events
 
 

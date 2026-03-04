@@ -10,11 +10,10 @@ Specification: agents/core-orchestration/response-orchestration-agent/README.md
 
 import asyncio
 import json
-import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
@@ -22,8 +21,10 @@ ensure_monorepo_paths()
 
 import httpx  # noqa: E402
 import yaml  # noqa: E402
+from observability.metrics import configure_metrics  # noqa: E402
+from observability.tracing import get_trace_id, inject_trace_headers  # noqa: E402
 from plan_schema import Plan, PlanTask  # noqa: E402
-from pydantic import BaseModel, ConfigDict, Field, ValidationError  # noqa: E402
+from pydantic import ValidationError  # noqa: E402
 
 from agents.common.web_search import (  # noqa: E402
     SearchPurpose,
@@ -33,60 +34,16 @@ from agents.common.web_search import (  # noqa: E402
 )
 from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from observability.metrics import configure_metrics  # noqa: E402
-from observability.tracing import get_trace_id, inject_trace_headers  # noqa: E402
 
-
-class RoutingEntry(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    agent_id: str
-    priority: float | None = Field(default=None, ge=0.0, le=1.0)
-    intent: str | None = None
-    depends_on: list[str] = Field(default_factory=list)
-    action: str | None = None
-
-
-class OrchestrationRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    routing: list[RoutingEntry]
-    intents: list[dict[str, Any]] = Field(default_factory=list)
-    parameters: dict[str, Any] = Field(default_factory=dict)
-    query: str | None = None
-    context: dict[str, Any] | None = None
-    correlation_id: str | None = None
-    tenant_id: str | None = None
-    prompt_id: str | None = None
-    prompt_description: str | None = None
-    prompt_tags: list[str] = Field(default_factory=list)
-    plan_id: str | None = None
-    approval_decision: str | None = None
-    plan_updates: list[dict[str, Any]] | None = None
-    approval_actor: str | None = None
-
-
-class AgentInvocationResult(BaseModel):
-    success: bool
-    agent_id: str
-    data: dict[str, Any] | None = None
-    error: str | None = None
-    cached: bool = False
-
-
-class OrchestrationResponse(BaseModel):
-    aggregated_response: Union[str, dict[str, Any]]
-    status: str = "completed"
-    agent_results: list[AgentInvocationResult]
-    execution_summary: dict[str, Any]
-    agent_activity: list[dict[str, Any]] = Field(default_factory=list)
-    plan: dict[str, Any] | None = None
-
-
-class ValidationErrorPayload(BaseModel):
-    error: str
-    details: list[dict[str, Any]]
-
+from response_orchestration_models import (  # noqa: E402
+    AgentInvocationResult,
+    OrchestrationRequest,
+    OrchestrationResponse,
+    RoutingEntry,
+    ValidationErrorPayload,
+)
+from response_orchestration_utils import aggregate_responses, build_agent_activity  # noqa: E402
+from response_orchestration_actions import orchestrate as _act_orchestrate  # noqa: E402
 
 VENDOR_RESEARCH_PROMPTS = {"vendor_research", "vendor_evaluation"}
 COMPLIANCE_RESEARCH_PROMPTS = {"compliance_updates", "compliance_checklist"}
@@ -285,154 +242,8 @@ class ResponseOrchestrationAgent(BaseAgent):
                 "execution_summary": Timing and status info
             }
         """
-        request = OrchestrationRequest.model_validate(input_data)
-        routing = [entry.model_dump() for entry in request.routing]
-        parameters = dict(request.parameters)
-        context = request.context or {}
-        correlation_id = (
-            context.get("correlation_id") or request.correlation_id or str(uuid.uuid4())
-        )
-        tenant_id = context.get("tenant_id") or request.tenant_id or "unknown"
-
-        prompt_payload = self._build_prompt_payload(request, parameters)
-        if prompt_payload:
-            parameters["prompt"] = prompt_payload
-            external_research = await self._maybe_attach_external_research(
-                prompt_payload, parameters=parameters, context=context
-            )
-            if external_research:
-                parameters["external_research"] = external_research
-                prompt_payload["external_research"] = external_research
-
-        if not routing and not request.plan_id:
-            return OrchestrationResponse(
-                aggregated_response="No agents to invoke",
-                agent_results=[],
-                execution_summary={"total_agents": 0},
-            )
-
-        plan = await self._resolve_plan(request.plan_id, routing)
-        self._current_plan_context = {
-            "plan_id": plan.plan_id,
-            "version": plan.version,
-        }
-
-        if request.plan_updates is not None:
-            plan = self.update_pending_plan(
-                plan.plan_id,
-                request.plan_updates,
-                actor=request.approval_actor or "orchestration-api",
-            )
-
-        if request.approval_decision == "reject":
-            plan.status = "rejected"
-            self._store_plan(plan)
-            await self.event_bus.publish(
-                "plan.rejected",
-                {
-                    "plan_id": plan.plan_id,
-                    "version": plan.version,
-                    "modifications": plan.modification_history,
-                    "actor": request.approval_actor or "orchestration-api",
-                },
-            )
-            return OrchestrationResponse(
-                aggregated_response="Plan rejected. Execution cancelled.",
-                status="rejected",
-                agent_results=[],
-                execution_summary={
-                    "total_agents": len(plan.tasks),
-                    "successful": 0,
-                    "failed": 0,
-                    "plan_id": plan.plan_id,
-                    "version": plan.version,
-                },
-                plan=plan.model_dump(mode="json"),
-            )
-
-        if self.require_approval and request.approval_decision != "approve":
-            plan.status = "pending_approval"
-            self._store_plan(plan)
-            return OrchestrationResponse(
-                aggregated_response="Plan created and awaiting approval.",
-                status="pending_approval",
-                agent_results=[],
-                execution_summary={
-                    "total_agents": len(plan.tasks),
-                    "successful": 0,
-                    "failed": 0,
-                    "plan_id": plan.plan_id,
-                    "version": plan.version,
-                },
-                plan=plan.model_dump(mode="json"),
-            )
-
-        plan.status = "approved"
-        self._store_plan(plan)
-        await self.event_bus.publish(
-            "plan.approved",
-            {
-                "plan_id": plan.plan_id,
-                "version": plan.version,
-                "modifications": plan.modification_history,
-                "actor": request.approval_actor or "orchestration-api",
-            },
-        )
-
-        # Build dependency graph
-        execution_plan = await self._build_execution_plan(
-            [
-                {
-                    "agent_id": task.agent_id,
-                    "action": task.action,
-                    "depends_on": task.dependencies,
-                    **task.metadata,
-                }
-                for task in plan.tasks
-            ]
-        )
-
-        # Execute agents according to plan
-        execution_start = time.time()
-        results = await self._execute_plan(
-            execution_plan,
-            parameters,
-            correlation_id=correlation_id,
-            tenant_id=tenant_id,
-        )
-
-        # Aggregate responses
-        aggregated = await self._aggregate_responses(results)
-        agent_activity = self._build_agent_activity(results, execution_start)
-        self._emit_audit_event(
-            tenant_id=tenant_id,
-            correlation_id=correlation_id,
-            action="orchestration.aggregated",
-            outcome="success",
-            metadata={
-                "agent_count": len(plan.tasks),
-                "successful": len([r for r in results if r.get("success")]),
-                "failed": len([r for r in results if not r.get("success")]),
-                "plan_id": plan.plan_id,
-                "version": plan.version,
-            },
-        )
-
-        response = OrchestrationResponse(
-            aggregated_response=aggregated,
-            status="completed",
-            agent_results=[AgentInvocationResult(**result) for result in results],
-            execution_summary={
-                "total_agents": len(plan.tasks),
-                "successful": len([r for r in results if r.get("success")]),
-                "failed": len([r for r in results if not r.get("success")]),
-                "plan_id": plan.plan_id,
-                "version": plan.version,
-            },
-            agent_activity=agent_activity,
-            plan=plan.model_dump(mode="json"),
-        )
-        return response
+        result = await _act_orchestrate(self, input_data)
+        return OrchestrationResponse.model_validate(result)
 
     async def _resolve_plan(self, plan_id: str | None, routing: list[dict[str, Any]]) -> Plan:
         if plan_id:
@@ -889,50 +700,18 @@ class ResponseOrchestrationAgent(BaseAgent):
     def _build_agent_activity(
         self, results: list[dict[str, Any]], execution_start: float
     ) -> list[dict[str, Any]]:
-        activity: list[dict[str, Any]] = []
-        cursor = execution_start
-        for result in results:
-            duration_seconds = float(result.get("duration_seconds", 0.001) or 0.001)
-            if duration_seconds <= 0:
-                duration_seconds = 0.001
-            started_at = cursor
-            completed_at = started_at + duration_seconds
-            cursor = completed_at
-            activity.append(
-                {
-                    "agent_id": result.get("agent_id", "unknown"),
-                    "started_at": (
-                        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(started_at))
-                        + f".{int((started_at % 1) * 1000):03d}Z"
-                    ),
-                    "completed_at": (
-                        time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(completed_at))
-                        + f".{int((completed_at % 1) * 1000):03d}Z"
-                    ),
-                    "duration_ms": int(duration_seconds * 1000),
-                    "status": "success" if result.get("success") else "failed",
-                }
-            )
-        return activity
+        """Delegate to utility function."""
+        return build_agent_activity(results, execution_start)
 
     async def _aggregate_responses(
         self, results: list[dict[str, Any]]
-    ) -> Union[str, dict[str, Any]]:
-        """
-        Aggregate multiple agent responses into coherent output.
+    ) -> str | dict[str, Any]:
+        """Aggregate multiple agent responses into coherent output.
 
         Returns a dict keyed by agent_id containing each agent's raw response data,
         or an error string if all agents failed.
         """
-        successful_results = [r for r in results if r.get("success")]
-
-        if not successful_results:
-            return "Unable to process request - all agents failed"
-
-        return {
-            r.get("agent_id", "unknown"): r.get("data") or {}
-            for r in successful_results
-        }
+        return aggregate_responses(results)
 
     def _initialize_cache_backend(self) -> None:
         if (

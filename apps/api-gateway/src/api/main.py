@@ -7,15 +7,22 @@ This is the main entry point for the PPM platform REST API.
 import logging
 import os
 import signal
-import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
+from common.env_validation import environment_value
+from common.exceptions import PPMPlatformError, exception_to_http_status
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from observability.logging import configure_logging
+from observability.metrics import RequestMetricsMiddleware, configure_metrics
+from observability.tracing import TraceMiddleware, configure_tracing
+from security.auth import clear_auth_caches
+from security.errors import register_error_handlers
+from security.headers import SecurityHeadersMiddleware
 
 from api.bootstrap import StartupFailure, build_default_bootstrap_registry
 from api.config import validate_startup_config
@@ -46,15 +53,7 @@ from api.slowapi_compat import (
     SlowAPIMiddleware,
     _rate_limit_exceeded_handler,
 )
-from common.env_validation import environment_value
-from common.exceptions import PPMPlatformError, exception_to_http_status
-from observability.logging import configure_logging
-from observability.metrics import RequestMetricsMiddleware, configure_metrics
-from observability.tracing import TraceMiddleware, configure_tracing
 from packages.version import API_VERSION
-from security.auth import clear_auth_caches
-from security.errors import register_error_handlers
-from security.headers import SecurityHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(

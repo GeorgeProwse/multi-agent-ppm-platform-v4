@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import TYPE_CHECKING, Any
 
 from llm.client import LLMGateway, LLMProviderError
-
-from agents.common.web_search import build_search_query, search_web, summarize_snippets
-
 from risk_utils import (
     coerce_rating,
     extract_sources,
     fallback_risk_classification,
     normalize_risk_category,
-    publish_risk_event,
     risk_signature,
 )
+
+from agents.common.web_search import build_search_query, search_web, summarize_snippets
 
 if TYPE_CHECKING:
     from risk_management_agent import RiskManagementAgent

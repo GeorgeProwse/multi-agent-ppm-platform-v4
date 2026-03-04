@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from definition_utils import scope_to_text
+
 from services.scope_baseline.scope_baseline_service import create_baseline, retrieve_baseline
 
 if TYPE_CHECKING:

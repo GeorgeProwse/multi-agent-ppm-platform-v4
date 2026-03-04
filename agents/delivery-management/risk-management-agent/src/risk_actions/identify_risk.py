@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import DocumentMetadata, GRCRisk
-
 from risk_utils import (
     classify_risk_level,
     extract_risks_from_documents,
@@ -19,6 +17,8 @@ from risk_utils import (
     train_risk_extractor,
     validate_risk_record,
 )
+
+from agents.common.connector_integration import DocumentMetadata, GRCRisk
 
 if TYPE_CHECKING:
     from risk_management_agent import RiskManagementAgent

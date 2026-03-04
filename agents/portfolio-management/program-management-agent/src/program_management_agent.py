@@ -16,10 +16,6 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from agents.common.connector_integration import DatabaseStorageService
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
-
 from program_actions import (
     handle_aggregate_benefits,
     handle_analyze_change_impact,
@@ -38,11 +34,11 @@ from program_infrastructure import (
     collect_external_health_signals,
     compute_benefit_realization_metrics,
     generate_program_narrative,
+    ingest_external_program_data,
     initialize_cosmos,
     initialize_integrations,
     initialize_llm,
     initialize_ml,
-    ingest_external_program_data,
     predict_program_health,
     subscribe_to_program_events,
 )
@@ -60,6 +56,10 @@ from program_utils import (
     detect_schedule_overlaps,
     parse_date,
 )
+
+from agents.common.connector_integration import DatabaseStorageService
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class ProgramManagementAgent(BaseAgent):

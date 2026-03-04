@@ -7,12 +7,12 @@ from typing import Any, Literal
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
 
 from routes._deps import (
     METHODOLOGY_DOCS_ROOT,
     METHODOLOGY_STORAGE_PATH,
     SOR_FIXTURES_PATH,
+    Orchestrator,
     _demo_mode_enabled,
     _load_json,
     _load_yaml,
@@ -25,14 +25,11 @@ from routes._deps import (
     get_default_methodology_map,
     get_methodology_map,
     list_runtime_actions_for_node,
-    load_methodology_node_runtime_registry,
-    logger,
     permission_required,
     resolve_runtime,
     runtime_lifecycle_store,
     workspace_state_store,
 )
-from routes._deps import Orchestrator
 from routes._models import (
     MethodologyActivityEditor,
     MethodologyEditorPayload,

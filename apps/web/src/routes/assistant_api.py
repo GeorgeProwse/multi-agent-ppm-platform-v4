@@ -5,6 +5,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -25,10 +26,9 @@ from routes._deps import (
     evaluate_prompt,
     get_methodology_map,
     logger,
-    workspace_state_store,
     workflow_definition_store,
+    workspace_state_store,
 )
-import httpx
 from routes._models import (
     AssistantQueryRequest,
     AssistantQueryResponse,

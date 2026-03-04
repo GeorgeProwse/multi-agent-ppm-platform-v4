@@ -4,10 +4,9 @@ Scope research action handler -- generates scope proposals using optional extern
 
 from __future__ import annotations
 
+import importlib
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
-
-import importlib
 
 from definition_utils import sanitize_search_query
 
@@ -34,7 +33,7 @@ async def _extract_high_level_requirements(charter_data: dict[str, Any]) -> list
 
 
 async def _generate_wbs_structure_for_research(
-    agent: "ProjectDefinitionAgent",
+    agent: ProjectDefinitionAgent,
     scope_overview: dict[str, Any],
 ) -> dict[str, Any]:
     """Lightweight WBS generation used exclusively by scope research."""
@@ -49,7 +48,7 @@ async def _generate_wbs_structure_for_research(
 # ---------------------------------------------------------------------------
 
 async def handle_generate_scope_research(
-    agent: "ProjectDefinitionAgent",
+    agent: ProjectDefinitionAgent,
     project_id: str,
     objective: str,
     *,

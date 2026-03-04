@@ -26,7 +26,11 @@ async def upload_document(
     document_id = await generate_document_id()
 
     # Extract metadata
-    from knowledge_actions.classification_actions import auto_classify_document, extract_metadata, generate_tags
+    from knowledge_actions.classification_actions import (
+        auto_classify_document,
+        extract_metadata,
+        generate_tags,
+    )
 
     metadata = await extract_metadata(agent, document_data)
 
@@ -238,7 +242,10 @@ async def update_document(
 
     # Re-classify if content changed
     if "content" in updates:
-        from knowledge_actions.classification_actions import auto_classify_document, summarize_document
+        from knowledge_actions.classification_actions import (
+            auto_classify_document,
+            summarize_document,
+        )
 
         classification = await auto_classify_document(agent, document)
         document["type"] = classification.get("type")

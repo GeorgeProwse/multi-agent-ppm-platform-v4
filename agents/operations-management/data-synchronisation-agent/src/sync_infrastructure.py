@@ -9,7 +9,6 @@ main agent class to keep it focused on routing and lifecycle.
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,12 +19,11 @@ import yaml
 from observability.metrics import build_business_workflow_metrics
 from observability.tracing import get_trace_id
 from security.lineage import mask_lineage_payload
+from sync_utils import apply_transformations, get_transformation_rules, validate_transformation_rule
 
 from agents.common.connector_integration import _ensure_connector_paths
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.event_bus import ServiceBusEventBus
-
-from sync_utils import apply_transformations, get_transformation_rules, validate_transformation_rule
 
 try:
     from azure.core.credentials import AzureKeyCredential

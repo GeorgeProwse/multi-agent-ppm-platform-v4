@@ -1,8 +1,6 @@
 """Global search route."""
 from __future__ import annotations
 
-from typing import Any
-
 from fastapi import APIRouter, Query, Request
 
 from routes._deps import (

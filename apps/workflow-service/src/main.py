@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -19,6 +18,7 @@ from tools.runtime_paths import bootstrap_runtime_paths
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 from agent_client import get_agent_client  # noqa: E402

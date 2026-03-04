@@ -16,10 +16,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from connector_secrets import resolve_secret
+
 from agents.common.connector_integration import CalendarIntegrationService, NotificationService
 from agents.runtime import BaseAgent
 from agents.runtime.src.state_store import TenantStateStore
-from connector_secrets import resolve_secret
 
 # ---------------------------------------------------------------------------
 # Package bootstrap: when this file is loaded via importlib.util.spec_from_
@@ -28,8 +29,8 @@ from connector_secrets import resolve_secret
 # synthetic package so that relative imports resolve correctly everywhere.
 # ---------------------------------------------------------------------------
 _SRC_DIR = str(Path(__file__).resolve().parent)
-if _SRC_DIR not in sys.path:
-    sys.path.insert(0, _SRC_DIR)
+# sys.path insertion handled by common.bootstrap (called upstream by the agent runtime);
+# _SRC_DIR is kept to set up the synthetic package below.
 
 _PKG = "stakeholder_comms_pkg"
 
@@ -48,16 +49,6 @@ if not globals().get("__package__"):
     globals()["__spec__"] = None  # clear stale spec
 
 # Now relative imports work regardless of how this module was loaded.
-from .stakeholder_models import CommunicationHistoryStore, ServiceBusPublisher  # noqa: E402
-from .stakeholder_utils import (  # noqa: E402
-    WebClient,
-    TwilioClient,
-    get_template,
-    load_default_templates,
-    resolve_delivery_channels,
-    resolve_token,
-    send_via_channel,
-)
 from .actions import (  # noqa: E402
     analyze_sentiment,
     classify_stakeholder,
@@ -76,6 +67,16 @@ from .actions import (  # noqa: E402
     track_delivery_event,
     track_engagement,
     update_communication_preferences,
+)
+from .stakeholder_models import CommunicationHistoryStore, ServiceBusPublisher  # noqa: E402
+from .stakeholder_utils import (  # noqa: E402
+    TwilioClient,
+    WebClient,
+    get_template,
+    load_default_templates,
+    resolve_delivery_channels,
+    resolve_token,
+    send_via_channel,
 )
 
 

@@ -5,8 +5,6 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Any
 
-from schedule_actions.critical_path import forward_pass
-from schedule_actions.create_schedule import calculate_project_duration
 from schedule_utils import (
     merge_external_resource_availability,
     normalize_resource_availability,
@@ -14,6 +12,9 @@ from schedule_utils import (
     persist_schedule,
     publish_schedule_updated,
 )
+
+from schedule_actions.create_schedule import calculate_project_duration
+from schedule_actions.critical_path import forward_pass
 
 if TYPE_CHECKING:
     from schedule_planning_agent import SchedulePlanningAgent

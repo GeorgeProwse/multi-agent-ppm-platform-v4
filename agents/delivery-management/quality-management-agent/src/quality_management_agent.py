@@ -20,16 +20,6 @@ except Exception:
     from packages.contracts.src.events import EventEnvelope
 from observability.tracing import get_trace_id
 
-from agents.common.connector_integration import (
-    CalendarIntegrationService,
-    DatabaseStorageService,
-    DocumentManagementService,
-    DocumentMetadata,
-)
-from agents.common.integration_services import NaiveBayesTextClassifier
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
-
 # Action handlers  ----------------------------------------------------------
 from quality_actions import (
     analysis_actions,
@@ -43,6 +33,15 @@ from quality_actions import (
     test_actions,
 )
 from quality_utils import build_defect_classifier
+
+from agents.common.connector_integration import (
+    CalendarIntegrationService,
+    DatabaseStorageService,
+    DocumentManagementService,
+)
+from agents.common.integration_services import NaiveBayesTextClassifier
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class QualityManagementAgent(BaseAgent):

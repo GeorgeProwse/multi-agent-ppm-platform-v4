@@ -1,8 +1,4 @@
-"""
-Action handlers for search and skill matching:
-  - search_resources
-  - match_skills
-"""
+"""Action handlers: search_resources, match_skills, get_resource_pool."""
 
 from __future__ import annotations
 
@@ -11,12 +7,15 @@ from typing import TYPE_CHECKING, Any
 from resource_models import EmbeddingClient
 from resource_utils import cosine_similarity, get_effective_skills
 
+from resource_actions.helpers import find_matching_resources, get_performance_score
+
 if TYPE_CHECKING:
     from resource_capacity_agent import ResourceCapacityAgent
 
 
-async def search_resources(
-    agent: ResourceCapacityAgent, search_criteria: dict[str, Any]
+async def handle_search_resources(
+    agent: ResourceCapacityAgent,
+    search_criteria: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Search for resources by criteria.
@@ -62,8 +61,10 @@ async def search_resources(
     }
 
 
-async def match_skills(
-    agent: ResourceCapacityAgent, skills_required: list[str], project_context: dict[str, Any]
+async def handle_match_skills(
+    agent: ResourceCapacityAgent,
+    skills_required: list[str],
+    project_context: dict[str, Any],
 ) -> dict[str, Any]:
     """
     Match resources to required skills using AI.
@@ -89,7 +90,7 @@ async def match_skills(
             resource = agent.resource_pool.get(resource_id, {})
             if not resource_id:
                 continue
-            performance_score = await agent._get_performance_score(resource_id, project_context)
+            performance_score = await get_performance_score(agent, resource_id, project_context)
             semantic_score = float(result.get("@search.score", 0.0))
             combined_score = (semantic_score * 0.6) + (performance_score * 0.4)
             if combined_score >= agent.skill_matching_threshold:
@@ -109,13 +110,13 @@ async def match_skills(
                     }
                 )
     else:
-        matches = await agent._find_matching_resources(skills_required)
+        matches = await find_matching_resources(agent, skills_required)
         for match in matches:
             resource_id = match["resource_id"]
             resource_skills = " ".join(match.get("skills", []))
             resource_embedding = embedding_client.get_embedding(resource_skills)
             semantic_similarity = cosine_similarity(query_embedding, resource_embedding)
-            performance_score = await agent._get_performance_score(resource_id, project_context)
+            performance_score = await get_performance_score(agent, resource_id, project_context)
             combined_score = (
                 match["weighted_score"] * 0.5
                 + semantic_similarity * 0.3
@@ -145,4 +146,42 @@ async def match_skills(
         "skills_required": skills_required,
         "candidates": candidates,
         "total_candidates": len(candidates),
+    }
+
+
+async def handle_get_resource_pool(
+    agent: ResourceCapacityAgent,
+    filters: dict[str, Any],
+    *,
+    tenant_id: str,
+) -> dict[str, Any]:
+    """Retrieve resource pool data."""
+    role_filter = filters.get("role")
+    location_filter = filters.get("location")
+    status_filter = filters.get("status", "Active")
+
+    filtered_resources = []
+
+    resources = list(agent.resource_pool.values())
+    if not resources:
+        resources = agent.resource_store.list(tenant_id)
+        for resource in resources:
+            resource_id = resource.get("resource_id")
+            if resource_id:
+                agent.resource_pool[resource_id] = resource
+
+    for resource in resources:
+        if role_filter and resource.get("role") != role_filter:
+            continue
+        if location_filter and resource.get("location") != location_filter:
+            continue
+        if status_filter and resource.get("status") != status_filter:
+            continue
+
+        filtered_resources.append(resource)
+
+    return {
+        "total_resources": len(filtered_resources),
+        "resources": filtered_resources,
+        "filters_applied": filters,
     }

@@ -50,7 +50,6 @@ from health_actions import (  # noqa: E402
     acknowledge_alert,
     analyze_root_cause,
     apply_anomaly_detection,
-    check_all_services_health,
     check_health,
     check_metric_thresholds,
     collect_application_metrics,
@@ -83,7 +82,6 @@ from health_init import (  # noqa: E402
     initialize_event_hub,
     initialize_health_probes,
     initialize_prometheus_metrics,
-    periodic_health_probes,
     query_azure_resource_metrics,
     query_metrics,
 )
@@ -92,7 +90,6 @@ from health_utils import (  # noqa: E402
     load_monitor_resource_ids,
     load_prometheus_scrape_targets,
     parse_prometheus_metrics,
-    parse_time_range,
     sanitize_text,
 )
 

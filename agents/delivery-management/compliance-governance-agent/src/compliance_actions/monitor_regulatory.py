@@ -10,16 +10,15 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import requests
-
-from agents.common.web_search import build_search_query, search_web, summarize_snippets
-from llm.client import LLMGateway, LLMProviderError
-
 from compliance_utils import (
     extract_sources,
     identify_control_gaps,
     normalize_regulatory_update,
     parse_rss_updates,
 )
+from llm.client import LLMGateway, LLMProviderError
+
+from agents.common.web_search import build_search_query, search_web, summarize_snippets
 
 if TYPE_CHECKING:
     from compliance_regulatory_agent import ComplianceRegulatoryAgent

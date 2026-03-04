@@ -1,20 +1,21 @@
-"""
-Action handlers for demand management:
-  - request_resource
-  - approve_request
-"""
+"""Action handlers: request_resource, approve_request."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from resource_actions.helpers import determine_approver
+
 if TYPE_CHECKING:
     from resource_capacity_agent import ResourceCapacityAgent
 
 
-async def request_resource(
-    agent: ResourceCapacityAgent, request_data: dict[str, Any], *, tenant_id: str
+async def handle_request_resource(
+    agent: ResourceCapacityAgent,
+    request_data: dict[str, Any],
+    *,
+    tenant_id: str,
 ) -> dict[str, Any]:
     """
     Submit a resource request.
@@ -36,7 +37,9 @@ async def request_resource(
     assert isinstance(end_date, str), "end_date must be a string"
 
     # Match skills and find candidates
-    candidates = await agent._match_skills(required_skills, {"project_id": project_id})
+    from resource_actions.reporting import handle_match_skills
+
+    candidates = await handle_match_skills(agent, required_skills, {"project_id": project_id})
 
     # Check availability for each candidate
     available_candidates = []
@@ -44,7 +47,6 @@ async def request_resource(
         availability = await agent._check_availability(
             candidate["resource_id"], start_date, end_date, effort
         )
-
         if availability.get("is_available"):
             candidate["availability_windows"] = availability.get("windows", [])
             available_candidates.append(candidate)
@@ -69,8 +71,8 @@ async def request_resource(
     agent.demand_requests[request_id] = request
 
     # Route to approver
-    approver = await agent._determine_approver(request)
-    approval_payload = {}
+    approver = await determine_approver(agent, request)
+    approval_payload: dict[str, Any] = {}
     if agent.approval_client:
         approval_payload = await agent.approval_client.request_approval(
             request,
@@ -98,7 +100,7 @@ async def request_resource(
     }
 
 
-async def approve_request(
+async def handle_approve_request(
     agent: ResourceCapacityAgent,
     request_id: str,
     approval_decision: dict[str, Any],
@@ -132,15 +134,19 @@ async def approve_request(
         )
 
     if approved and selected_resource:
-        # Create allocation
-        allocation = await agent._allocate_resource(
+        from resource_actions.allocation import handle_allocate_resource
+
+        allocation = await handle_allocate_resource(
+            agent,
             {
                 "resource_id": selected_resource,
                 "project_id": request.get("project_id"),
                 "start_date": request.get("start_date"),
                 "end_date": request.get("end_date"),
                 "allocation_percentage": request.get("effort", 1.0) * 100,
-            }
+            },
+            tenant_id=tenant_id,
+            correlation_id=request_id,
         )
 
         request["status"] = "Approved"

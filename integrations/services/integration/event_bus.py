@@ -8,10 +8,11 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Callable, Deque, Dict, Iterable, List, Optional
+from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,7 +20,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 logger = logging.getLogger(__name__)
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     """Common event types shared across agents."""
 
     SCHEDULE_CREATED = "schedule.created"
@@ -33,14 +34,14 @@ class EventType(str, Enum):
 
 class ScheduleEventData(BaseModel):
     schedule_id: str
-    owner: Optional[str] = None
-    status: Optional[str] = None
+    owner: str | None = None
+    status: str | None = None
 
 
 class RiskEventData(BaseModel):
     risk_id: str
     severity: str
-    mitigation: Optional[str] = None
+    mitigation: str | None = None
 
 
 class ResourceEventData(BaseModel):
@@ -56,11 +57,11 @@ class EventEnvelope(BaseModel):
     subject: str = Field(..., description="Entity subject identifier")
     source: str = Field(default="multi-agent-ppm", description="Event source")
     time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    data: Dict[str, Any] = Field(default_factory=dict)
+    data: dict[str, Any] = Field(default_factory=dict)
     version: str = Field(default="1.0")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    def to_payload(self) -> Dict[str, Any]:
+    def to_payload(self) -> dict[str, Any]:
         return json.loads(self.model_dump_json())
 
 
@@ -77,13 +78,13 @@ class EventBusSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EVENT_BUS_", env_file=".env")
 
     provider: str = "in_memory"
-    service_bus_connection_string: Optional[str] = None
+    service_bus_connection_string: str | None = None
     service_bus_topic: str = "ppm-events"
     service_bus_subscription: str = "ppm-subscription"
-    event_grid_endpoint: Optional[str] = None
-    event_grid_key: Optional[str] = None
+    event_grid_endpoint: str | None = None
+    event_grid_key: str | None = None
     event_grid_topic: str = "ppm-events"
-    kafka_bootstrap_servers: Optional[str] = None
+    kafka_bootstrap_servers: str | None = None
     kafka_topic: str = "ppm-events"
 
 
@@ -97,11 +98,11 @@ class EventBusProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:  # pragma: no cover
+    def publish(self, topic: str, payload: dict[str, Any]) -> None:  # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def subscribe(self, topic: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, topic: str, handler: Callable[[dict[str, Any]], None]) -> None:
         raise NotImplementedError
 
 
@@ -109,8 +110,8 @@ class InMemoryEventBusProvider(EventBusProvider):
     """Simple in-memory provider for tests and local development."""
 
     def __init__(self) -> None:
-        self._topics: Dict[str, Deque[Dict[str, Any]]] = defaultdict(deque)
-        self._subscribers: Dict[str, List[Callable[[Dict[str, Any]], None]]] = defaultdict(list)
+        self._topics: dict[str, deque[dict[str, Any]]] = defaultdict(deque)
+        self._subscribers: dict[str, list[Callable[[dict[str, Any]], None]]] = defaultdict(list)
 
     def create_topic(self, name: str) -> None:
         self._topics.setdefault(name, deque())
@@ -118,15 +119,15 @@ class InMemoryEventBusProvider(EventBusProvider):
     def create_queue(self, name: str) -> None:
         self._topics.setdefault(name, deque())
 
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+    def publish(self, topic: str, payload: dict[str, Any]) -> None:
         self._topics[topic].append(payload)
         for handler in self._subscribers.get(topic, []):
             handler(payload)
 
-    def subscribe(self, topic: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, topic: str, handler: Callable[[dict[str, Any]], None]) -> None:
         self._subscribers[topic].append(handler)
 
-    def drain(self, topic: str) -> Iterable[Dict[str, Any]]:
+    def drain(self, topic: str) -> Iterable[dict[str, Any]]:
         while self._topics[topic]:
             yield self._topics[topic].popleft()
 
@@ -149,7 +150,7 @@ class AzureServiceBusProvider(EventBusProvider):
     def create_queue(self, name: str) -> None:
         logger.info("Ensure Service Bus queue exists", extra={"queue": name})
 
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+    def publish(self, topic: str, payload: dict[str, Any]) -> None:
         from azure.servicebus import ServiceBusMessage  # type: ignore
 
         with self._client:
@@ -157,7 +158,7 @@ class AzureServiceBusProvider(EventBusProvider):
             with sender:
                 sender.send_messages(ServiceBusMessage(json.dumps(payload)))
 
-    def subscribe(self, topic: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, topic: str, handler: Callable[[dict[str, Any]], None]) -> None:
         logger.warning("Service Bus subscription handling should be configured per-service.")
 
 
@@ -174,7 +175,7 @@ class AzureEventGridProvider(EventBusProvider):
     def create_queue(self, name: str) -> None:
         logger.info("Event Grid does not support queues", extra={"queue": name})
 
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+    def publish(self, topic: str, payload: dict[str, Any]) -> None:
         import httpx
 
         event = {
@@ -190,7 +191,7 @@ class AzureEventGridProvider(EventBusProvider):
         response = httpx.post(url, headers=headers, json=[event], timeout=10.0)
         response.raise_for_status()
 
-    def subscribe(self, topic: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, topic: str, handler: Callable[[dict[str, Any]], None]) -> None:
         logger.warning("Event Grid subscriptions are managed externally.")
 
 
@@ -215,11 +216,11 @@ class KafkaEventBusProvider(EventBusProvider):
     def create_queue(self, name: str) -> None:
         logger.info("Kafka does not support queues", extra={"queue": name})
 
-    def publish(self, topic: str, payload: Dict[str, Any]) -> None:
+    def publish(self, topic: str, payload: dict[str, Any]) -> None:
         self._producer.send(topic, payload)
         self._producer.flush()
 
-    def subscribe(self, topic: str, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, topic: str, handler: Callable[[dict[str, Any]], None]) -> None:
         try:
             from kafka import KafkaConsumer  # type: ignore
         except ImportError as exc:  # pragma: no cover - optional dependency
@@ -241,9 +242,9 @@ class EventBusClient:
 
     def __init__(
         self,
-        settings: Optional[EventBusSettings] = None,
-        provider: Optional[EventBusProvider] = None,
-        retry_policy: Optional[RetryPolicy] = None,
+        settings: EventBusSettings | None = None,
+        provider: EventBusProvider | None = None,
+        retry_policy: RetryPolicy | None = None,
     ) -> None:
         self.settings = settings or EventBusSettings()
         self.retry_policy = retry_policy or RetryPolicy()
@@ -269,7 +270,7 @@ class EventBusClient:
             case _:
                 return InMemoryEventBusProvider()
 
-    def create_topic(self, name: Optional[str] = None) -> None:
+    def create_topic(self, name: str | None = None) -> None:
         topic = name or self.settings.service_bus_topic
         self.provider.create_topic(topic)
 
@@ -280,7 +281,7 @@ class EventBusClient:
         payload = envelope.to_payload()
         self._with_retry(lambda: self.provider.publish(self._topic_name(), payload))
 
-    def subscribe(self, handler: Callable[[Dict[str, Any]], None]) -> None:
+    def subscribe(self, handler: Callable[[dict[str, Any]], None]) -> None:
         self.provider.subscribe(self._topic_name(), handler)
 
     def _topic_name(self) -> str:

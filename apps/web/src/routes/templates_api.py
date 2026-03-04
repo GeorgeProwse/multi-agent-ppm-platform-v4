@@ -17,7 +17,6 @@ from routes._deps import (
     TemplateInstantiateRequest,
     TemplateInstantiateResponse,
     TemplateType,
-    _demo_mode_enabled,
     _document_client,
     _load_projects,
     _raise_upstream_error,

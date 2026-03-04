@@ -11,7 +11,6 @@ Specification: agents/delivery-management/vendor-procurement-agent/README.md
 
 import importlib
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,36 +18,7 @@ from tools.runtime_paths import bootstrap_runtime_paths
 
 bootstrap_runtime_paths()
 
-from llm.client import LLMGateway, LLMProviderError  # noqa: E402
-
-from agents.common.connector_integration import (  # noqa: E402
-    DatabaseStorageService,
-    DocumentManagementService,
-)
-from agents.common.web_search import (  # noqa: E402
-    build_search_query,
-    search_web,
-    summarize_snippets,
-)
-from agents.runtime import BaseAgent  # noqa: E402
-from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
-
-# Re-export models so existing imports keep working
-from vendor_models import (  # noqa: E402
-    CommunicationsClient,
-    ConnectorStatus,
-    EventBusClient,
-    FinancialManagementClient,
-    FormRecognizerClient,
-    LocalApprovalAgent,
-    PerformanceAnalyticsClient,
-    ProcurementClassifier,
-    ProcurementConnectorService,
-    ProcurementEventPublisher,
-    RiskDatabaseClient,
-    TaskManagementClient,
-    VendorMLService,
-)
+from llm.client import LLMGateway  # noqa: E402
 
 # Action handlers
 from vendor_actions import (  # noqa: E402
@@ -74,12 +44,45 @@ from vendor_actions import (  # noqa: E402
 )
 from vendor_actions.event_handlers import register_event_handlers  # noqa: E402
 
+# Re-export models so existing imports keep working
+from vendor_models import (  # noqa: E402
+    CommunicationsClient,
+    EventBusClient,
+    FinancialManagementClient,
+    FormRecognizerClient,
+    LocalApprovalAgent,
+    PerformanceAnalyticsClient,
+    ProcurementClassifier,
+    ProcurementConnectorService,
+    ProcurementEventPublisher,
+    RiskDatabaseClient,
+    TaskManagementClient,
+    VendorMLService,
+)
+
 # Utilities used directly by the agent class
 from vendor_utils import (  # noqa: E402
     extract_sources as _extract_sources,
+)
+from vendor_utils import (  # noqa: E402
     extract_vendor_insights as _extract_vendor_insights_fn,
+)
+from vendor_utils import (  # noqa: E402
     score_vendor_research as _score_vendor_research,
 )
+
+from agents.common.connector_integration import (  # noqa: E402
+    DatabaseStorageService,
+    DocumentManagementService,
+)
+from agents.common.web_search import (  # noqa: E402
+    build_search_query,
+    search_web,
+    summarize_snippets,
+)
+from agents.runtime import BaseAgent  # noqa: E402
+from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
+
 
 class VendorProcurementAgent(BaseAgent):
     """

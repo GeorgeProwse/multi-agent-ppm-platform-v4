@@ -5,8 +5,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 
-from routes._deps import pipeline_store
-from routes._deps import PipelineBoard, PipelineItem, PipelineItemUpdate
+from routes._deps import PipelineBoard, PipelineItem, PipelineItemUpdate, pipeline_store
 
 router = APIRouter()
 

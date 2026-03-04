@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,13 +10,13 @@ import httpx
 import yaml
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
 from jsonschema import Draft202012Validator, FormatChecker
+from pydantic import BaseModel, Field
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
@@ -28,10 +27,10 @@ from security.api_governance import (  # noqa: E402
     version_response_payload,
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 
 from agents.runtime.src.policy import evaluate_compliance_controls  # noqa: E402
 from packages.version import API_VERSION  # noqa: E402
-from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("policy-engine")
 logging.basicConfig(level=logging.INFO)

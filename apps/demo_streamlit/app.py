@@ -1121,7 +1121,7 @@ def inject_demo_styles() -> None:
 def render_html_header(page: str) -> None:
     """Render a branded header bar matching the React app's Header component."""
     project = st.session_state.get("selected_project") or ""
-    methodology = st.session_state.get("selected_methodology_name") or ""
+    _methodology = st.session_state.get("selected_methodology_name") or ""
     crumbs = ["Home"]
     if page and page != "Home":
         crumbs.append(page)
@@ -2285,7 +2285,7 @@ def render_intake(hub: DemoDataHub) -> None:
 
 def render_new_intake(hub: DemoDataHub) -> None:
     """Multi-step intake form matching the React IntakeFormPage layout."""
-    INTAKE_STEPS = [
+    intake_steps = [
         {"id": "sponsor", "label": "Sponsor details"},
         {"id": "business", "label": "Business case"},
         {"id": "success", "label": "Success criteria"},
@@ -2313,7 +2313,7 @@ def render_new_intake(hub: DemoDataHub) -> None:
         }
 
     step_idx = st.session_state["intake_step"]
-    current_step = INTAKE_STEPS[step_idx]
+    current_step = intake_steps[step_idx]
 
     # --- Page header ---
     hdr_left, hdr_right = st.columns([3, 1])
@@ -2327,7 +2327,7 @@ def render_new_intake(hub: DemoDataHub) -> None:
     with hdr_right:
         st.markdown(
             f'<div style="text-align:right;padding-top:16px;">'
-            f'<span class="ppm-step-indicator">Step {step_idx + 1} of {len(INTAKE_STEPS)}</span>'
+            f'<span class="ppm-step-indicator">Step {step_idx + 1} of {len(intake_steps)}</span>'
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -2339,7 +2339,7 @@ def render_new_intake(hub: DemoDataHub) -> None:
 
     with step_col:
         steps_html = ""
-        for i, s in enumerate(INTAKE_STEPS):
+        for i, s in enumerate(intake_steps):
             cls = "ppm-step-item ppm-step-active" if i == step_idx else "ppm-step-item"
             marker = "&#10003; " if i < step_idx else f"{i + 1}. "
             steps_html += f'<div class="{cls}">{marker}{s["label"]}</div>'
@@ -2405,7 +2405,7 @@ def render_new_intake(hub: DemoDataHub) -> None:
             if nav_left.button("Back", key="intake-back", use_container_width=True):
                 st.session_state["intake_step"] = step_idx - 1
                 st.rerun()
-        if step_idx < len(INTAKE_STEPS) - 1:
+        if step_idx < len(intake_steps) - 1:
             if nav_right.button("Continue", key="intake-next", use_container_width=True):
                 st.session_state["intake_step"] = step_idx + 1
                 st.rerun()

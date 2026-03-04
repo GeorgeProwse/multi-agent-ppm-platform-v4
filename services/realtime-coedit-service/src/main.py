@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -22,6 +21,7 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402

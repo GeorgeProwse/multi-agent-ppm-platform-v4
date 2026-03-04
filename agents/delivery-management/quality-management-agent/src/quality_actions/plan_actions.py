@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 
 
 async def create_quality_plan(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     plan_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -73,7 +72,7 @@ async def create_quality_plan(
 
 
 async def approve_quality_plan(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     plan_id: str | None,
     *,
     approver: str,
@@ -124,7 +123,7 @@ async def approve_quality_plan(
 
 
 async def _recommend_quality_metrics(
-    agent: "QualityManagementAgent", plan_data: dict[str, Any]
+    agent: QualityManagementAgent, plan_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
     """Recommend quality metrics based on project type."""
     baseline = [
@@ -144,7 +143,7 @@ async def _recommend_quality_metrics(
 
 
 async def _request_quality_plan_approval(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     plan_id: str,
     quality_plan: dict[str, Any],
     *,
@@ -184,7 +183,7 @@ async def _request_quality_plan_approval(
 
 
 async def _apply_quality_plan_approval(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     quality_plan: dict[str, Any],
     approval_response: dict[str, Any],
     *,

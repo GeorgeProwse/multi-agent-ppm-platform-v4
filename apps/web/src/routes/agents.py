@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from routes._deps import (
+    AgentConfigUpdate,
+    AgentProjectEntry,
     _is_agent_admin,
     _require_session,
     _tenant_id_from_request,
@@ -16,7 +18,6 @@ from routes._deps import (
     load_template_mappings,
     logger,
 )
-from routes._deps import AgentConfigUpdate, AgentProjectEntry
 from routes._models import (
     AgentPreviewRunRequest,
     AgentPreviewRunResponse,

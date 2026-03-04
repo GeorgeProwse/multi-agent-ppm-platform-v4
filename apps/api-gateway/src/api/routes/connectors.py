@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import re
-import sys
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +35,7 @@ from api.connector_loader import get_connector_class
 REPO_ROOT = Path(__file__).resolve().parents[5]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 CONNECTOR_SDK_PATH = REPO_ROOT / "connectors" / "sdk" / "src"

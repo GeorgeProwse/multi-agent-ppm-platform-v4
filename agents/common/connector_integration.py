@@ -33,7 +33,6 @@ import logging
 import os
 import smtplib
 import ssl
-import sys
 import time
 import urllib.parse
 from dataclasses import dataclass, field

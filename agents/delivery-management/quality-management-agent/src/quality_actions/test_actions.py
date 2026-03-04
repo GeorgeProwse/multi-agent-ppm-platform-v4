@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 async def create_test_case(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     test_case_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -81,7 +81,7 @@ async def create_test_case(
 
 
 async def create_test_suite(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     suite_data: dict[str, Any],
 ) -> dict[str, Any]:
     """Create test suite from test cases.  Returns suite ID and test count."""
@@ -111,7 +111,7 @@ async def create_test_suite(
 
 
 async def execute_tests(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     execution_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -184,7 +184,6 @@ async def execute_tests(
     if execution_data.get("auto_log_defects", True):
         for result in test_results:
             if result.get("result") == "fail":
-                from quality_actions.defect_actions import log_defect
 
                 defect = await _auto_log_defect_from_test(
                     agent, result, tenant_id=tenant_id, correlation_id=correlation_id
@@ -230,7 +229,7 @@ async def execute_tests(
 
 
 async def _link_to_requirements(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     requirement_ids: list[str],
     project_id: str | None,
 ) -> list[dict[str, Any]]:
@@ -254,7 +253,7 @@ async def _link_to_requirements(
 
 
 async def _fetch_project_requirements(
-    agent: "QualityManagementAgent", project_id: str | None
+    agent: QualityManagementAgent, project_id: str | None
 ) -> list[dict[str, Any]]:
     if not project_id:
         return []
@@ -272,7 +271,7 @@ async def _fetch_project_requirements(
 
 
 async def _run_test_suite(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     test_suite: dict[str, Any],
     execution_mode: str,
 ) -> list[dict[str, Any]]:
@@ -292,7 +291,7 @@ async def _run_test_suite(
 
 
 async def _calculate_code_coverage(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> float:
     ci_coverage = await _fetch_ci_coverage_report(agent, project_id)
     if ci_coverage:
@@ -308,7 +307,7 @@ async def _calculate_code_coverage(
 
 
 async def _record_coverage_snapshot(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     coverage_pct: float,
 ) -> dict[str, Any] | None:
@@ -335,7 +334,7 @@ async def _record_coverage_snapshot(
 
 
 async def _auto_log_defect_from_test(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     test_result: dict[str, Any],
     *,
     tenant_id: str,
@@ -358,7 +357,7 @@ async def _auto_log_defect_from_test(
 
 
 async def _fetch_ci_test_results(
-    agent: "QualityManagementAgent", execution_data: dict[str, Any]
+    agent: QualityManagementAgent, execution_data: dict[str, Any]
 ) -> list[dict[str, Any]]:
     pipeline_id = execution_data.get("ci_pipeline_id")
     provider = execution_data.get("ci_provider") or execution_data.get("pipeline_provider")
@@ -381,7 +380,7 @@ async def _fetch_ci_test_results(
 
 
 async def _fetch_ci_coverage_report(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any] | None:
     pipeline_config = agent.integration_config.get("ci_pipelines", {})
     coverage = pipeline_config.get("coverage_by_project", {}).get(project_id)
@@ -403,7 +402,7 @@ async def _fetch_ci_coverage_report(
 
 
 async def _run_playwright_tests(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     test_suite: dict[str, Any],
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -428,7 +427,7 @@ async def _run_playwright_tests(
 
 
 async def _sync_test_management_assets(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     asset_type: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
@@ -453,7 +452,7 @@ async def _sync_test_management_assets(
 
 
 async def _sync_test_execution_results(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     execution_id: str,
     test_results: list[dict[str, Any]],
     execution_data: dict[str, Any],
@@ -482,7 +481,7 @@ async def _sync_test_execution_results(
 
 
 async def _create_azure_devops_test_asset(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     asset_type: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
@@ -503,7 +502,7 @@ async def _create_azure_devops_test_asset(
 
 
 async def _create_azure_devops_test_run(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     execution_id: str,
     test_results: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -525,7 +524,7 @@ async def _create_azure_devops_test_run(
 
 
 async def _store_test_results_in_blob(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     suite_id: str,
     execution_id: str,
     test_results: list[dict[str, Any]],
@@ -555,7 +554,7 @@ async def _store_test_results_in_blob(
 
 
 async def _update_quality_kpis_from_execution(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     test_results: list[dict[str, Any]],
     coverage_pct: float,

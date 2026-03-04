@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from ..stakeholder_utils import (
     build_delivery_schedule,
@@ -20,8 +20,10 @@ from ..stakeholder_utils import (
     resolve_delivery_channels,
     safe_format_template,
     send_via_channel,
-    summarize_report as _summarize_report_util,
     trigger_workflow,
+)
+from ..stakeholder_utils import (
+    summarize_report as _summarize_report_util,
 )
 
 if TYPE_CHECKING:

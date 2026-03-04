@@ -4,7 +4,6 @@ import importlib
 import inspect
 import logging
 import os
-import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,14 +12,14 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
-
 from jsonschema import Draft202012Validator, FormatChecker
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
 from common.env_validation import (  # noqa: E402
@@ -39,6 +38,7 @@ from security.api_governance import (  # noqa: E402
     version_response_payload,
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 from storage import (  # noqa: E402
     DataServiceStore,
     EntityRecord,
@@ -48,7 +48,6 @@ from storage import (  # noqa: E402
 )
 
 from packages.version import API_VERSION
-from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("data-service")
 logging.basicConfig(level=logging.INFO)

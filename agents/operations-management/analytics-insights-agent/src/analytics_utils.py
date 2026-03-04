@@ -19,7 +19,6 @@ from security.lineage import mask_lineage_payload
 
 from agents.common.health_recommendations import generate_recommendations, identify_health_concerns
 
-
 # ---------------------------------------------------------------------------
 # ID generators
 # ---------------------------------------------------------------------------

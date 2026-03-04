@@ -6,6 +6,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from routes._deps import (
+    ActivityCompletionUpdate,
+    OpenRef,
+    WorkspaceSelectionUpdate,
+    WorkspaceState,
     _require_session,
     available_methodologies,
     evaluate_activity_access,
@@ -17,13 +21,6 @@ from routes._deps import (
     resolve_runtime,
     stage_progress,
     workspace_state_store,
-)
-from routes._deps import (
-    ActivityCompletionUpdate,
-    CanvasTab,
-    OpenRef,
-    WorkspaceSelectionUpdate,
-    WorkspaceState,
 )
 from routes._models import (
     ActivityAccessSummary,

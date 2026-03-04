@@ -16,12 +16,6 @@ from typing import TYPE_CHECKING, Any
 
 from llm.client import LLMGateway, LLMProviderError
 
-from agents.common.web_search import (
-    build_search_query,
-    search_web,
-    summarize_snippets,
-)
-
 if TYPE_CHECKING:
     from vendor_procurement_agent import VendorProcurementAgent
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 import logging
-import sys
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,9 +11,8 @@ from uuid import uuid4
 from azure.core.exceptions import HttpResponseError, ResourceModifiedError
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-
 from jsonschema import Draft202012Validator, FormatChecker
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("audit-log")
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +21,7 @@ APP_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 SCHEMA_PATH = REPO_ROOT / "data" / "schemas" / "audit-event.schema.json"
 RETENTION_CONFIG_PATH = REPO_ROOT / "config" / "retention" / "policies.yaml"
@@ -37,9 +36,9 @@ from security.api_governance import (  # noqa: E402
     version_response_payload,
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
-from security.config import load_yaml  # noqa: E402
 
 
 def _load_schema() -> dict[str, Any]:

@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import requests
-
 from compliance_utils import extract_effective_date, extract_obligations_from_text
 
 if TYPE_CHECKING:
