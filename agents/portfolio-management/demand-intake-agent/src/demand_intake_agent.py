@@ -8,9 +8,7 @@ Manages the demand pipeline with automatic categorization and deduplication.
 Specification: agents/portfolio-management/demand-intake-agent/README.md
 """
 
-import math
 import os
-import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +31,21 @@ from agents.common.integration_services import (  # noqa: E402
 )
 from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
 from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
+
+from demand_intake_utils import (  # noqa: E402
+    combine_demand_text,
+    cosine_similarity,
+    semantic_similarity,
+    build_duplicate_rationale,
+    strip_duplicate_rationale,
+    generate_demand_id,
+    tokenize,
+)
+from demand_intake_actions import (  # noqa: E402
+    submit_request as _act_submit_request,
+    check_duplicates as _act_check_duplicates,
+    get_pipeline as _act_get_pipeline,
+)
 
 
 class DemandIntakeAgent(BaseAgent):
@@ -187,90 +200,18 @@ class DemandIntakeAgent(BaseAgent):
         tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "submit_request":
-            return await self._submit_request(
+            return await _act_submit_request(
+                self,
                 input_data.get("request", {}),
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
             )
         elif action == "check_duplicates":
-            return await self._check_duplicates(input_data.get("request", {}), tenant_id=tenant_id)
+            return await _act_check_duplicates(self, input_data.get("request", {}), tenant_id=tenant_id)
         elif action == "get_pipeline":
-            return await self._get_pipeline(input_data.get("filters", {}), tenant_id=tenant_id)
+            return await _act_get_pipeline(self, input_data.get("filters", {}), tenant_id=tenant_id)
         else:
             raise ValueError(f"Unknown action: {action}")
-
-    async def _submit_request(
-        self, request_data: dict[str, Any], *, tenant_id: str, correlation_id: str
-    ) -> dict[str, Any]:
-        """
-        Submit a new demand intake request.
-
-        Returns demand ID and categorization results.
-        """
-        self.logger.info("Processing new demand intake request")
-
-        # Categorize the request
-        category = await self._categorize_request(request_data)
-
-        # Check for duplicates
-        duplicates = await self._find_duplicates(
-            request_data,
-            tenant_id=tenant_id,
-            include_rationale=self.duplicate_resolution_enabled,
-        )
-        similar_requests = self._strip_duplicate_rationale(duplicates)
-
-        # Generate demand ID
-        demand_id = await self._generate_demand_id()
-
-        # Store the request
-        demand_item = {
-            "demand_id": demand_id,
-            "title": request_data.get("title"),
-            "description": request_data.get("description"),
-            "business_objective": request_data.get("business_objective"),
-            "category": category,
-            "status": "Received",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "created_by": request_data.get("requester", "unknown"),
-            "business_unit": request_data.get("business_unit", ""),
-            "urgency": request_data.get("urgency", "Medium"),
-            "source": request_data.get("source", "unknown"),
-        }
-        self.demand_store.upsert(tenant_id, demand_id, demand_item)
-        self.vector_index.add(demand_id, self._combine_text(demand_item), demand_item)
-        self.logger.info("Created demand request: %s", demand_id)
-
-        await self.notification_service.send(
-            {
-                "recipient": demand_item.get("created_by"),
-                "subject": f"Demand request {demand_id} received",
-                "body": (
-                    "Your request has been received and routed for screening. "
-                    f"Category: {category}."
-                ),
-                "metadata": {"demand_id": demand_id, "tenant_id": tenant_id},
-                "sent_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-
-        await self._publish_demand_created(
-            demand_item,
-            tenant_id=tenant_id,
-            correlation_id=correlation_id,
-        )
-
-        response: dict[str, Any] = {
-            "demand_id": demand_id,
-            "category": category,
-            "status": "Received",
-            "duplicates_found": len(duplicates) > 0,
-            "similar_requests": similar_requests[:5],  # Top 5 most similar
-            "next_steps": "Request is in screening queue. You will be notified of status updates.",
-        }
-        if self.duplicate_resolution_enabled:
-            response["duplicate_candidates"] = duplicates[:5]
-        return response
 
     async def _validate_request(self, request_data: dict[str, Any]) -> bool:
         payload = dict(request_data)
@@ -352,141 +293,37 @@ class DemandIntakeAgent(BaseAgent):
         results.sort(key=_similarity_key, reverse=True)
         return results
 
-    async def _check_duplicates(
-        self, request_data: dict[str, Any], *, tenant_id: str
-    ) -> dict[str, Any]:
-        """
-        Check for duplicate requests without submitting.
-
-        Returns list of similar requests.
-        """
-        duplicates = await self._find_duplicates(
-            request_data,
-            tenant_id=tenant_id,
-            include_rationale=self.duplicate_resolution_enabled,
-        )
-        similar_requests = self._strip_duplicate_rationale(duplicates)
-
-        response: dict[str, Any] = {
-            "duplicates_found": len(duplicates) > 0,
-            "similar_requests": similar_requests,
-        }
-        if self.duplicate_resolution_enabled:
-            response["duplicate_candidates"] = duplicates
-        return response
-
-    async def _get_pipeline(self, filters: dict[str, Any], *, tenant_id: str) -> dict[str, Any]:
-        """
-        Get current demand pipeline status.
-
-        Returns pipeline statistics and items by stage.
-        """
-        query = filters.get("query", "")
-        status_filter = filters.get("status")
-        items = self.demand_store.list(tenant_id)
-
-        if status_filter:
-            items = [item for item in items if item.get("status") == status_filter]
-
-        if query:
-            corpus = [self._combine_text(item) for item in items]
-            scores = self._semantic_similarity(query, corpus)
-            scored_items = [(item, score) for item, score in zip(items, scores) if score > 0.05]
-            scored_items.sort(key=lambda x: x[1], reverse=True)
-            items = [item for item, _ in scored_items]
-
-        by_status: dict[str, int] = {}
-        by_category: dict[str, int] = {}
-        for item in items:
-            by_status[item.get("status", "Unknown")] = (
-                by_status.get(item.get("status", "Unknown"), 0) + 1
-            )
-            by_category[item.get("category", "unknown")] = (
-                by_category.get(item.get("category", "unknown"), 0) + 1
-            )
-
-        return {
-            "total_requests": len(items),
-            "by_status": by_status,
-            "by_category": by_category,
-            "items": items,
-        }
-
     def _combine_text(self, request_data: dict[str, Any]) -> str:
-        title = request_data.get("title", "")
-        description = request_data.get("description", "")
-        objective = request_data.get("business_objective", "")
-        return f"{title} {description} {objective}".strip().lower()
+        """Delegate to utility function."""
+        return combine_demand_text(request_data)
 
     def _build_duplicate_rationale(
         self, request_data: dict[str, Any], candidate_data: dict[str, Any], similarity: float
     ) -> dict[str, Any]:
-        request_tokens = set(self._tokenize(self._combine_text(request_data)))
-        candidate_tokens = set(self._tokenize(self._combine_text(candidate_data)))
-        overlapping_terms = sorted(request_tokens & candidate_tokens)
-        matched_fields = []
-        for field in ("title", "description", "business_objective"):
-            request_field_tokens = set(self._tokenize(request_data.get(field, "")))
-            candidate_field_tokens = set(self._tokenize(candidate_data.get(field, "")))
-            if request_field_tokens & candidate_field_tokens:
-                matched_fields.append(field)
-        return {
-            "similarity_score": round(similarity, 3),
-            "overlapping_terms": overlapping_terms[:8],
-            "matched_fields": matched_fields,
-        }
+        """Delegate to utility function."""
+        return build_duplicate_rationale(
+            request_data, candidate_data, similarity, frozenset(self.stopwords)
+        )
 
     def _strip_duplicate_rationale(self, duplicates: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        return [
-            {key: value for key, value in item.items() if key != "rationale"} for item in duplicates
-        ]
+        """Delegate to utility function."""
+        return strip_duplicate_rationale(duplicates)
 
     def _semantic_similarity(self, query: str, corpus: list[str]) -> list[float]:
-        tokens_list = [self._tokenize(text) for text in corpus + [query]]
-        vocabulary = sorted({token for tokens in tokens_list for token in tokens})
-
-        if not vocabulary:
-            return [0.0 for _ in corpus]
-
-        doc_freq = {term: 0 for term in vocabulary}
-        for tokens in tokens_list:
-            for term in set(tokens):
-                doc_freq[term] += 1
-
-        total_docs = len(tokens_list)
-        idf = {term: math.log((total_docs + 1) / (doc_freq[term] + 1)) + 1 for term in vocabulary}
-
-        vectors = []
-        for tokens in tokens_list:
-            term_counts: dict[str, int] = {}
-            for token in tokens:
-                term_counts[token] = term_counts.get(token, 0) + 1
-            vector = [term_counts.get(term, 0) * idf[term] for term in vocabulary]
-            vectors.append(vector)
-
-        query_vector = vectors[-1]
-        results = []
-        for vector in vectors[:-1]:
-            similarity = self._cosine_similarity(query_vector, vector)
-            results.append(similarity)
-        return results
+        """Delegate to utility function."""
+        return semantic_similarity(query, corpus, frozenset(self.stopwords))
 
     def _tokenize(self, text: str) -> list[str]:
-        tokens = re.findall(r"[a-z0-9']+", text.lower())
-        return [token for token in tokens if token and token not in self.stopwords]
+        """Delegate to utility function."""
+        return tokenize(text, frozenset(self.stopwords))
 
     def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
-        dot_product = sum(x * y for x, y in zip(a, b))
-        norm_a = math.sqrt(sum(x * x for x in a))
-        norm_b = math.sqrt(sum(y * y for y in b))
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        return dot_product / (norm_a * norm_b)
+        """Delegate to utility function."""
+        return cosine_similarity(a, b)
 
     async def _generate_demand_id(self) -> str:
         """Generate unique demand ID."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
-        return f"DEM-{timestamp}-{uuid.uuid4().hex[:8]}"
+        return generate_demand_id()
 
     async def _publish_demand_created(
         self, demand_item: dict[str, Any], *, tenant_id: str, correlation_id: str

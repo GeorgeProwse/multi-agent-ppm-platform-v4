@@ -24,115 +24,26 @@ import yaml  # noqa: E402
 from llm import LLMGateway  # noqa: E402
 from observability.tracing import get_trace_id  # noqa: E402
 from prompt_registry import PromptRegistry, enforce_redaction  # noqa: E402
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: E402
+from pydantic import ValidationError  # noqa: E402
 
 from agents.runtime import BaseAgent  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 
-
-class IntentRouterContext(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    tenant_id: str | None = None
-    correlation_id: str | None = None
-
-
-class IntentRouterRequest(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    query: str = Field(..., min_length=1)
-    context: dict[str, Any] | None = None
-
-    @field_validator("query")
-    @classmethod
-    def normalize_query(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("query must not be empty")
-        return cleaned
-
-
-class IntentPrediction(BaseModel):
-    intent: str
-    confidence: float = Field(..., ge=0.0, le=1.0)
-
-
-class IntentRouterLLMResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    intents: list[IntentPrediction] = Field(..., min_length=1)
-    parameters: dict[str, Any] | None = None
-    dependencies: dict[str, list[str]] | None = None
-
-
-class IntentRouteConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    agent_id: str
-    action: str | None = None
-    dependencies: list[str] = Field(default_factory=list)
-
-
-class IntentDefinition(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    min_confidence: float = Field(default=0.6, ge=0.0, le=1.0)
-    routes: list[IntentRouteConfig] = Field(default_factory=list)
-    description: str | None = None
-
-
-class IntentRoutingConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    version: int
-    intents: list[IntentDefinition]
-    fallback_intent: str = "general_query"
-    default_min_confidence: float = Field(default=0.6, ge=0.0, le=1.0)
-
-
-class ExtractedParameters(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    project_id: str | None = None
-    portfolio_id: str | None = None
-    currency: str | None = None
-    amount: float | None = Field(default=None, ge=0.0)
-    entity_type: str | None = None
-    schedule_focus: str | None = None
-
-    @field_validator("currency")
-    @classmethod
-    def normalize_currency(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        currency = value.upper()
-        allowed = {"AUD", "EUR", "GBP", "JPY"}
-        if currency not in allowed:
-            raise ValueError("Unsupported currency")
-        return currency
-
-
-class RoutingDecision(BaseModel):
-    agent_id: str
-    priority: float = Field(..., ge=0.0, le=1.0)
-    intent: str
-    depends_on: list[str] = Field(default_factory=list)
-    action: str | None = None
-
-
-class IntentRouterResponse(BaseModel):
-    intents: list[IntentPrediction]
-    routing: list[RoutingDecision]
-    parameters: dict[str, Any]
-    query: str
-    context: dict[str, Any]
-    prompt_version: int | None = None
-
-
-class ValidationErrorPayload(BaseModel):
-    error: str
-    details: list[dict[str, Any]]
+from intent_router_models import (  # noqa: E402
+    ExtractedParameters,
+    IntentDefinition,
+    IntentPrediction,
+    IntentRouteConfig,
+    IntentRouterContext,
+    IntentRouterLLMResponse,
+    IntentRouterRequest,
+    IntentRouterResponse,
+    IntentRoutingConfig,
+    RoutingDecision,
+    ValidationErrorPayload,
+)
+from intent_router_utils import build_entity_patterns  # noqa: E402
+from intent_router_actions import process_query as _act_process_query  # noqa: E402
 
 
 class IntentRouterAgent(BaseAgent):
@@ -179,7 +90,7 @@ class IntentRouterAgent(BaseAgent):
         )
         self.intent_classifier = self.config.get("intent_classifier")
         self.nlp_model = self.config.get("nlp_model")
-        self._entity_patterns = self._build_entity_patterns()
+        self._entity_patterns = build_entity_patterns()
         self._label_prefix_pattern = re.compile(r"^[A-Z_]+\s*:\s*")
         self._currency_aliases = {"$": "AUD", "€": "EUR", "£": "GBP", "¥": "JPY"}
         self._portfolio_pattern = re.compile(r"^PORT(?:FOLIO)?[-_\s]?\d{1,6}$", re.IGNORECASE)
@@ -245,107 +156,7 @@ class IntentRouterAgent(BaseAgent):
                 "parameters": Extracted parameters for downstream agents
             }
         """
-        request = IntentRouterRequest.model_validate(input_data)
-        query = request.query
-        context = request.context or {}
-        tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
-        correlation_id = (
-            context.get("correlation_id") or input_data.get("correlation_id") or str(uuid.uuid4())
-        )
-
-        self.logger.info(
-            "Classifying query",
-            extra={"query": query, "tenant_id": tenant_id, "correlation_id": correlation_id},
-        )
-
-        llm_payload = {
-            "request": {"text": query, "context": context},
-        }
-        if not self.prompt_text:
-            raise ValueError("Prompt registry not initialized")
-        redacted_payload = enforce_redaction(llm_payload)
-        prompt_templates = self._extract_prompt_templates(self.prompt_text)
-        system_prompt = self._render_prompt(prompt_templates["system"], redacted_payload)
-        user_prompt = self._render_prompt(prompt_templates["user"], redacted_payload)
-
-        fallback_reason: str | None = None
-        fallback_used = False
-
-        llm_response = await self.llm_client.complete(system_prompt, user_prompt)
-        llm_data: IntentRouterLLMResponse | None = None
-        try:
-            llm_data = self._parse_llm_response(llm_response.content)
-            intents = self._normalize_intents(llm_data.intents)
-            if not intents:
-                fallback_reason = "llm_low_confidence"
-        except ValueError as exc:
-            fallback_reason = "llm_parse_error"
-            self.logger.warning(
-                "LLM response invalid, using fallback classifier",
-                extra={"error": str(exc)},
-            )
-
-        if fallback_reason:
-            fallback_used = True
-            intents = await self._classify_intent(query)
-            parameters: dict[str, Any] = {}
-            dependencies = None
-        else:
-            parameters = llm_data.parameters or {}
-            dependencies = llm_data.dependencies
-
-        if not parameters:
-            parameters = await self._extract_parameters(query, intents)
-        agents = await self._determine_agents(intents, dependencies)
-
-        audit_event = build_audit_event(
-            tenant_id=tenant_id,
-            action="intent.classified",
-            outcome="success",
-            actor_id=self.agent_id,
-            actor_type="service",
-            actor_roles=[],
-            resource_id=query[:64] or "query",
-            resource_type="intent_classification",
-            metadata={
-                "intents": intents,
-                "routing": agents,
-                "parameters": parameters,
-                "fallback_used": fallback_used,
-                "fallback_reason": fallback_reason,
-            },
-            trace_id=get_trace_id(),
-            correlation_id=correlation_id,
-        )
-        emit_audit_event(audit_event)
-        if fallback_used:
-            fallback_audit = build_audit_event(
-                tenant_id=tenant_id,
-                action="intent.fallback",
-                outcome="success",
-                actor_id=self.agent_id,
-                actor_type="service",
-                actor_roles=[],
-                resource_id=query[:64] or "query",
-                resource_type="intent_classification",
-                metadata={
-                    "fallback_reason": fallback_reason,
-                    "intents": intents,
-                },
-                trace_id=get_trace_id(),
-                correlation_id=correlation_id,
-            )
-            emit_audit_event(fallback_audit)
-
-        response = IntentRouterResponse(
-            intents=[IntentPrediction(**intent) for intent in intents],
-            routing=[RoutingDecision(**agent) for agent in agents],
-            parameters=parameters,
-            query=query,
-            context=context,
-            prompt_version=self.prompt_version,
-        )
-        return response.model_dump()
+        return await _act_process_query(self, input_data)
 
     def _extract_prompt_templates(self, prompt_text: str) -> dict[str, str]:
         sections = {"system": "", "user": ""}
@@ -444,22 +255,6 @@ class IntentRouterAgent(BaseAgent):
             ruler = nlp.get_pipe("entity_ruler")
         ruler.add_patterns(self._entity_patterns)
         return nlp
-
-    def _build_entity_patterns(self) -> list[dict[str, Any]]:
-        return [
-            {"label": "SCHEDULE_FOCUS", "pattern": "critical path"},
-            {"label": "SCHEDULE_FOCUS", "pattern": "milestone"},
-            {"label": "SCHEDULE_FOCUS", "pattern": "milestones"},
-            {"label": "CURRENCY", "pattern": [{"LOWER": {"IN": ["usd", "eur", "gbp", "jpy"]}}]},
-            {
-                "label": "PROJECT_ID",
-                "pattern": [{"LOWER": "project"}, {"IS_ASCII": True, "OP": "+"}],
-            },
-            {
-                "label": "PORTFOLIO_ID",
-                "pattern": [{"LOWER": "portfolio"}, {"IS_ASCII": True, "OP": "+"}],
-            },
-        ]
 
     def _load_mock_response(self) -> dict[str, Any] | None:
         mock_path = os.getenv("LLM_MOCK_RESPONSE_PATH")

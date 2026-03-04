@@ -8,13 +8,13 @@ Performs financial analysis and ROI modelling to support investment decisions.
 Specification: agents/portfolio-management/business-case-agent/README.md
 """
 
+from __future__ import annotations
+
 import os
-import random
-import statistics
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from data_quality.helpers import apply_rule_set, validate_against_schema
@@ -32,6 +32,28 @@ from agents.common.integration_services import (
 )
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
+
+from business_case_actions import (
+    calculate_roi,
+    compare_to_historical,
+    generate_business_case,
+    generate_recommendation,
+    get_business_case,
+    run_scenario_analysis,
+)
+from business_case_utils import (
+    build_cash_flow,
+    calculate_confidence,
+    calculate_payback_period,
+    calculate_roi_percentage,
+    calculate_tco,
+    convert_currency_inputs,
+    inflate_adjust_cash_flows,
+    irr_from_cash_flows,
+    npv_from_cash_flows,
+    run_monte_carlo_simulation,
+    run_sensitivity_analysis,
+)
 
 
 class BusinessCaseInvestmentAgent(BaseAgent):
@@ -290,32 +312,37 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         tenant_id = context.get("tenant_id") or input_data.get("tenant_id") or "unknown"
 
         if action == "generate_business_case":
-            return await self._generate_business_case(
+            return await generate_business_case(
+                self,
                 input_data.get("request", {}),
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
             )
 
         elif action == "calculate_roi":
-            return await self._calculate_roi(input_data)
+            return await calculate_roi(self, input_data)
 
         elif action == "run_scenario_analysis":
-            return await self._run_scenario_analysis(
-                input_data.get("business_case_id"), input_data.get("scenarios", [])  # type: ignore
+            return await run_scenario_analysis(
+                self,
+                input_data.get("business_case_id"),  # type: ignore
+                input_data.get("scenarios", []),
             )
 
         elif action == "compare_to_historical":
-            return await self._compare_to_historical(input_data.get("request", {}))
+            return await compare_to_historical(self, input_data.get("request", {}))
 
         elif action == "generate_recommendation":
-            return await self._generate_recommendation(
+            return await generate_recommendation(
+                self,
                 input_data.get("business_case_id"),  # type: ignore
                 tenant_id=tenant_id,
                 correlation_id=correlation_id,
             )
 
         elif action == "get_business_case":
-            return await self._get_business_case(
+            return await get_business_case(
+                self,
                 input_data.get("business_case_id"),  # type: ignore
                 tenant_id=tenant_id,
             )
@@ -326,326 +353,36 @@ class BusinessCaseInvestmentAgent(BaseAgent):
     async def _generate_business_case(
         self, request_data: dict[str, Any], *, tenant_id: str, correlation_id: str
     ) -> dict[str, Any]:
-        """
-        Generate a comprehensive business case document.
-
-        Returns business case ID and document structure.
-        """
-        self.logger.info("Generating business case")
-
-        # Generate unique business case ID
-        business_case_id = await self._generate_business_case_id()
-
-        # Select appropriate template
-        template = await self._select_template(request_data)
-
-        # Gather data from external sources
-        cost_data = await self._gather_cost_data(request_data)
-        benefit_data = await self._gather_benefit_data(request_data)
-        market_data = await self._gather_market_data(request_data)
-
-        # Generate document sections using AI
-        executive_summary = await self._generate_executive_summary(
-            request_data, cost_data, benefit_data
+        """Delegate to the generation action handler."""
+        return await generate_business_case(
+            self, request_data, tenant_id=tenant_id, correlation_id=correlation_id
         )
-        problem_statement = await self._generate_problem_statement(request_data)
-        proposed_solution = await self._generate_proposed_solution(request_data)
-
-        # Calculate financial metrics
-        financial_analysis = await self._calculate_financial_metrics(cost_data, benefit_data)
-
-        # Identify and assess risks
-        risks = await self._identify_risks(request_data)
-
-        # Generate implementation approach
-        implementation_approach = await self._generate_implementation_approach(request_data)
-
-        # Create business case document
-        business_case = {
-            "business_case_id": business_case_id,
-            "title": request_data.get("title"),
-            "project_type": request_data.get("project_type"),
-            "methodology": request_data.get("methodology", "hybrid"),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "created_by": request_data.get("requester", "unknown"),
-            "status": "Draft",
-            "demand_id": request_data.get("demand_id", "unknown"),
-            "template": template,
-            "document": {
-                "executive_summary": executive_summary,
-                "problem_statement": problem_statement,
-                "proposed_solution": proposed_solution,
-                "financial_analysis": financial_analysis,
-                "market_analysis": market_data,
-                "risks_and_mitigations": risks,
-                "implementation_approach": implementation_approach,
-            },
-            "financial_metrics": financial_analysis.get("metrics", {}),
-            "metadata": {
-                "estimated_cost": cost_data.get("total_cost", 0),
-                "estimated_benefits": benefit_data.get("total_benefits", 0),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-        }
-
-        self.business_case_store.upsert(tenant_id, business_case_id, business_case)
-        index_text = (
-            f"{business_case.get('title','')} {business_case.get('project_type','')} "
-            f"{business_case.get('document', {}).get('executive_summary','')}"
-        )
-        self.vector_index.add(business_case_id, index_text, business_case)
-
-        self.logger.info("Generated business case: %s", business_case_id)
-
-        await self.notification_service.send(
-            {
-                "recipient": business_case.get("created_by"),
-                "subject": f"Business case {business_case_id} created",
-                "body": "A draft business case is ready for review.",
-                "metadata": {"business_case_id": business_case_id, "tenant_id": tenant_id},
-                "sent_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-
-        await self._publish_business_case_created(
-            business_case,
-            tenant_id=tenant_id,
-            correlation_id=correlation_id,
-        )
-
-        document_entities: list[dict[str, Any]] = []
-        if self._autonomous_deliverables_enabled():
-            document_entities.append(
-                self._build_document_entity(business_case, correlation_id=correlation_id)
-            )
-
-        return {
-            "business_case_id": business_case_id,
-            "status": "Draft",
-            "document": business_case["document"],
-            "financial_metrics": business_case["financial_metrics"],
-            "next_steps": "Review and edit the business case, then run scenario analysis or generate recommendation.",
-            "documents": document_entities,
-        }
 
     async def _calculate_roi(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Calculate ROI metrics including NPV, IRR, payback period, and TCO.
-
-        Returns detailed financial metrics.
-        """
-        self.logger.info("Calculating ROI metrics")
-
-        costs = input_data.get("costs", {})
-        benefits = input_data.get("benefits", {})
-        simulation_iterations = int(
-            input_data.get("simulation_iterations", self.simulation_iterations)
-        )
-
-        # Calculate Net Present Value (NPV)
-        npv = await self._calculate_npv(costs, benefits)
-
-        # Calculate Internal Rate of Return (IRR)
-        irr = await self._calculate_irr(costs, benefits)
-
-        # Calculate payback period
-        payback_period = await self._calculate_payback_period(costs, benefits)
-
-        # Calculate Total Cost of Ownership (TCO)
-        tco = await self._calculate_tco(costs)
-
-        # Calculate ROI percentage
-        roi = await self._calculate_roi_percentage(costs, benefits)
-
-        # Advanced analysis
-        cash_flows = self._build_cash_flow(costs, benefits)
-        monte_carlo_summary = self.run_monte_carlo_simulation(cash_flows, simulation_iterations)
-        sensitivity_analysis = self._run_sensitivity_analysis(costs, benefits)
-
-        return {
-            "npv": npv,
-            "irr": irr,
-            "payback_period_months": payback_period,
-            "tco": tco,
-            "roi_percentage": roi,
-            "discount_rate": self.discount_rate,
-            "assumptions": {
-                "discount_rate": self.discount_rate,
-                "inflation_rate": self.inflation_rate,
-                "currency_rates": self.currency_rates,
-                "simulation_iterations": simulation_iterations,
-            },
-            "sensitivity_analysis": sensitivity_analysis,
-            "monte_carlo_summary": monte_carlo_summary,
-            "calculated_at": datetime.now(timezone.utc).isoformat(),
-        }
+        """Delegate to the ROI action handler."""
+        return await calculate_roi(self, input_data)
 
     async def _run_scenario_analysis(
         self, business_case_id: str, scenarios: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        """
-        Run what-if scenario analysis with varying assumptions.
-
-        Returns scenario comparison results.
-        """
-        self.logger.info("Running scenario analysis for business case: %s", business_case_id)
-
-        scenario_results: list[dict[str, Any]] = []
-
-        for scenario in scenarios:
-            scenario_name = scenario.get("name", "Unnamed Scenario")
-
-            # Adjust costs and benefits based on scenario parameters
-            adjusted_costs = await self._adjust_costs(scenario)
-            adjusted_benefits = await self._adjust_benefits(scenario)
-
-            # Recalculate financial metrics
-            metrics = await self._calculate_roi(
-                {"costs": adjusted_costs, "benefits": adjusted_benefits}
-            )
-
-            simulations = self._run_monte_carlo(
-                adjusted_costs, adjusted_benefits, simulations=self.simulation_iterations
-            )
-            sensitivity = self._run_sensitivity_analysis(adjusted_costs, adjusted_benefits)
-            scenario_results.append(
-                {
-                    "scenario_name": scenario_name,
-                    "parameters": scenario.get("parameters", {}),
-                    "metrics": metrics,
-                    "simulation": simulations,
-                    "sensitivity_analysis": sensitivity,
-                    "risk_level": scenario.get("risk_level", "medium"),
-                }
-            )
-
-        # Generate comparison summary
-        comparison = await self._compare_scenarios(scenario_results)
-
-        return {
-            "business_case_id": business_case_id,
-            "assumptions": {
-                "discount_rate": self.discount_rate,
-                "inflation_rate": self.inflation_rate,
-                "currency_rates": self.currency_rates,
-                "simulation_iterations": self.simulation_iterations,
-            },
-            "scenarios": scenario_results,
-            "comparison": comparison,
-            "recommendation": await self._select_best_scenario(scenario_results),
-        }
+        """Delegate to the ROI/scenario action handler."""
+        return await run_scenario_analysis(self, business_case_id, scenarios)
 
     async def _compare_to_historical(self, request_data: dict[str, Any]) -> dict[str, Any]:
-        """
-        Compare proposed initiative to historical projects for benchmarking.
-
-        Returns similar projects with outcomes.
-        """
-        self.logger.info("Comparing to historical projects")
-
-        query_text = (
-            f"{request_data.get('title','')} {request_data.get('description','')} "
-            f"{request_data.get('project_type','')}"
-        )
-        similar_projects: list[dict[str, Any]] = []
-        for match in self.vector_index.search(query_text, top_k=5):
-            similar_projects.append(
-                {
-                    "business_case_id": match.doc_id,
-                    "title": match.metadata.get("title"),
-                    "roi": match.metadata.get("financial_metrics", {}).get("roi_percentage", 0),
-                    "payback_period": match.metadata.get("financial_metrics", {}).get(
-                        "payback_period_months", 0
-                    ),
-                    "similarity": round(match.score, 3),
-                }
-            )
-
-        benchmark_roi = 0.0
-        benchmark_payback = 0.0
-        if similar_projects:
-            benchmark_roi = sum(item.get("roi", 0.0) for item in similar_projects) / len(
-                similar_projects
-            )
-            benchmark_payback = sum(
-                item.get("payback_period", 0.0) for item in similar_projects
-            ) / len(similar_projects)
-        return {
-            "similar_projects": similar_projects,
-            "benchmark_roi": benchmark_roi,
-            "benchmark_payback": benchmark_payback,
-            "comparison_window_years": self.comparison_window_years,
-        }
+        """Delegate to the analysis action handler."""
+        return await compare_to_historical(self, request_data)
 
     async def _generate_recommendation(
         self, business_case_id: str, *, tenant_id: str, correlation_id: str
     ) -> dict[str, Any]:
-        """
-        Generate investment recommendation with confidence level.
-
-        Returns recommendation (approve/defer/reject) with rationale.
-        """
-        self.logger.info("Generating recommendation for business case: %s", business_case_id)
-
-        business_case = self.business_case_store.get(tenant_id, business_case_id)
-        if not business_case:
-            raise ValueError(f"Business case not found: {business_case_id}")
-
-        # Analyze financial metrics
-        metrics = business_case.get("financial_metrics", {})
-        roi = metrics.get("roi_percentage", 0)
-        payback_period = metrics.get("payback_period_months", 999)
-        npv = metrics.get("npv", 0)
-
-        # Compare to historical projects
-        historical_comparison = await self._compare_to_historical(business_case)
-
-        # Calculate confidence level
-        confidence = await self._calculate_confidence(metrics, historical_comparison)
-
-        # Generate recommendation
-        if roi >= self.min_roi_threshold and payback_period <= self.max_payback_period and npv > 0:
-            recommendation = "approve"
-            rationale = f"Strong financial metrics: ROI {roi:.1%}, payback period {payback_period} months, positive NPV"
-        elif roi >= self.min_roi_threshold * 0.7:
-            recommendation = "defer"
-            rationale = (
-                "Moderate financial metrics. Consider phased approach or MVP to reduce risk."
-            )
-        else:
-            recommendation = "reject"
-            rationale = f"Financial metrics below thresholds: ROI {roi:.1%} (required: {self.min_roi_threshold:.1%})"
-
-        narrative = await self._generate_recommendation_narrative(
-            business_case, recommendation, rationale
+        """Delegate to the analysis action handler."""
+        return await generate_recommendation(
+            self, business_case_id, tenant_id=tenant_id, correlation_id=correlation_id
         )
-
-        recommendation_payload = {
-            "business_case_id": business_case_id,
-            "recommendation": recommendation,
-            "confidence_level": confidence,
-            "rationale": rationale,
-            "narrative": narrative,
-            "phasing_suggestion": "Consider MVP approach" if recommendation == "defer" else None,
-            "comparable_projects": historical_comparison.get("similar_projects", []),
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        await self._publish_investment_recommendation(
-            business_case,
-            recommendation_payload,
-            tenant_id=tenant_id,
-            correlation_id=correlation_id,
-        )
-
-        return recommendation_payload
 
     async def _get_business_case(self, business_case_id: str, *, tenant_id: str) -> dict[str, Any]:
-        """Retrieve a business case by ID."""
-        business_case = self.business_case_store.get(tenant_id, business_case_id)
-        if not business_case:
-            raise ValueError(f"Business case not found: {business_case_id}")
-        return business_case  # type: ignore
+        """Delegate to the query action handler."""
+        return await get_business_case(self, business_case_id, tenant_id=tenant_id)
 
     # Helper methods
 
@@ -836,57 +573,16 @@ class BusinessCaseInvestmentAgent(BaseAgent):
             return "Hybrid approach combining adaptive delivery within predictive governance."
 
     def _build_cash_flow(self, costs: dict[str, Any], benefits: dict[str, Any]) -> list[float]:
-        costs = self._convert_currency_inputs(costs)
-        benefits = self._convert_currency_inputs(benefits)
-        total_cost = float(costs.get("total_cost", 0))
-        total_benefits = float(benefits.get("total_benefits", 0))
-        horizon_years = int(costs.get("horizon_years", benefits.get("horizon_years", 3)))
-        cost_flow = costs.get("cash_flow")
-        benefit_flow = benefits.get("cash_flow")
-        if isinstance(cost_flow, list) and isinstance(benefit_flow, list):
-            return [
-                float(benefit_flow[idx]) - float(cost_flow[idx])
-                for idx in range(min(len(cost_flow), len(benefit_flow)))
-            ]
-        annual_cost = total_cost / max(horizon_years, 1)
-        annual_benefit = total_benefits / max(horizon_years, 1)
-        return [annual_benefit - annual_cost for _ in range(horizon_years)]
+        return build_cash_flow(costs, benefits, self.currency_rates)
 
     def _convert_currency_inputs(self, data: dict[str, Any]) -> dict[str, Any]:
-        converted = dict(data)
-        currency = str(converted.get("currency", "AUD")).upper()
-        rate = float(self.currency_rates.get(currency, 1.0))
-        for key in ("total_cost", "total_benefits", "operational_costs"):
-            if key in converted:
-                converted[key] = float(converted[key]) * rate
-        if isinstance(converted.get("cash_flow"), list):
-            converted["cash_flow"] = [float(amount) * rate for amount in converted["cash_flow"]]
-        converted["base_currency"] = "AUD"
-        return converted
+        return convert_currency_inputs(data, self.currency_rates)
 
     def _inflate_adjust_cash_flows(self, cash_flows: list[float]) -> list[float]:
-        if self.inflation_rate == 0:
-            return cash_flows
-        return [
-            cash_flow / ((1 + self.inflation_rate) ** period)
-            for period, cash_flow in enumerate(cash_flows, start=1)
-        ]
+        return inflate_adjust_cash_flows(cash_flows, self.inflation_rate)
 
     def _irr(self, cash_flows: list[float]) -> float:
-        adjusted_cash_flows = self._inflate_adjust_cash_flows(cash_flows)
-        if not cash_flows:
-            return 0.0
-        low, high = -0.9, 1.0
-        for _ in range(50):
-            rate = (low + high) / 2
-            npv = 0.0
-            for period, cash_flow in enumerate(adjusted_cash_flows, start=1):
-                npv += cash_flow / ((1 + rate) ** period)
-            if npv > 0:
-                low = rate
-            else:
-                high = rate
-        return round((low + high) / 2, 4)
+        return irr_from_cash_flows(cash_flows, self.inflation_rate)
 
     def _run_monte_carlo(
         self, costs: dict[str, Any], benefits: dict[str, Any], *, simulations: int
@@ -897,77 +593,31 @@ class BusinessCaseInvestmentAgent(BaseAgent):
     def run_monte_carlo_simulation(
         self, cash_flows: list[float], iterations: int
     ) -> dict[str, float]:
-        npv_results: list[float] = []
-        for _ in range(iterations):
-            simulated_flows = [random.gauss(flow, abs(flow) * 0.1 or 1.0) for flow in cash_flows]
-            npv_results.append(self._npv_from_cash_flows(simulated_flows))
-        if not npv_results:
-            return {
-                "mean_npv": 0.0,
-                "stddev_npv": 0.0,
-                "negative_npv_probability": 0.0,
-                "iterations": 0,
-            }
-        negative_count = sum(1 for npv in npv_results if npv < 0)
-        return {
-            "mean_npv": statistics.mean(npv_results),
-            "stddev_npv": statistics.pstdev(npv_results),
-            "negative_npv_probability": negative_count / len(npv_results),
-            "iterations": len(npv_results),
-        }
+        return run_monte_carlo_simulation(
+            cash_flows, iterations, self.discount_rate, self.inflation_rate
+        )
 
     def _run_sensitivity_analysis(
         self, costs: dict[str, Any], benefits: dict[str, Any]
     ) -> list[dict[str, float | str]]:
-        base_cost = float(costs.get("total_cost", 0))
-        base_benefit = float(benefits.get("total_benefits", 0))
-        sensitivity_rows: list[dict[str, float | str]] = []
-        for variation in self.sensitivity_variations:
-            cost_case_costs = {**costs, "total_cost": base_cost * (1 + variation)}
-            cost_case_cash_flows = self._build_cash_flow(cost_case_costs, benefits)
-            sensitivity_rows.append(
-                {
-                    "parameter": "cost",
-                    "variation": variation,
-                    "cost_multiplier": 1 + variation,
-                    "benefit_multiplier": 1.0,
-                    "npv": self._npv_from_cash_flows(cost_case_cash_flows),
-                    "irr": self._irr(cost_case_cash_flows),
-                }
-            )
-
-            benefit_case_benefits = {**benefits, "total_benefits": base_benefit * (1 + variation)}
-            benefit_case_cash_flows = self._build_cash_flow(costs, benefit_case_benefits)
-            sensitivity_rows.append(
-                {
-                    "parameter": "revenue_growth",
-                    "variation": variation,
-                    "cost_multiplier": 1.0,
-                    "benefit_multiplier": 1 + variation,
-                    "npv": self._npv_from_cash_flows(benefit_case_cash_flows),
-                    "irr": self._irr(benefit_case_cash_flows),
-                }
-            )
-        return sensitivity_rows
+        return run_sensitivity_analysis(
+            costs,
+            benefits,
+            self.currency_rates,
+            self.discount_rate,
+            self.inflation_rate,
+            self.sensitivity_variations,
+        )
 
     def _npv_sync(self, costs: dict[str, Any], benefits: dict[str, Any]) -> float:
         cash_flows = self._build_cash_flow(costs, benefits)
         return self._npv_from_cash_flows(cash_flows)
 
     def _npv_from_cash_flows(self, cash_flows: list[float]) -> float:
-        npv = 0.0
-        for period, cash_flow in enumerate(self._inflate_adjust_cash_flows(cash_flows), start=1):
-            npv += cash_flow / ((1 + self.discount_rate) ** period)
-        return npv
+        return npv_from_cash_flows(cash_flows, self.discount_rate, self.inflation_rate)
 
     def _roi_sync(self, costs: dict[str, Any], benefits: dict[str, Any]) -> float:
-        converted_costs = self._convert_currency_inputs(costs)
-        converted_benefits = self._convert_currency_inputs(benefits)
-        total_cost = converted_costs.get("total_cost", 0)
-        total_benefits = converted_benefits.get("total_benefits", 0)
-        if total_cost == 0:
-            return 0.0
-        return (total_benefits - total_cost) / total_cost
+        return calculate_roi_percentage(costs, benefits, self.currency_rates)
 
     async def _generate_recommendation_narrative(
         self, business_case: dict[str, Any], recommendation: str, rationale: str
@@ -999,33 +649,17 @@ class BusinessCaseInvestmentAgent(BaseAgent):
     ) -> int:
         """Calculate payback period in months."""
         cash_flows = self._build_cash_flow(costs, benefits)
-        cumulative = 0.0
-        for period, cash_flow in enumerate(cash_flows, start=1):
-            cumulative += cash_flow
-            if cumulative >= 0:
-                return period * 12
-        return 999
+        return calculate_payback_period(cash_flows)
 
     async def _calculate_tco(self, costs: dict[str, Any]) -> float:
         """Calculate Total Cost of Ownership."""
-        converted_costs = self._convert_currency_inputs(costs)
-        total_cost = float(converted_costs.get("total_cost", 0))
-        operational_costs = float(converted_costs.get("operational_costs", total_cost * 0.15))
-        return total_cost + operational_costs
+        return calculate_tco(costs, self.currency_rates)
 
     async def _calculate_roi_percentage(
         self, costs: dict[str, Any], benefits: dict[str, Any]
     ) -> float:
         """Calculate ROI percentage."""
-        converted_costs = self._convert_currency_inputs(costs)
-        converted_benefits = self._convert_currency_inputs(benefits)
-        total_cost = converted_costs.get("total_cost", 0)
-        total_benefits = converted_benefits.get("total_benefits", 0)
-
-        if total_cost == 0:
-            return 0.0
-
-        return (total_benefits - total_cost) / total_cost  # type: ignore
+        return calculate_roi_percentage(costs, benefits, self.currency_rates)
 
     async def _adjust_costs(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """Adjust costs based on scenario parameters."""
@@ -1061,17 +695,7 @@ class BusinessCaseInvestmentAgent(BaseAgent):
         self, metrics: dict[str, Any], historical_comparison: dict[str, Any]
     ) -> float:
         """Calculate confidence level for recommendation."""
-        roi = metrics.get("roi_percentage", 0.0)
-        npv = metrics.get("npv", 0.0)
-        benchmark_roi = historical_comparison.get("benchmark_roi", 0.0)
-        confidence = 0.6
-        if roi >= self.min_roi_threshold:
-            confidence += 0.15
-        if npv > 0:
-            confidence += 0.1
-        if benchmark_roi and roi >= benchmark_roi:
-            confidence += 0.1
-        return min(confidence, 0.95)
+        return calculate_confidence(metrics, historical_comparison, self.min_roi_threshold)
 
     async def _publish_business_case_created(
         self, business_case: dict[str, Any], *, tenant_id: str, correlation_id: str
