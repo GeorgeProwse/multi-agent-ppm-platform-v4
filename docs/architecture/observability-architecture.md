@@ -106,4 +106,4 @@ Expected output: table rows listing SLO targets.
 
 - [Resilience Architecture](resilience-architecture.md)
 - [Performance Architecture](performance-architecture.md)
-- [System Health Agent](../agents/agent-catalog.md)
+- [System Health Agent](../../agents/AGENT_CATALOG.md)

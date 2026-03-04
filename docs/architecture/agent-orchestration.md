@@ -6,7 +6,7 @@ Describe how the platform routes user intent, plans multi-step workflows, execut
 
 ## Architecture-level context
 
-Agent orchestration sits between the experience layer (`apps/`) and domain agents (`agents/`). It coordinates intent detection, guardrails, memory/state, connector access, and response composition. The catalog of agent responsibilities is defined in the [Agent Catalog](../agents/agent-catalog.md).
+Agent orchestration sits between the experience layer (`apps/`) and domain agents (`agents/`). It coordinates intent detection, guardrails, memory/state, connector access, and response composition. The catalog of agent responsibilities is defined in the [Agent Catalog](../../agents/AGENT_CATALOG.md).
 
 ## Orchestration flow
 
@@ -51,7 +51,7 @@ Confirm the orchestration doc references the agent catalog:
 rg -n "Agent Catalog" docs/architecture/agent-orchestration.md
 ```
 
-Expected output: a link to `docs/agents/agent-catalog.md`.
+Expected output: a link to `agents/AGENT_CATALOG.md`.
 
 ## Implementation status
 
@@ -60,6 +60,6 @@ Expected output: a link to `docs/agents/agent-catalog.md`.
 
 ## Related docs
 
-- [Agent Catalog](../agents/agent-catalog.md)
+- [Agent Catalog](../../agents/AGENT_CATALOG.md)
 - [Security Architecture](security-architecture.md)
 - [Connector Overview](../connectors/overview.md)
