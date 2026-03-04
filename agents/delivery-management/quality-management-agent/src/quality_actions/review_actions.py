@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from quality_models import build_review
@@ -14,7 +13,7 @@ if TYPE_CHECKING:
 
 
 async def schedule_review(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     review_data: dict[str, Any],
 ) -> dict[str, Any]:
     """Schedule quality review or audit.  Returns review ID and participants."""
@@ -58,7 +57,7 @@ async def schedule_review(
 
 
 async def _schedule_calendar_event(
-    agent: "QualityManagementAgent", review: dict[str, Any]
+    agent: QualityManagementAgent, review: dict[str, Any]
 ) -> dict[str, Any] | None:
     if agent.calendar_client and hasattr(agent.calendar_client, "create_event"):
         response = agent.calendar_client.create_event(review)

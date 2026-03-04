@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -15,8 +14,10 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from conflict_store import get_conflict_store  # noqa: E402
 from data_sync_queue import enqueue_sync_job, get_queue_client  # noqa: E402
 from data_sync_status import get_status_store  # noqa: E402
@@ -29,9 +30,9 @@ from security.api_governance import (  # noqa: E402
     version_response_payload,
 )
 from security.auth import AuthTenantMiddleware  # noqa: E402
+from security.config import load_yaml  # noqa: E402
 from security.lineage import mask_lineage_payload  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
-from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from sync_log_store import get_sync_log_store  # noqa: E402
 from sync_registry import (  # noqa: E402
     build_default_registry,
@@ -40,7 +41,6 @@ from sync_registry import (  # noqa: E402
 )
 
 from packages.version import API_VERSION  # noqa: E402
-from security.config import load_yaml  # noqa: E402
 
 logger = logging.getLogger("data-sync-service")
 logging.basicConfig(level=logging.INFO)

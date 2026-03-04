@@ -9,23 +9,10 @@ Specification: agents/delivery-management/scope-definition-agent/README.md
 """
 
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from approval_workflow_agent import ApprovalWorkflowAgent
-from scope_research import generate_scope_from_search
-from web_search import search_web
-
-from agents.common.connector_integration import (
-    DatabaseStorageService,
-    DocumentManagementService,
-    ProjectManagementService,
-)
-from agents.common.integration_services import LocalEmbeddingService, VectorSearchIndex
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
-
 from definition_actions import (
     handle_analyze_stakeholders,
     handle_create_raci_matrix,
@@ -43,7 +30,17 @@ from definition_actions import (
 )
 from definition_actions.baseline_actions import handle_get_baseline
 from definition_models import Requirement, TraceabilityEntry, WBSItem
-from definition_utils import extract_wbs_item_ids, generate_traceability_matrix as _generate_traceability_matrix
+from definition_utils import extract_wbs_item_ids
+from definition_utils import generate_traceability_matrix as _generate_traceability_matrix
+
+from agents.common.connector_integration import (
+    DatabaseStorageService,
+    DocumentManagementService,
+    ProjectManagementService,
+)
+from agents.common.integration_services import LocalEmbeddingService, VectorSearchIndex
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class ProjectDefinitionAgent(BaseAgent):

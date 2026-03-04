@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from schedule_utils import (
+    apply_risk_adjustments_to_tasks,
     persist_schedule,
     publish_critical_path_changed,
     publish_schedule_updated,
     resolve_risk_data,
-    apply_risk_adjustments_to_tasks,
 )
 
 if TYPE_CHECKING:

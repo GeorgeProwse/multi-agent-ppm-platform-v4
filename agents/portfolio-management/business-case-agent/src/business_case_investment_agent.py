@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 from data_quality.helpers import apply_rule_set, validate_against_schema
+from events import BusinessCaseCreatedEvent, InvestmentRecommendationEvent
 from feature_flags import is_feature_enabled
 from observability.tracing import get_trace_id
 
@@ -31,7 +32,6 @@ from agents.common.integration_services import (
 )
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
-from events import BusinessCaseCreatedEvent, InvestmentRecommendationEvent
 
 
 class BusinessCaseInvestmentAgent(BaseAgent):

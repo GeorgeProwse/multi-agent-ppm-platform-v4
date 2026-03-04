@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from lifecycle_utils import get_gate_name, get_lifecycle_state, publish_project_transitioned
 from orchestration import (
     DurableTask,
     DurableWorkflow,
     OrchestrationContext,
     RetryPolicy,
 )
-
-from lifecycle_utils import get_gate_name, get_lifecycle_state, publish_project_transitioned
 
 if TYPE_CHECKING:
     from project_lifecycle_agent import ProjectLifecycleAgent

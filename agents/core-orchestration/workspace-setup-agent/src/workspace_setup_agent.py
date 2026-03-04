@@ -9,10 +9,6 @@ complete, field mappings are set, and all required external artefacts exist.
 Specification: agents/core-orchestration/workspace-setup-agent/README.md
 """
 
-import importlib.util
-import json
-import os
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,10 +18,11 @@ from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
 ensure_monorepo_paths()
 
+from observability.tracing import get_trace_id  # noqa: E402
+
 from agents.runtime import BaseAgent  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 from integrations.services.integration import EventBusClient, EventEnvelope  # noqa: E402
-from observability.tracing import get_trace_id  # noqa: E402
 
 
 class WorkspaceSetupAgent(BaseAgent):

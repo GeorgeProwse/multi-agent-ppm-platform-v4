@@ -13,7 +13,6 @@ from typing import Any
 
 from definition_models import Requirement, TraceabilityEntry, WBSItem
 
-
 # ---------------------------------------------------------------------------
 # ID generators
 # ---------------------------------------------------------------------------

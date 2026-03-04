@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 async def log_defect(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect_data: dict[str, Any],
     *,
     tenant_id: str,
@@ -72,7 +72,7 @@ async def log_defect(
 
 
 async def update_defect(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect_id: str,
     updates: dict[str, Any],
 ) -> dict[str, Any]:
@@ -126,7 +126,7 @@ async def update_defect(
 
 
 async def sync_defect_tickets(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect_ids: list[str],
     *,
     tenant_id: str,
@@ -151,7 +151,7 @@ async def sync_defect_tickets(
 
 
 async def _auto_classify_defect(
-    agent: "QualityManagementAgent", defect_data: dict[str, Any]
+    agent: QualityManagementAgent, defect_data: dict[str, Any]
 ) -> dict[str, Any]:
     classification = await _classify_defect(agent, defect_data)
     category = classification.get("category", "code_defect")
@@ -172,7 +172,7 @@ async def _auto_classify_defect(
 
 
 async def _classify_defect(
-    agent: "QualityManagementAgent", defect_data: dict[str, Any]
+    agent: QualityManagementAgent, defect_data: dict[str, Any]
 ) -> dict[str, Any]:
     content = " ".join(
         value
@@ -211,7 +211,7 @@ async def _classify_defect(
     }
 
 
-def _get_defect_classifier(agent: "QualityManagementAgent"):
+def _get_defect_classifier(agent: QualityManagementAgent):
     from quality_utils import build_defect_classifier
 
     if agent.defect_classifier is None:
@@ -220,7 +220,7 @@ def _get_defect_classifier(agent: "QualityManagementAgent"):
 
 
 async def _assign_defect_owner(
-    agent: "QualityManagementAgent", defect: dict[str, Any]
+    agent: QualityManagementAgent, defect: dict[str, Any]
 ) -> str:
     resource_client = (agent.config or {}).get("resource_capacity_client")
     required_skills = derive_required_skills(defect)
@@ -248,7 +248,7 @@ async def _assign_defect_owner(
 
 
 async def _sync_defect_ticket(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect: dict[str, Any],
     *,
     action: str,
@@ -302,7 +302,7 @@ async def _apply_external_defect_updates(
 
 
 async def _train_defect_classification_model(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
 ) -> dict[str, Any]:
     if not agent.defects:
         return {"label_tokens": {}, "severity_tokens": {}, "trained_at": None}
@@ -337,7 +337,7 @@ async def _train_defect_classification_model(
 
 
 async def _train_defect_cluster_model(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
 ) -> dict[str, Any]:
     from quality_utils import kmeans, vectorize_defects
 

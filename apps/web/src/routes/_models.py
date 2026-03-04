@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 
 from routes._deps import CanvasTab, TemplateMapping
 
-
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------

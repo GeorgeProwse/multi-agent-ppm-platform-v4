@@ -6,14 +6,14 @@ import statistics
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
 class ModelArtifact:
     model_id: str
     trained_at: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     base_duration: float
     performance_factor: float
 
@@ -22,13 +22,13 @@ class AzureMLDurationEstimator:
     """In-memory Azure ML duration estimator."""
 
     def __init__(self) -> None:
-        self._registry: Dict[str, ModelArtifact] = {}
+        self._registry: dict[str, ModelArtifact] = {}
 
     def train(
         self,
-        historical_durations: List[float],
+        historical_durations: list[float],
         team_performance: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ModelArtifact:
         baseline = statistics.mean(historical_durations) if historical_durations else 5.0
         performance = team_performance if team_performance > 0 else 1.0
@@ -50,21 +50,21 @@ class AzureMLDurationEstimator:
         complexity_factor = {"low": 0.8, "medium": 1.0, "high": 1.3}.get(complexity, 1.0)
         return artifact.base_duration * artifact.performance_factor * complexity_factor
 
-    def get_model(self, model_id: str) -> Optional[ModelArtifact]:
+    def get_model(self, model_id: str) -> ModelArtifact | None:
         return self._registry.get(model_id)
 
 
 class AzureMLClient:
     """API wrapper for Azure ML duration models."""
 
-    def __init__(self, estimator: Optional[AzureMLDurationEstimator] = None) -> None:
+    def __init__(self, estimator: AzureMLDurationEstimator | None = None) -> None:
         self.estimator = estimator or AzureMLDurationEstimator()
 
     def train_duration_model(
         self,
-        historical_durations: List[float],
+        historical_durations: list[float],
         team_performance: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ModelArtifact:
         return self.estimator.train(historical_durations, team_performance, metadata)
 

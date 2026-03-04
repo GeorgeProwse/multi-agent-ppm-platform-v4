@@ -24,11 +24,6 @@ from data_quality.helpers import validate_against_schema
 from data_quality.rules import evaluate_quality_rules
 
 from agents.common.connector_integration import (
-    DatabaseStorageService,
-    DocumentMetadata,
-    GRCIntegrationService,
-    GRCRisk,
-    MLPredictionService,
     ProjectManagementService,
 )
 from agents.runtime.src.state_store import TenantStateStore
@@ -1033,9 +1028,9 @@ def apply_config(agent: RiskManagementAgent, config: dict[str, Any] | None) -> N
     """Set all config-derived attributes on *agent* during ``__init__``."""
     from risk_models import RiskNLPExtractor
 
-    _DEFAULT_CATEGORIES = ["technical", "schedule", "financial", "compliance", "external", "resource"]
-    _DEFAULT_KEYWORDS = ["risk", "failure", "incident", "disruption", "regulatory change", "supplier"]
-    _DEFAULT_THRESHOLDS = {
+    _default_categories = ["technical", "schedule", "financial", "compliance", "external", "resource"]
+    _default_keywords = ["risk", "failure", "incident", "disruption", "regulatory change", "supplier"]
+    _default_thresholds = {
         "cost_overrun_pct": 0.1,
         "schedule_delay_days": 10,
         "quality_defect_rate": 0.05,
@@ -1045,9 +1040,9 @@ def apply_config(agent: RiskManagementAgent, config: dict[str, Any] | None) -> N
     def _cfg(key: str, default: Any = None) -> Any:
         return config.get(key, default) if config else default
 
-    agent.risk_categories = _cfg("risk_categories", _DEFAULT_CATEGORIES)
+    agent.risk_categories = _cfg("risk_categories", _default_categories)
     agent.enable_external_risk_research = _cfg("enable_external_risk_research", False)
-    agent.risk_search_keywords = _cfg("risk_search_keywords", _DEFAULT_KEYWORDS)
+    agent.risk_search_keywords = _cfg("risk_search_keywords", _default_keywords)
     agent.risk_search_result_limit = int(_cfg("risk_search_result_limit", 5))
     agent.probability_scale = _cfg("probability_scale", [1, 2, 3, 4, 5])
     agent.impact_scale = _cfg("impact_scale", [1, 2, 3, 4, 5])
@@ -1075,7 +1070,7 @@ def apply_config(agent: RiskManagementAgent, config: dict[str, Any] | None) -> N
     agent.synapse_manager = None
     agent.event_bus = None
     agent.risk_events = []
-    agent.risk_trigger_thresholds = _cfg("risk_trigger_thresholds", _DEFAULT_THRESHOLDS)
+    agent.risk_trigger_thresholds = _cfg("risk_trigger_thresholds", _default_thresholds)
 
     agent.risk_nlp_extractor = _cfg("risk_nlp_extractor")
     if not agent.risk_nlp_extractor:

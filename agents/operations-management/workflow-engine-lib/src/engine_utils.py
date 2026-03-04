@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 from xml.etree import ElementTree
 
-from workflow_spec import WorkflowSpecError, load_workflow_spec, parse_workflow_spec
+from workflow_spec import load_workflow_spec, parse_workflow_spec
 
 logger = logging.getLogger(__name__)
 

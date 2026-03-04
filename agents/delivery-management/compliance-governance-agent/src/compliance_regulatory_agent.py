@@ -21,30 +21,6 @@ from tools.runtime_paths import bootstrap_runtime_paths
 
 bootstrap_runtime_paths()
 
-from llm.client import LLMGateway  # noqa: E402
-
-from agents.common.connector_integration import (  # noqa: E402
-    DatabaseStorageService,
-    DocumentManagementService,
-    GRCIntegrationService,
-    NotificationService,
-)
-from agents.runtime import BaseAgent, ServiceBusEventBus, get_event_bus  # noqa: E402
-from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from agents.runtime.src.policy import (  # noqa: E402
-    evaluate_compliance_controls,
-    evaluate_policy_bundle,
-    load_default_policy_bundle,
-)
-from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
-
-# -- Extracted modules -------------------------------------------------------
-from compliance_models import ComplianceRuleEngine  # noqa: E402
-from compliance_seed import (  # noqa: E402
-    define_compliance_schemas,
-    extract_regulation_metadata,
-    seed_regulatory_frameworks,
-)
 from compliance_actions import (  # noqa: E402
     handle_add_regulation,
     handle_assess_compliance,
@@ -65,13 +41,40 @@ from compliance_actions import (  # noqa: E402
     handle_verify_release_compliance,
 )
 
+# -- Extracted modules -------------------------------------------------------
+from compliance_models import ComplianceRuleEngine  # noqa: E402
+
 # Re-export models so existing ``from compliance_regulatory_agent import …`` still works.
 from compliance_models import (  # noqa: E402, F401
-    ComplianceRuleEngine as ComplianceRuleEngine,
     ControlRequirement as ControlRequirement,
+)
+from compliance_models import (  # noqa: E402
     EvidenceSnapshot as EvidenceSnapshot,
+)
+from compliance_models import (  # noqa: E402
     RegulatoryFramework as RegulatoryFramework,
 )
+from compliance_seed import (  # noqa: E402
+    define_compliance_schemas,
+    extract_regulation_metadata,
+    seed_regulatory_frameworks,
+)
+from llm.client import LLMGateway  # noqa: E402
+
+from agents.common.connector_integration import (  # noqa: E402
+    DatabaseStorageService,
+    DocumentManagementService,
+    GRCIntegrationService,
+    NotificationService,
+)
+from agents.runtime import BaseAgent, ServiceBusEventBus, get_event_bus  # noqa: E402
+from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.policy import (  # noqa: E402
+    evaluate_compliance_controls,
+    evaluate_policy_bundle,
+    load_default_policy_bundle,
+)
+from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
 
 
 class ComplianceRegulatoryAgent(BaseAgent):

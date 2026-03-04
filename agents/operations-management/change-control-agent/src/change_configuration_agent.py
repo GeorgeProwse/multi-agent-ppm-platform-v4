@@ -15,31 +15,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from agents.common.connector_integration import (
-    DatabaseStorageService,
-    DocumentManagementService,
-    ITSMIntegrationService,
-)
-from agents.runtime import BaseAgent
-from agents.runtime.src.state_store import TenantStateStore
-
-# Re-export models so that ``from change_configuration_agent import X`` keeps working.
-from change_models import (  # noqa: F401
-    ChangeImpactModel,
-    ImpactTrainingSample,
-    PullRequestSummary,
-    RepositoryReference,
-)
-from change_utils import (  # noqa: F401
-    ApprovalFallbackAgent,
-    ChangeEventPublisher,
-    ChangeRequestClassifier,
-    ChangeWorkflowOrchestrator,
-    DependencyGraphService,
-    IaCChangeParser,
-    RepositoryIntegrationService,
-)
-
 # Action handlers ----------------------------------------------------------
 from change_actions import (
     approve_change,
@@ -74,6 +49,31 @@ from change_actions.classify_and_assess import (
     assess_compliance_impact,
     recommend_mitigation,
 )
+
+# Re-export models so that ``from change_configuration_agent import X`` keeps working.
+from change_models import (  # noqa: F401
+    ChangeImpactModel,
+    ImpactTrainingSample,
+    PullRequestSummary,
+    RepositoryReference,
+)
+from change_utils import (  # noqa: F401
+    ApprovalFallbackAgent,
+    ChangeEventPublisher,
+    ChangeRequestClassifier,
+    ChangeWorkflowOrchestrator,
+    DependencyGraphService,
+    IaCChangeParser,
+    RepositoryIntegrationService,
+)
+
+from agents.common.connector_integration import (
+    DatabaseStorageService,
+    DocumentManagementService,
+    ITSMIntegrationService,
+)
+from agents.runtime import BaseAgent
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class ChangeConfigurationAgent(BaseAgent):

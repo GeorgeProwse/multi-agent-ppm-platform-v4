@@ -12,37 +12,38 @@ from routes._deps import (
     DEMAND_PROMPT_PATH,
     INTAKE_ASSISTANT_PROMPTS,
     PROJECT_PROMPT_PATH,
+    IntakeDecision,
+    IntakeRequestCreate,
+    LLMGateway,
+    LLMProviderError,
+    MergeDecision,
+    MergeReviewCase,
     _data_service_client,
     _demo_mode_enabled,
     _document_client,
     _load_prompt,
     _raise_upstream_error,
     _render_prompt,
-    _require_multimodal_intake,
     _require_duplicate_resolution,
+    _require_multimodal_intake,
     _require_session,
     _tenant_id_from_request,
     build_audit_event,
     build_forward_headers,
     emit_audit_event,
+    get_trace_id,
     intake_store,
-    logger,
     merge_review_store,
     permission_required,
 )
-from routes._deps import LLMGateway, LLMProviderError, get_trace_id
+from routes._deps import (
+    IntakeRequest as IntakeRequestModel,
+)
 from routes._models import (
     IntakeAssistantRequest,
     IntakeAssistantResponse,
     IntakeExtractionEntity,
     IntakeExtractionResponse,
-)
-from routes._deps import (
-    IntakeDecision,
-    IntakeRequest as IntakeRequestModel,
-    IntakeRequestCreate,
-    MergeDecision,
-    MergeReviewCase,
 )
 
 router = APIRouter()
@@ -267,7 +268,6 @@ def decide_merge_review_case(request: Request, case_id: str, payload: MergeDecis
     if not case:
         raise HTTPException(status_code=404, detail="Merge review case not found")
     tenant_id = _tenant_id_from_request(request, session) or "default"
-    from routes._deps import _roles_from_request, get_trace_id
     event = build_audit_event(tenant_id=tenant_id, action="duplicate_resolution.merge_decision", outcome="success" if payload.decision == "approved" else "denied", actor_id=payload.reviewer_id, actor_type="user", actor_roles=session.get("roles") or [], resource_id=case.case_id, resource_type=f"{case.entity_type}_merge_review", metadata={"decision": payload.decision, "comments": payload.comments, "primary_record_id": case.primary_record.record_id, "duplicate_record_id": case.duplicate_record.record_id}, trace_id=get_trace_id() or "unknown", correlation_id=session.get("correlation_id"))
     emit_audit_event(event)
     return case

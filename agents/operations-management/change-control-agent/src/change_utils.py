@@ -11,21 +11,19 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import uuid
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib import parse, request
 
+from change_models import PullRequestSummary, RepositoryReference
 from event_bus.service_bus import ServiceBusEventBus
 
 from agents.common.connector_integration import (
     DatabaseStorageService,
 )
 from agents.common.integration_services import NaiveBayesTextClassifier
-
-from change_models import PullRequestSummary, RepositoryReference
 
 
 class RepositoryIntegrationService:

@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-
 from connector_hub_proxy import ConnectorHubClient
 
 # connectors.json is generated from manifest.yaml files by connectors/registry/generate.py

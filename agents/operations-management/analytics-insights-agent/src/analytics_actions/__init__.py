@@ -17,7 +17,11 @@ from analytics_actions.infrastructure import (
 )
 from analytics_actions.insights import handle_get_insights
 from analytics_actions.periodic_report import handle_generate_periodic_report
-from analytics_actions.query_data import handle_get_dashboard, handle_natural_language_query, handle_query_data
+from analytics_actions.query_data import (
+    handle_get_dashboard,
+    handle_natural_language_query,
+    handle_query_data,
+)
 from analytics_actions.run_prediction import handle_run_prediction
 from analytics_actions.scenario_analysis import handle_scenario_analysis
 from analytics_actions.track_kpi import handle_track_kpi

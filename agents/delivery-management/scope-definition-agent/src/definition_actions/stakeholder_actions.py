@@ -7,8 +7,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from definition_actions.charter_actions import _generate_with_openai, _index_artifact
 from definition_utils import parse_raci_response, serialize_raci_for_index
+
+from definition_actions.charter_actions import _generate_with_openai, _index_artifact
 
 if TYPE_CHECKING:
     from project_definition_agent import ProjectDefinitionAgent

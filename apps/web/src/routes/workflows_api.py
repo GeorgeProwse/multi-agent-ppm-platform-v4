@@ -8,14 +8,12 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 
 from routes._deps import (
-    _require_session,
-    permission_required,
-    workflow_definition_store,
-)
-from routes._deps import (
     WorkflowDefinitionPayload,
     WorkflowDefinitionRecord,
     WorkflowDefinitionSummary,
+    _require_session,
+    permission_required,
+    workflow_definition_store,
 )
 from routes._models import WorkflowStartRequest, WorkflowStartResponse
 

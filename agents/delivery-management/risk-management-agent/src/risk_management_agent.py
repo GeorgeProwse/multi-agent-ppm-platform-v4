@@ -20,17 +20,23 @@ bootstrap_runtime_paths()
 from analytics_insights_agent import DataLakeManager, SynapseManager  # noqa: E402
 from llm.client import LLMGateway  # noqa: E402
 
-from agents.common.connector_integration import (  # noqa: E402
-    DatabaseStorageService,
-    DocumentationPublishingService,
-    DocumentManagementService,
-    GRCIntegrationService,
-    MLPredictionService,
+# Action handlers ---------------------------------------------------------
+from risk_actions import (  # noqa: E402
+    assess_risk,
+    create_mitigation_plan,
+    generate_risk_matrix,
+    generate_risk_report,
+    get_risk_dashboard,
+    get_top_risks,
+    identify_risk,
+    monitor_triggers,
+    perform_sensitivity_analysis,
+    prioritize_risks,
+    research_risks_action,
+    research_risks_public,
+    run_monte_carlo,
+    update_risk_status,
 )
-from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
-from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from agents.runtime.src.policy import evaluate_compliance_controls  # noqa: E402
-from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
 
 # Re-export models so that existing imports keep working.
 from risk_models import (  # noqa: E402, F401
@@ -53,23 +59,16 @@ from risk_utils import (  # noqa: E402
     prime_risk_extractor,
 )
 
-# Action handlers ---------------------------------------------------------
-from risk_actions import (  # noqa: E402
-    assess_risk,
-    create_mitigation_plan,
-    generate_risk_matrix,
-    generate_risk_report,
-    get_risk_dashboard,
-    get_top_risks,
-    identify_risk,
-    monitor_triggers,
-    perform_sensitivity_analysis,
-    prioritize_risks,
-    research_risks_action,
-    research_risks_public,
-    run_monte_carlo,
-    update_risk_status,
+from agents.common.connector_integration import (  # noqa: E402
+    DatabaseStorageService,
+    DocumentationPublishingService,
+    DocumentManagementService,
+    GRCIntegrationService,
+    MLPredictionService,
 )
+from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
+from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
+from agents.runtime.src.policy import evaluate_compliance_controls  # noqa: E402
 
 
 class RiskManagementAgent(BaseAgent):

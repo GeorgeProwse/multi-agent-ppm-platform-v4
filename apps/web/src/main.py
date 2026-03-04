@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from bootstrap import create_app
 from observability.metrics import RequestMetricsMiddleware, configure_metrics
 from observability.tracing import TraceMiddleware, configure_tracing
 from security.api_governance import apply_api_governance, version_response_payload
-
-from bootstrap import create_app
 
 app = create_app()
 

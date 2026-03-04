@@ -6,13 +6,14 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
-from program_actions.identify_synergies import analyze_synergies, _calculate_synergy_savings
 from program_utils import (
     build_initial_schedule,
     detect_resource_schedule_conflicts,
     extract_alignment_terms,
     normalize_objectives,
 )
+
+from program_actions.identify_synergies import _calculate_synergy_savings, analyze_synergies
 
 if TYPE_CHECKING:
     from program_management_agent import ProgramManagementAgent

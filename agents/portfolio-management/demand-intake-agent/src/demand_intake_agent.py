@@ -11,7 +11,6 @@ Specification: agents/portfolio-management/demand-intake-agent/README.md
 import math
 import os
 import re
-import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +21,8 @@ from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths()
 
 from data_quality.helpers import apply_rule_set, validate_against_schema  # noqa: E402
+from events import DemandCreatedEvent  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from observability.tracing import get_trace_id  # noqa: E402
 
 from agents.common.integration_services import (  # noqa: E402
@@ -32,8 +33,6 @@ from agents.common.integration_services import (  # noqa: E402
 )
 from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
 from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
-from events import DemandCreatedEvent  # noqa: E402
-from feature_flags import is_feature_enabled  # noqa: E402
 
 
 class DemandIntakeAgent(BaseAgent):

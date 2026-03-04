@@ -10,11 +10,10 @@ Specification: agents/core-orchestration/response-orchestration-agent/README.md
 
 import asyncio
 import json
-import sys
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 
@@ -22,6 +21,8 @@ ensure_monorepo_paths()
 
 import httpx  # noqa: E402
 import yaml  # noqa: E402
+from observability.metrics import configure_metrics  # noqa: E402
+from observability.tracing import get_trace_id, inject_trace_headers  # noqa: E402
 from plan_schema import Plan, PlanTask  # noqa: E402
 from pydantic import BaseModel, ConfigDict, Field, ValidationError  # noqa: E402
 
@@ -33,8 +34,6 @@ from agents.common.web_search import (  # noqa: E402
 )
 from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from observability.metrics import configure_metrics  # noqa: E402
-from observability.tracing import get_trace_id, inject_trace_headers  # noqa: E402
 
 
 class RoutingEntry(BaseModel):
@@ -75,7 +74,7 @@ class AgentInvocationResult(BaseModel):
 
 
 class OrchestrationResponse(BaseModel):
-    aggregated_response: Union[str, dict[str, Any]]
+    aggregated_response: str | dict[str, Any]
     status: str = "completed"
     agent_results: list[AgentInvocationResult]
     execution_summary: dict[str, Any]
@@ -917,7 +916,7 @@ class ResponseOrchestrationAgent(BaseAgent):
 
     async def _aggregate_responses(
         self, results: list[dict[str, Any]]
-    ) -> Union[str, dict[str, Any]]:
+    ) -> str | dict[str, Any]:
         """
         Aggregate multiple agent responses into coherent output.
 

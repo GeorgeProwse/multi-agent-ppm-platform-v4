@@ -5,7 +5,6 @@ import copy
 import logging
 import os
 import random
-import sys
 import time
 import uuid
 from collections.abc import Callable
@@ -18,7 +17,9 @@ from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths()
 
 import yaml  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from observability.metrics import build_agent_execution_metrics  # noqa: E402
+from template_mappings import get_template_mapping  # noqa: E402
 
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
 from agents.runtime.src.base_agent import BaseAgent  # noqa: E402
@@ -28,8 +29,6 @@ from agents.runtime.src.models import AgentRun, AgentRunStatus  # noqa: E402
 from agents.runtime.src.notification_service import NotificationServiceClient  # noqa: E402
 from packages.memory_client import MemoryClient  # noqa: E402
 from services.memory_service.memory_service import MemoryService  # noqa: E402
-from template_mappings import get_template_mapping  # noqa: E402
-from feature_flags import is_feature_enabled  # noqa: E402
 
 logger = logging.getLogger("agents.runtime.orchestrator")
 HUMAN_REVIEW_CONFIG_PATH = (

@@ -18,11 +18,12 @@ try:
 except Exception:
     from packages.contracts.src.events import ScheduleBaselineLockedEvent, ScheduleDelayEvent
 
+from sqlalchemy.orm import Session
+
 from integrations.services.integration import (
     EventEnvelope,
     SqlRepository,
 )
-from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from schedule_planning_agent import SchedulePlanningAgent

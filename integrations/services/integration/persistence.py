@@ -6,7 +6,7 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import DateTime, Float, Integer, String, create_engine, select
@@ -22,8 +22,8 @@ class SqlSettings(BaseSettings):
 class CosmosSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="COSMOS_", env_file=".env")
 
-    endpoint: Optional[str] = None
-    key: Optional[str] = None
+    endpoint: str | None = None
+    key: str | None = None
     database: str = "ppm"
     container: str = "ppm_documents"
 
@@ -32,8 +32,8 @@ class PersistenceSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PERSISTENCE_", env_file=".env")
 
     sql_connection_string: str = "sqlite+pysqlite:///:memory:"
-    cosmos_endpoint: Optional[str] = None
-    cosmos_key: Optional[str] = None
+    cosmos_endpoint: str | None = None
+    cosmos_key: str | None = None
     cosmos_database: str = "ppm"
     cosmos_container: str = "ppm_documents"
 
@@ -340,7 +340,7 @@ class SqlRepository:
         p90: float,
         p95: float,
         risk_score: float,
-        distribution: Dict[str, Any],
+        distribution: dict[str, Any],
     ) -> ScheduleSimulationRecord:
         record = self._build(
             ScheduleSimulationRecord,
@@ -389,7 +389,7 @@ class SqlRepository:
             self.session.refresh(record)
         return record
 
-    def get_schedule_by_key(self, schedule_key: str) -> Optional[Schedule]:
+    def get_schedule_by_key(self, schedule_key: str) -> Schedule | None:
         if self._use_memory_store():
             self._ensure_memory_store()
             return self._memory_schedules.get(schedule_key)  # type: ignore[return-value]
@@ -486,11 +486,11 @@ class SqlRepository:
 
 class DocumentStore(ABC):
     @abstractmethod
-    def upsert(self, doc_id: str, data: Dict[str, Any]) -> Dict[str, Any]:  # pragma: no cover
+    def upsert(self, doc_id: str, data: dict[str, Any]) -> dict[str, Any]:  # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def read(self, doc_id: str) -> Optional[Dict[str, Any]]:  # pragma: no cover
+    def read(self, doc_id: str) -> dict[str, Any] | None:  # pragma: no cover
         raise NotImplementedError
 
 
@@ -498,28 +498,28 @@ class CacheSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CACHE_", env_file=".env")
 
     provider: str = "in_memory"
-    redis_url: Optional[str] = None
+    redis_url: str | None = None
     default_ttl_seconds: int = 600
 
 
 class CacheProvider(ABC):
     @abstractmethod
-    def get(self, key: str) -> Optional[Dict[str, Any]]:  # pragma: no cover
+    def get(self, key: str) -> dict[str, Any] | None:  # pragma: no cover
         raise NotImplementedError
 
     @abstractmethod
-    def set(self, key: str, value: Dict[str, Any], ttl_seconds: int) -> None:  # pragma: no cover
+    def set(self, key: str, value: dict[str, Any], ttl_seconds: int) -> None:  # pragma: no cover
         raise NotImplementedError
 
 
 class InMemoryCacheProvider(CacheProvider):
     def __init__(self) -> None:
-        self._store: Dict[str, Dict[str, Any]] = {}
+        self._store: dict[str, dict[str, Any]] = {}
 
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         return self._store.get(key)
 
-    def set(self, key: str, value: Dict[str, Any], ttl_seconds: int) -> None:
+    def set(self, key: str, value: dict[str, Any], ttl_seconds: int) -> None:
         self._store[key] = value
 
 
@@ -529,18 +529,18 @@ class RedisCacheProvider(CacheProvider):
 
         self._client = redis.from_url(redis_url, decode_responses=True)
 
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         raw = self._client.get(key)
         if not raw:
             return None
         return json.loads(raw)
 
-    def set(self, key: str, value: Dict[str, Any], ttl_seconds: int) -> None:
+    def set(self, key: str, value: dict[str, Any], ttl_seconds: int) -> None:
         self._client.setex(key, ttl_seconds, json.dumps(value))
 
 
 class CacheClient:
-    def __init__(self, settings: Optional[CacheSettings] = None) -> None:
+    def __init__(self, settings: CacheSettings | None = None) -> None:
         self.settings = settings or CacheSettings()
         self.provider = self._build_provider()
 
@@ -551,24 +551,24 @@ class CacheClient:
             return RedisCacheProvider(self.settings.redis_url)
         return InMemoryCacheProvider()
 
-    def get(self, key: str) -> Optional[Dict[str, Any]]:
+    def get(self, key: str) -> dict[str, Any] | None:
         return self.provider.get(key)
 
-    def set(self, key: str, value: Dict[str, Any], ttl_seconds: Optional[int] = None) -> None:
+    def set(self, key: str, value: dict[str, Any], ttl_seconds: int | None = None) -> None:
         ttl = ttl_seconds or self.settings.default_ttl_seconds
         self.provider.set(key, value, ttl)
 
 
 class InMemoryDocumentStore(DocumentStore):
     def __init__(self) -> None:
-        self._docs: Dict[str, Dict[str, Any]] = {}
+        self._docs: dict[str, dict[str, Any]] = {}
 
-    def upsert(self, doc_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def upsert(self, doc_id: str, data: dict[str, Any]) -> dict[str, Any]:
         payload = {"id": doc_id, **data}
         self._docs[doc_id] = payload
         return payload
 
-    def read(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    def read(self, doc_id: str) -> dict[str, Any] | None:
         return self._docs.get(doc_id)
 
 
@@ -588,15 +588,15 @@ class CosmosDocumentStore(DocumentStore):
             partition_key="/id",
         )
 
-    def upsert(self, doc_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def upsert(self, doc_id: str, data: dict[str, Any]) -> dict[str, Any]:
         payload = {"id": doc_id, **data, "updated_at": datetime.now(timezone.utc).isoformat()}
         return self._container.upsert_item(payload)
 
-    def read(self, doc_id: str) -> Optional[Dict[str, Any]]:
+    def read(self, doc_id: str) -> dict[str, Any] | None:
         try:
             from azure.cosmos.exceptions import CosmosHttpResponseError  # type: ignore
         except ImportError:  # pragma: no cover - optional dependency
-            CosmosHttpResponseError = RuntimeError
+            CosmosHttpResponseError = RuntimeError  # noqa: N806
         try:
             return self._container.read_item(item=doc_id, partition_key=doc_id)
         except (CosmosHttpResponseError, KeyError, ValueError):

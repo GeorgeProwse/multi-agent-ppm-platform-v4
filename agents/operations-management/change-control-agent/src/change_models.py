@@ -7,7 +7,6 @@ impact training samples, and the ChangeImpactModel for ML-based predictions.
 
 from __future__ import annotations
 
-import importlib.util
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any

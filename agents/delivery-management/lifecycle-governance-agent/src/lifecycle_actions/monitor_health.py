@@ -7,6 +7,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from lifecycle_utils import (
+    detect_warnings,
+    determine_health_status,
+    get_metric_status,
+    publish_health_report_generated,
+    publish_health_updated,
+)
 from orchestration import (
     DurableTask,
     DurableWorkflow,
@@ -15,14 +22,6 @@ from orchestration import (
 
 from agents.common.health_recommendations import generate_recommendations, identify_health_concerns
 from agents.common.metrics_catalog import get_metric_value, normalize_metric_value
-
-from lifecycle_utils import (
-    detect_warnings,
-    determine_health_status,
-    get_metric_status,
-    publish_health_report_generated,
-    publish_health_updated,
-)
 
 if TYPE_CHECKING:
     from project_lifecycle_agent import ProjectLifecycleAgent

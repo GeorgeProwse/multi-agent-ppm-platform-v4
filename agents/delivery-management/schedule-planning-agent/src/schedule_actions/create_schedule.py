@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from schedule_utils import (
+    apply_risk_adjustments_to_tasks,
     generate_schedule_id,
     persist_schedule,
     publish_dependency_added,
     publish_schedule_created,
     resolve_risk_data,
-    apply_risk_adjustments_to_tasks,
     schedule_cache_key,
     sync_external_tools,
 )

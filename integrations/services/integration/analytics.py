@@ -6,9 +6,10 @@ import logging
 import re
 import statistics
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -35,8 +36,8 @@ class AnalyticsSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ANALYTICS_", env_file=".env")
 
     provider: str = "in_memory"
-    azure_monitor_connection_string: Optional[str] = None
-    synapse_connection_string: Optional[str] = None
+    azure_monitor_connection_string: str | None = None
+    synapse_connection_string: str | None = None
     synapse_table: str = "analytics_events"
 
 
@@ -46,7 +47,7 @@ class AnalyticsRecord:
     category: str
     name: str
     value: float
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class AnalyticsProvider(ABC):
@@ -55,18 +56,18 @@ class AnalyticsProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_records(self) -> List[AnalyticsRecord]:  # pragma: no cover - interface
+    def list_records(self) -> list[AnalyticsRecord]:  # pragma: no cover - interface
         raise NotImplementedError
 
 
 class InMemoryAnalyticsProvider(AnalyticsProvider):
     def __init__(self) -> None:
-        self.records: List[AnalyticsRecord] = []
+        self.records: list[AnalyticsRecord] = []
 
     def record(self, record: AnalyticsRecord) -> None:
         self.records.append(record)
 
-    def list_records(self) -> List[AnalyticsRecord]:
+    def list_records(self) -> list[AnalyticsRecord]:
         return list(self.records)
 
 
@@ -105,7 +106,7 @@ class SynapseAnalyticsProvider(AnalyticsProvider):
                 },
             )
 
-    def list_records(self) -> List[AnalyticsRecord]:
+    def list_records(self) -> list[AnalyticsRecord]:
         logger.warning("Synapse analytics provider does not support listing records")
         return []
 
@@ -123,7 +124,7 @@ class AzureMonitorAnalyticsProvider(AnalyticsProvider):
             },
         )
 
-    def list_records(self) -> List[AnalyticsRecord]:
+    def list_records(self) -> list[AnalyticsRecord]:
         logger.warning("Azure Monitor analytics provider does not support listing records")
         return []
 
@@ -133,8 +134,8 @@ class AnalyticsClient:
 
     def __init__(
         self,
-        settings: Optional[AnalyticsSettings] = None,
-        provider: Optional[AnalyticsProvider] = None,
+        settings: AnalyticsSettings | None = None,
+        provider: AnalyticsProvider | None = None,
     ) -> None:
         self.settings = settings or AnalyticsSettings()
         self.provider = provider or self._build_provider()
@@ -154,51 +155,51 @@ class AnalyticsClient:
             case _:
                 return InMemoryAnalyticsProvider()
 
-    def record_event(self, name: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def record_event(self, name: str, metadata: dict[str, Any] | None = None) -> None:
         self._record("event", name, 1.0, metadata)
 
-    def record_kpi(self, name: str, value: float, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def record_kpi(self, name: str, value: float, metadata: dict[str, Any] | None = None) -> None:
         self._record("kpi", name, value, metadata)
 
     def record_health_metric(
-        self, name: str, value: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, value: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("health", name, value, metadata)
 
     def record_metric(
-        self, name: str, value: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, value: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("metric", name, value, metadata)
 
     def record_error_rate(
-        self, name: str, error_rate: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, error_rate: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("error_rate", name, error_rate, metadata)
 
     def record_defect_rate(
-        self, name: str, defect_rate: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, defect_rate: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("defect_rate", name, defect_rate, metadata)
 
     def record_deployment_metric(
-        self, name: str, value: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, value: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("deployment", name, value, metadata)
 
     def record_anomaly_signal(
-        self, name: str, score: float, metadata: Optional[Dict[str, Any]] = None
+        self, name: str, score: float, metadata: dict[str, Any] | None = None
     ) -> None:
         self._record("anomaly", name, score, metadata)
 
     def list_records(
         self,
         *,
-        category: Optional[str] = None,
-        name_prefix: Optional[str] = None,
-        since: Optional[datetime] = None,
-    ) -> List[AnalyticsRecord]:
+        category: str | None = None,
+        name_prefix: str | None = None,
+        since: datetime | None = None,
+    ) -> list[AnalyticsRecord]:
         records = self.provider.list_records()
-        filtered: List[AnalyticsRecord] = []
+        filtered: list[AnalyticsRecord] = []
         if since and since.tzinfo is None:
             since = since.replace(tzinfo=timezone.utc)
         for record in records:
@@ -223,7 +224,7 @@ class AnalyticsClient:
         return abs(z_score) >= threshold
 
     def _record(
-        self, category: str, name: str, value: float, metadata: Optional[Dict[str, Any]]
+        self, category: str, name: str, value: float, metadata: dict[str, Any] | None
     ) -> None:
         record = AnalyticsRecord(
             timestamp=datetime.now(timezone.utc),

@@ -15,15 +15,9 @@ Route modules live under ``apps/web/src/routes/``.
 """
 from __future__ import annotations
 
-import json
-import logging
-import os
-import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
-from fastapi import APIRouter, FastAPI, Request, Response
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -40,15 +34,15 @@ ensure_monorepo_paths(REPO_ROOT)
 # ---------------------------------------------------------------------------
 # First-party imports that depend on the monorepo path
 # ---------------------------------------------------------------------------
-from config import validate_startup_config  # noqa: E402
 from demo_seed import seed_demo_data  # noqa: E402
 from knowledge_store import KnowledgeStore  # noqa: E402
-from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
-from observability.tracing import TraceMiddleware, configure_tracing, get_trace_id  # noqa: E402
-from packages.version import API_VERSION  # noqa: E402
-from security.api_governance import apply_api_governance  # noqa: E402
-from template_mappings import load_template_mappings  # noqa: E402
 from methodology_node_runtime import load_methodology_node_runtime_registry  # noqa: E402
+from observability.metrics import configure_metrics  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Route module registry
+# ---------------------------------------------------------------------------
+from routes import LEGACY_ROUTE_MODULES  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Shared state and helpers (used by all route modules via routes._deps)
@@ -65,18 +59,16 @@ from routes._deps import (  # noqa: E402
     _permissions_for_user,
     _session_from_request,
     demo_outbox,
-    knowledge_store as _knowledge_store_ref,
-    logger,
     spreadsheet_store,
     timeline_store,
     tree_store,
     workspace_state_store,
 )
+from security.api_governance import apply_api_governance  # noqa: E402
+from template_mappings import load_template_mappings  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# Route module registry
-# ---------------------------------------------------------------------------
-from routes import LEGACY_ROUTE_MODULES  # noqa: E402
+from config import validate_startup_config  # noqa: E402
+from packages.version import API_VERSION  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # FastAPI application

@@ -12,14 +12,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from agents.common.connector_integration import (
-    CalendarIntegrationService,
-    DatabaseStorageService,
-    DocumentationPublishingService,
-)
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
-
 # -- action handlers (each lives in its own module under release_actions/) --
 from release_actions import (
     assess_readiness,
@@ -38,17 +30,31 @@ from release_actions import (
     track_deployment_metrics,
     verify_post_deployment,
 )
+from release_actions.verify_post_deployment import (
+    _detect_post_deployment_anomalies as _detect_pd_anomalies,
+)
 
 # -- shared utilities used by event handlers and backward-compat stubs --
 from release_utils import (
     publish_event,
+)
+from release_utils import (
     release_environment_allocation as _release_env_alloc,
+)
+from release_utils import (
     reserve_environment as _reserve_env,
+)
+from release_utils import (
     suggest_alternative_windows as _suggest_alt_windows,
 )
-from release_actions.verify_post_deployment import (
-    _detect_post_deployment_anomalies as _detect_pd_anomalies,
+
+from agents.common.connector_integration import (
+    CalendarIntegrationService,
+    DatabaseStorageService,
+    DocumentationPublishingService,
 )
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class ReleaseDeploymentAgent(BaseAgent):

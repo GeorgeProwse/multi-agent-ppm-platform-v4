@@ -14,7 +14,6 @@ import importlib.util
 import json
 import math
 import os
-import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -31,14 +30,17 @@ try:
     from events import ResourceAllocationCreatedEvent  # noqa: E402
 except Exception:
     from packages.contracts.src.events import ResourceAllocationCreatedEvent  # noqa: E402
+from feature_flags import is_feature_enabled  # noqa: E402
 from observability.tracing import get_trace_id  # noqa: E402
 
-from agents.common.connector_integration import CalendarIntegrationService, DatabaseStorageService  # noqa: E402
+from agents.common.connector_integration import (  # noqa: E402
+    CalendarIntegrationService,
+    DatabaseStorageService,
+)
 from agents.common.integration_services import ForecastingModel  # noqa: E402
 from agents.common.scenario import ScenarioEngine  # noqa: E402
 from agents.runtime import BaseAgent, get_event_bus  # noqa: E402
 from agents.runtime.src.state_store import TenantStateStore  # noqa: E402
-from feature_flags import is_feature_enabled  # noqa: E402
 
 
 class ResourceCapacityRepository:

@@ -8,11 +8,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from definition_actions.charter_actions import (
-    _generate_with_openai,
-    _index_artifact,
-    _request_signoff,
-)
 from definition_utils import (
     generate_wbs_id,
     parse_wbs_response,
@@ -20,6 +15,12 @@ from definition_utils import (
 )
 from events import ScopeChangeEvent, WbsCreatedEvent
 from observability.tracing import get_trace_id
+
+from definition_actions.charter_actions import (
+    _generate_with_openai,
+    _index_artifact,
+    _request_signoff,
+)
 
 if TYPE_CHECKING:
     from project_definition_agent import ProjectDefinitionAgent

@@ -1,9 +1,8 @@
 from pathlib import Path
 from typing import Any, cast
 
-from security.config import load_yaml
-
 from jsonschema import Draft202012Validator, FormatChecker
+from security.config import load_yaml
 
 SANDBOX_CONFIG_DIR = Path(__file__).resolve().parent / "sandbox" / "examples"
 SCHEMA_PATH = (

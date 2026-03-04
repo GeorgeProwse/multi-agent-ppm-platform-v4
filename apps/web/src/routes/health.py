@@ -5,8 +5,8 @@ from fastapi import APIRouter, Response
 
 from routes._deps import (
     WORKFLOW_DEFINITIONS_PATH,
-    knowledge_store,
     intake_store,
+    knowledge_store,
     pipeline_store,
     version_response_payload,
 )

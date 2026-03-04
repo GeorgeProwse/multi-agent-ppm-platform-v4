@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
-from routes._deps import _approval_payload, _demo_mode_enabled, _spa_route, demo_outbox
+from routes._deps import _approval_payload, _spa_route
 
 router = APIRouter()
 

@@ -14,6 +14,76 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from jsonschema import ValidationError
+from jsonschema import validate as jsonschema_validate
+
+# Action handlers -----------------------------------------------------------
+from knowledge_actions.classification_actions import (
+    capture_lesson_learned as _act_capture_lesson_learned,
+)
+from knowledge_actions.classification_actions import (
+    classify_document as _act_classify_document,
+)
+from knowledge_actions.classification_actions import (
+    manage_taxonomy as _act_manage_taxonomy,
+)
+from knowledge_actions.classification_actions import (
+    summarize_document as _act_summarize_document,
+)
+from knowledge_actions.collaboration_actions import (
+    annotate_document as _act_annotate_document,
+)
+from knowledge_actions.collaboration_actions import (
+    approve_document as _act_approve_document,
+)
+from knowledge_actions.collaboration_actions import (
+    link_documents as _act_link_documents,
+)
+from knowledge_actions.collaboration_actions import (
+    review_document as _act_review_document,
+)
+from knowledge_actions.document_actions import (
+    delete_document as _act_delete_document,
+)
+from knowledge_actions.document_actions import (
+    get_document as _act_get_document,
+)
+from knowledge_actions.document_actions import (
+    get_document_version_history as _act_get_document_version_history,
+)
+from knowledge_actions.document_actions import (
+    track_document_access as _act_track_document_access,
+)
+from knowledge_actions.document_actions import (
+    update_document as _act_update_document,
+)
+from knowledge_actions.document_actions import (
+    upload_document as _act_upload_document,
+)
+from knowledge_actions.ingestion_actions import (
+    handle_cognitive_summary as _act_handle_cognitive_summary,
+)
+from knowledge_actions.ingestion_actions import (
+    ingest_agent_output as _act_ingest_agent_output,
+)
+from knowledge_actions.ingestion_actions import (
+    ingest_sources as _act_ingest_sources,
+)
+from knowledge_actions.knowledge_graph_actions import (
+    build_knowledge_graph as _act_build_knowledge_graph,
+)
+from knowledge_actions.knowledge_graph_actions import (
+    extract_entities as _act_extract_entities,
+)
+from knowledge_actions.knowledge_graph_actions import (
+    query_knowledge_graph as _act_query_knowledge_graph,
+)
+from knowledge_actions.search_actions import (
+    recommend_documents as _act_recommend_documents,
+)
+from knowledge_actions.search_actions import (
+    search_documents as _act_search_documents,
+)
 from knowledge_db import KnowledgeDatabase
 from knowledge_models import EntityExtractionPipeline, SemanticEmbeddingService
 from knowledge_utils import (
@@ -25,6 +95,7 @@ from knowledge_utils import (
     traverse_graph,
     update_graph_for_document,
 )
+from prompt_registry import PromptRegistry
 
 from agents.common.connector_integration import DocumentManagementService, DocumentMetadata
 from agents.common.integration_services import (
@@ -35,47 +106,7 @@ from agents.common.integration_services import (
 )
 from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.state_store import TenantStateStore
-from jsonschema import ValidationError
-from jsonschema import validate as jsonschema_validate
 from packages.llm.prompt_sanitizer import detect_injection, sanitize_prompt
-from prompt_registry import PromptRegistry
-
-# Action handlers -----------------------------------------------------------
-from knowledge_actions.classification_actions import (
-    auto_classify_document as _act_auto_classify_document,
-    capture_lesson_learned as _act_capture_lesson_learned,
-    classify_document as _act_classify_document,
-    manage_taxonomy as _act_manage_taxonomy,
-    summarize_document as _act_summarize_document,
-)
-from knowledge_actions.collaboration_actions import (
-    annotate_document as _act_annotate_document,
-    approve_document as _act_approve_document,
-    link_documents as _act_link_documents,
-    review_document as _act_review_document,
-)
-from knowledge_actions.document_actions import (
-    delete_document as _act_delete_document,
-    get_document as _act_get_document,
-    get_document_version_history as _act_get_document_version_history,
-    track_document_access as _act_track_document_access,
-    update_document as _act_update_document,
-    upload_document as _act_upload_document,
-)
-from knowledge_actions.ingestion_actions import (
-    handle_cognitive_summary as _act_handle_cognitive_summary,
-    ingest_agent_output as _act_ingest_agent_output,
-    ingest_sources as _act_ingest_sources,
-)
-from knowledge_actions.knowledge_graph_actions import (
-    build_knowledge_graph as _act_build_knowledge_graph,
-    extract_entities as _act_extract_entities,
-    query_knowledge_graph as _act_query_knowledge_graph,
-)
-from knowledge_actions.search_actions import (
-    recommend_documents as _act_recommend_documents,
-    search_documents as _act_search_documents,
-)
 
 
 class KnowledgeManagementAgent(BaseAgent):

@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import math
 import random
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -100,7 +99,7 @@ def root_cause_from_category(category: str) -> str:
     return root_cause_map.get(category, "code_defect")
 
 
-def build_defect_classifier() -> "NaiveBayesTextClassifier":
+def build_defect_classifier() -> NaiveBayesTextClassifier:
     from agents.common.integration_services import NaiveBayesTextClassifier
 
     classifier = NaiveBayesTextClassifier(

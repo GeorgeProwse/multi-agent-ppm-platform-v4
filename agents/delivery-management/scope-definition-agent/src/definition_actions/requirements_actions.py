@@ -9,12 +9,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from definition_actions.charter_actions import _index_artifact
 from definition_utils import (
     generate_traceability_matrix,
     serialize_requirements_for_index,
     serialize_traceability_for_index,
 )
+
+from definition_actions.charter_actions import _index_artifact
 
 if TYPE_CHECKING:
     from project_definition_agent import ProjectDefinitionAgent

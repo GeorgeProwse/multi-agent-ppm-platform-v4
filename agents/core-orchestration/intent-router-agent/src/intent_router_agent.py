@@ -11,7 +11,6 @@ Specification: agents/core-orchestration/intent-router-agent/README.md
 import json
 import os
 import re
-import sys
 import uuid
 from collections import Counter
 from pathlib import Path
@@ -22,13 +21,13 @@ from common.bootstrap import ensure_monorepo_paths  # noqa: E402
 ensure_monorepo_paths()
 
 import yaml  # noqa: E402
+from llm import LLMGateway  # noqa: E402
+from observability.tracing import get_trace_id  # noqa: E402
+from prompt_registry import PromptRegistry, enforce_redaction  # noqa: E402
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: E402
 
 from agents.runtime import BaseAgent  # noqa: E402
-from llm import LLMGateway  # noqa: E402
-from observability.tracing import get_trace_id  # noqa: E402
 from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from prompt_registry import PromptRegistry, enforce_redaction  # noqa: E402
 
 
 class IntentRouterContext(BaseModel):

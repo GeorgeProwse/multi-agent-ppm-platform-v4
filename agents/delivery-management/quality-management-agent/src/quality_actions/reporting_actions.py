@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 async def get_quality_dashboard(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     filters: dict[str, Any],
 ) -> dict[str, Any]:
@@ -42,7 +42,7 @@ async def get_quality_dashboard(
 
 
 async def generate_quality_report(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     report_type: str,
     filters: dict[str, Any],
 ) -> dict[str, Any]:
@@ -72,7 +72,7 @@ async def generate_quality_report(
 
 
 async def query_quality_artifacts(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     filters: dict[str, Any],
     *,
     tenant_id: str,
@@ -105,7 +105,7 @@ async def query_quality_artifacts(
 
 
 async def _get_defect_statistics(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     filters: dict[str, Any],
 ) -> dict[str, Any]:
@@ -125,7 +125,7 @@ async def _get_defect_statistics(
 
 
 async def _get_test_execution_summary(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     filters: dict[str, Any],
 ) -> dict[str, Any]:
@@ -155,7 +155,7 @@ async def _get_test_execution_summary(
 
 
 async def _get_recent_audits(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str | None,
     filters: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -176,7 +176,7 @@ async def _get_recent_audits(
 
 
 async def _generate_summary_report(
-    agent: "QualityManagementAgent", filters: dict[str, Any]
+    agent: QualityManagementAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     narrative = await generate_openai_narrative(
         "summary", filters, "Summarize overall quality health.", agent.integration_config
@@ -191,7 +191,7 @@ async def _generate_summary_report(
 
 
 async def _generate_defect_analysis_report(
-    agent: "QualityManagementAgent", filters: dict[str, Any]
+    agent: QualityManagementAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     narrative = await generate_openai_narrative(
         "defect_analysis",
@@ -209,7 +209,7 @@ async def _generate_defect_analysis_report(
 
 
 async def _generate_test_coverage_report(
-    agent: "QualityManagementAgent", filters: dict[str, Any]
+    agent: QualityManagementAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     narrative = await generate_openai_narrative(
         "test_coverage",
@@ -227,7 +227,7 @@ async def _generate_test_coverage_report(
 
 
 async def _generate_audit_summary_report(
-    agent: "QualityManagementAgent", filters: dict[str, Any]
+    agent: QualityManagementAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     narrative = await generate_openai_narrative(
         "audit_summary",
@@ -245,7 +245,7 @@ async def _generate_audit_summary_report(
 
 
 async def _generate_release_notes_report(
-    agent: "QualityManagementAgent", filters: dict[str, Any]
+    agent: QualityManagementAgent, filters: dict[str, Any]
 ) -> dict[str, Any]:
     narrative = await generate_openai_narrative(
         "release_notes",

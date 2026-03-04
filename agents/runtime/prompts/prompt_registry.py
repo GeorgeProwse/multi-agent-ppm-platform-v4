@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-
 from jsonschema import Draft202012Validator, FormatChecker
 
 PROMPT_DIR = Path(__file__).resolve().parent / "examples"

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from connector_secrets import fetch_keyvault_secret
 from data_quality.rules import evaluate_quality_rules
 from observability.tracing import get_trace_id
 
@@ -24,7 +25,6 @@ from agents.common.scenario import ScenarioEngine
 from agents.runtime import BaseAgent, ServiceBusEventBus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.state_store import TenantStateStore
-from connector_secrets import fetch_keyvault_secret
 
 
 class FinancialManagementAgent(BaseAgent):

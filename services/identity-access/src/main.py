@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import secrets
-import sys
 import time
 import uuid
 from pathlib import Path
@@ -22,8 +21,10 @@ from pydantic import BaseModel, Field
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 from common.bootstrap import ensure_monorepo_paths  # noqa: E402
+
 ensure_monorepo_paths(REPO_ROOT)
 
+from common.env_validation import reject_placeholder_secrets  # noqa: E402
 from observability.metrics import RequestMetricsMiddleware, configure_metrics  # noqa: E402
 from observability.tracing import TraceMiddleware, configure_tracing  # noqa: E402
 from saml import (  # noqa: E402
@@ -53,7 +54,6 @@ from security.api_governance import (  # noqa: E402
 from security.auth import authenticate_request  # noqa: E402
 from security.errors import error_payload  # noqa: E402
 from security.secrets import resolve_secret  # noqa: E402
-from common.env_validation import reject_placeholder_secrets  # noqa: E402
 
 from packages.version import API_VERSION  # noqa: E402
 

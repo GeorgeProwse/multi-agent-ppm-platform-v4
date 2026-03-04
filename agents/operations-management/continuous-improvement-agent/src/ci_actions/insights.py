@@ -11,17 +11,16 @@ from mining_utils import (
     build_traces,
     calculate_average_waiting_time,
     extract_dimension,
-    get_process_events,
     load_all_event_logs,
     safe_parse_timestamp,
 )
 
 from ci_actions.conformance import (
+    _get_designed_process_model,
     check_conformance,
     detect_bottlenecks,
     detect_deviations,
 )
-from ci_actions.conformance import _get_designed_process_model
 from ci_actions.discovery import discover_process
 
 

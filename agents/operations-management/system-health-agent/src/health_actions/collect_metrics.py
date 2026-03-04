@@ -6,10 +6,9 @@ import statistics
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from observability.tracing import start_agent_span
-
 from health_integrations import emit_event_hub_event
 from health_utils import generate_metric_id, parse_time_range
+from observability.tracing import start_agent_span
 
 if TYPE_CHECKING:
     from system_health_agent import SystemHealthAgent

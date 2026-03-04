@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import DocumentMetadata
-
 from compliance_utils import generate_policy_id
+
+from agents.common.connector_integration import DocumentMetadata
 
 if TYPE_CHECKING:
     from compliance_regulatory_agent import ComplianceRegulatoryAgent

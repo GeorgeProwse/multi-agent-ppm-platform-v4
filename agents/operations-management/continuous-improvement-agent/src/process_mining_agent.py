@@ -10,20 +10,8 @@ Specification: agents/operations-management/continuous-improvement-agent/README.
 
 from __future__ import annotations
 
-import sys as _sys
-from pathlib import Path as _Path
-
-# Ensure this agent's own src/ directory is on sys.path so that
-# ``ci_actions``, ``mining_utils`` and ``mining_models`` resolve correctly.
-_AGENT_SRC = str(_Path(__file__).resolve().parent)
-if _AGENT_SRC not in _sys.path:
-    _sys.path.insert(0, _AGENT_SRC)
-
 from datetime import datetime, timezone
 from typing import Any
-
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
 
 # Action handlers ---------------------------------------------------------
 from ci_actions.benchmarking import benchmark_performance, share_best_practices
@@ -53,6 +41,9 @@ from ci_actions.root_cause import analyze_root_cause
 
 # Utilities ---------------------------------------------------------------
 from mining_utils import calculate_compliance_rate, resolve_store_path
+
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
 
 
 class ProcessMiningAgent(BaseAgent):

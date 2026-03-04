@@ -5,12 +5,13 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 
-from schedule_actions.critical_path import forward_pass, forward_pass_sync
 from schedule_utils import (
     persist_simulation,
     publish_schedule_simulated,
     simulation_cache_key,
 )
+
+from schedule_actions.critical_path import forward_pass, forward_pass_sync
 
 if TYPE_CHECKING:
     from schedule_planning_agent import SchedulePlanningAgent

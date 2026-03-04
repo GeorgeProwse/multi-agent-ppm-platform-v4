@@ -12,7 +12,6 @@ Nothing in this module should import from any route module.
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import logging
 import os
@@ -20,27 +19,15 @@ import re
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Literal
-from urllib.parse import urlencode
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from typing import Any
 
 import httpx
 import jwt
 import yaml
 from fastapi import (
-    APIRouter,
-    File,
-    Form,
     HTTPException,
-    Query,
     Request,
     Response,
-    UploadFile,
-)
-from fastapi.responses import (
-    FileResponse,
-    JSONResponse,
-    RedirectResponse,
 )
 from jwt import InvalidTokenError
 from pydantic import BaseModel, Field
@@ -104,11 +91,8 @@ OIDC_HTTP_TRANSPORT: httpx.BaseTransport | None = None
 # ---------------------------------------------------------------------------
 # Store instances  (created once, shared by all route modules)
 # ---------------------------------------------------------------------------
-from agent_registry import load_agent_registry  # noqa: E402
-from agent_settings_models import AgentConfigUpdate, AgentProjectEntry  # noqa: E402
 from agent_settings_store import AgentSettingsStore  # noqa: E402
 from analytics_proxy import AnalyticsServiceClient  # noqa: E402
-from canonical_template_registry import get_catalog_template, list_catalog_templates  # noqa: E402
 from connector_hub_proxy import ConnectorHubClient  # noqa: E402
 from data_service_proxy import DataServiceClient  # noqa: E402
 from demo_integrations import (  # noqa: E402
@@ -118,107 +102,29 @@ from demo_integrations import (  # noqa: E402
     DemoDocumentServiceClient,
     DemoOutbox,
 )
-from demo_seed import DEMO_TENANT_ID, seed_demo_data  # noqa: E402
-from document_proxy import DocumentServiceClient, build_forward_headers  # noqa: E402
+from demo_seed import DEMO_TENANT_ID  # noqa: E402
+from document_proxy import DocumentServiceClient  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
-from gating import evaluate_activity_access, next_required_activity, stage_progress  # noqa: E402
-from intake_models import IntakeDecision, IntakeRequest, IntakeRequestCreate  # noqa: E402
 from intake_store import IntakeStore  # noqa: E402
 from knowledge_store import KnowledgeStore  # noqa: E402
 from lineage_proxy import LineageServiceClient  # noqa: E402
-from llm.client import LLMGateway, LLMProviderError  # noqa: E402
 from llm_preferences_store import LLMPreferencesStore  # noqa: E402
-from merge_review_models import MergeDecision, MergeReviewCase  # noqa: E402
 from merge_review_store import MergeReviewStore  # noqa: E402
-from methodologies import (  # noqa: E402
-    METHODOLOGY_STORAGE_PATH,
-    available_methodologies,
-    get_default_methodology_map,
-    get_methodology_map,
-)
-from methodology_node_runtime import (  # noqa: E402
-    list_runtime_actions_for_node,
-    load_methodology_node_runtime_registry,
-    resolve_runtime,
-)
 from model_registry import get_enabled_models  # noqa: E402
 from oidc_client import OIDCClient  # noqa: E402
 from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
-from pipeline_models import PipelineBoard, PipelineItem, PipelineItemUpdate  # noqa: E402
 from pipeline_store import PipelineStore  # noqa: E402
-from runtime_lifecycle_store import RuntimeLifecycleStore  # noqa: E402
-from search_service import SearchService, _match_score  # noqa: E402
-from security.api_governance import version_response_payload  # noqa: E402
-from security.audit_log import build_event, get_audit_log_store  # noqa: E402
-from security.prompt_safety import evaluate_prompt  # noqa: E402
-from security.secrets import resolve_secret  # noqa: E402
-from spreadsheet_models import (  # noqa: E402
-    ColumnCreate,
-    DeleteResult,
-    ImportResult,
-    Row,
-    RowCreate,
-    RowUpdate,
-    Sheet,
-    SheetCreate,
-    SheetDetail,
-)
-from spreadsheet_store import SpreadsheetStore  # noqa: E402
-from template_mappings import (  # noqa: E402
-    TemplateMapping,
-    get_template_mapping,
-    list_templates_for_methodology_node,
-    load_template_mappings,
-)
-from template_models import (  # noqa: E402
-    CanonicalTemplateDefinition,
-    CanonicalTemplateSummary,
-    TemplateInstantiateRequest,
-    TemplateInstantiateResponse,
-    TemplateType,
-    build_placeholder_context,
-    render_template_value_with_unresolved,
-)
-from template_registry import get_template as get_deliverable_template  # noqa: E402
-from timeline_models import (  # noqa: E402
-    Milestone,
-    MilestoneCreate,
-    MilestoneUpdate,
-    TimelineExportResponse,
-    TimelineResponse,
-)
-from timeline_store import TimelineStore  # noqa: E402
-from tree_models import (  # noqa: E402
-    TreeDeleteResult,
-    TreeExportResponse,
-    TreeListResponse,
-    TreeMoveRequest,
-    TreeNode,
-    TreeNodeCreate,
-    TreeNodeUpdate,
-)
-from tree_store import TreeStore  # noqa: E402
-from workflow_models import (  # noqa: E402
-    WorkflowDefinitionPayload,
-    WorkflowDefinitionRecord,
-    WorkflowDefinitionSummary,
-)
-from workflow_store import WorkflowDefinitionStore  # noqa: E402
-from workspace_state import (  # noqa: E402
-    ActivityCompletionUpdate,
-    CanvasTab,
-    OpenRef,
-    WorkspaceSelectionUpdate,
-    WorkspaceState,
-)
-from workspace_state_store import WorkspaceStateStore  # noqa: E402
-
-from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa: E402
-from agents.runtime.src.orchestrator import Orchestrator  # noqa: E402
-from observability.tracing import get_trace_id  # noqa: E402
-from packages.version import API_VERSION  # noqa: E402
 from runtime_flags import demo_mode_enabled  # noqa: E402
+from runtime_lifecycle_store import RuntimeLifecycleStore  # noqa: E402
+from search_service import SearchService  # noqa: E402
+from security.audit_log import build_event, get_audit_log_store  # noqa: E402
 from security.config import load_yaml as load_yaml_config  # noqa: E402
+from security.secrets import resolve_secret  # noqa: E402
+from spreadsheet_store import SpreadsheetStore  # noqa: E402
+from timeline_store import TimelineStore  # noqa: E402
+from tree_store import TreeStore  # noqa: E402
+from workflow_store import WorkflowDefinitionStore  # noqa: E402
+from workspace_state_store import WorkspaceStateStore  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Singleton stores

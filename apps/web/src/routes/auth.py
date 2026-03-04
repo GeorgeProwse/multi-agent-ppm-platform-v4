@@ -8,14 +8,13 @@ from typing import Any
 import httpx
 import jwt
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from routes._deps import (
     SESSION_COOKIE,
     STATE_COOKIE,
     _cookie_secure,
     _decode_cookie,
-    _demo_mode_enabled,
     _encode_cookie,
     _is_safe_redirect_path,
     _legacy_oidc_enabled,
@@ -30,7 +29,6 @@ from routes._deps import (
     logger,
     resolve_secret,
 )
-from routes._deps import _demo_session_payload  # noqa: E402
 from routes._models import SessionInfo, UIConfig
 
 router = APIRouter()

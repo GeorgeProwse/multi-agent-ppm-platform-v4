@@ -242,6 +242,7 @@ def _get_confluence_connector(agent: KnowledgeManagementAgent) -> Any | None:
         return agent._confluence_connector
     try:
         from confluence_connector import ConfluenceConnector
+
         from agents.common.connector_integration import ConnectorCategory, ConnectorConfig
 
         connector_config = ConnectorConfig(

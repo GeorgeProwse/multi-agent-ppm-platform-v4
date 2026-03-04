@@ -13,18 +13,6 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from lifecycle_persistence import LifecyclePersistence
-from monitoring import AzureMonitorClient
-from notifications import NotificationService
-from orchestration import DurableWorkflowEngine
-from readiness_model import ReadinessScoringModel
-from summarization import CognitiveSummarizer, GateSummarizer
-from sync_clients import ExternalSyncService
-
-from agents.runtime import BaseAgent, get_event_bus
-from agents.runtime.src.state_store import TenantStateStore
-from integrations.services.integration.ai_models import AIModelService
-
 from lifecycle_actions import (
     adjust_methodology,
     evaluate_gate,
@@ -42,11 +30,22 @@ from lifecycle_actions import (
     train_readiness_model,
     transition_phase,
 )
+from lifecycle_persistence import LifecyclePersistence
 from lifecycle_utils import (
     bootstrap_configuration,
     load_methodology_map,
     update_methodology_config,
 )
+from monitoring import AzureMonitorClient
+from notifications import NotificationService
+from orchestration import DurableWorkflowEngine
+from readiness_model import ReadinessScoringModel
+from summarization import CognitiveSummarizer, GateSummarizer
+from sync_clients import ExternalSyncService
+
+from agents.runtime import BaseAgent, get_event_bus
+from agents.runtime.src.state_store import TenantStateStore
+from integrations.services.integration.ai_models import AIModelService
 
 
 class ProjectLifecycleAgent(BaseAgent):

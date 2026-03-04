@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from events import PortfolioPrioritizedEvent
 from observability.tracing import get_trace_id
 
 from agents.common.connector_integration import DatabaseStorageService
@@ -24,7 +25,6 @@ from agents.runtime import BaseAgent, get_event_bus
 from agents.runtime.src.audit import build_audit_event, emit_audit_event
 from agents.runtime.src.policy import evaluate_policy_bundle, load_default_policy_bundle
 from agents.runtime.src.state_store import TenantStateStore
-from events import PortfolioPrioritizedEvent
 
 
 class PortfolioStrategyAgent(BaseAgent):

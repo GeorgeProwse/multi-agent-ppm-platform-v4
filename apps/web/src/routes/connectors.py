@@ -11,12 +11,12 @@ import logging
 from typing import Any
 
 import httpx
+from dependencies import get_connector_hub_client
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-
-from dependencies import get_connector_hub_client
-from routes._models import ConnectorInstanceCreate, ConnectorInstanceUpdate
 from web_services.connectors import ConnectorService
+
+from routes._models import ConnectorInstanceCreate, ConnectorInstanceUpdate
 
 logger = logging.getLogger("web-ui")
 

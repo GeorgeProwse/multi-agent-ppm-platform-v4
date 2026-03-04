@@ -11,7 +11,10 @@ The agent instance is passed explicitly so that handlers can access stores, serv
 and configuration without requiring inheritance.
 """
 
-from definition_actions.baseline_actions import handle_detect_scope_creep, handle_manage_scope_baseline
+from definition_actions.baseline_actions import (
+    handle_detect_scope_creep,
+    handle_manage_scope_baseline,
+)
 from definition_actions.charter_actions import handle_generate_charter, handle_get_charter
 from definition_actions.requirements_actions import (
     handle_create_traceability_matrix,
@@ -19,7 +22,10 @@ from definition_actions.requirements_actions import (
     handle_manage_requirements,
 )
 from definition_actions.scope_research_actions import handle_generate_scope_research
-from definition_actions.stakeholder_actions import handle_analyze_stakeholders, handle_create_raci_matrix
+from definition_actions.stakeholder_actions import (
+    handle_analyze_stakeholders,
+    handle_create_raci_matrix,
+)
 from definition_actions.wbs_actions import handle_generate_wbs, handle_get_wbs, handle_update_wbs
 
 __all__ = [

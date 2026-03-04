@@ -6,13 +6,12 @@ Provides CRUD endpoints for agent configuration management.
 
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel
-
 from agent_config_service import (
     AgentCategory,
     get_agent_config_store,
 )
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from pydantic import BaseModel
 from security.audit_log import build_event, get_audit_log_store
 
 router = APIRouter()

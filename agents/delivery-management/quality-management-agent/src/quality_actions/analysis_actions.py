@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 
 
 async def analyze_defect_trends(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     project_id: str,
 ) -> dict[str, Any]:
     """Analyze defect trends and patterns.  Returns trend analysis and patterns."""
@@ -37,7 +36,7 @@ async def analyze_defect_trends(
 
 
 async def perform_root_cause_analysis(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defect_ids: list[str],
 ) -> dict[str, Any]:
     """Perform root cause analysis on defects.  Returns RCA results and recommendations."""
@@ -96,7 +95,7 @@ async def _calculate_defect_trends_over_time(
 
 
 async def _identify_defect_patterns(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defects: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     if not defects:
@@ -156,7 +155,7 @@ async def _detect_defect_anomalies(
 
 
 async def _predict_defect_density(
-    agent: "QualityManagementAgent", project_id: str
+    agent: QualityManagementAgent, project_id: str
 ) -> dict[str, Any]:
     history = agent.defect_density_history.get(project_id, [])
     if not history:
@@ -237,7 +236,7 @@ async def _recommend_refactoring_targets(defects: list[dict[str, Any]]) -> list[
 
 
 async def _summarize_defect_clusters(
-    agent: "QualityManagementAgent",
+    agent: QualityManagementAgent,
     defects: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     if not defects:

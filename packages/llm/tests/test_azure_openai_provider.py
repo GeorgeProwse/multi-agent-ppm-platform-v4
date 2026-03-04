@@ -11,7 +11,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -24,7 +23,6 @@ if str(_LLM_SRC) not in sys.path:
     sys.path.insert(0, str(_LLM_SRC))
 
 import httpx  # noqa: E402
-
 from llm.types import LLMProviderError  # noqa: E402
 from providers.azure_openai_provider import AzureOpenAIProvider  # noqa: E402
 

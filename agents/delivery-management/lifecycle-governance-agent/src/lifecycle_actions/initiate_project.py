@@ -6,14 +6,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from lifecycle_utils import load_methodology_map
 from orchestration import (
     DurableTask,
     DurableWorkflow,
     OrchestrationContext,
     RetryPolicy,
 )
-
-from lifecycle_utils import load_methodology_map
 
 if TYPE_CHECKING:
     from project_lifecycle_agent import ProjectLifecycleAgent

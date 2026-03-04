@@ -5,14 +5,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import DocumentMetadata
-
 from vendor_utils import (
     extract_contract_clauses,
     generate_contract_id,
     publish_event,
     select_contract_template,
 )
+
+from agents.common.connector_integration import DocumentMetadata
 
 if TYPE_CHECKING:
     from vendor_procurement_agent import VendorProcurementAgent

@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import DocumentMetadata
-
 from vendor_utils import (
     generate_proposal_id,
     generate_rfp_content,
@@ -17,6 +15,8 @@ from vendor_utils import (
     select_rfp_template,
     select_vendors_to_invite,
 )
+
+from agents.common.connector_integration import DocumentMetadata
 
 if TYPE_CHECKING:
     from vendor_procurement_agent import VendorProcurementAgent

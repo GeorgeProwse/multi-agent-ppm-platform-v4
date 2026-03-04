@@ -1,8 +1,11 @@
 """Shared integration layer for event bus, analytics, and persistence."""
 
-from integrations.services.integration.analytics import AnalyticsClient, AnalyticsSettings
-from integrations.services.integration.databricks import DatabricksMonteCarloClient, SimulationResult
 from integrations.services.integration.ai_models import AIModelService, AIModelSettings, ModelTask
+from integrations.services.integration.analytics import AnalyticsClient, AnalyticsSettings
+from integrations.services.integration.databricks import (
+    DatabricksMonteCarloClient,
+    SimulationResult,
+)
 from integrations.services.integration.event_bus import (
     EventBusClient,
     EventBusSettings,
@@ -10,28 +13,32 @@ from integrations.services.integration.event_bus import (
     EventType,
 )
 from integrations.services.integration.external_sync import ExternalSyncClient, ExternalSyncSettings
-from integrations.services.integration.ml import AzureMLClient, AzureMLDurationEstimator, ModelArtifact
+from integrations.services.integration.ml import (
+    AzureMLClient,
+    AzureMLDurationEstimator,
+    ModelArtifact,
+)
 from integrations.services.integration.persistence import (
     Base,
     CacheClient,
     CacheProvider,
     CacheSettings,
-    CosmosSettings,
     ComplianceEvidence,
+    CosmosSettings,
+    EarnedValueRecord,
     PersistenceSettings,
     ProcessLog,
     QualityMetric,
+    ResourceAllocationRecord,
     RiskRecord,
     Schedule,
-    ResourceAllocationRecord,
     ScheduleSimulationRecord,
-    EarnedValueRecord,
+    SqlRepository,
     SqlSettings,
     TaskDependencyRecord,
     TaskRecord,
     create_sql_engine,
     run_migrations,
-    SqlRepository,
 )
 
 __all__ = [

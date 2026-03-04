@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from routes._deps import _require_session, logger, spreadsheet_store
 from routes._deps import (
     DeleteResult,
     ImportResult,
@@ -13,6 +12,9 @@ from routes._deps import (
     Sheet,
     SheetCreate,
     SheetDetail,
+    _require_session,
+    logger,
+    spreadsheet_store,
 )
 
 router = APIRouter()

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from integrations.services.integration import ModelTask
 from schedule_utils import duration_cache_key
+
+from integrations.services.integration import ModelTask
 
 if TYPE_CHECKING:
     from schedule_planning_agent import SchedulePlanningAgent

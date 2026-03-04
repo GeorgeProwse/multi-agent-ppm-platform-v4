@@ -10,7 +10,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests
 from connector_secrets import fetch_keyvault_secret, resolve_secret

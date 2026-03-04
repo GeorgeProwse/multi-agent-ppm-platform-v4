@@ -13,9 +13,9 @@ from string import Template
 from typing import Any
 
 import yaml
+from data_sync_status import StatusStore
 
 from agents.runtime.src.state_store import TenantStateStore
-from data_sync_status import StatusStore
 
 
 class ApprovalStore:

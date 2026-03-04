@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from agents.common.connector_integration import DocumentMetadata
 from definition_utils import (
     generate_charter_content,
     generate_charter_id,
@@ -19,6 +18,8 @@ from definition_utils import (
 from events import CharterCreatedEvent
 from feature_flags import is_feature_enabled
 from observability.tracing import get_trace_id
+
+from agents.common.connector_integration import DocumentMetadata
 
 if TYPE_CHECKING:
     from project_definition_agent import ProjectDefinitionAgent

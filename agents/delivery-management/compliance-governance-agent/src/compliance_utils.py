@@ -14,7 +14,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from xml.etree import ElementTree
 
-
 # ---------------------------------------------------------------------------
 # ID generators
 # ---------------------------------------------------------------------------
