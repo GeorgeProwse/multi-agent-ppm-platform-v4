@@ -16,7 +16,7 @@ AI-native Project Portfolio Management (PPM) platform with 25 specialized agents
 agents/                  25 domain agents + runtime scaffolding (BaseAgent, orchestrator)
 apps/                    User-facing applications (API gateway, web console, admin, mobile, etc.)
 config/                  RBAC/ABAC policy definitions
-connectors/              48 integration connectors + SDK + registry + MCP client
+connectors/              40 integration connectors + SDK + registry + MCP client
 constraints/             Python version constraint files (e.g. py313.txt)
 data/                    Canonical JSON schemas, migrations, quality rules, lineage, seed/demo data
 docs/                    Architecture, methodology, agent catalog, onboarding docs
@@ -24,7 +24,7 @@ examples/                Scenario and configuration examples
 integrations/            AI model, analytics, event bus, and persistence integration modules
 ops/                     Scripts, tools, infra (Terraform, K8s), Docker, config files
 packages/                Shared Python and TypeScript packages
-services/                Backend microservices (16 total)
+services/                Backend microservices (13 of 16; API Gateway, Orchestration, and Workflow services are in apps/)
 tests/                   Full test taxonomy: unit, integration, e2e, security, contract, load, performance
 tools/                   Agent runner, connector runner, local dev tooling
 vendor/                  Vendored stubs and third-party shims
@@ -139,7 +139,7 @@ Each agent follows the pattern: `agents/<domain>/<agent-name>/src/<agent_module>
 
 ### Services (16 microservices)
 
-All services use FastAPI + Uvicorn. Standard structure: `src/`, `tests/`, `helm/`, `contracts/`, `Dockerfile`.
+All services use FastAPI + Uvicorn. Standard structure: `src/`, `tests/`, `helm/`, `contracts/`, `Dockerfile`. **Note:** API Gateway, Orchestration Service, and Workflow Service are located under `apps/` rather than `services/`. `agent-config` and `memory_service` do not yet follow the full standard structure (missing `helm/`, `contracts/`, or `Dockerfile`). The `services/scope_baseline/` directory exists but is not a deployed microservice.
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -197,7 +197,7 @@ All services use FastAPI + Uvicorn. Standard structure: `src/`, `tests/`, `helm/
 
 ### Connectors (`connectors/`)
 
-48 connectors for external systems: Jira, Azure DevOps, Clarity, SAP, Workday, ServiceNow, Planview, Salesforce, Slack, Teams, SharePoint, M365, Confluence, Asana, Monday, SmartSheet, Google (Calendar, Drive), and more. Includes MCP (Model Context Protocol) variants.
+40 connectors for external systems: Jira, Azure DevOps, Clarity, SAP, Workday, ServiceNow, Planview, Salesforce, Slack, Teams, SharePoint, M365, Confluence, Asana, Monday, SmartSheet, Google (Calendar, Drive), Oracle, NetSuite, Workday, ADP, Outlook, Zoom, Twilio, Logicgate, Archer, and more. Includes MCP (Model Context Protocol) variants for key integrations (Jira, Asana, Clarity, Planview, SAP, Slack, Teams, Workday).
 
 - **SDK** (`connectors/sdk/`): Base classes (`base_connector.py`, `rest_connector.py`), auth, HTTP client, telemetry, sync controls
 - **Registry** (`connectors/registry/`): Central `connectors.json`, JSON schemas for manifests/mappings
@@ -226,6 +226,18 @@ GitHub Actions workflows in `.github/workflows/`:
 | `contract-tests.yml` | PRs | API contract enforcement |
 | `performance-smoke.yml` | PRs | Performance regression checks |
 | `container-scan.yml` | scheduled | Container vulnerability scanning |
+| `connectors-live-smoke.yml` | scheduled + manual | Live smoke tests against real connector endpoints |
+| `dast-staging.yml` | post-CD on staging | DAST (dynamic security) scan of deployed staging environment |
+| `dependency-audit.yml` | weekly schedule | Dependency audit and compatibility checks |
+| `iac-scan.yml` | PRs (infra paths) | Infrastructure-as-Code security scanning |
+| `license-compliance.yml` | manual | License compliance check across all dependencies |
+| `migration-check.yml` | manual | Database migration validation |
+| `pr-labeler.yml` | PRs opened/updated | Automated PR label assignment |
+| `promotion.yml` | manual | Environment promotion (staging → production) |
+| `release.yml` | tags + manual | Full release workflow |
+| `sbom.yml` | tag push | Software Bill of Materials generation |
+| `static.yml` | push to main | Deploy static content (Storybook/docs) to GitHub Pages |
+| `storybook-visual-regression.yml` | PRs (frontend paths) | Storybook visual regression testing |
 
 CI test matrix: Python 3.11 and 3.12. Python 3.13 cross-platform (Ubuntu + Windows) compatibility job runs separately.
 

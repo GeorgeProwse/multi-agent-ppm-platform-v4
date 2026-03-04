@@ -334,9 +334,9 @@
     ]
   },
   {
-    "id": "servicenow_grc",
+    "id": "servicenow",
     "name": "ServiceNow",
-    "manifest_path": "connectors/servicenow_grc/manifest.yaml",
+    "manifest_path": "connectors/servicenow/manifest.yaml",
     "status": "production",
     "certification": "certified",
     "category": "grc",
