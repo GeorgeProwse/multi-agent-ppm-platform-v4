@@ -1,0 +1,22 @@
+.container { padding: 20px; }
+.inputSection { margin-bottom: 24px; }
+.textarea { width: 100%; padding: 12px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 8px; font-size: 14px; resize: vertical; font-family: inherit; }
+.generateBtn { margin-top: 12px; padding: 10px 20px; border: none; border-radius: 8px; background: var(--color-primary, #3b82f6); color: white; font-weight: 600; cursor: pointer; }
+.generateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.previewSection { border: 1px solid var(--color-border, #e0e0e0); border-radius: 12px; padding: 20px; background: var(--color-surface-secondary, #f8f9fa); }
+.previewSection h3 { font-size: 16px; margin-bottom: 16px; }
+.stepFlow { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 20px; }
+.stepNode { text-align: center; padding: 12px 20px; background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e0e0e0); border-radius: 8px; min-width: 250px; }
+.stepBadge { display: inline-block; padding: 2px 8px; border-radius: 10px; color: white; font-size: 10px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.stepName { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.stepDesc { font-size: 11px; color: var(--color-text-secondary, #666); }
+.stepAgent { font-size: 10px; color: var(--color-primary, #3b82f6); margin-top: 4px; }
+.arrow { font-size: 18px; color: var(--color-text-tertiary, #999); }
+.refineSection { display: flex; gap: 8px; margin-bottom: 16px; }
+.refineInput { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; font-size: 13px; }
+.refineBtn { padding: 8px 16px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; background: var(--color-surface, #fff); cursor: pointer; font-size: 13px; }
+.refineBtn:disabled { opacity: 0.5; }
+.actionBar { display: flex; gap: 12px; justify-content: flex-end; }
+.deployBtn { padding: 8px 20px; border: none; border-radius: 6px; background: #22c55e; color: white; font-weight: 600; cursor: pointer; }
+.deployBtn:disabled { opacity: 0.5; }
+.resetBtn { padding: 8px 20px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; background: var(--color-surface, #fff); cursor: pointer; }

@@ -1,0 +1,139 @@
+.panel {
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  background: var(--color-surface-secondary, #f8f9fa);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.headerLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-secondary, #666);
+}
+
+.liveIndicator {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ef4444;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.agentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.agentRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.agentName {
+  flex: 1;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1a1a);
+}
+
+.elapsed {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #999);
+  font-variant-numeric: tabular-nums;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border, #e0e0e0);
+  border-top-color: var(--color-primary, #3b82f6);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.checkmark {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.checkmark::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 4px;
+  height: 7px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.errorIcon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+.pendingDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-border, #e0e0e0);
+  flex-shrink: 0;
+}
+
+.confidenceBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.confidenceHigh {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.confidenceMedium {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.confidenceLow {
+  background: #fee2e2;
+  color: #991b1b;
+}

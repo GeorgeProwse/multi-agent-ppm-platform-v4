@@ -31,6 +31,12 @@ const configNav: NavItem[] = [
     icon: 'provenance.link',
   },
   {
+    id: 'connector-health',
+    label: 'Connector Health',
+    path: '/connectors/health',
+    icon: 'provenance.link',
+  },
+  {
     id: 'workflows',
     label: 'Workflows',
     path: '/config/workflows',
@@ -91,6 +97,12 @@ const workNav: NavItem[] = [
     icon: 'actions.edit' as IconSemantic,
   },
   {
+    id: 'project-new',
+    label: 'New Project (Guided)',
+    path: '/projects/new',
+    icon: 'actions.edit' as IconSemantic,
+  },
+  {
     id: 'approvals',
     label: 'My Approvals',
     path: '/approvals',
@@ -112,6 +124,18 @@ const insightsNav: NavItem[] = [
     icon: 'artifact.dashboard',
   },
   {
+    id: 'predictive-dashboard',
+    label: 'Predictive Intelligence',
+    path: '/analytics/predictive',
+    icon: 'artifact.dashboard',
+  },
+  {
+    id: 'executive-briefings',
+    label: 'Executive Briefings',
+    path: '/analytics/briefings',
+    icon: 'artifact.document',
+  },
+  {
     id: 'knowledge-documents',
     label: 'Documents',
     path: '/knowledge/documents',
@@ -122,6 +146,12 @@ const insightsNav: NavItem[] = [
     label: 'Lessons Learned',
     path: '/knowledge/lessons',
     icon: 'ai.explainability',
+  },
+  {
+    id: 'knowledge-graph',
+    label: 'Knowledge Graph',
+    path: '/knowledge/graph',
+    icon: 'provenance.link',
   },
 ];
 
@@ -351,6 +381,12 @@ export function LeftPanel() {
           },
         ]
       : []),
+    {
+      id: 'security-posture',
+      label: 'Security Posture',
+      path: '/admin/security',
+      icon: 'actions.settings' as IconSemantic,
+    },
   ];
 
   const renderNavItemList = (
