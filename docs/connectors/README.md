@@ -1,6 +1,6 @@
 # Connectors
 
-> Comprehensive reference for connector architecture, authentication patterns, data mapping, certification, maturity rubric, Microsoft 365 field mappings, IoT specification, and Model Context Protocol (MCP) server configuration, development, onboarding, coverage, and release readiness across all 38 integrations in the Multi-Agent PPM Platform.
+> Comprehensive reference for connector architecture, authentication patterns, data mapping, certification, maturity rubric, Microsoft 365 field mappings, IoT specification, and Model Context Protocol (MCP) server configuration, development, onboarding, coverage, and release readiness across all 40 integrations in the Multi-Agent PPM Platform.
 
 ## Contents
 

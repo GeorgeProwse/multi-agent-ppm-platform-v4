@@ -170,7 +170,7 @@ The Multi-Agent PPM Platform demonstrates **strong production readiness** across
 
 **Concerns**
 
-- **Monorepo complexity**: All 25 agents, 16 services, and 38 connectors in a single repository — build times and merge contention may increase at scale.
+- **Monorepo complexity**: All 25 agents, 16 services, and 40 connectors in a single repository — build times and merge contention may increase at scale.
 
 ### 2. Security (9/10)
 

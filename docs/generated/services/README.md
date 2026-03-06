@@ -13,6 +13,7 @@ Do not edit by hand; run `python ops/tools/codegen/generate_docs.py`.
 | `data-service` | [Data Service](./data-service.md) |
 | `data-sync-service` | [Data Sync Service](./data-sync-service.md) |
 | `identity-access` | [Identity Access](./identity-access.md) |
+| `memory-service` | [Memory Service](./memory-service.md) |
 | `notification-service` | [Notification Service](./notification-service.md) |
 | `policy-engine` | [Policy Engine](./policy-engine.md) |
 | `realtime-coedit-service` | [Realtime Coedit Service](./realtime-coedit-service.md) |

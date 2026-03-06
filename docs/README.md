@@ -9,7 +9,7 @@
 | [Architecture](./architecture/README.md) | [Readme](./architecture/README.md) | System context, logical/physical/deployment design, AI and agent layers, data, connectors, security, observability, resilience, performance, tenancy, and ADR index |
 | [Readme](README.md) | [Readme](README.md) | Specifications for all 25 agents across 4 domains, integration service taxonomy, configuration reference |
 | [API](./api/README.md) | [Readme](./api/README.md) | Authentication (JWT/OIDC/SAML/SCIM), event contracts, API governance, webhooks |
-| [Connectors](./connectors/README.md) | [Readme](./connectors/README.md) | 38 connector overview, auth patterns, data mapping, REST config, certification, maturity rubric, M365 mappings, IoT spec, MCP connector docs |
+| [Connectors](./connectors/README.md) | [Readme](./connectors/README.md) | 40 connector overview, auth patterns, data mapping, REST config, certification, maturity rubric, M365 mappings, IoT spec, MCP connector docs |
 | [Readme](README.md) | [Readme](README.md) | Controls mapping, data classification, retention, DPIA, threat model, audit evidence, certification evidence, financial-services template |
 | [Readme](README.md) | [Readme](README.md) | Quick start, deployment, on-call, monitoring, SLOs/SLIs, incident response, troubleshooting, LLM degradation, data-sync failures, backup/recovery, disaster recovery, secrets, schema rollback, credentials, Compose profiles |
 | [Readme](README.md) | [Readme](README.md) | Canonical data model, data quality rules, lineage events |
