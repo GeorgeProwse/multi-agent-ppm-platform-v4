@@ -465,6 +465,42 @@ class StakeholderCommunicationsAgent(BaseAgent):
         return get_template(self, template_id, locale)
 
     # ------------------------------------------------------------------
+    # AI / integration wrappers (testability via monkeypatch)
+    # ------------------------------------------------------------------
+
+    async def _analyze_text_sentiment(self, text: str) -> dict[str, Any]:
+        from .stakeholder_utils import analyze_text_sentiment
+        return await analyze_text_sentiment(self, text)
+
+    async def _trigger_sentiment_alert(
+        self,
+        stakeholder_id: str | None,
+        sentiment: dict[str, Any],
+        feedback_record: dict[str, Any],
+    ) -> None:
+        from .stakeholder_utils import trigger_sentiment_alert
+        await trigger_sentiment_alert(self, stakeholder_id, sentiment, feedback_record)
+
+    async def _generate_openai_text(self, **kwargs: Any) -> dict[str, Any]:
+        from .stakeholder_utils import generate_openai_text
+        return await generate_openai_text(self, **kwargs)
+
+    async def _suggest_meeting_times(
+        self,
+        stakeholder_ids: list[str],
+        duration: int,
+        time_window: Any = None,
+    ) -> list[str]:
+        from .stakeholder_utils import suggest_meeting_times
+        return await suggest_meeting_times(self, stakeholder_ids, duration, time_window)
+
+    async def _create_graph_event(
+        self, event: dict[str, Any], attachments: list[Any]
+    ) -> dict[str, Any]:
+        from .stakeholder_utils import create_graph_event
+        return await create_graph_event(self, event, attachments)
+
+    # ------------------------------------------------------------------
     # Cleanup & capabilities
     # ------------------------------------------------------------------
 

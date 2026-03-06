@@ -508,3 +508,20 @@ class RiskManagementAgent(BaseAgent):
 
     async def _handle_resource_utilization_event(self, payload: dict[str, Any]) -> None:
         await handle_resource_utilization_event(self, payload)
+
+    async def _classify_external_risks(
+        self,
+        summary: str,
+        snippets: list[str],
+        categories: list[str] | None,
+        *,
+        llm_client: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Classify external risks from search snippets via LLM.
+
+        Delegates to the module-level helper in ``risk_actions.research_risks``
+        so that callers can monkeypatch this method for testing.
+        """
+        from risk_actions.research_risks import _classify_external_risks as _impl
+
+        return await _impl(self, summary, snippets, categories, llm_client=llm_client)
