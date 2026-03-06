@@ -8,6 +8,7 @@ Do not edit by hand; run `python ops/tools/codegen/generate_docs.py`.
 | `adp` | Adp | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `archer` | Archer | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `asana` | Asana | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
+| `asana_mcp` | Asana (MCP) | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `confluence` | Confluence | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `google_drive` | Google Drive | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `jira` | Jira | 2 | `api_key` | bi-directional | ✅ | ✅ | ✅ | 1.00 |
@@ -37,6 +38,7 @@ Do not edit by hand; run `python ops/tools/codegen/generate_docs.py`.
 | `notification_hubs` | Azure Notification Hubs | 1 | `sas` | incremental | ✅ | ❌ | ❌ | 1.00 |
 | `planview` | Planview | 1 | `oauth2` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `planview_mcp` | Planview (MCP) | 1 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
+| `regulatory_compliance` | Regulatory Compliance | 0 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `sap_mcp` | SAP (MCP) | 1 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
 | `sharepoint` | SharePoint | 1 | `oauth2` | full, incremental | ✅ | ❌ | ✅ | 1.00 |
 | `slack_mcp` | Slack (MCP) | 1 | `api_key` | full, incremental | ✅ | ❌ | ❌ | 1.00 |
@@ -46,7 +48,7 @@ Do not edit by hand; run `python ops/tools/codegen/generate_docs.py`.
 
 ## Inventory summary
 
-- Total connectors: **38**
-- Read enabled: **38**
+- Total connectors: **40**
+- Read enabled: **40**
 - Write enabled: **10**
 - Webhook enabled: **11**
