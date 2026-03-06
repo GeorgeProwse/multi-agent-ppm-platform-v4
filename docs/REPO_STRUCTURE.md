@@ -33,6 +33,7 @@ multi-agent-ppm-platform-v4/
 │       ├── connectors-live-smoke.yml
 │       ├── container-scan.yml
 │       ├── contract-tests.yml
+│       ├── dast-staging.yml
 │       ├── dependency-audit.yml
 │       ├── e2e-tests.yml
 │       ├── iac-scan.yml
@@ -206,14 +207,18 @@ multi-agent-ppm-platform-v4/
 │       │   ├── manifest.yaml
 │       │   ├── run_eval.py
 │       │   └── fixtures/{definition,prompt,tools,flow-*.yaml}
-│       ├── agents/runtime/prompts/
+│       ├── prompts/
 │       │   ├── README.md
 │       │   ├── prompt_registry.py
 │       │   ├── schema/prompt.schema.json
 │       │   ├── examples/intent-router.prompt.yaml
+│       │   ├── approval-workflow/
 │       │   ├── demand-intake-extraction.prompt.yaml
+│       │   ├── intent-router/
 │       │   ├── intake-assistant-{attachments,business,sponsor,success}.prompt.yaml
-│       │   └── project-intake-extraction.prompt.yaml
+│       │   ├── knowledge-agent/
+│       │   ├── project-intake-extraction.prompt.yaml
+│       │   └── response-orchestration/
 │       └── src/
 │           ├── __init__.py
 │           ├── agent_catalog.py
@@ -221,6 +226,7 @@ multi-agent-ppm-platform-v4/
 │           ├── base_agent.py
 │           ├── data_service.py
 │           ├── event_bus.py
+│           ├── execution_events.py
 │           ├── memory_store.py
 │           ├── models.py
 │           ├── notification_service.py
@@ -377,7 +383,7 @@ multi-agent-ppm-platform-v4/
 │   │   │       │   ├── documents/coeditStore.ts
 │   │   │       │   ├── methodology/useMethodologyStore.ts
 │   │   │       │   ├── projectConnectors/useProjectConnectorStore.ts
-│   │   │       │   ├── agents/runtime/prompts/usePromptStore.ts
+│   │   │       │   ├── prompts/usePromptStore.ts
 │   │   │       │   └── realtime/useRealtimeStore.ts
 │   │   │       ├── styles/{index,tokens}.css
 │   │   │       ├── test/{accessibility,assistantResponses,prompts,
@@ -471,7 +477,7 @@ multi-agent-ppm-platform-v4/
 │   ├── fixtures/
 │   ├── lineage/
 │   ├── migrations/versions/
-│   ├── agents/runtime/prompts/
+│   ├── prompts/
 │   ├── quality/
 │   ├── schemas/examples/
 │   └── seed/
@@ -553,43 +559,35 @@ multi-agent-ppm-platform-v4/
 │   ├── schema/
 │   └── workflows/
 │
-├── ops/infra/
-│   ├── kubernetes/
-│   │   └── helm-charts/{observability,ppm-platform}/
-│   ├── observability/otel/helm/templates/
-│   ├── ops/config/dlp/bundles/
-│   └── terraform/envs/demo/
+├── connectors/                              # 40 integration connectors
+│   ├── README.md
+│   ├── sdk/src/clients/                     # Connector SDK base classes
+│   ├── registry/{schemas,signing/public-keys}/
+│   ├── mock/{azure_devops,clarity,jira,planview,sap,servicenow,teams,workday}/
+│   ├── integration/
+│   ├── adp/           archer/        asana/         asana_mcp/
+│   ├── azure_communication_services/  azure_devops/
+│   ├── clarity/       clarity_mcp/   confluence/
+│   ├── google_calendar/ google_drive/
+│   ├── iot/           jira/          jira_mcp/
+│   ├── logicgate/     m365/          mcp_client/
+│   ├── monday/        ms_project_server/
+│   ├── netsuite/      notification_hubs/
+│   ├── oracle/        outlook/
+│   ├── planview/      planview_mcp/
+│   ├── regulatory_compliance/
+│   ├── salesforce/    sap/           sap_mcp/   sap_successfactors/
+│   ├── servicenow/    sharepoint/    slack/     slack_mcp/
+│   ├── smartsheet/    teams/         teams_mcp/
+│   ├── twilio/        workday/       workday_mcp/
+│   └── zoom/
+│   (each: src/, mappings/, tests/[fixtures/])
 │
-├── integrations/
-│   ├── apps/connector-hub/
-│   │   ├── Dockerfile
-│   │   ├── helm/{Chart.yaml,values.yaml,templates/…}
-│   │   ├── registry/
-│   │   ├── sandbox/{examples,fixtures,schema}/
-│   │   ├── src/
-│   │   └── tests/
-│   ├── connectors/                          # 30+ connector implementations
-│   │   ├── sdk/src/clients/
-│   │   ├── registry/{schemas,signing/public-keys}/
-│   │   ├── mock/{azure_devops,clarity,jira,planview,sap,servicenow,teams,workday}/
-│   │   ├── integration/
-│   │   ├── adp/           archer/        asana/
-│   │   ├── azure_communication_services/  azure_devops/
-│   │   ├── clarity/       clarity_mcp/   confluence/
-│   │   ├── google_calendar/ google_drive/
-│   │   ├── iot/           jira/          jira_mcp/
-│   │   ├── logicgate/     m365/          mcp_client/
-│   │   ├── monday/        ms_project_server/
-│   │   ├── netsuite/      notification_hubs/
-│   │   ├── oracle/        outlook/
-│   │   ├── planview/      planview_mcp/
-│   │   ├── salesforce/    sap/           sap_mcp/   sap_successfactors/
-│   │   ├── servicenow/    sharepoint/    slack/     slack_mcp/
-│   │   ├── smartsheet/    teams/         teams_mcp/
-│   │   ├── twilio/        workday/       workday_mcp/
-│   │   └── zoom/
-│   │   (each: src/, mappings/, tests/[fixtures/])
+├── integrations/                            # AI model & persistence integrations
 │   └── services/integration/
+│       ├── ai_models.py  analytics.py  databricks.py
+│       ├── event_bus.py  external_sync.py
+│       ├── ml.py  persistence.py
 │
 ├── ops/
 │   ├── config/
@@ -598,15 +596,17 @@ multi-agent-ppm-platform-v4/
 │   │   ├── connectors/  data-classification/  environments/
 │   │   ├── feature-flags/  iam/  plans/  rbac/
 │   │   ├── retention/  security/  signing/  tenants/
-│   ├── ops/infra/
+│   ├── docker/docker-compose.yml
+│   ├── infra/
 │   │   ├── kubernetes/{helm-charts/ppm-platform,manifests}/
 │   │   ├── observability/{alerts,dashboards,otel/helm/templates,slo}/
-│   │   ├── ops/config/{dlp,network,schema,security}/bundles/
+│   │   ├── policies/{dlp,network,schema,security}/
 │   │   ├── tenancy/
 │   │   └── terraform/
 │   │       ├── dr/  envs/{dev,prod,stage,test}/
 │   │       └── modules/{aks,cost-analysis,keyvault,monitoring,
 │   │                    networking,postgresql}/
+│   ├── requirements/
 │   ├── schemas/
 │   ├── scripts/
 │   └── tools/{codegen,format,lint,load_testing,local-dev}/
@@ -644,16 +644,6 @@ multi-agent-ppm-platform-v4/
 │   ├── vector_store/
 │   └── workflow/src/workflow/
 │
-├── ops/config/
-│   ├── abac/
-│   └── rbac/
-│
-├── agents/runtime/prompts/
-│   ├── approval-workflow/
-│   ├── intent-router/
-│   ├── knowledge-agent/
-│   └── response-orchestration/
-│
 ├── scripts/                                 # Repo-level helper scripts
 │   ├── build_template_dependency_map.py
 │   ├── check-docs-migration-guard.py
@@ -683,7 +673,7 @@ multi-agent-ppm-platform-v4/
 │   ├── component_runner.py
 │   └── runtime_paths.py
 │
-├── security/
+├── vendor/                                  # Vendored stubs and third-party shims
 │
 ├── services/                                # Microservices
 │   ├── agent-config/src/
@@ -718,8 +708,8 @@ multi-agent-ppm-platform-v4/
     ├── observability/  ops/
     │   └── fixtures/check_placeholders/{valid,invalid}/
     ├── orchestrator/   packages/{common,security}/
-    ├── performance/    ops/config/  policy/  agents/runtime/prompts/
-    ├── runtime/agents/runtime/prompts/  security/  services/
+    ├── performance/    policies/    prompts/
+    ├── runtime/        security/    services/
     ├── tools/     vector_store/
     └── (test modules for all layers)
 ```
@@ -730,11 +720,11 @@ multi-agent-ppm-platform-v4/
 |------|---------|
 | `agents/` | 25 specialised AI agents grouped into core-orchestration, portfolio, delivery, and operations domains |
 | `apps/` | Deployable services: web app, API gateway, analytics, document, orchestration, workflow-service, mobile, admin console |
-| `integrations/` | Connector hub + 30+ third-party connectors (Jira, SAP, Workday, Salesforce, ServiceNow, etc.) |
+| `connectors/` | 40 integration connectors (Jira, SAP, Workday, Salesforce, ServiceNow, etc.) + SDK + registry |
+| `integrations/` | AI model, analytics, event bus, and persistence integration modules |
 | `packages/` | Shared libraries: LLM abstraction, canvas engine, event bus, security, observability, contracts, UI kit |
 | `services/` | Backend microservices: auth, audit log, data lineage, data sync, identity access, notification, policy engine, telemetry |
-| `ops/` | Infrastructure-as-code (Terraform), Kubernetes Helm charts, observability config, RBAC/ABAC policies |
-| `ops/infra/` | Additional Kubernetes Helm charts, OTel config, Terraform demo env, DLP policies |
+| `ops/` | Infrastructure-as-code (Terraform), Kubernetes Helm charts, observability config, policies, Docker Compose, scripts |
 | `config/` | Runtime configuration for agents, connectors, feature flags, RBAC, demo workflows |
 | `docs/` | Architecture ADRs, API specs, runbooks, product docs, 100+ PM methodology templates |
 | `tests/` | Cross-cutting test suites: e2e, integration, contract, load, security |
@@ -742,9 +732,7 @@ multi-agent-ppm-platform-v4/
 | `tools/` | Runtime tooling helpers: component runner, path resolution |
 | `agents/runtime/` | Agent runtime framework (base agent, orchestrator, state store, event bus, prompt registry) |
 | `packages/ui-kit/design-system/` | Design tokens, icon map, Storybook stories |
-| `agents/runtime/prompts/` | Versioned prompt files for each agent type |
-| `ops/config/` | ABAC / RBAC policy bundles |
-| `security/` | Security configuration and tooling |
+| `vendor/` | Vendored stubs and third-party shims |
 | `examples/` | Connector configs, demo scenarios, methodology maps, workflow examples |
 | `artifacts/` | CI/CD generated reports: coverage, vulnerability scan, release gate, SLO, k6, DR |
 | `data/` | Seed data, schemas, migrations, lineage fixtures, prompts |
