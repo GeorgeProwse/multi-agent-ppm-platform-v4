@@ -102,7 +102,7 @@ python ops/tools/collect_maturity_score.py --enforce-thresholds
 
 ### Ratcheting policy
 
-Thresholds increase quarterly through the `ratchet_policy.schedule` table in `ops/ops/config/maturity_model.yaml`.
+Thresholds increase quarterly through the `ratchet_policy.schedule` table in `ops/config/maturity_model.yaml`.
 
 - The collector resolves the active threshold set by `effective_date`.
 - Teams should only move thresholds upward (no downward edits) unless an incident postmortem approves an exception.

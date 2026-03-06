@@ -70,7 +70,7 @@ Use this flow when you want the full presenter-ready run across all 25 agents.
 
 ```bash
 DEMO_MODE=true make dev-up
-python ops/ops/scripts/full_platform_demo_run.py
+python ops/scripts/full_platform_demo_run.py
 ```
 
 Expected output from `full_platform_demo_run.py`:
@@ -144,7 +144,7 @@ Set `DEMO_MODE=true` and start the stack. In demo mode, dashboard and scenario v
 Use the smoke script to execute deterministic demo interactions against workflow + API applications:
 
 ```bash
-python ops/ops/scripts/quickstart_smoke.py
+python ops/scripts/quickstart_smoke.py
 ```
 
 This script uses `examples/demo-scenarios/quickstart-*.json` payloads and mock LLM responses for repeatable runs.
@@ -162,7 +162,7 @@ Use scenario artifacts for walkthroughs, regression demos, and training:
 2. Start demo stack (`DEMO_MODE=true`) and execute script-driven flow:
 
    ```bash
-   python ops/ops/scripts/quickstart_smoke.py
+   python ops/scripts/quickstart_smoke.py
    ```
 
 3. Drive UI walkthroughs using the demo dashboard route:
@@ -186,7 +186,7 @@ Use this quick checklist right before each customer-facing session:
 1. Reset the environment state and clear caches.
 2. Regenerate demo data (`./ops/scripts/reset_demo_data.sh --regenerate --size <N> --seed <S>`).
 3. Load regenerated data into configured stores.
-4. Run a smoke check (`python ops/ops/scripts/quickstart_smoke.py`).
+4. Run a smoke check (`python ops/scripts/quickstart_smoke.py`).
 5. Open key demo URLs (API docs, web console, and scenario route) to verify readiness.
 
 ## Reset the demo environment

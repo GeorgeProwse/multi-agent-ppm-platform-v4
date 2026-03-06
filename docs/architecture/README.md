@@ -304,7 +304,7 @@ AI capabilities are provided through a shared LLM client package and prompt regi
 | --- | --- | --- |
 | LLM provider abstraction | `packages/llm/src/llm/client.py` | Supports `mock`, `openai`, and `azure-openai` providers. |
 | Prompt registry | `agents/runtime/prompts` | YAML prompt definitions validated against `prompt.schema.json`. |
-| Redaction rules | `agents/runtime/agents/runtime/prompts/prompt_registry.py` | Redacts sensitive fields from prompt payloads. |
+| Redaction rules | `agents/runtime/prompts/prompt_registry.py` | Redacts sensitive fields from prompt payloads. |
 | Intent routing | `agents/core-orchestration/intent-router-agent` | Uses LLM responses to select agent plans. |
 
 ### Provider selection and configuration
@@ -317,8 +317,8 @@ AI capabilities are provided through a shared LLM client package and prompt regi
 
 Prompt YAML files include metadata and redaction rules. The prompt registry loads prompts by agent and purpose and validates them against the schema before use.
 
-- Prompt examples: `agents/runtime/agents/runtime/prompts/examples/*.prompt.yaml`
-- Schema validation: `agents/runtime/agents/runtime/prompts/schema/prompt.schema.json`
+- Prompt examples: `agents/runtime/prompts/examples/*.prompt.yaml`
+- Schema validation: `agents/runtime/prompts/schema/prompt.schema.json`
 
 ### Safety and guardrails
 
@@ -330,7 +330,7 @@ Prompt YAML files include metadata and redaction rules. The prompt registry load
 
 List available prompt definitions:
 ```bash
-ls agents/runtime/agents/runtime/prompts/examples
+ls agents/runtime/prompts/examples
 ```
 
 Inspect the LLM provider selection logic:
@@ -858,7 +858,7 @@ The platform supports a shard-aware FAISS-backed vector store implementation for
   - Exposes `add_embeddings`, `search`, `search_many`, `delete`, and `flush`.
 - **Agent integration adapter**: `FaissBackedVectorSearchIndex` in `agents/common/integration_services.py`.
   - Preserves the existing `add` and `search` style used by agents.
-  - Loads index tuning from `ops/ops/config/vector_store.yaml`.
+  - Loads index tuning from `ops/config/vector_store.yaml`.
   - Stores metadata separately and merges metadata into search results.
 
 ### Scalability controls
@@ -891,7 +891,7 @@ The platform supports a shard-aware FAISS-backed vector store implementation for
 
 ### Operational tuning
 
-Configure index settings in `ops/ops/config/vector_store.yaml`:
+Configure index settings in `ops/config/vector_store.yaml`:
 
 - `num_shards`: parallelism and index partitioning.
 - `nlist`: coarse cluster count for IVF.
@@ -1488,7 +1488,7 @@ This platform extends human oversight to critical autonomous decisions, not only
 
 ### Critical actions under review
 
-The orchestrator evaluates agent-proposed actions against `ops/ops/config/human_review.yaml` rules. Current high-impact checkpoints include:
+The orchestrator evaluates agent-proposed actions against `ops/config/human_review.yaml` rules. Current high-impact checkpoints include:
 
 - **Risk mitigation recommendations** from the Risk Management agent when `risk_score` is above threshold.
 - **Schedule adjustments** from the Schedule Planning agent when timeline impact is material.
@@ -1496,7 +1496,7 @@ The orchestrator evaluates agent-proposed actions against `ops/ops/config/human_
 
 ### Review configuration
 
-Rules are configured in `ops/ops/config/human_review.yaml` under `review_rules`:
+Rules are configured in `ops/config/human_review.yaml` under `review_rules`:
 
 - `action_type`: canonical action category emitted by an agent.
 - `agent_ids`: agent identifiers subject to the rule.
