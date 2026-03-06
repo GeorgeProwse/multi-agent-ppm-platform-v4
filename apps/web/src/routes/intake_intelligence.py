@@ -208,8 +208,8 @@ def _ensure_corpus() -> None:
 
 
 class DuplicateCheckRequest(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=1)
+    description: str = Field(min_length=1)
 
 
 class DuplicateMatch(BaseModel):
@@ -221,7 +221,7 @@ class DuplicateMatch(BaseModel):
 
 
 class ClassifyRequest(BaseModel):
-    description: str
+    description: str = Field(min_length=1)
 
 
 class ClassificationResult(BaseModel):
@@ -232,8 +232,8 @@ class ClassificationResult(BaseModel):
 
 
 class BusinessCaseRequest(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=1)
+    description: str = Field(min_length=1)
     category: str = ""
 
 
@@ -268,6 +268,7 @@ def _jaccard_similarity(text_a: str, text_b: str) -> float:
 @router.post("/api/intake/check-duplicates")
 async def check_duplicates(request: DuplicateCheckRequest) -> list[DuplicateMatch]:
     """Find duplicate/similar demands using vector similarity + Jaccard."""
+    logger.info("Duplicate check request: title=%s", request.title)
     combined = f"{request.title} {request.description}"
     index = _get_search_index()
 
@@ -275,7 +276,11 @@ async def check_duplicates(request: DuplicateCheckRequest) -> list[DuplicateMatc
     seen_ids: set[str] = set()
 
     # Vector search for top candidates
-    vector_results = index.search(combined, top_k=10)
+    try:
+        vector_results = index.search(combined, top_k=10)
+    except Exception:
+        logger.exception("Vector search failed for duplicate check")
+        vector_results = []
     for result in vector_results:
         demand = result.metadata
         demand_id = demand.get("id", "unknown")
@@ -286,8 +291,8 @@ async def check_duplicates(request: DuplicateCheckRequest) -> list[DuplicateMatc
         existing_text = f"{demand.get('title', '')} {demand.get('description', '')}"
         jaccard = _jaccard_similarity(combined, existing_text)
 
-        # Combine vector score and Jaccard (weighted average)
-        combined_score = result.score * 0.7 + jaccard * 0.3
+        # Combine vector score and Jaccard (weighted average), capped to [0, 1]
+        combined_score = min(max(result.score * 0.7 + jaccard * 0.3, 0.0), 1.0)
 
         if combined_score > 0.15:
             matches.append(DuplicateMatch(
@@ -305,6 +310,7 @@ async def check_duplicates(request: DuplicateCheckRequest) -> list[DuplicateMatc
 @router.post("/api/intake/auto-classify")
 async def auto_classify(request: ClassifyRequest) -> ClassificationResult:
     """Auto-classify using LLM → NaiveBayes → keyword matching fallback chain."""
+    logger.info("Auto-classify request: description_length=%d", len(request.description))
 
     # Tier 1: LLM classification
     llm_result = await llm_complete_json(
@@ -368,6 +374,7 @@ async def auto_classify(request: ClassifyRequest) -> ClassificationResult:
 @router.post("/api/intake/generate-business-case")
 async def generate_business_case(request: BusinessCaseRequest) -> BusinessCaseSkeleton:
     """Generate a business case skeleton using LLM."""
+    logger.info("Business case generation request: title=%s", request.title)
     llm_result = await llm_complete_json(
         "You are a business case writer for enterprise projects. "
         "Generate a structured business case skeleton. "

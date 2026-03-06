@@ -10,8 +10,8 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field, field_validator
 
 from routes._deps import _load_projects, logger
 from routes._llm_helpers import llm_complete
@@ -19,6 +19,7 @@ from routes._llm_helpers import llm_complete
 router = APIRouter(tags=["briefings"])
 
 _BRIEFING_STORE: list[dict[str, Any]] = []
+_BRIEFING_STORE_MAX = 100
 
 _AUDIENCE_SYSTEM_PROMPTS = {
     "board": (
@@ -44,6 +45,11 @@ _AUDIENCE_SYSTEM_PROMPTS = {
 }
 
 
+_VALID_AUDIENCES = {"board", "c_suite", "pmo", "delivery_team"}
+_VALID_TONES = {"formal", "informal", "technical", "executive"}
+_VALID_FORMATS = {"markdown", "html", "text"}
+
+
 class BriefingRequest(BaseModel):
     portfolio_id: str = "default"
     audience: str = "c_suite"
@@ -51,9 +57,37 @@ class BriefingRequest(BaseModel):
     sections: list[str] = Field(
         default_factory=lambda: [
             "highlights", "risks", "financials", "schedule", "resources", "recommendations",
-        ]
+        ],
+        min_length=1,
     )
     format: str = "markdown"
+
+    @field_validator("audience")
+    @classmethod
+    def _validate_audience(cls, v: str) -> str:
+        if v not in _VALID_AUDIENCES:
+            raise ValueError(
+                f"audience must be one of {sorted(_VALID_AUDIENCES)}, got '{v}'"
+            )
+        return v
+
+    @field_validator("tone")
+    @classmethod
+    def _validate_tone(cls, v: str) -> str:
+        if v not in _VALID_TONES:
+            raise ValueError(
+                f"tone must be one of {sorted(_VALID_TONES)}, got '{v}'"
+            )
+        return v
+
+    @field_validator("format")
+    @classmethod
+    def _validate_format(cls, v: str) -> str:
+        if v not in _VALID_FORMATS:
+            raise ValueError(
+                f"format must be one of {sorted(_VALID_FORMATS)}, got '{v}'"
+            )
+        return v
 
 
 class BriefingResponse(BaseModel):
@@ -90,6 +124,10 @@ def _gather_portfolio_data(portfolio_id: str) -> dict[str, Any]:
 @router.post("/api/briefings/generate")
 async def generate_briefing(request: BriefingRequest) -> BriefingResponse:
     """Generate an AI-powered executive briefing using real portfolio data."""
+    logger.info(
+        "Briefing request: audience=%s, tone=%s, format=%s, portfolio=%s",
+        request.audience, request.tone, request.format, request.portfolio_id,
+    )
     briefing_id = f"brief-{uuid.uuid4().hex[:8]}"
     generated_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -119,12 +157,16 @@ async def generate_briefing(request: BriefingRequest) -> BriefingResponse:
         "and clearly note assumptions."
     )
 
-    llm_content = await llm_complete(
-        system_prompt,
-        user_prompt,
-        tenant_id=request.portfolio_id,
-        temperature=0.4,
-    )
+    try:
+        llm_content = await llm_complete(
+            system_prompt,
+            user_prompt,
+            tenant_id=request.portfolio_id,
+            temperature=0.4,
+        )
+    except Exception:
+        logger.exception("LLM call failed for briefing %s", briefing_id)
+        llm_content = None
 
     if llm_content:
         content = f"# Portfolio Briefing — {audience_label}\n\n*Generated: {generated_at}*\n\n{llm_content}"
@@ -161,6 +203,8 @@ async def generate_briefing(request: BriefingRequest) -> BriefingResponse:
     )
 
     _BRIEFING_STORE.append(briefing.model_dump())
+    if len(_BRIEFING_STORE) > _BRIEFING_STORE_MAX:
+        del _BRIEFING_STORE[: len(_BRIEFING_STORE) - _BRIEFING_STORE_MAX]
     return briefing
 
 

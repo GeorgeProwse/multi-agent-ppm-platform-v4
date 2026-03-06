@@ -136,3 +136,188 @@ def test_classify_entity(client):
     # Verify it shows up in stats
     stats = client.get("/api/security/classification-stats").json()
     assert stats["confidential"] >= 1
+
+
+# --- Error path and edge case tests ---
+
+
+def test_test_policy_unconditional_deny(client):
+    """Policy with no conditions that exists should apply its effect unconditionally."""
+    # First create the policy
+    client.post(
+        "/api/security/policies",
+        json={
+            "policy_id": "test-uncon",
+            "name": "Unconditional Deny",
+            "description": "always deny",
+            "effect": "deny",
+            "conditions": [],
+        },
+    )
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "test-uncon",
+                "name": "Unconditional Deny",
+                "description": "always deny",
+                "effect": "deny",
+                "conditions": [],
+            },
+            "context": {},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["decision"] == "deny"
+
+
+def test_test_policy_unknown_unconditional_returns_404(client):
+    """Testing a nonexistent unconditional policy should return 404."""
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "not-registered",
+                "name": "Unknown",
+                "description": "test",
+                "effect": "deny",
+                "conditions": [],
+            },
+            "context": {},
+        },
+    )
+    assert resp.status_code == 404
+
+
+def test_test_policy_gt_operator(client):
+    """Test the gt (greater than) operator."""
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "test-gt",
+                "name": "GT Test",
+                "description": "test",
+                "effect": "deny",
+                "conditions": [{"field": "request.amount", "operator": "gt", "value": 1000}],
+            },
+            "context": {"request": {"amount": 1500}},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["decision"] == "deny"
+
+
+def test_test_policy_gt_not_matched(client):
+    """GT condition should not match when value is lower."""
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "test-gt-low",
+                "name": "GT Low",
+                "description": "test",
+                "effect": "deny",
+                "conditions": [{"field": "request.amount", "operator": "gt", "value": 1000}],
+            },
+            "context": {"request": {"amount": 500}},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["decision"] == "allow"
+
+
+def test_test_policy_not_in_operator(client):
+    """Test the not_in operator."""
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "test-notin",
+                "name": "Not In Test",
+                "description": "test",
+                "effect": "deny",
+                "conditions": [{"field": "subject.region", "operator": "not_in", "value": ["US", "EU"]}],
+            },
+            "context": {"subject": {"region": "CN"}},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["decision"] == "deny"
+
+
+def test_test_policy_contains_operator(client):
+    """Test the contains operator."""
+    resp = client.post(
+        "/api/security/policies/test",
+        json={
+            "policy": {
+                "policy_id": "test-contains",
+                "name": "Contains Test",
+                "description": "test",
+                "effect": "deny",
+                "conditions": [{"field": "subject.groups", "operator": "contains", "value": "admin"}],
+            },
+            "context": {"subject": {"groups": "admin,user,viewer"}},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["decision"] == "deny"
+
+
+def test_posture_score_range(client):
+    """Posture score should always be between 0 and 100."""
+    resp = client.get("/api/security/posture")
+    data = resp.json()
+    assert 0 <= data["posture_score"] <= 100
+    assert 0 <= data["abac_coverage_pct"] <= 100
+
+
+def test_create_policy(client):
+    """Creating a new policy should succeed."""
+    resp = client.post(
+        "/api/security/policies",
+        json={
+            "policy_id": "new-pol",
+            "name": "New Policy",
+            "description": "A new test policy",
+            "effect": "deny",
+            "conditions": [],
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["policy_id"] == "new-pol"
+
+
+def test_update_existing_policy(client):
+    """Updating an existing policy should replace it."""
+    client.post(
+        "/api/security/policies",
+        json={"policy_id": "upd-pol", "name": "V1", "description": "v1", "effect": "deny", "conditions": []},
+    )
+    resp = client.post(
+        "/api/security/policies",
+        json={"policy_id": "upd-pol", "name": "V2", "description": "v2", "effect": "allow", "conditions": []},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "V2"
+
+
+def test_classify_multiple_entities(client):
+    """Multiple entities can be classified independently."""
+    for i in range(3):
+        client.post(
+            "/api/security/classify-entity",
+            json={"entity_type": "document", "entity_id": f"doc-{i}", "classification": "internal"},
+        )
+    stats = client.get("/api/security/classification-stats").json()
+    assert stats["internal"] >= 3
+
+
+def test_compliance_checks_present(client):
+    """Posture should include compliance check frameworks."""
+    resp = client.get("/api/security/posture")
+    checks = resp.json()["compliance_checks"]
+    frameworks = {c["framework"] for c in checks}
+    assert "SOC 2" in frameworks
+    assert "GDPR" in frameworks

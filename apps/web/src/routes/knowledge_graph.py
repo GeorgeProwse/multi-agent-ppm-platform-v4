@@ -8,8 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field, field_validator
 
 from routes._deps import _get_knowledge_store, _load_projects, logger
 from routes._llm_helpers import llm_complete_json
@@ -17,17 +17,39 @@ from routes._llm_helpers import llm_complete_json
 router = APIRouter(tags=["knowledge-graph"])
 
 
+_VALID_NODE_TYPES = {"lesson", "risk", "decision", "project", "entity"}
+_VALID_EDGE_TYPES = {"relates_to", "caused_by", "mitigated_by", "learned_from"}
+
+
 class GraphNode(BaseModel):
-    id: str
-    label: str
+    id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
     node_type: str  # lesson, risk, decision, project, entity
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("node_type")
+    @classmethod
+    def node_type_must_be_valid(cls, v: str) -> str:
+        if v not in _VALID_NODE_TYPES:
+            raise ValueError(
+                f"node_type must be one of: {', '.join(sorted(_VALID_NODE_TYPES))}"
+            )
+        return v
+
 
 class GraphEdge(BaseModel):
-    source: str
-    target: str
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
     edge_type: str  # relates_to, caused_by, mitigated_by, learned_from
+
+    @field_validator("edge_type")
+    @classmethod
+    def edge_type_must_be_valid(cls, v: str) -> str:
+        if v not in _VALID_EDGE_TYPES:
+            raise ValueError(
+                f"edge_type must be one of: {', '.join(sorted(_VALID_EDGE_TYPES))}"
+            )
+        return v
 
 
 class GraphData(BaseModel):
@@ -124,6 +146,12 @@ async def get_knowledge_graph(
 @router.post("/api/knowledge/graph/nodes")
 async def add_graph_node(node: GraphNode) -> GraphNode:
     _ensure_graph()
+    for i, existing in enumerate(_graph_nodes):
+        if existing.id == node.id:
+            logger.info("Updating existing graph node id=%s", node.id)
+            _graph_nodes[i] = node
+            return node
+    logger.info("Adding graph node id=%s type=%s", node.id, node.node_type)
     _graph_nodes.append(node)
     return node
 
@@ -131,6 +159,20 @@ async def add_graph_node(node: GraphNode) -> GraphNode:
 @router.post("/api/knowledge/graph/edges")
 async def add_graph_edge(edge: GraphEdge) -> GraphEdge:
     _ensure_graph()
+    node_ids = {n.id for n in _graph_nodes}
+    missing = []
+    if edge.source not in node_ids:
+        missing.append(f"source '{edge.source}'")
+    if edge.target not in node_ids:
+        missing.append(f"target '{edge.target}'")
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Edge references non-existent node(s): {', '.join(missing)}",
+        )
+    logger.info(
+        "Adding graph edge %s --%s--> %s", edge.source, edge.edge_type, edge.target
+    )
     _graph_edges.append(edge)
     return edge
 

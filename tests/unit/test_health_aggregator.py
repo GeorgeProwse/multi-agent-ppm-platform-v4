@@ -96,7 +96,91 @@ def test_status_deterministic():
     statuses1 = agg.get_all_status("tenant-1")
     _reset_state()
     statuses2 = agg.get_all_status("tenant-1")
-    # Status values should be the same (though last_sync timestamps will differ)
     ids1 = {s.connector_id: s.status for s in statuses1}
     ids2 = {s.connector_id: s.status for s in statuses2}
     assert ids1 == ids2
+
+
+# --- Error path and edge case tests ---
+
+
+def test_resolve_nonexistent_conflict():
+    """Resolving a conflict that doesn't exist should return a resolved record."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    result = agg.resolve_conflict("tenant-1", "cf-nonexistent", "accept_source")
+    assert result.status == "resolved"
+    assert result.conflict_id == "cf-nonexistent"
+
+
+def test_multiple_resolve_same_conflict():
+    """Resolving the same conflict twice should be idempotent."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    agg.get_conflict_queue("tenant-1")
+    agg.resolve_conflict("tenant-1", "cf-001", "accept_source")
+    result = agg.resolve_conflict("tenant-1", "cf-001", "manual", manual_value="$999")
+    assert result.status == "resolved"
+
+
+def test_all_statuses_have_required_fields():
+    """All health records should have non-empty required fields."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    statuses = agg.get_all_status("tenant-1")
+    for s in statuses:
+        assert s.connector_id, "connector_id must be non-empty"
+        assert s.name, "name must be non-empty"
+        assert s.last_sync, "last_sync must be non-empty"
+        assert s.error_rate_1h >= 0, "error_rate must be non-negative"
+
+
+def test_error_rate_bounded():
+    """Error rates should be between 0 and 1."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    statuses = agg.get_all_status("tenant-1")
+    for s in statuses:
+        assert 0 <= s.error_rate_1h <= 1.0, f"{s.connector_id} has error_rate {s.error_rate_1h}"
+
+
+def test_data_freshness_record_counts_positive():
+    """All data freshness record counts should be positive."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    records = agg.get_data_freshness("tenant-1")
+    for r in records:
+        assert r.record_count > 0
+
+
+def test_connector_ids_no_duplicates():
+    """Health status should not contain duplicate connector IDs."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    statuses = agg.get_all_status("tenant-1")
+    ids = [s.connector_id for s in statuses]
+    assert len(ids) == len(set(ids)), "Duplicate connector IDs found"
+
+
+def test_circuit_state_matches_health():
+    """Circuit state should correlate with health status."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    statuses = agg.get_all_status("tenant-1")
+    for s in statuses:
+        if s.status == "healthy":
+            assert s.circuit_state == "closed"
+        elif s.status == "degraded":
+            assert s.circuit_state == "half_open"
+        elif s.status == "down":
+            assert s.circuit_state == "open"
+
+
+def test_different_tenants_same_results():
+    """Different tenants should get same static registry-based results."""
+    _reset_state()
+    agg = ConnectorHealthAggregator()
+    s1 = {s.connector_id: s.status for s in agg.get_all_status("tenant-1")}
+    _reset_state()
+    s2 = {s.connector_id: s.status for s in agg.get_all_status("tenant-2")}
+    assert s1 == s2

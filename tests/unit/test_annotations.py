@@ -119,3 +119,103 @@ def test_generate_suggestions_long_content():
     )
     agent_ids = {s.agent_id for s in suggestions}
     assert "knowledge-management" in agent_ids
+
+
+# --- Error path and edge case tests ---
+
+
+def test_create_multiple_annotations_same_session(store):
+    """Multiple annotations in the same session should all be retrievable."""
+    for i in range(10):
+        store.create_annotation("multi-s", Annotation(content=f"note-{i}", block_id=f"b{i}"))
+    anns = store.list_annotations("multi-s")
+    assert len(anns) == 10
+
+
+def test_list_annotations_empty_session(store):
+    """Listing annotations for a session with none should return empty list."""
+    assert store.list_annotations("nonexistent-session") == []
+
+
+def test_dismiss_already_dismissed(store):
+    """Dismissing an already-dismissed annotation should be idempotent."""
+    ann = store.create_annotation("s1", Annotation(content="double dismiss"))
+    store.dismiss_annotation(ann.annotation_id)
+    result = store.dismiss_annotation(ann.annotation_id)
+    assert result is not None
+    assert result.dismissed is True
+
+
+def test_apply_already_applied(store):
+    """Applying an already-applied annotation should be idempotent."""
+    ann = store.create_annotation("s1", Annotation(content="double apply"))
+    store.apply_annotation(ann.annotation_id)
+    result = store.apply_annotation(ann.annotation_id)
+    assert result is not None
+    assert result.applied is True
+
+
+def test_apply_nonexistent(store):
+    """Applying a nonexistent annotation should return None."""
+    assert store.apply_annotation("nope-id") is None
+
+
+def test_annotation_ids_unique(store):
+    """Each annotation should get a unique ID."""
+    ids = set()
+    for _ in range(20):
+        ann = store.create_annotation("s-unique", Annotation(content="test"))
+        assert ann.annotation_id not in ids
+        ids.add(ann.annotation_id)
+
+
+def test_annotation_session_isolation(store):
+    """Annotations from different sessions should not leak."""
+    store.create_annotation("session-a", Annotation(content="a"))
+    store.create_annotation("session-b", Annotation(content="b"))
+    assert len(store.list_annotations("session-a")) == 1
+    assert len(store.list_annotations("session-b")) == 1
+
+
+def test_dismissed_not_in_active_list(store):
+    """Dismissed annotations should not appear in active_only=True listing."""
+    ann1 = store.create_annotation("s1", Annotation(content="keep"))
+    ann2 = store.create_annotation("s1", Annotation(content="dismiss"))
+    store.dismiss_annotation(ann2.annotation_id)
+    active = store.list_annotations("s1", active_only=True)
+    assert len(active) == 1
+    assert active[0].content == "keep"
+
+
+def test_memory_fallback_apply(memory_store):
+    """In-memory fallback should support apply operations."""
+    ann = memory_store.create_annotation("s1", Annotation(content="test"))
+    result = memory_store.apply_annotation(ann.annotation_id)
+    assert result is not None
+    assert result.applied is True
+
+
+def test_generate_suggestions_compliance():
+    """Compliance keywords should trigger compliance agent."""
+    suggestions = asyncio.get_event_loop().run_until_complete(
+        generate_suggestions("s1", "b1", "We need GDPR compliance for the data migration")
+    )
+    agent_ids = {s.agent_id for s in suggestions}
+    assert "compliance-governance" in agent_ids
+
+
+def test_generate_suggestions_schedule():
+    """Deadline keywords should trigger schedule agent."""
+    suggestions = asyncio.get_event_loop().run_until_complete(
+        generate_suggestions("s1", "b1", "The milestone deadline is overdue by two weeks")
+    )
+    agent_ids = {s.agent_id for s in suggestions}
+    assert "schedule-planning" in agent_ids
+
+
+def test_generate_suggestions_no_match():
+    """Content with no keyword matches should return empty suggestions."""
+    suggestions = asyncio.get_event_loop().run_until_complete(
+        generate_suggestions("s1", "b1", "Hello world")
+    )
+    assert isinstance(suggestions, list)

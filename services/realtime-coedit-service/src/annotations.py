@@ -19,13 +19,16 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger("coedit.annotations")
 
 # Persistence
 _STORAGE_DIR = Path(os.getenv("ANNOTATION_STORAGE_DIR", "/tmp/ppm-annotations"))
 _DB_PATH = _STORAGE_DIR / "annotations.db"
+
+
+_VALID_ANNOTATION_TYPES = {"suggestion", "warning", "insight", "quality"}
 
 
 class Annotation(BaseModel):
@@ -36,11 +39,20 @@ class Annotation(BaseModel):
     agent_id: str = ""
     agent_name: str = ""
     block_id: str = ""
-    content: str = ""
+    content: str = Field(default="", max_length=10000)
     annotation_type: str = "suggestion"  # suggestion, warning, insight, quality
     created_at: float = Field(default_factory=time.time)
     dismissed: bool = False
     applied: bool = False
+
+    @field_validator("annotation_type")
+    @classmethod
+    def _validate_annotation_type(cls, v: str) -> str:
+        if v not in _VALID_ANNOTATION_TYPES:
+            raise ValueError(
+                "annotation_type must be one of: %s" % ", ".join(sorted(_VALID_ANNOTATION_TYPES))
+            )
+        return v
 
 
 _CREATE_TABLE_SQL = """
@@ -120,10 +132,20 @@ class AnnotationStore:
                         int(annotation.dismissed), int(annotation.applied),
                     ),
                 )
+                logger.info(
+                    "Created annotation %s for session %s (type=%s, agent=%s)",
+                    annotation.annotation_id, session_id,
+                    annotation.annotation_type, annotation.agent_id,
+                )
                 return annotation
         except (sqlite3.OperationalError, OSError):
             # Fallback to in-memory
             self._fallback_store.setdefault(session_id, []).append(annotation)
+            logger.info(
+                "Created annotation %s for session %s in fallback store (type=%s, agent=%s)",
+                annotation.annotation_id, session_id,
+                annotation.annotation_type, annotation.agent_id,
+            )
             return annotation
 
     def list_annotations(self, session_id: str, active_only: bool = True) -> list[Annotation]:
@@ -157,12 +179,16 @@ class AnnotationStore:
                     "SELECT * FROM annotations WHERE annotation_id = ?",
                     (annotation_id,),
                 ).fetchone()
-                return self._to_annotation(row) if row else None
+                if row:
+                    logger.info("Dismissed annotation %s", annotation_id)
+                    return self._to_annotation(row)
+                return None
         except (sqlite3.OperationalError, OSError):
             for annotations in self._fallback_store.values():
                 for ann in annotations:
                     if ann.annotation_id == annotation_id:
                         ann.dismissed = True
+                        logger.info("Dismissed annotation %s in fallback store", annotation_id)
                         return ann
             return None
 
@@ -177,14 +203,52 @@ class AnnotationStore:
                     "SELECT * FROM annotations WHERE annotation_id = ?",
                     (annotation_id,),
                 ).fetchone()
-                return self._to_annotation(row) if row else None
+                if row:
+                    logger.info("Applied annotation %s", annotation_id)
+                    return self._to_annotation(row)
+                return None
         except (sqlite3.OperationalError, OSError):
             for annotations in self._fallback_store.values():
                 for ann in annotations:
                     if ann.annotation_id == annotation_id:
                         ann.applied = True
+                        logger.info("Applied annotation %s in fallback store", annotation_id)
                         return ann
             return None
+
+    def delete_annotations_for_session(self, session_id: str) -> int:
+        """Delete all annotations for a session. Returns the number of deleted annotations."""
+        try:
+            with self._get_conn() as conn:
+                cursor = conn.execute(
+                    "DELETE FROM annotations WHERE session_id = ?",
+                    (session_id,),
+                )
+                count = cursor.rowcount
+                logger.info(
+                    "Deleted %d annotations for session %s", count, session_id,
+                )
+                return count
+        except (sqlite3.OperationalError, OSError):
+            annotations = self._fallback_store.pop(session_id, [])
+            count = len(annotations)
+            logger.info(
+                "Deleted %d annotations for session %s from fallback store",
+                count, session_id,
+            )
+            return count
+
+    def count_annotations(self, session_id: str) -> int:
+        """Return the number of annotations for a session."""
+        try:
+            with self._get_conn() as conn:
+                row = conn.execute(
+                    "SELECT COUNT(*) as cnt FROM annotations WHERE session_id = ?",
+                    (session_id,),
+                ).fetchone()
+                return row["cnt"] if row else 0
+        except (sqlite3.OperationalError, OSError):
+            return len(self._fallback_store.get(session_id, []))
 
 
 _annotation_store = AnnotationStore()

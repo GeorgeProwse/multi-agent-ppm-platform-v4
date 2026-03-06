@@ -59,10 +59,21 @@ def _load_connector_registry() -> list[dict[str, Any]]:
                 _registry_cache = data
                 _registry_cache_time = now
                 return data
+    except json.JSONDecodeError as exc:
+        logger.warning("Malformed JSON in connector registry %s: %s", _REGISTRY_PATH, exc)
     except Exception as exc:
         logger.debug("Failed to load connector registry: %s", exc)
 
     return []
+
+
+def clear_cache() -> None:
+    """Invalidate all cached registry and manifest data."""
+    global _registry_cache, _registry_cache_time, _manifest_cache
+    _registry_cache = None
+    _registry_cache_time = 0.0
+    _manifest_cache = {}
+    logger.info("Connector health aggregator cache cleared")
 
 
 def _load_manifest(connector_id: str) -> dict[str, Any]:
@@ -168,6 +179,11 @@ def _derive_health_for_connector(
     manifest_sync = manifest.get("sync", {})
     manifest_dirs = manifest_sync.get("directions", sync_dirs)
     sync_direction = "bidirectional" if len(manifest_dirs) > 1 else (manifest_dirs[0] if manifest_dirs else "inbound")
+
+    logger.info(
+        "Derived health for connector %s: status=%s, score=%.2f, circuit=%s",
+        cid, health, health_score, circuit,
+    )
 
     return ConnectorHealthRecord(
         connector_id=cid,
@@ -302,6 +318,8 @@ class ConnectorHealthAggregator:
 
         return [c for c in _conflict_store if c.status == "unresolved"]
 
+    _VALID_STRATEGIES = {"accept_source", "accept_canonical", "manual"}
+
     def resolve_conflict(
         self,
         tenant_id: str,
@@ -310,6 +328,13 @@ class ConnectorHealthAggregator:
         manual_value: str | None = None,
     ) -> ConflictRecord:
         """Resolve a conflict by applying the chosen strategy."""
+        if strategy not in self._VALID_STRATEGIES:
+            raise ValueError(
+                "strategy must be one of: %s" % ", ".join(sorted(self._VALID_STRATEGIES))
+            )
+        if strategy == "manual" and not manual_value:
+            raise ValueError("manual_value must be provided when strategy is 'manual'")
+
         for conflict in _conflict_store:
             if conflict.conflict_id == conflict_id:
                 conflict.status = "resolved"

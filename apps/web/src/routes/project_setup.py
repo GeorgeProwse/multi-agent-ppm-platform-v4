@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from routes._deps import (
     PROJECTS_PATH,
@@ -37,11 +37,19 @@ router = APIRouter(tags=["project-setup"])
 
 
 class ProjectCharacteristics(BaseModel):
-    industry: str = "technology"
-    team_size: int = 10
-    duration_months: int = 6
+    industry: str = Field(default="technology", min_length=1)
+    team_size: int = Field(default=10, ge=1)
+    duration_months: int = Field(default=6, ge=1)
     risk_level: str = "medium"
     regulatory: list[str] = Field(default_factory=list)
+
+    @field_validator("risk_level")
+    @classmethod
+    def validate_risk_level(cls, v: str) -> str:
+        allowed = {"low", "medium", "high", "critical"}
+        if v not in allowed:
+            raise ValueError(f"risk_level must be one of {sorted(allowed)}, got '{v}'")
+        return v
 
 
 class MethodologyRecommendation(BaseModel):
@@ -374,6 +382,23 @@ async def configure_workspace(
     customizations: dict[str, Any] = None,
 ) -> WorkspaceConfig:
     """Configure, persist, and register a new project workspace."""
+    if not project_name or not project_name.strip():
+        raise HTTPException(status_code=422, detail="project_name must be non-empty")
+    if len(project_name) > 200:
+        raise HTTPException(status_code=422, detail="project_name must be at most 200 characters")
+    if not template_id or not template_id.strip():
+        raise HTTPException(status_code=422, detail="template_id must be non-empty")
+
+    if customizations:
+        allowed_keys = {"extra_stages", "remove_stages"}
+        invalid_keys = set(customizations.keys()) - allowed_keys
+        if invalid_keys:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid customization keys: {sorted(invalid_keys)}. "
+                f"Allowed keys: {sorted(allowed_keys)}",
+            )
+
     templates = _load_templates()
     template = next((t for t in templates if t.template_id == template_id), None)
 
@@ -411,4 +436,5 @@ async def configure_workspace(
     if _persist_project(config):
         config.persisted = True
 
+    logger.info("Workspace created: project_id=%s, template_id=%s", project_id, template_id)
     return config

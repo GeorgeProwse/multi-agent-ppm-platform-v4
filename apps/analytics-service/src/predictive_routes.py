@@ -17,8 +17,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field, field_validator
 
 from predictive import (
     HealthPredictor,
@@ -46,11 +46,18 @@ _bottleneck_detector = ResourceBottleneckDetector()
 
 class MonteCarloRequest(BaseModel):
     project_data: dict[str, Any]
-    iterations: int = 1000
+    iterations: int = Field(default=1000, ge=100, le=100000)
+
+    @field_validator("project_data")
+    @classmethod
+    def validate_project_data_non_empty(cls, v: dict[str, Any]) -> dict[str, Any]:
+        if not v:
+            raise ValueError("project_data must be a non-empty dict")
+        return v
 
 
 class ScenarioComparisonRequest(BaseModel):
-    scenarios: list[dict[str, Any]] = Field(min_length=2)
+    scenarios: list[dict[str, Any]] = Field(min_length=2, max_length=10)
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +97,12 @@ def _derive_signals(project_id: str, project_name: str, methodology: dict[str, A
 
     trend_decay = round((((h >> 40) % 100) - 40) / 1000.0, 4)
 
+    # Cap all scores to [0.0, 1.0] range
+    risk = max(0.0, min(risk, 1.0))
+    schedule = max(0.0, min(schedule, 1.0))
+    budget = max(0.0, min(budget, 1.0))
+    resource = max(0.0, min(resource, 1.0))
+
     return {
         "project_id": project_id,
         "project_name": project_name,
@@ -127,6 +140,8 @@ def _load_project_data() -> list[dict[str, Any]]:
                         p.get("name", p["id"]),
                         p.get("methodology", {}),
                     ))
+    except (OSError, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("Failed to read projects.json: %s", exc)
     except Exception as exc:
         logger.debug("Could not load projects.json: %s", exc)
 
@@ -145,6 +160,8 @@ def _load_project_data() -> list[dict[str, Any]]:
                         p.get("name", pid),
                         p.get("methodology", {}),
                     ))
+    except (OSError, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("Failed to read demo_seed.json: %s", exc)
     except Exception as exc:
         logger.debug("Could not load demo_seed.json: %s", exc)
 
@@ -166,6 +183,8 @@ def _load_project_data() -> list[dict[str, Any]]:
                                 proj_id.replace("-", " ").title(),
                                 {"type": meth} if isinstance(meth, str) else meth,
                             ))
+    except (OSError, json.JSONDecodeError, KeyError) as exc:
+        logger.warning("Failed to read workspace_state.json: %s", exc)
     except Exception as exc:
         logger.debug("Could not load workspace state: %s", exc)
 
@@ -237,6 +256,11 @@ async def risk_heatmap(
 @router.post("/monte-carlo")
 async def monte_carlo(request: MonteCarloRequest) -> SimulationResult:
     """Run Monte Carlo simulation on project schedule/cost distributions."""
+    logger.info(
+        "Monte Carlo simulation requested: iterations=%d, project_data_keys=%s",
+        request.iterations,
+        sorted(request.project_data.keys()),
+    )
     return _simulator.simulate(request.project_data, request.iterations)
 
 
@@ -276,6 +300,10 @@ async def scenario_comparison(
     request: ScenarioComparisonRequest,
 ) -> list[ScenarioComparison]:
     """Compare scenarios using Monte Carlo when full data not provided."""
+    logger.info(
+        "Scenario comparison requested: %d scenarios",
+        len(request.scenarios),
+    )
     results: list[ScenarioComparison] = []
     for i, scenario in enumerate(request.scenarios):
         if all(k in scenario for k in ("total_cost", "duration_days", "risk_score")):

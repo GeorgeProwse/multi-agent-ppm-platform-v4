@@ -10,8 +10,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field, field_validator
 
 from routes._deps import REPO_ROOT, logger
 
@@ -49,6 +49,13 @@ class PolicyTestRequest(BaseModel):
     policy: PolicyDefinition
     context: dict[str, Any]
 
+    @field_validator("policy")
+    @classmethod
+    def policy_must_have_conditions(cls, v: PolicyDefinition) -> PolicyDefinition:
+        if v.conditions is None:
+            raise ValueError("policy.conditions is required")
+        return v
+
 
 class PolicyTestResult(BaseModel):
     decision: str
@@ -56,10 +63,22 @@ class PolicyTestResult(BaseModel):
     explanation: str
 
 
+_VALID_CLASSIFICATIONS = {"public", "internal", "confidential", "restricted"}
+
+
 class ClassifyEntityRequest(BaseModel):
-    entity_type: str
-    entity_id: str
+    entity_type: str = Field(min_length=1)
+    entity_id: str = Field(min_length=1)
     classification: str
+
+    @field_validator("classification")
+    @classmethod
+    def classification_must_be_valid(cls, v: str) -> str:
+        if v not in _VALID_CLASSIFICATIONS:
+            raise ValueError(
+                f"classification must be one of: {', '.join(sorted(_VALID_CLASSIFICATIONS))}"
+            )
+        return v
 
 
 # ---------------------------------------------------------------------------
@@ -81,28 +100,36 @@ def _load_policies() -> None:
     # Try loading from config/abac directory
     abac_dir = REPO_ROOT / "config" / "abac"
     if abac_dir.exists():
-        import yaml
-        for yaml_file in sorted(abac_dir.glob("*.yaml")):
-            try:
-                with open(yaml_file) as f:
-                    data = yaml.safe_load(f) or {}
-                policies = data.get("policies", [])
-                if isinstance(policies, list):
-                    for p in policies:
-                        if isinstance(p, dict) and p.get("id"):
-                            _policies.append(PolicyDefinition(
-                                policy_id=p["id"],
-                                name=p.get("name", p["id"]),
-                                description=p.get("description", ""),
-                                effect=p.get("effect", "deny"),
-                                subjects=p.get("subjects", {}),
-                                resources=p.get("resources", {}),
-                                actions=p.get("actions", []),
-                                conditions=p.get("conditions", []),
-                                enabled=p.get("enabled", True),
-                            ))
-            except Exception as exc:
-                logger.debug("Failed to load ABAC policy %s: %s", yaml_file, exc)
+        try:
+            import yaml
+        except ImportError:
+            logger.warning(
+                "PyYAML not installed; skipping ABAC policy loading from %s", abac_dir
+            )
+            yaml = None  # type: ignore[assignment]
+
+        if yaml is not None:
+            for yaml_file in sorted(abac_dir.glob("*.yaml")):
+                try:
+                    with open(yaml_file) as f:
+                        data = yaml.safe_load(f) or {}
+                    policies = data.get("policies", [])
+                    if isinstance(policies, list):
+                        for p in policies:
+                            if isinstance(p, dict) and p.get("id"):
+                                _policies.append(PolicyDefinition(
+                                    policy_id=p["id"],
+                                    name=p.get("name", p["id"]),
+                                    description=p.get("description", ""),
+                                    effect=p.get("effect", "deny"),
+                                    subjects=p.get("subjects", {}),
+                                    resources=p.get("resources", {}),
+                                    actions=p.get("actions", []),
+                                    conditions=p.get("conditions", []),
+                                    enabled=p.get("enabled", True),
+                                ))
+                except Exception as exc:
+                    logger.debug("Failed to load ABAC policy %s: %s", yaml_file, exc)
 
     # Seed defaults if no config found
     if not _policies:
@@ -237,6 +264,19 @@ async def create_or_update_policy(policy: PolicyDefinition) -> PolicyDefinition:
 async def test_policy(request: PolicyTestRequest) -> PolicyTestResult:
     """Actually evaluate policy conditions against the provided context."""
     _load_policies()
+
+    # If the request references a known policy by ID but it doesn't exist and has
+    # no conditions of its own, treat it as a missing policy.
+    existing_ids = {p.policy_id for p in _policies}
+    if (
+        request.policy.policy_id not in existing_ids
+        and not request.policy.conditions
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Policy '{request.policy.policy_id}' not found",
+        )
+
     matched: list[str] = []
     decision = "allow"
 
@@ -258,6 +298,14 @@ async def test_policy(request: PolicyTestRequest) -> PolicyTestResult:
     elif not request.policy.conditions:
         # Unconditional policy
         decision = request.policy.effect
+
+    logger.info(
+        "Policy test: policy_id=%s decision=%s matched=%d/%d",
+        request.policy.policy_id,
+        decision,
+        len(matched),
+        len(request.policy.conditions),
+    )
 
     return PolicyTestResult(
         decision=decision,
