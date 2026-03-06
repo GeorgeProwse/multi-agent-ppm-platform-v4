@@ -73,6 +73,7 @@ ALERTS_STORE_PATH = STORAGE_DIR / "alerts.json"
 MERGE_REVIEW_SEED_PATH = WEB_ROOT / "data" / "merge_review_seed.json"
 CONNECTOR_REGISTRY_PATH = REPO_ROOT / "connectors" / "registry" / "connectors.json"
 METHODOLOGY_DOCS_ROOT = REPO_ROOT / "docs" / "methodology"
+METHODOLOGY_STORAGE_PATH = STORAGE_DIR / "methodologies.json"
 PROMPT_ROOT = REPO_ROOT / "agents" / "runtime" / "prompts"
 DEMAND_PROMPT_PATH = PROMPT_ROOT / "demand-intake-extraction.prompt.yaml"
 PROJECT_PROMPT_PATH = PROMPT_ROOT / "project-intake-extraction.prompt.yaml"
@@ -107,7 +108,8 @@ from demo_integrations import (  # noqa: E402
 from demo_seed import DEMO_TENANT_ID  # noqa: E402
 from document_proxy import DocumentServiceClient  # noqa: E402
 from feature_flags import is_feature_enabled  # noqa: E402
-from methodology_node_runtime import load_methodology_node_runtime_registry  # noqa: E402
+from methodologies import available_methodologies, get_default_methodology_map, get_methodology_map  # noqa: E402
+from methodology_node_runtime import list_runtime_actions_for_node, load_methodology_node_runtime_registry, resolve_runtime  # noqa: E402
 from template_mappings import TemplateMapping, load_template_mappings  # noqa: E402
 from workspace_state import CanvasTab  # noqa: E402
 from intake_store import IntakeStore  # noqa: E402
@@ -117,6 +119,7 @@ from llm_preferences_store import LLMPreferencesStore  # noqa: E402
 from merge_review_store import MergeReviewStore  # noqa: E402
 from model_registry import get_enabled_models  # noqa: E402
 from oidc_client import OIDCClient  # noqa: E402
+from orchestrator import Orchestrator  # noqa: E402
 from orchestrator_proxy import OrchestratorProxyClient  # noqa: E402
 from pipeline_store import PipelineStore  # noqa: E402
 from runtime_flags import demo_mode_enabled  # noqa: E402
