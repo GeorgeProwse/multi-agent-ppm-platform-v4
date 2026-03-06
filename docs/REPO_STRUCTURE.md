@@ -187,8 +187,12 @@ multi-agent-ppm-platform-v4/
 │   │   │   └── src/analytics_insights_agent.py
 │   │   ├── data-synchronisation-agent/
 │   │   │   └── src/data_sync_agent.py
-│   │   └── system-health-agent/
-│   │       └── src/system_health_agent.py
+│   │   ├── system-health-agent/
+│   │   │   └── src/system_health_agent.py
+│   │   └── workflow-engine-lib/
+│   │       ├── Dockerfile
+│   │       └── src/{workflow_engine_agent,engine_infra,engine_utils,
+│   │                workflow_spec,workflow_state_store,workflow_task_queue}.py
 │   │
 │   └── runtime/                             # Agent runtime framework
 │       ├── README.md

@@ -131,7 +131,7 @@ Agents live under `agents/` organized by domain:
 - Scope Definition, Lifecycle Governance, Schedule Planning, Resource Management, Financial Management, Vendor Procurement, Quality Management, Risk Management, Compliance Governance
 
 **Operations Management** (`agents/operations-management/`)
-- Change Control, Release Deployment, Knowledge Management, Continuous Improvement, Stakeholder Communications, Analytics Insights, Data Synchronisation, System Health, Workflow Engine
+- Change Control, Release Deployment, Knowledge Management, Continuous Improvement, Stakeholder Communications, Analytics Insights, Data Synchronisation, System Health
 
 **Runtime** (`agents/runtime/src/`): Shared agent infrastructure — `base_agent.py` (BaseAgent class), `orchestrator.py`, `models.py`, `event_bus.py`, `state_store.py`, `memory_store.py`, `audit.py`, `policy.py`, `agent_catalog.py`
 
