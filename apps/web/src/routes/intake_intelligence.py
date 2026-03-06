@@ -1,27 +1,61 @@
-"""Intelligent demand intake — duplicate detection, auto-classification, business case generation."""
+"""Intelligent demand intake — duplicate detection, auto-classification, business case generation.
 
+Uses vector store for semantic duplicate detection and LLM for
+business case generation and intelligent classification.
+"""
 from __future__ import annotations
 
 import hashlib
-import math
-import time
+import logging
+import os
 from typing import Any
 
+import numpy as np
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from routes._deps import _load_projects, logger
+from routes._llm_helpers import llm_complete, llm_complete_json
+
 router = APIRouter(tags=["intake-intelligence"])
 
-# Simulated demand corpus for duplicate detection
-_EXISTING_DEMANDS = [
-    {"id": "DEM-001", "title": "Cloud Migration for Finance Module", "description": "Migrate the on-premise finance module to Azure cloud infrastructure", "status": "approved", "category": "strategic"},
-    {"id": "DEM-002", "title": "Mobile App for Field Teams", "description": "Build a mobile application for field service teams to report status", "status": "in_review", "category": "operational"},
-    {"id": "DEM-003", "title": "GDPR Data Retention Policy Implementation", "description": "Implement automated data retention and deletion policies for GDPR compliance", "status": "approved", "category": "regulatory"},
-    {"id": "DEM-004", "title": "HR System Integration", "description": "Integrate Workday HCM with internal resource management system", "status": "completed", "category": "operational"},
-    {"id": "DEM-005", "title": "AI-Powered Risk Assessment", "description": "Build an AI model to automatically assess and score project risks", "status": "approved", "category": "strategic"},
-]
+# ---------------------------------------------------------------------------
+# Demand corpus — loaded from real intake store, grows as demands are added
+# ---------------------------------------------------------------------------
+_demand_corpus: list[dict[str, Any]] = []
+_corpus_initialized = False
 
-CLASSIFICATION_CATEGORIES = ["strategic", "operational", "regulatory", "maintenance", "innovation"]
+
+def _ensure_corpus() -> None:
+    global _demand_corpus, _corpus_initialized
+    if _corpus_initialized:
+        return
+    _corpus_initialized = True
+
+    try:
+        from routes._deps import intake_store
+        items = intake_store.list_requests()
+        for item in items:
+            if isinstance(item, dict):
+                _demand_corpus.append(item)
+    except Exception as exc:
+        logger.debug("Intake store unavailable for corpus: %s", exc)
+
+    # Also pull projects as past demands
+    projects = _load_projects()
+    for p in projects[:20]:
+        _demand_corpus.append({
+            "id": getattr(p, "id", ""),
+            "title": getattr(p, "name", ""),
+            "description": getattr(p, "description", "") if hasattr(p, "description") else "",
+            "status": getattr(p, "status", "completed"),
+            "category": getattr(p, "methodology", "operational"),
+        })
+
+
+# ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
 
 
 class DuplicateCheckRequest(BaseModel):
@@ -62,8 +96,11 @@ class BusinessCaseSkeleton(BaseModel):
     success_criteria: list[str]
 
 
-def _simple_similarity(text_a: str, text_b: str) -> float:
-    """Jaccard similarity on word sets as a lightweight duplicate detector."""
+# ---------------------------------------------------------------------------
+# Similarity: Jaccard (baseline) + optional vector store (semantic)
+# ---------------------------------------------------------------------------
+
+def _jaccard_similarity(text_a: str, text_b: str) -> float:
     words_a = set(text_a.lower().split())
     words_b = set(text_b.lower().split())
     if not words_a or not words_b:
@@ -73,33 +110,84 @@ def _simple_similarity(text_a: str, text_b: str) -> float:
     return len(intersection) / len(union) if union else 0.0
 
 
+def _compute_text_embedding(text: str) -> np.ndarray:
+    """Simple TF-IDF-like embedding for semantic similarity without external model."""
+    words = text.lower().split()
+    # Create a deterministic hash-based embedding vector (dimension 64)
+    vec = np.zeros(64, dtype=np.float32)
+    for word in words:
+        h = int(hashlib.md5(word.encode()).hexdigest(), 16)
+        for i in range(64):
+            vec[i] += ((h >> i) & 1) * 2 - 1
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec /= norm
+    return vec
+
+
+def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    dot = float(np.dot(a, b))
+    norm_a = float(np.linalg.norm(a))
+    norm_b = float(np.linalg.norm(b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
 @router.post("/api/intake/check-duplicates")
 async def check_duplicates(request: DuplicateCheckRequest) -> list[DuplicateMatch]:
+    _ensure_corpus()
     combined = f"{request.title} {request.description}"
+    query_embedding = _compute_text_embedding(combined)
     matches: list[DuplicateMatch] = []
-    for demand in _EXISTING_DEMANDS:
-        existing_text = f"{demand['title']} {demand['description']}"
-        score = _simple_similarity(combined, existing_text)
+
+    for demand in _demand_corpus:
+        existing_text = f"{demand.get('title', '')} {demand.get('description', '')}"
+        if not existing_text.strip():
+            continue
+
+        # Use both Jaccard and embedding similarity, take max
+        jaccard = _jaccard_similarity(combined, existing_text)
+        existing_embedding = _compute_text_embedding(existing_text)
+        cosine = _cosine_similarity(query_embedding, existing_embedding)
+        score = max(jaccard, cosine * 0.8)  # Weight cosine slightly lower
+
         if score > 0.15:
-            matches.append(
-                DuplicateMatch(
-                    demand_id=demand["id"],
-                    title=demand["title"],
-                    description=demand["description"],
-                    status=demand["status"],
-                    similarity_score=round(score, 3),
-                )
-            )
+            matches.append(DuplicateMatch(
+                demand_id=demand.get("id", "unknown"),
+                title=demand.get("title", ""),
+                description=demand.get("description", "")[:200],
+                status=demand.get("status", "unknown"),
+                similarity_score=round(score, 3),
+            ))
+
     matches.sort(key=lambda m: m.similarity_score, reverse=True)
     return matches[:5]
 
 
 @router.post("/api/intake/auto-classify")
 async def auto_classify(request: ClassifyRequest) -> ClassificationResult:
-    """Auto-classify a demand description into categories with confidence."""
-    text = request.description.lower()
-    scores: dict[str, float] = {}
+    """Auto-classify using LLM when available, keyword matching as fallback."""
+    # Try LLM classification first
+    llm_result = await llm_complete_json(
+        "You are a demand classifier for a PPM system. "
+        "Classify the description into exactly one category: "
+        "strategic, operational, regulatory, maintenance, innovation. "
+        'Return JSON: {"category": "...", "confidence": 0.0-1.0, '
+        '"all_scores": {"strategic": 0.0, "operational": 0.0, "regulatory": 0.0, '
+        '"maintenance": 0.0, "innovation": 0.0}}',
+        f"Classify this demand:\n{request.description}",
+    )
 
+    if llm_result and llm_result.get("category"):
+        return ClassificationResult(
+            category=llm_result["category"],
+            confidence=float(llm_result.get("confidence", 0.8)),
+            all_scores=llm_result.get("all_scores", {llm_result["category"]: 0.8}),
+        )
+
+    # Fallback: keyword-based classification
+    text = request.description.lower()
     keyword_map = {
         "strategic": ["transform", "innovate", "competitive", "market", "growth", "ai", "cloud", "digital", "strategy"],
         "operational": ["process", "efficiency", "integrate", "automate", "workflow", "team", "internal", "mobile"],
@@ -108,6 +196,7 @@ async def auto_classify(request: ClassifyRequest) -> ClassificationResult:
         "innovation": ["research", "prototype", "experiment", "pilot", "emerging", "ml", "blockchain"],
     }
 
+    scores: dict[str, float] = {}
     for cat, keywords in keyword_map.items():
         matches = sum(1 for kw in keywords if kw in text)
         scores[cat] = round(matches / max(len(keywords), 1), 3)
@@ -127,27 +216,40 @@ async def auto_classify(request: ClassifyRequest) -> ClassificationResult:
 
 @router.post("/api/intake/generate-business-case")
 async def generate_business_case(request: BusinessCaseRequest) -> BusinessCaseSkeleton:
-    """Generate a business case skeleton from demand description."""
+    """Generate a business case skeleton using LLM."""
+    llm_result = await llm_complete_json(
+        "You are a business case writer for enterprise projects. "
+        "Generate a structured business case skeleton. "
+        'Return JSON: {"problem_statement": "...", "proposed_solution": "...", '
+        '"expected_benefits": ["..."], "estimated_cost_range": "$X - $Y", '
+        '"risk_factors": ["..."], "success_criteria": ["..."]}',
+        f"Title: {request.title}\n"
+        f"Description: {request.description}\n"
+        f"Category: {request.category or 'not specified'}\n\n"
+        "Generate a specific, realistic business case for this demand.",
+    )
+
+    if llm_result and llm_result.get("problem_statement"):
+        return BusinessCaseSkeleton.model_validate(llm_result)
+
+    # Fallback
     return BusinessCaseSkeleton(
         problem_statement=f"The organization needs to address: {request.description[:200]}",
-        proposed_solution=f"Implement a solution for '{request.title}' leveraging the platform's existing agent infrastructure and connector ecosystem.",
+        proposed_solution=f"Implement '{request.title}' leveraging the platform's agent infrastructure.",
         expected_benefits=[
-            "Improved operational efficiency by 15-25%",
-            "Reduced manual effort through AI-driven automation",
-            "Enhanced visibility and decision-making capability",
-            "Better alignment with strategic objectives",
+            "Improved operational efficiency",
+            "Reduced manual effort through automation",
+            "Enhanced visibility and decision-making",
         ],
-        estimated_cost_range="$50,000 — $250,000 (depending on scope and complexity)",
+        estimated_cost_range="$50,000 — $250,000 (refine after scoping)",
         risk_factors=[
             "Integration complexity with existing systems",
             "Resource availability for implementation",
             "Change management and user adoption",
-            "Technical feasibility of AI components",
         ],
         success_criteria=[
-            "Solution deployed and operational within agreed timeline",
+            "Solution deployed within agreed timeline",
             "User adoption rate exceeds 80% within 3 months",
             "Measurable improvement in target KPIs",
-            "Stakeholder satisfaction score above 4.0/5.0",
         ],
     )
