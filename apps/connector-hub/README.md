@@ -9,12 +9,12 @@ The Connector Hub is a FastAPI application that provides a centralized managemen
 
 ## What's inside
 
-- [helm](/integrations/apps/connector-hub/helm): Helm chart packaging for Kubernetes deployments.
-- [registry](/integrations/apps/connector-hub/registry): Registry assets and indexes.
-- [sandbox](/integrations/apps/connector-hub/sandbox): Sandbox assets for local or demo use.
-- [src](/integrations/apps/connector-hub/src): Implementation source for this component.
-- [tests](/integrations/apps/connector-hub/tests): Test suites and fixtures.
-- [Dockerfile](/integrations/apps/connector-hub/Dockerfile): Container build recipe for local or CI use.
+- [helm](/apps/connector-hub/helm): Helm chart packaging for Kubernetes deployments.
+- [registry](/apps/connector-hub/registry): Registry assets and indexes.
+- [sandbox](/apps/connector-hub/sandbox): Sandbox assets for local or demo use.
+- [src](/apps/connector-hub/src): Implementation source for this component.
+- [tests](/apps/connector-hub/tests): Test suites and fixtures.
+- [Dockerfile](/apps/connector-hub/Dockerfile): Container build recipe for local or CI use.
 
 ## How it's used
 

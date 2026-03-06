@@ -163,7 +163,7 @@ Then open `http://localhost:8501/app/projects/demo-1` and select the Dashboard t
 To exercise the Connector Gallery in the SPA workspace, run connector-hub alongside the web app:
 
 ```bash
-cd integrations/apps/connector-hub
+cd apps/connector-hub
 uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 

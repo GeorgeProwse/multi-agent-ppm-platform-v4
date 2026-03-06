@@ -18,7 +18,7 @@ Catalog the user-facing applications and their deployment assets.
 | [web/](./web/) | Web console (React SPA frontend with Streamlit fallback) |
 | [workflow-service/](./workflow-service/) | Workflow persistence and execution engine |
 
-Connector Hub now lives under [`integrations/apps/connector-hub/`](../integrations/apps/connector-hub/).
+| [connector-hub/](./connector-hub/) | Connector management interface and sync orchestration |
 
 ## How it's used
 

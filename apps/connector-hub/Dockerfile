@@ -13,11 +13,11 @@ COPY --from=repo-root tools ./tools
 COPY --from=repo-root config ./config
 COPY --from=repo-root packages ./packages
 COPY --from=repo-root agents ./agents
-COPY . /app/integrations/apps/connector-hub
+COPY . /app/apps/connector-hub
 
 
 RUN groupadd --gid 10001 appuser && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser && chown -R 10001:10001 /app
 
 USER appuser
 
-CMD ["python", "-m", "tools.component_runner", "--component-type", "app", "--component-name", "connector-hub", "--component-root", "/app/integrations/apps/connector-hub"]
+CMD ["python", "-m", "tools.component_runner", "--component-type", "app", "--component-name", "connector-hub", "--component-root", "/app/apps/connector-hub"]

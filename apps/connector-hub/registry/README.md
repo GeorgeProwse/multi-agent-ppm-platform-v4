@@ -17,7 +17,7 @@ These assets are consumed by the parent app during build, runtime, or deployment
 Validate assets by listing files or running the parent app locally.
 
 ```bash
-ls integrations/apps/connector-hub/registry
+ls apps/connector-hub/registry
 ```
 
 ## Configuration

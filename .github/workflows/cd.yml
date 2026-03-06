@@ -85,7 +85,7 @@ jobs:
           - service: analytics-service
             chart: apps/analytics-service/helm
           - service: connector-hub
-            chart: integrations/apps/connector-hub/helm
+            chart: apps/connector-hub/helm
           - service: document-service
             chart: apps/document-service/helm
           - service: orchestration-service
@@ -193,7 +193,7 @@ jobs:
           - service: analytics-service
             chart: apps/analytics-service/helm
           - service: connector-hub
-            chart: integrations/apps/connector-hub/helm
+            chart: apps/connector-hub/helm
           - service: document-service
             chart: apps/document-service/helm
           - service: orchestration-service

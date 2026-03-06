@@ -704,7 +704,7 @@ jobs:
             context: apps/analytics-service
           - service: connector-hub
             dockerfile: Dockerfile
-            context: integrations/apps/connector-hub
+            context: apps/connector-hub
           - service: document-service
             dockerfile: Dockerfile
             context: apps/document-service
