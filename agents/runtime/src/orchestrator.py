@@ -25,6 +25,11 @@ from agents.runtime.src.audit import build_audit_event, emit_audit_event  # noqa
 from agents.runtime.src.base_agent import BaseAgent  # noqa: E402
 from agents.runtime.src.data_service import DataServiceClient  # noqa: E402
 from agents.runtime.src.event_bus import EventBus, get_event_bus, publish_insight  # noqa: E402
+from agents.runtime.src.execution_events import (  # noqa: E402
+    ExecutionEvent,
+    ExecutionEventEmitter,
+    ExecutionEventType,
+)
 from agents.runtime.src.models import AgentRun, AgentRunStatus  # noqa: E402
 from agents.runtime.src.notification_service import NotificationServiceClient  # noqa: E402
 from packages.memory_client import MemoryClient  # noqa: E402
@@ -147,12 +152,22 @@ class Orchestrator:
         *,
         context: dict[str, Any] | None = None,
         memory_key: str | None = None,
+        event_emitter: ExecutionEventEmitter | None = None,
     ) -> OrchestrationResult:
         if not tasks:
             return OrchestrationResult(results={}, context=context or {}, metrics={})
 
         task_lookup = {task.task_id: task for task in tasks}
         self._validate_tasks(task_lookup)
+        if event_emitter is not None:
+            asyncio.ensure_future(
+                event_emitter.emit(
+                    ExecutionEvent(
+                        event_type=ExecutionEventType.orchestration_started,
+                        data={"total_tasks": len(tasks)},
+                    )
+                )
+            )
         request_context = dict(context or {})
         correlation_id = request_context.get("correlation_id") or memory_key or str(uuid.uuid4())
         request_context["correlation_id"] = correlation_id
@@ -180,6 +195,7 @@ class Orchestrator:
                     results,
                     resolved_memory_key,
                     semaphore,
+                    event_emitter=event_emitter,
                 )
             )
             running[running_task] = task_id
@@ -207,6 +223,14 @@ class Orchestrator:
             "total_tasks": len(tasks),
             "cost_summary": cost_summary,
         }
+        if event_emitter is not None:
+            await event_emitter.emit(
+                ExecutionEvent(
+                    event_type=ExecutionEventType.orchestration_completed,
+                    data={"total_tasks": len(tasks), "cost_summary": cost_summary},
+                )
+            )
+            await event_emitter.complete()
         return OrchestrationResult(results=results, context=shared_context, metrics=metrics)
 
     async def run_template_workflow(
@@ -347,6 +371,8 @@ class Orchestrator:
         results: dict[str, dict[str, Any]],
         memory_key: str,
         semaphore: asyncio.Semaphore,
+        *,
+        event_emitter: ExecutionEventEmitter | None = None,
     ) -> tuple[str, dict[str, Any]]:
         async with semaphore:
             agent_run = await self._initialize_agent_run(task, shared_context)
@@ -374,6 +400,15 @@ class Orchestrator:
                     "correlation_id": memory_key,
                 },
             )
+            if event_emitter is not None:
+                await event_emitter.emit(
+                    ExecutionEvent(
+                        event_type=ExecutionEventType.agent_started,
+                        task_id=task.task_id,
+                        agent_id=task.agent.agent_id,
+                        catalog_id=getattr(task.agent, "catalog_id", task.agent.agent_id),
+                    )
+                )
             try:
                 result_payload = await self._execute_with_retries(task, input_data)
                 result_payload = await self._gate_actions_with_human_review(
@@ -404,6 +439,19 @@ class Orchestrator:
                         "correlation_id": memory_key,
                     },
                 )
+                if event_emitter is not None:
+                    await event_emitter.emit(
+                        ExecutionEvent(
+                            event_type=ExecutionEventType.agent_completed,
+                            task_id=task.task_id,
+                            agent_id=task.agent.agent_id,
+                            catalog_id=getattr(task.agent, "catalog_id", task.agent.agent_id),
+                            confidence_score=result_payload.get("confidence_score"),
+                            data={
+                                "success": result_payload.get("success", False),
+                            },
+                        )
+                    )
                 self._execution_metrics.duration_seconds.record(
                     time.perf_counter() - started_at,
                     {
@@ -452,6 +500,16 @@ class Orchestrator:
                     "orchestrator.task.failed",
                     {"task_id": task.task_id, "error": str(exc), "correlation_id": memory_key},
                 )
+                if event_emitter is not None:
+                    await event_emitter.emit(
+                        ExecutionEvent(
+                            event_type=ExecutionEventType.agent_error,
+                            task_id=task.task_id,
+                            agent_id=task.agent.agent_id,
+                            catalog_id=getattr(task.agent, "catalog_id", task.agent.agent_id),
+                            data={"error": str(exc)},
+                        )
+                    )
                 self._execution_metrics.duration_seconds.record(
                     time.perf_counter() - started_at,
                     {

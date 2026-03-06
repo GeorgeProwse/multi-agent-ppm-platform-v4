@@ -76,6 +76,8 @@ class AgentResponse(BaseModel):
     error: str | None = None
     metadata: AgentResponseMetadata
     request_feedback: bool = False
+    confidence_score: float | None = None
+    intermediate_outputs: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AgentValidationError(BaseModel):

@@ -1,0 +1,21 @@
+.page { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.header { margin-bottom: 24px; }
+.header h1 { font-size: 24px; font-weight: 700; }
+.layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+.configPanel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e0e0e0); border-radius: 12px; padding: 20px; height: fit-content; }
+.configSection { margin-bottom: 20px; }
+.configSection > label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-secondary, #666); }
+.configSection select { width: 100%; padding: 8px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; font-size: 13px; }
+.radioGroup, .checkboxGroup { display: flex; flex-direction: column; gap: 6px; }
+.radioLabel, .checkboxLabel { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.generateBtn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--color-primary, #3b82f6); color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+.generateBtn:hover { opacity: 0.9; }
+.generateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.previewPanel { background: var(--color-surface, #fff); border: 1px solid var(--color-border, #e0e0e0); border-radius: 12px; padding: 24px; min-height: 500px; }
+.previewHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--color-border, #e0e0e0); padding-bottom: 16px; }
+.previewHeader h2 { font-size: 18px; font-weight: 600; }
+.previewActions { display: flex; gap: 8px; }
+.previewActions button { padding: 6px 14px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; background: var(--color-surface, #fff); cursor: pointer; font-size: 12px; }
+.previewContent { font-size: 14px; line-height: 1.6; }
+.previewContent pre { white-space: pre-wrap; font-family: inherit; }
+.emptyState { display: flex; align-items: center; justify-content: center; min-height: 400px; color: var(--color-text-tertiary, #999); text-align: center; }

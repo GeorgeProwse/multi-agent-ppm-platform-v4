@@ -1,0 +1,25 @@
+.editor { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--color-text-secondary, #666); }
+.field input[type="text"], .field select { padding: 8px 12px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; font-size: 13px; }
+.toggleGroup { display: flex; gap: 0; }
+.toggleBtn { padding: 6px 16px; border: 1px solid var(--color-border, #e0e0e0); background: var(--color-surface, #fff); cursor: pointer; font-size: 13px; }
+.toggleBtn:first-child { border-radius: 6px 0 0 6px; }
+.toggleBtn:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+.toggleActive { background: var(--color-primary, #3b82f6); color: white; border-color: var(--color-primary, #3b82f6); }
+.checkboxRow { display: flex; gap: 16px; }
+.checkLabel { display: flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; text-transform: capitalize; }
+.conditionRow { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; margin-bottom: 8px; }
+.conditionRow select { padding: 6px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; font-size: 12px; }
+.removeBtn { width: 28px; height: 28px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; background: var(--color-surface, #fff); cursor: pointer; color: #ef4444; align-self: center; }
+.addBtn { padding: 6px 12px; border: 1px dashed var(--color-border, #e0e0e0); border-radius: 6px; background: none; cursor: pointer; font-size: 12px; color: var(--color-primary, #3b82f6); }
+.actionBar { display: flex; gap: 12px; }
+.testBtn { padding: 8px 16px; border: 1px solid var(--color-border, #e0e0e0); border-radius: 6px; background: var(--color-surface, #fff); cursor: pointer; font-size: 13px; }
+.saveBtn { padding: 8px 16px; border: none; border-radius: 6px; background: var(--color-primary, #3b82f6); color: white; font-weight: 600; cursor: pointer; }
+.saveBtn:disabled { opacity: 0.5; }
+.testResult { padding: 12px; background: var(--color-surface-secondary, #f5f5f5); border-radius: 8px; font-size: 13px; }
+.testResult p { margin: 4px 0 0; color: var(--color-text-secondary, #666); }
+.preview { background: var(--color-surface-secondary, #f5f5f5); border-radius: 8px; padding: 16px; }
+.preview h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+.preview pre { font-size: 12px; white-space: pre-wrap; color: var(--color-text-primary, #1a1a1a); }

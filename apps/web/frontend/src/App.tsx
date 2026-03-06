@@ -38,6 +38,14 @@ const EnterpriseUpliftPage = React.lazy(() => import('./pages/EnterpriseUpliftPa
 const AgentProfilePage = React.lazy(() => import('./pages/AgentProfilePage'));
 const AppLayout = React.lazy(() => import('./components/layout/AppLayout').then((module) => ({ default: module.AppLayout })));
 
+// Enhancement pages
+const PredictiveDashboardPage = React.lazy(() => import('./pages/PredictiveDashboardPage'));
+const ConnectorHealthDashboardPage = React.lazy(() => import('./pages/ConnectorHealthDashboardPage'));
+const ExecutiveBriefingPage = React.lazy(() => import('./pages/ExecutiveBriefingPage'));
+const ProjectSetupWizardPage = React.lazy(() => import('./pages/ProjectSetupWizardPage'));
+const SecurityPostureDashboardPage = React.lazy(() => import('./pages/SecurityPostureDashboardPage'));
+const KnowledgeGraphPage = React.lazy(() => import('./pages/KnowledgeGraphPage'));
+
 function isDemoModeEnabled(): boolean {
   const env = import.meta.env as Record<string, unknown>;
   const value = env.DEMO_MODE ?? env.VITE_DEMO_MODE;
@@ -142,6 +150,12 @@ function AppRoutes() {
               <Route path="/app/admin/roles/assignments" element={<RoleManager view="assignments" />} />
             </Route>
             <Route path="/analytics/dashboard" element={<AnalyticsDashboard />} />
+            <Route path="/analytics/predictive" element={<PredictiveDashboardPage />} />
+            <Route path="/analytics/briefings" element={<ExecutiveBriefingPage />} />
+            <Route path="/connectors/health" element={<ConnectorHealthDashboardPage />} />
+            <Route path="/projects/new" element={<ProjectSetupWizardPage />} />
+            <Route path="/knowledge/graph" element={<KnowledgeGraphPage />} />
+            <Route path="/admin/security" element={<SecurityPostureDashboardPage />} />
             <Route path="/projects/:projectId/performance-dashboard" element={<PerformanceDashboardPage />} />
             <Route path="/demo-run" element={<DemoRunPage />} />
             <Route path="/enterprise-uplift" element={<EnterpriseUpliftPage />} />
