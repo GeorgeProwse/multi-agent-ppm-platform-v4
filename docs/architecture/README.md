@@ -149,7 +149,7 @@ sed -n '1,200p' docs/architecture/diagrams/c4-component.puml
 Check that this document references the agent catalog:
 
 ```bash
-rg -n "Agent Catalog" docs/architecture/logical-architecture.md
+rg -n "Agent Catalog" docs/architecture/README.md
 ```
 
 Expected output: a reference to `agents/AGENT_CATALOG.md`.
@@ -955,10 +955,10 @@ Mitigations include secret rotation, tenant isolation, policy guardrails, and au
 To confirm compliance documents are present, run:
 
 ```bash
-ls docs/compliance
+ls docs/compliance.md
 ```
 
-Expected output includes `retention-policy.md` and `threat-model.md`.
+Expected output: the consolidated compliance document containing retention policy, threat model, DPIA, and controls mapping sections.
 
 To inspect the audit event schema:
 
