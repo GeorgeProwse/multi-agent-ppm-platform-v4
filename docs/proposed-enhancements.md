@@ -166,24 +166,57 @@
 
 ---
 
-## 9. End-to-End Intake-to-Project Automation with Approval Routing
+## 9. End-to-End Intake-to-Project Automation with Guided Setup
 
-**Problem:** Known Gap #2 in `docs/UI.md`: the intake creation flow routes to a status page, but the SPA does not automatically route users to a newly created project workspace when approval completes. The Demand Intake agent classifies and validates requests, and the Approval Workflow agent manages gates, but the handoff between "approved demand" and "active project workspace" is a manual step.
+**Problem:** Known Gap #2 in `docs/UI.md`: the intake creation flow routes to a status page, but the SPA does not automatically route users to a newly created project workspace when approval completes. The Demand Intake agent classifies and validates requests, and the Approval Workflow agent manages gates, but the handoff between "approved demand" and "active project" is a manual step.
 
-**Enhancement:** Close the full intake-to-project lifecycle:
-- After intake approval, automatically trigger the Workspace Setup agent to create a fully configured project workspace with the recommended methodology, connector integrations, and initial artefacts (charter, risk register, stakeholder map).
-- Route the project creator and sponsor to the new workspace via real-time notification (WebSocket channel already exists via `useRealtimeConsole`).
-- Pre-populate the workspace with data from the intake form and business case analysis.
-- Generate an AI-drafted project charter using context from the demand, business case, and organisational templates.
-- Track the full journey in the audit trail for governance.
+**Enhancement:** Close the intake-to-project lifecycle with a two-phase approach:
+
+### Phase 1 — Automatic project instance creation (on intake approval)
+
+When an intake request is approved, the platform automatically:
+- Creates a canonical project entity in the Data Service, pre-populated with metadata from the intake form and business case (name, sponsor, category, budget envelope, target dates, regulatory category).
+- Sets the project status to `initiated`.
+- Sends a real-time notification (via the existing WebSocket channel in `useRealtimeConsole`) deep-linking the creator and sponsor to the new project's setup wizard.
+- Records the intake-to-project transition in the audit trail for governance traceability.
+
+The project instance exists immediately so nothing falls through the cracks after approval, but it is not yet configured — that is a deliberate user-driven step.
+
+### Phase 2 — User-driven project setup (via the setup wizard)
+
+The user lands on the `ProjectSetupWizardPage` and completes configuration:
+
+1. **Select methodology** — choose from the three organisationally tailored methodologies (predictive, adaptive, or hybrid). These are customised once during platform deployment by the customer's PMO admin using the `MethodologyEditor`, so every project uses an approved organisational standard rather than a generic default.
+2. **Toggle connectors** — browse the connector registry by category (PM, ERP, GRC, HR, Collaboration, etc.) and enable the specific connectors relevant to this project (e.g. Jira from PM, SAP from ERP, Slack from Collaboration).
+3. **Assign team members and roles** — specify the PM, team members, and stakeholders with their project-level RBAC roles.
+
+### Phase 3 — Automated workspace scaffolding (on setup confirmation)
+
+Once the user confirms their choices, the Workspace Setup agent executes:
+- **Scaffold the methodology map** — instantiate the selected organisational methodology's activity tree with the correct phases, stages, gates, and templates.
+- **Provision toggled connectors** — create sync jobs in the Data Sync Service and authenticate against the external systems the user selected.
+- **Configure RBAC** — apply project-level role assignments and field-level access rules from `config/rbac/field-level.yaml` for the assigned team members.
+- **Activate real-time channels** — register the project's WebSocket channels in the Realtime Co-edit Service for collaborative editing.
+
+Artefacts such as the project charter, risk register, and stakeholder map remain user-initiated — the PM creates them when ready, optionally using the AI assistant for drafting help.
+
+### Methodology tailoring (platform deployment, not per-project)
+
+During initial platform deployment, the customer's PMO admin customises the three default methodology templates to match organisational standards:
+- Rename, add, or remove phases and stages.
+- Adjust stage gate criteria and prerequisite dependencies.
+- Reorder activities and modify approval requirements.
+
+These tailored methodologies become the tenant-level definitions stored in the Data Service. The existing `MethodologyEditor` page serves this purpose as an admin tool. All projects then select from these three organisationally approved options — ensuring governance consistency without per-project methodology sprawl.
 
 **Key files to extend:**
-- `agents/core-orchestration/approval-workflow-agent/` — add post-approval automation hook
-- `agents/core-orchestration/workspace-setup-agent/` — add intake-data-driven setup
+- `agents/core-orchestration/approval-workflow-agent/` — add post-approval project creation hook
+- `agents/core-orchestration/workspace-setup-agent/` — add user-configuration-driven setup
 - `apps/web/frontend/src/pages/IntakeFormPage.tsx` — add redirect on approval event
-- `agents/delivery-management/scope-definition-agent/` — add charter auto-generation
+- `apps/web/frontend/src/pages/ProjectSetupWizardPage.tsx` — embed methodology selection and connector toggle UI
+- `services/data-service/src/` — persist tenant-level methodology definitions
 
-**Customer appeal:** Reduces project setup time from days to minutes. Demonstrates the platform's end-to-end orchestration capability in a way that is immediately visible and impressive during sales demos. Addresses the "rapid time-to-value" differentiator.
+**Customer appeal:** Reduces project setup time from days to minutes while keeping the PM in control of configuration decisions. The separation of methodology tailoring (deployment-time) from project setup (user-time) ensures governance consistency across the organisation. Demonstrates the platform's end-to-end orchestration capability in a way that is immediately visible and impressive during sales demos.
 
 ---
 
