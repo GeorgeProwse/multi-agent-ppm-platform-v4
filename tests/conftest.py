@@ -79,13 +79,13 @@ def _bootstrap_paths() -> None:
 
     agents_path = root / "agents"
     if agents_path.exists():
-        src_paths.extend(path for path in agents_path.glob("**/src") if path.is_dir())
+        src_paths.extend(path for path in sorted(agents_path.glob("**/src")) if path.is_dir())
 
     runtime_src = agents_path / "runtime" / "src"
     if runtime_src.exists():
         src_paths.append(runtime_src)
 
-    api_gateway_src = root / "apps" / "api-gateway" / "src"
+    api_gateway_src = root / "services" / "api-gateway" / "src"
     # web/src must come BEFORE orchestration-service/src to avoid 'config.py' namespace collision:
     # both have a top-level 'config.py' and whichever appears first in sys.path wins for
     # `from config import ...` imports.
@@ -122,12 +122,12 @@ def _bootstrap_paths() -> None:
 
 def _assert_api_import_bootstrapped() -> None:
     expected = (
-        Path(__file__).resolve().parents[1] / "apps" / "api-gateway" / "src" / "api"
+        Path(__file__).resolve().parents[1] / "services" / "api-gateway" / "src" / "api"
     ).resolve()
     api_module = importlib.import_module("api")
     module_path = Path(getattr(api_module, "__file__", "")).resolve()
     assert module_path == expected / "__init__.py", (
-        "Expected `import api` to resolve to apps/api-gateway/src/api/__init__.py, "
+        "Expected `import api` to resolve to services/api-gateway/src/api/__init__.py, "
         f"got {module_path}"
     )
 
@@ -202,17 +202,13 @@ def pytest_ignore_collect(collection_path: Path, config):
         "ENABLE_WEB_E2E_TESTS"
     ):
         return True
-    if path_str.endswith("tests/e2e/test_web_login.py") and not os.getenv(
-        "ENABLE_WEB_E2E_TESTS"
-    ):
+    if path_str.endswith("tests/e2e/test_web_login.py") and not os.getenv("ENABLE_WEB_E2E_TESTS"):
         return True
     if path_str.endswith("tests/e2e/test_connector_webhooks.py") and not os.getenv(
         "ENABLE_WEB_E2E_TESTS"
     ):
         return True
-    if path_str.endswith(
-        "tests/integration/test_data_service_clients.py"
-    ):
+    if path_str.endswith("tests/integration/test_data_service_clients.py"):
         # This test does heavy sys.path/sys.modules manipulation at module
         # level that conflicts with the vendor stubs; skip during collection
         # when run outside dedicated integration mode.

@@ -10,7 +10,7 @@ def _read(path: str) -> str:
 
 
 def test_orchestrator_emits_standard_business_metrics() -> None:
-    source = _read("apps/orchestration-service/src/orchestrator.py")
+    source = _read("services/orchestration-service/src/orchestrator.py")
     assert (
         "build_business_workflow_metrics" in source
         and "orchestration-service" in source
@@ -23,7 +23,7 @@ def test_orchestrator_emits_standard_business_metrics() -> None:
 
 
 def test_workflow_service_emits_standard_business_metrics() -> None:
-    source = _read("apps/workflow-service/src/workflow_runtime.py")
+    source = _read("services/workflow-service/src/workflow_runtime.py")
     assert (
         "build_business_workflow_metrics" in source
         and "workflow-service" in source
@@ -36,9 +36,7 @@ def test_workflow_service_emits_standard_business_metrics() -> None:
 
 
 def test_connector_sync_emits_standard_business_metrics() -> None:
-    source = _read(
-        "agents/operations-management/data-synchronisation-agent/src/data_sync_agent.py"
-    )
+    source = _read("agents/operations-management/data-synchronisation-agent/src/data_sync_agent.py")
     assert (
         "build_business_workflow_metrics" in source
         and "data-sync-agent" in source
